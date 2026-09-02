@@ -6,7 +6,12 @@ import {
   LayoutDashboard,
   Truck,
   Users,
+  CalendarCheck,
+  Receipt,
   FileText,
+  ClipboardList,
+  ReceiptText,
+  CreditCard,
   Navigation,
   DollarSign,
   TrendingUp,
@@ -16,7 +21,8 @@ import {
   Bell,
   Settings,
   Sun,
-  Moon
+  Moon,
+  Fuel
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -25,7 +31,19 @@ interface SidebarProps {
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onCloseMobile }) => {
-  const { activePage, setActivePage, complianceStats } = useFleet();
+  const {
+    activePage,
+    setActivePage,
+    complianceStats,
+    vehicleSubTab,
+    setVehicleSubTab,
+    driverSubTab,
+    setDriverSubTab,
+    departmentSubTab,
+    setDepartmentSubTab,
+    expenseSubTab,
+    setExpenseSubTab
+  } = useFleet();
   const { theme, setTheme } = useTheme();
 
   const totalAlerts = complianceStats.expiringSoonCount + complianceStats.expiredCount;
@@ -59,19 +77,40 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onCloseMobile }) => {
         <div className="nav-group">
           <div className="nav-label">Vehicles</div>
           <div
-            className={`nav-item ${activePage === 'vehicles' ? 'active' : ''}`}
-            onClick={() => handleNavClick('vehicles')}
+            className={`nav-item ${activePage === 'vehicles' && vehicleSubTab === 'all' ? 'active' : ''}`}
+            onClick={() => {
+              setVehicleSubTab('all');
+              handleNavClick('vehicles');
+            }}
           >
             <Truck />
             All vehicles
           </div>
-          <div className="nav-item" onClick={() => handleNavClick('vehicles')}>
+          <div
+            className={`nav-item ${activePage === 'vehicles' && vehicleSubTab === 'department' ? 'active' : ''}`}
+            onClick={() => {
+              setVehicleSubTab('department');
+              handleNavClick('vehicles');
+            }}
+          >
             Department vehicles
           </div>
-          <div className="nav-item" onClick={() => handleNavClick('vehicles')}>
+          <div
+            className={`nav-item ${activePage === 'vehicles' && vehicleSubTab === 'trip' ? 'active' : ''}`}
+            onClick={() => {
+              setVehicleSubTab('trip');
+              handleNavClick('vehicles');
+            }}
+          >
             Trip vehicles
           </div>
-          <div className="nav-item" onClick={() => handleNavClick('vehicles')}>
+          <div
+            className={`nav-item ${activePage === 'vehicles' && vehicleSubTab === 'tracking' ? 'active' : ''}`}
+            onClick={() => {
+              setVehicleSubTab('tracking');
+              handleNavClick('vehicles');
+            }}
+          >
             Live tracking
           </div>
         </div>
@@ -79,16 +118,33 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onCloseMobile }) => {
         <div className="nav-group">
           <div className="nav-label">Drivers</div>
           <div
-            className={`nav-item ${activePage === 'drivers' ? 'active' : ''}`}
-            onClick={() => handleNavClick('drivers')}
+            className={`nav-item ${activePage === 'drivers' && driverSubTab === 'list' ? 'active' : ''}`}
+            onClick={() => {
+              setDriverSubTab('list');
+              handleNavClick('drivers');
+            }}
           >
             <Users />
             Driver list
           </div>
-          <div className="nav-item" onClick={() => handleNavClick('drivers')}>
+          <div
+            className={`nav-item ${activePage === 'drivers' && driverSubTab === 'attendance' ? 'active' : ''}`}
+            onClick={() => {
+              setDriverSubTab('attendance');
+              handleNavClick('drivers');
+            }}
+          >
+            <CalendarCheck />
             Attendance
           </div>
-          <div className="nav-item" onClick={() => handleNavClick('drivers')}>
+          <div
+            className={`nav-item ${activePage === 'drivers' && driverSubTab === 'expenses' ? 'active' : ''}`}
+            onClick={() => {
+              setDriverSubTab('expenses');
+              handleNavClick('drivers');
+            }}
+          >
+            <Receipt />
             Driver expenses
           </div>
         </div>
@@ -96,19 +152,43 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onCloseMobile }) => {
         <div className="nav-group">
           <div className="nav-label">Departments & contracts</div>
           <div
-            className={`nav-item ${activePage === 'departments' ? 'active' : ''}`}
-            onClick={() => handleNavClick('departments')}
+            className={`nav-item ${activePage === 'departments' && departmentSubTab === 'contracts' ? 'active' : ''}`}
+            onClick={() => {
+              setDepartmentSubTab('contracts');
+              handleNavClick('departments');
+            }}
           >
             <FileText />
             Contracts
           </div>
-          <div className="nav-item" onClick={() => handleNavClick('departments')}>
+          <div
+            className={`nav-item ${activePage === 'departments' && departmentSubTab === 'duty-logs' ? 'active' : ''}`}
+            onClick={() => {
+              setDepartmentSubTab('duty-logs');
+              handleNavClick('departments');
+            }}
+          >
+            <ClipboardList />
             Daily duty logs
           </div>
-          <div className="nav-item" onClick={() => handleNavClick('departments')}>
+          <div
+            className={`nav-item ${activePage === 'departments' && departmentSubTab === 'billing' ? 'active' : ''}`}
+            onClick={() => {
+              setDepartmentSubTab('billing');
+              handleNavClick('departments');
+            }}
+          >
+            <ReceiptText />
             Monthly billing
           </div>
-          <div className="nav-item" onClick={() => handleNavClick('departments')}>
+          <div
+            className={`nav-item ${activePage === 'departments' && departmentSubTab === 'payments' ? 'active' : ''}`}
+            onClick={() => {
+              setDepartmentSubTab('payments');
+              handleNavClick('departments');
+            }}
+          >
+            <CreditCard />
             Payments
           </div>
         </div>
@@ -133,11 +213,34 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onCloseMobile }) => {
         <div className="nav-group">
           <div className="nav-label">Money</div>
           <div
-            className={`nav-item ${activePage === 'expenses' ? 'active' : ''}`}
-            onClick={() => handleNavClick('expenses')}
+            className={`nav-item ${activePage === 'expenses' && expenseSubTab === 'fastag' ? 'active' : ''}`}
+            onClick={() => {
+              setExpenseSubTab('fastag');
+              handleNavClick('expenses');
+            }}
+          >
+            <CreditCard />
+            FASTag per vehicle
+          </div>
+          <div
+            className={`nav-item ${activePage === 'expenses' && expenseSubTab === 'fuel' ? 'active' : ''}`}
+            onClick={() => {
+              setExpenseSubTab('fuel');
+              handleNavClick('expenses');
+            }}
+          >
+            <Fuel />
+            Fuel tracking & logs
+          </div>
+          <div
+            className={`nav-item ${activePage === 'expenses' && expenseSubTab === 'all' ? 'active' : ''}`}
+            onClick={() => {
+              setExpenseSubTab('all');
+              handleNavClick('expenses');
+            }}
           >
             <DollarSign />
-            Expenses
+            All expenses
           </div>
           <div
             className={`nav-item ${activePage === 'profitability' ? 'active' : ''}`}

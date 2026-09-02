@@ -1,52 +1,72 @@
 import React from 'react';
 import { useFleet } from '../../../context/FleetContext';
-import { StatusChip } from '../../common/StatusChip';
+import { AllVehiclesView } from './AllVehiclesView';
+import { DepartmentVehiclesView } from './DepartmentVehiclesView';
+import { TripVehiclesView } from './TripVehiclesView';
+import { LiveTrackingView } from './LiveTrackingView';
+import { Truck, Building2, Briefcase, Radio } from 'lucide-react';
 
 export const VehiclesView: React.FC = () => {
-  const { vehicles, searchQuery } = useFleet();
+  const { vehicleSubTab, setVehicleSubTab, vehicles } = useFleet();
 
-  const filtered = vehicles.filter(v =>
-    v.registrationNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    v.type.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    v.assignedTo.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const deptCount = vehicles.filter(v => v.type === 'Department').length;
+  const tripCount = vehicles.filter(v => v.type === 'Trip-based').length;
 
   return (
     <div className="section active">
-      <div className="panel">
-        <div className="panel-head">
-          <span className="panel-title">Vehicle list</span>
-          <span className="panel-link">+ Add vehicle</span>
-        </div>
-        <div className="table-responsive">
-          <table>
-            <thead>
-              <tr>
-                <th>Vehicle</th>
-                <th>Type</th>
-                <th>Assigned to</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map(v => (
-                <tr key={v.id}>
-                  <td style={{ fontWeight: 600 }}>{v.registrationNumber}</td>
-                  <td>
-                    <span className={`tag ${v.type === 'Department' ? 'dept' : 'trip'}`}>
-                      {v.type}
-                    </span>
-                  </td>
-                  <td>{v.assignedTo}</td>
-                  <td>
-                    <StatusChip status={v.status} />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+      {/* Vehicles Sub-Tabs Navigation */}
+      <div className="subtab-nav">
+        <button
+          className={`subtab-btn ${vehicleSubTab === 'all' ? 'active' : ''}`}
+          onClick={() => setVehicleSubTab('all')}
+        >
+          <Truck size={16} />
+          All vehicles
+          <span className="subtab-counter">{vehicles.length}</span>
+        </button>
+
+        <button
+          className={`subtab-btn ${vehicleSubTab === 'department' ? 'active' : ''}`}
+          onClick={() => setVehicleSubTab('department')}
+        >
+          <Building2 size={16} />
+          Department vehicles
+          <span className="subtab-counter">{deptCount}</span>
+        </button>
+
+        <button
+          className={`subtab-btn ${vehicleSubTab === 'trip' ? 'active' : ''}`}
+          onClick={() => setVehicleSubTab('trip')}
+        >
+          <Briefcase size={16} />
+          Trip vehicles
+          <span className="subtab-counter">{tripCount}</span>
+        </button>
+
+        <button
+          className={`subtab-btn ${vehicleSubTab === 'tracking' ? 'active' : ''}`}
+          onClick={() => setVehicleSubTab('tracking')}
+        >
+          <Radio size={16} color="#39ff6e" />
+          Live tracking
+          <span
+            className="subtab-counter"
+            style={{
+              background: 'rgba(57, 255, 110, 0.15)',
+              color: '#39ff6e',
+              borderColor: 'rgba(57, 255, 110, 0.3)'
+            }}
+          >
+            ● LIVE
+          </span>
+        </button>
       </div>
+
+      {/* Render Active View */}
+      {vehicleSubTab === 'all' && <AllVehiclesView />}
+      {vehicleSubTab === 'department' && <DepartmentVehiclesView />}
+      {vehicleSubTab === 'trip' && <TripVehiclesView />}
+      {vehicleSubTab === 'tracking' && <LiveTrackingView />}
     </div>
   );
 };

@@ -2,7 +2,7 @@ import React from 'react';
 
 interface StatCardProps {
   label: string;
-  value: string;
+  value: string | number;
   delta?: string;
   isUp?: boolean;
   isDown?: boolean;
