@@ -3,14 +3,16 @@ import { useFleet } from '../../../context/FleetContext';
 import { StatCard } from '../../common/StatCard';
 import { AddFuelLogModal } from './AddFuelLogModal';
 import { FuelLogEntry } from '../../../types/fleet';
-import { Fuel, Camera, FileText } from 'lucide-react';
+import { Fuel, Camera, FileText, Plus, CheckCircle2, Building2, User, Gauge } from 'lucide-react';
 
 export const FuelLogsView: React.FC = () => {
   const { fuelLogs, vehicles, searchQuery } = useFleet();
 
   const [vehicleFilter, setVehicleFilter] = useState<string>('All');
   const [fuelTypeFilter, setFuelTypeFilter] = useState<string>('All');
+  const [viewMode, setViewMode] = useState<'by-vehicle' | 'table'>('by-vehicle');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalVehicleTarget, setModalVehicleTarget] = useState<string | undefined>(undefined);
   const [selectedProof, setSelectedProof] = useState<{
     title: string;
     vehicle: string;
@@ -19,24 +21,10 @@ export const FuelLogsView: React.FC = () => {
     src: string;
     date: string;
     station: string;
+    driverName: string;
   } | null>(null);
 
   const formatINR = (val: number) => '₹' + Math.round(val).toLocaleString('en-IN');
-
-  const filteredLogs = useMemo(() => {
-    return fuelLogs.filter(log => {
-      const matchSearch =
-        log.vehicle.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        log.driverName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        log.stationName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (log.notes && log.notes.toLowerCase().includes(searchQuery.toLowerCase()));
-
-      const matchVehicle = vehicleFilter === 'All' || log.vehicle === vehicleFilter;
-      const matchFuelType = fuelTypeFilter === 'All' || log.fuelType === fuelTypeFilter;
-
-      return matchSearch && matchVehicle && matchFuelType;
-    });
-  }, [fuelLogs, searchQuery, vehicleFilter, fuelTypeFilter]);
 
   // Overall stats
   const stats = useMemo(() => {
@@ -60,31 +48,74 @@ export const FuelLogsView: React.FC = () => {
     };
   }, [fuelLogs]);
 
-  // Vehicle-wise totals
-  const vehicleStats = useMemo(() => {
-    const map: Record<string, { totalLitres: number; totalCost: number; count: number }> = {};
-    fuelLogs.forEach(l => {
-      if (!map[l.vehicle]) {
-        map[l.vehicle] = { totalLitres: 0, totalCost: 0, count: 0 };
-      }
-      map[l.vehicle].totalLitres += l.litres;
-      map[l.vehicle].totalCost += l.totalCost;
-      map[l.vehicle].count += 1;
+  // Vehicle-wise logs mapping
+  const vehicleGroups = useMemo(() => {
+    return vehicles.map(v => {
+      const logs = fuelLogs
+        .filter(l => l.vehicle === v.registrationNumber)
+        .filter(l => {
+          const matchSearch =
+            l.driverName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            l.stationName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            (l.notes && l.notes.toLowerCase().includes(searchQuery.toLowerCase()));
+
+          const matchFuelType = fuelTypeFilter === 'All' || l.fuelType === fuelTypeFilter;
+
+          return matchSearch && matchFuelType;
+        })
+        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+      const totalLitres = logs.reduce((sum, l) => sum + l.litres, 0);
+      const totalCost = logs.reduce((sum, l) => sum + l.totalCost, 0);
+
+      return {
+        vehicle: v,
+        logs,
+        totalLitres: totalLitres.toFixed(1),
+        totalCost,
+        refillCount: logs.length
+      };
     });
-    return map;
-  }, [fuelLogs]);
+  }, [vehicles, fuelLogs, searchQuery, fuelTypeFilter]);
+
+  // Filtered by vehicle filter
+  const displayedVehicleGroups = useMemo(() => {
+    if (vehicleFilter === 'All') return vehicleGroups;
+    return vehicleGroups.filter(g => g.vehicle.registrationNumber === vehicleFilter);
+  }, [vehicleGroups, vehicleFilter]);
+
+  // Flat logs for table view
+  const flatFilteredLogs = useMemo(() => {
+    return fuelLogs.filter(log => {
+      const matchSearch =
+        log.vehicle.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        log.driverName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        log.stationName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (log.notes && log.notes.toLowerCase().includes(searchQuery.toLowerCase()));
+
+      const matchVehicle = vehicleFilter === 'All' || log.vehicle === vehicleFilter;
+      const matchFuelType = fuelTypeFilter === 'All' || log.fuelType === fuelTypeFilter;
+
+      return matchSearch && matchVehicle && matchFuelType;
+    });
+  }, [fuelLogs, searchQuery, vehicleFilter, fuelTypeFilter]);
+
+  const handleOpenAddFuel = (vehicleReg?: string) => {
+    setModalVehicleTarget(vehicleReg);
+    setIsModalOpen(true);
+  };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-      {/* Stats Grid */}
+      {/* Top Overview Stats */}
       <div className="stats-grid">
         <StatCard label="Total Fuel Dispensed" value={`${stats.totalLitres} L`} customColor="#ffcc4d" />
-        <StatCard label="Total Fuel Cost" value={formatINR(stats.totalCost)} customColor="var(--accent)" />
+        <StatCard label="Total Fuel Cost (₹)" value={formatINR(stats.totalCost)} customColor="var(--accent)" />
         <StatCard label="Vehicles Refueled" value={`${stats.vehiclesCount} of ${vehicles.length}`} />
-        <StatCard label="Avg. Rate / Litre" value={`₹${stats.avgRate}`} />
+        <StatCard label="Average Rate / Litre" value={`₹${stats.avgRate}`} />
       </div>
 
-      {/* Vehicle Quick Filter Chips */}
+      {/* Vehicle Quick Filter Pills */}
       <div
         style={{
           display: 'flex',
@@ -97,16 +128,16 @@ export const FuelLogsView: React.FC = () => {
         <button
           className={`subtab-btn ${vehicleFilter === 'All' ? 'active' : ''}`}
           onClick={() => setVehicleFilter('All')}
-          style={{ padding: '6px 14px', fontSize: '12px' }}
+          style={{ padding: '6px 14px', fontSize: '12px', whiteSpace: 'nowrap' }}
         >
           <Fuel size={14} />
-          All Vehicles
+          All Vehicles ({vehicles.length})
           <span className="subtab-counter">{fuelLogs.length} logs</span>
         </button>
 
         {vehicles.map(v => {
-          const vData = vehicleStats[v.registrationNumber];
-          const hasFuel = Boolean(vData && vData.totalCost > 0);
+          const group = vehicleGroups.find(g => g.vehicle.registrationNumber === v.registrationNumber);
+          const hasLogs = Boolean(group && group.refillCount > 0);
 
           return (
             <button
@@ -116,7 +147,7 @@ export const FuelLogsView: React.FC = () => {
               style={{ padding: '6px 12px', fontSize: '12px', whiteSpace: 'nowrap' }}
             >
               <span>{v.registrationNumber}</span>
-              {hasFuel ? (
+              {hasLogs ? (
                 <span
                   className="subtab-counter"
                   style={{
@@ -125,7 +156,7 @@ export const FuelLogsView: React.FC = () => {
                     borderColor: 'rgba(255, 204, 77, 0.3)'
                   }}
                 >
-                  {vData.totalLitres.toFixed(0)}L · {formatINR(vData.totalCost)}
+                  {group?.totalLitres}L · {formatINR(group?.totalCost || 0)}
                 </span>
               ) : (
                 <span className="subtab-counter" style={{ opacity: 0.5 }}>0L</span>
@@ -135,230 +166,453 @@ export const FuelLogsView: React.FC = () => {
         })}
       </div>
 
-      {/* Main Panel */}
-      <div className="panel">
-        <div className="panel-head" style={{ flexWrap: 'wrap', gap: '10px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <span className="panel-title">Vehicle Refueling History & Photo Proofs</span>
-            <span style={{ fontSize: '12px', color: 'var(--text-faint)' }}>
-              ({filteredLogs.length} refill logs)
-            </span>
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <select
-              className="form-input"
-              style={{ width: 'auto', padding: '5px 10px', fontSize: '12px' }}
-              value={vehicleFilter}
-              onChange={e => setVehicleFilter(e.target.value)}
-            >
-              <option value="All">All Vehicles (Kis Gaadi Mai)</option>
-              {vehicles.map(v => (
-                <option key={v.id} value={v.registrationNumber}>
-                  {v.registrationNumber} ({v.type})
-                </option>
-              ))}
-            </select>
-
-            <select
-              className="form-input"
-              style={{ width: 'auto', padding: '5px 10px', fontSize: '12px' }}
-              value={fuelTypeFilter}
-              onChange={e => setFuelTypeFilter(e.target.value)}
-            >
-              <option value="All">All Fuel Types</option>
-              <option value="Diesel">Diesel</option>
-              <option value="Petrol">Petrol</option>
-              <option value="CNG">CNG</option>
-            </select>
-
+      {/* View Switcher & Filters Header */}
+      <div
+        style={{
+          background: 'var(--surface)',
+          border: '1px solid var(--border)',
+          borderRadius: '12px',
+          padding: '12px 18px',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: '12px'
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          {/* Dual View Toggle: According to Vehicle vs Flat Table */}
+          <div style={{ display: 'flex', background: 'var(--surface-2)', padding: '3px', borderRadius: '8px', border: '1px solid var(--border-soft)' }}>
             <button
-              className="btn-primary-action"
-              style={{ fontSize: '12px', padding: '7px 16px' }}
-              onClick={() => setIsModalOpen(true)}
+              className={`subtab-btn ${viewMode === 'by-vehicle' ? 'active' : ''}`}
+              onClick={() => setViewMode('by-vehicle')}
+              style={{ padding: '4px 12px', fontSize: '12px', borderRadius: '6px' }}
             >
-              + Log Fuel Refill
+              🚗 According to Vehicle (Gaadi-wise History)
+            </button>
+            <button
+              className={`subtab-btn ${viewMode === 'table' ? 'active' : ''}`}
+              onClick={() => setViewMode('table')}
+              style={{ padding: '4px 12px', fontSize: '12px', borderRadius: '6px' }}
+            >
+              📋 All Refills Master Table
             </button>
           </div>
         </div>
 
-        <div className="table-responsive">
-          <table>
-            <thead>
-              <tr>
-                <th>Vehicle & Driver (Kis Gaadi Mai)</th>
-                <th>Date & Time (Kb Dala)</th>
-                <th>Odometer KM</th>
-                <th>Quantity (Kitna Dala)</th>
-                <th>Rate / L</th>
-                <th>Total Cost</th>
-                <th>Pump / Station & Payment</th>
-                <th>Photo Proofs</th>
-                <th>Notes</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredLogs.length === 0 ? (
-                <tr>
-                  <td colSpan={9} style={{ textAlign: 'center', color: 'var(--text-faint)', padding: '30px 0' }}>
-                    No fuel entries found. Click "+ Log Fuel Refill" to add vehicle fuel with photo proofs.
-                  </td>
-                </tr>
-              ) : (
-                filteredLogs.map(l => (
-                  <tr key={l.id}>
-                    {/* Vehicle & Driver */}
-                    <td>
-                      <div>
-                        <div style={{ fontWeight: 600, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <span style={{ color: '#ffcc4d' }}>⛽</span> {l.vehicle}
-                        </div>
-                        <div style={{ fontSize: '11px', color: 'var(--text-faint)', marginTop: '2px' }}>
-                          Driver: <b>{l.driverName}</b>
-                        </div>
-                      </div>
-                    </td>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <select
+            className="form-input"
+            style={{ width: 'auto', padding: '5px 10px', fontSize: '12px' }}
+            value={fuelTypeFilter}
+            onChange={e => setFuelTypeFilter(e.target.value)}
+          >
+            <option value="All">All Fuels (Diesel / Petrol / CNG)</option>
+            <option value="Diesel">Diesel Only</option>
+            <option value="Petrol">Petrol Only</option>
+            <option value="CNG">CNG Only</option>
+          </select>
 
-                    {/* Date & Time */}
-                    <td>
-                      <div style={{ fontWeight: 500 }}>{l.date}</div>
-                      <div style={{ fontSize: '11px', color: 'var(--text-dim)', marginTop: '2px' }}>
-                        {l.time}
-                      </div>
-                    </td>
-
-                    {/* Odometer */}
-                    <td style={{ fontFamily: 'monospace', fontSize: '12px' }}>
-                      {l.odometer.toLocaleString('en-IN')} km
-                    </td>
-
-                    {/* Quantity & Fuel Type */}
-                    <td>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <span style={{ fontWeight: 700, color: '#ffcc4d', fontSize: '13px' }}>
-                          {l.litres} {l.fuelType === 'CNG' ? 'Kg' : 'L'}
-                        </span>
-                        <span
-                          className="driver-type-badge"
-                          style={{
-                            fontSize: '10px',
-                            padding: '2px 6px',
-                            background:
-                              l.fuelType === 'Diesel'
-                                ? 'rgba(56, 189, 248, 0.12)'
-                                : l.fuelType === 'CNG'
-                                ? 'rgba(57, 255, 110, 0.12)'
-                                : 'rgba(255, 204, 77, 0.15)'
-                          }}
-                        >
-                          {l.fuelType}
-                        </span>
-                      </div>
-                    </td>
-
-                    {/* Rate per Litre */}
-                    <td className="num" style={{ fontSize: '12px' }}>
-                      ₹{l.ratePerLitre}
-                    </td>
-
-                    {/* Total Cost */}
-                    <td className="num" style={{ fontWeight: 700, color: 'var(--accent)', fontSize: '13.5px' }}>
-                      {formatINR(l.totalCost)}
-                    </td>
-
-                    {/* Station & Payment */}
-                    <td>
-                      <div style={{ fontSize: '12px', color: 'var(--text)', maxWidth: 180, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {l.stationName}
-                      </div>
-                      <div style={{ fontSize: '10.5px', color: 'var(--text-dim)', marginTop: '2px' }}>
-                        💳 {l.paymentMode}
-                      </div>
-                    </td>
-
-                    {/* Photo Proofs */}
-                    <td>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                        {l.meterPhoto ? (
-                          <span
-                            className="bill-link"
-                            style={{
-                              fontSize: '11px',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '4px',
-                              color: '#38bdf8'
-                            }}
-                            onClick={() =>
-                              setSelectedProof({
-                                title: 'Pump Dispenser Meter Photo Proof',
-                                vehicle: l.vehicle,
-                                litres: l.litres,
-                                amount: l.totalCost,
-                                src: l.meterPhoto!,
-                                date: `${l.date} ${l.time}`,
-                                station: l.stationName
-                              })
-                            }
-                          >
-                            <Camera size={12} />
-                            Meter reading proof
-                          </span>
-                        ) : null}
-
-                        {l.receiptPhoto ? (
-                          <span
-                            className="bill-link"
-                            style={{
-                              fontSize: '11px',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '4px',
-                              color: '#ffcc4d'
-                            }}
-                            onClick={() =>
-                              setSelectedProof({
-                                title: 'Printed Fuel Receipt / Bill Proof',
-                                vehicle: l.vehicle,
-                                litres: l.litres,
-                                amount: l.totalCost,
-                                src: l.receiptPhoto!,
-                                date: `${l.date} ${l.time}`,
-                                station: l.stationName
-                              })
-                            }
-                          >
-                            <FileText size={12} />
-                            Receipt / slip proof
-                          </span>
-                        ) : null}
-
-                        {!l.meterPhoto && !l.receiptPhoto && (
-                          <span style={{ color: 'var(--text-faint)', fontSize: '11px' }}>No photo</span>
-                        )}
-                      </div>
-                    </td>
-
-                    {/* Notes */}
-                    <td style={{ fontSize: '11.5px', color: 'var(--text-dim)' }}>
-                      {l.notes || '—'}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+          <button
+            className="btn-primary-action"
+            style={{ fontSize: '12px', padding: '7px 16px', display: 'flex', alignItems: 'center', gap: '6px' }}
+            onClick={() => handleOpenAddFuel(vehicleFilter !== 'All' ? vehicleFilter : undefined)}
+          >
+            <Plus size={14} /> + Log Fuel Refill
+          </button>
         </div>
       </div>
+
+      {/* VIEW MODE 1: ACCORDING TO VEHICLE (Vehicle-wise Grouped Cards) */}
+      {viewMode === 'by-vehicle' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+          {displayedVehicleGroups.map(group => {
+            const v = group.vehicle;
+
+            return (
+              <div
+                key={v.id}
+                style={{
+                  background: 'var(--surface)',
+                  border: '1px solid var(--border)',
+                  borderRadius: '14px',
+                  overflow: 'hidden',
+                  boxShadow: '0 2px 10px rgba(0,0,0,0.2)'
+                }}
+              >
+                {/* Vehicle Header Strip */}
+                <div
+                  style={{
+                    background: 'var(--surface-2)',
+                    padding: '14px 18px',
+                    borderBottom: '1px solid var(--border)',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    flexWrap: 'wrap',
+                    gap: '12px'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <div
+                      style={{
+                        width: 40,
+                        height: 40,
+                        borderRadius: '10px',
+                        background: 'rgba(255, 204, 77, 0.15)',
+                        color: '#ffcc4d',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '18px'
+                      }}
+                    >
+                      ⛽
+                    </div>
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontWeight: 800, fontSize: '16px', color: 'var(--text)', letterSpacing: '0.5px' }}>
+                          {v.registrationNumber}
+                        </span>
+                        <span className={`tag ${v.type === 'Department' ? 'dept' : 'trip'}`}>
+                          {v.type === 'Department' ? `🏛️ ${v.departmentName || v.assignedTo}` : `🧳 Trip Cab (${v.assignedTo})`}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: '12px', color: 'var(--text-faint)', marginTop: '2px' }}>
+                        {v.model || 'Commercial Vehicle'} · Default Driver: <b>{v.assignedDriver || 'Rahul Sharma'}</b> · Odometer: <b>{v.odometer ? `${v.odometer.toLocaleString('en-IN')} km` : '42,000 km'}</b>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Right side: Vehicle Fuel Totals & Action */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ fontSize: '11px', color: 'var(--text-faint)' }}>TOTAL FUEL IN THIS VEHICLE</div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'flex-end', marginTop: '2px' }}>
+                        <span style={{ fontWeight: 800, fontSize: '15px', color: '#ffcc4d' }}>
+                          {group.totalLitres} L
+                        </span>
+                        <span style={{ fontWeight: 800, fontSize: '16px', color: 'var(--accent)' }}>
+                          {formatINR(group.totalCost)}
+                        </span>
+                        <span style={{ fontSize: '11.5px', color: 'var(--text-dim)' }}>
+                          ({group.refillCount} refills)
+                        </span>
+                      </div>
+                    </div>
+
+                    <button
+                      className="btn-secondary"
+                      style={{ fontSize: '11.5px', padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '4px' }}
+                      onClick={() => handleOpenAddFuel(v.registrationNumber)}
+                    >
+                      <Plus size={12} /> Add Fuel
+                    </button>
+                  </div>
+                </div>
+
+                {/* Refuel History Table for this specific Vehicle */}
+                <div className="table-responsive">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Kab Dala (Date & Time)</th>
+                        <th>Kisne Dalaya (Driver Who Refilled)</th>
+                        <th>Odometer KM</th>
+                        <th>Kitna Dala (Quantity & Fuel)</th>
+                        <th>Kitne Ka Dala (Cost & Rate)</th>
+                        <th>Petrol Pump & Payment</th>
+                        <th>Fuel Meter Ki Photo</th>
+                        <th>Photo Slip Ki (Receipt)</th>
+                        <th>Notes</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {group.logs.length === 0 ? (
+                        <tr>
+                          <td colSpan={9} style={{ textAlign: 'center', color: 'var(--text-faint)', padding: '24px 0' }}>
+                            No fuel refills logged yet for {v.registrationNumber}. Click "+ Add Fuel" to record refill with meter and slip photos.
+                          </td>
+                        </tr>
+                      ) : (
+                        group.logs.map(log => (
+                          <tr key={log.id}>
+                            {/* 1. Kab Dala (Date & Time) */}
+                            <td>
+                              <div style={{ fontWeight: 600, color: 'var(--text)' }}>
+                                {log.date}
+                              </div>
+                              <div style={{ fontSize: '11px', color: 'var(--text-dim)', marginTop: '2px' }}>
+                                {log.time}
+                              </div>
+                            </td>
+
+                            {/* 2. Kisne Dalaya (Driver Who Refilled) */}
+                            <td>
+                              <div style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                <User size={13} color="var(--accent)" />
+                                {log.driverName}
+                              </div>
+                              <div style={{ fontSize: '10.5px', color: 'var(--text-faint)', marginTop: '1px' }}>
+                                Refueled on Duty
+                              </div>
+                            </td>
+
+                            {/* 3. Odometer KM */}
+                            <td>
+                              <div style={{ fontFamily: 'monospace', fontWeight: 600, fontSize: '12.5px' }}>
+                                {log.odometer.toLocaleString('en-IN')} km
+                              </div>
+                            </td>
+
+                            {/* 4. Kitna Dala (Quantity & Type) */}
+                            <td>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <span style={{ fontWeight: 800, color: '#ffcc4d', fontSize: '13.5px' }}>
+                                  {log.litres} {log.fuelType === 'CNG' ? 'Kg' : 'L'}
+                                </span>
+                                <span
+                                  className="driver-type-badge"
+                                  style={{
+                                    fontSize: '10px',
+                                    padding: '2px 6px',
+                                    background:
+                                      log.fuelType === 'Diesel'
+                                        ? 'rgba(56, 189, 248, 0.12)'
+                                        : log.fuelType === 'CNG'
+                                        ? 'rgba(57, 255, 110, 0.12)'
+                                        : 'rgba(255, 204, 77, 0.12)',
+                                    color:
+                                      log.fuelType === 'Diesel'
+                                        ? '#38bdf8'
+                                        : log.fuelType === 'CNG'
+                                        ? '#39ff6e'
+                                        : '#ffcc4d'
+                                  }}
+                                >
+                                  {log.fuelType}
+                                </span>
+                              </div>
+                            </td>
+
+                            {/* 5. Kitne Ka Dala (Cost & Rate) */}
+                            <td className="num">
+                              <div style={{ fontSize: '14px', fontWeight: 800, color: 'var(--accent)' }}>
+                                {formatINR(log.totalCost)}
+                              </div>
+                              <div style={{ fontSize: '10.5px', color: 'var(--text-faint)', marginTop: '2px' }}>
+                                @ ₹{log.ratePerLitre}/L
+                              </div>
+                            </td>
+
+                            {/* 6. Petrol Pump & Payment */}
+                            <td>
+                              <div style={{ fontWeight: 500, fontSize: '12px' }}>
+                                {log.stationName}
+                              </div>
+                              <div style={{ fontSize: '10.5px', color: 'var(--text-dim)', marginTop: '2px' }}>
+                                Mode: <b>{log.paymentMode}</b>
+                              </div>
+                            </td>
+
+                            {/* 7. Fuel Meter Ki Photo */}
+                            <td>
+                              {log.meterPhoto ? (
+                                <button
+                                  type="button"
+                                  className="bill-link"
+                                  style={{ fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px', padding: 0 }}
+                                  onClick={() =>
+                                    setSelectedProof({
+                                      title: 'Dispenser Fuel Meter Reading Proof',
+                                      vehicle: log.vehicle,
+                                      litres: log.litres,
+                                      amount: log.totalCost,
+                                      src: log.meterPhoto!,
+                                      date: `${log.date} ${log.time}`,
+                                      station: log.stationName,
+                                      driverName: log.driverName
+                                    })
+                                  }
+                                >
+                                  <Camera size={12} color="#38bdf8" />
+                                  <span>Fuel Meter Photo</span>
+                                </button>
+                              ) : (
+                                <span style={{ color: 'var(--text-faint)', fontSize: '11px' }}>—</span>
+                              )}
+                            </td>
+
+                            {/* 8. Photo Slip Ki (Bill Receipt) */}
+                            <td>
+                              {log.receiptPhoto ? (
+                                <button
+                                  type="button"
+                                  className="bill-link"
+                                  style={{ fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px', padding: 0 }}
+                                  onClick={() =>
+                                    setSelectedProof({
+                                      title: 'Printed Fuel Pump Receipt / Bill Slip',
+                                      vehicle: log.vehicle,
+                                      litres: log.litres,
+                                      amount: log.totalCost,
+                                      src: log.receiptPhoto!,
+                                      date: `${log.date} ${log.time}`,
+                                      station: log.stationName,
+                                      driverName: log.driverName
+                                    })
+                                  }
+                                >
+                                  <FileText size={12} color="#ffcc4d" />
+                                  <span>Bill Slip Photo</span>
+                                </button>
+                              ) : (
+                                <span style={{ color: 'var(--text-faint)', fontSize: '11px' }}>—</span>
+                              )}
+                            </td>
+
+                            {/* 9. Notes */}
+                            <td style={{ fontSize: '11.5px', color: 'var(--text-dim)' }}>
+                              {log.notes || '—'}
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* VIEW MODE 2: FLAT MASTER TABLE */}
+      {viewMode === 'table' && (
+        <div className="panel">
+          <div className="panel-head">
+            <span className="panel-title">Master Refueling List</span>
+            <span style={{ fontSize: '12px', color: 'var(--text-faint)' }}>
+              ({flatFilteredLogs.length} logs)
+            </span>
+          </div>
+
+          <div className="table-responsive">
+            <table>
+              <thead>
+                <tr>
+                  <th>Vehicle (Kis Gaadi Mai)</th>
+                  <th>Kab Dala (Date & Time)</th>
+                  <th>Kisne Dalaya (Driver)</th>
+                  <th>Odometer KM</th>
+                  <th>Kitna Dala (Quantity)</th>
+                  <th>Kitne Ka Dala (Cost & Rate)</th>
+                  <th>Pump & Payment</th>
+                  <th>Photo Slip & Meter</th>
+                  <th>Notes</th>
+                </tr>
+              </thead>
+              <tbody>
+                {flatFilteredLogs.length === 0 ? (
+                  <tr>
+                    <td colSpan={9} style={{ textAlign: 'center', color: 'var(--text-faint)', padding: '30px 0' }}>
+                      No fuel logs found matching your filters.
+                    </td>
+                  </tr>
+                ) : (
+                  flatFilteredLogs.map(log => (
+                    <tr key={log.id}>
+                      <td>
+                        <div style={{ fontWeight: 700, color: 'var(--text)' }}>
+                          {log.vehicle}
+                        </div>
+                      </td>
+                      <td>
+                        <div>{log.date}</div>
+                        <div style={{ fontSize: '10.5px', color: 'var(--text-dim)' }}>{log.time}</div>
+                      </td>
+                      <td>
+                        <b>{log.driverName}</b>
+                      </td>
+                      <td style={{ fontFamily: 'monospace' }}>
+                        {log.odometer.toLocaleString('en-IN')} km
+                      </td>
+                      <td>
+                        <span style={{ fontWeight: 700, color: '#ffcc4d' }}>
+                          {log.litres} {log.fuelType === 'CNG' ? 'Kg' : 'L'}
+                        </span>
+                      </td>
+                      <td className="num" style={{ fontWeight: 700, color: 'var(--accent)' }}>
+                        {formatINR(log.totalCost)}
+                      </td>
+                      <td>
+                        <div>{log.stationName}</div>
+                        <div style={{ fontSize: '10.5px', color: 'var(--text-dim)' }}>{log.paymentMode}</div>
+                      </td>
+                      <td>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                          {log.meterPhoto && (
+                            <span
+                              className="bill-link"
+                              style={{ fontSize: '11px', cursor: 'pointer' }}
+                              onClick={() =>
+                                setSelectedProof({
+                                  title: 'Dispenser Fuel Meter Reading Proof',
+                                  vehicle: log.vehicle,
+                                  litres: log.litres,
+                                  amount: log.totalCost,
+                                  src: log.meterPhoto!,
+                                  date: `${log.date} ${log.time}`,
+                                  station: log.stationName,
+                                  driverName: log.driverName
+                                })
+                              }
+                            >
+                              📸 Meter Photo
+                            </span>
+                          )}
+                          {log.receiptPhoto && (
+                            <span
+                              className="bill-link"
+                              style={{ fontSize: '11px', cursor: 'pointer' }}
+                              onClick={() =>
+                                setSelectedProof({
+                                  title: 'Printed Fuel Pump Receipt / Bill Slip',
+                                  vehicle: log.vehicle,
+                                  litres: log.litres,
+                                  amount: log.totalCost,
+                                  src: log.receiptPhoto!,
+                                  date: `${log.date} ${log.time}`,
+                                  station: log.stationName,
+                                  driverName: log.driverName
+                                })
+                              }
+                            >
+                              🧾 Bill Slip Photo
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td style={{ fontSize: '11px', color: 'var(--text-dim)' }}>
+                        {log.notes || '—'}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* Add Fuel Refill Modal */}
       <AddFuelLogModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        preselectedVehicle={vehicleFilter !== 'All' ? vehicleFilter : undefined}
+        preselectedVehicle={modalVehicleTarget || (vehicleFilter !== 'All' ? vehicleFilter : undefined)}
       />
 
-      {/* Photo Proof Modal */}
+      {/* Photo Proof Viewer Modal */}
       {selectedProof && (
         <div className="modal-overlay" onClick={() => setSelectedProof(null)}>
           <div className="modal-dialog" style={{ maxWidth: 480 }} onClick={e => e.stopPropagation()}>
@@ -400,10 +654,10 @@ export const FuelLogsView: React.FC = () => {
                   <div style={{ padding: '30px 20px' }}>
                     <div style={{ fontSize: '50px', marginBottom: '10px' }}>⛽</div>
                     <div style={{ fontWeight: 600, fontSize: '14px' }}>
-                      Verified Refill Slip: {selectedProof.src}
+                      Verified Refill Proof: {selectedProof.src}
                     </div>
                     <div style={{ fontSize: '12px', color: 'var(--text-faint)', marginTop: '6px' }}>
-                      Fuel pump meter digital reading and cash invoice verified against odometer reading.
+                      Fuel pump meter digital reading and printed cash invoice verified.
                     </div>
                   </div>
                 )}
@@ -424,23 +678,27 @@ export const FuelLogsView: React.FC = () => {
                 }}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: 'var(--text-dim)' }}>Vehicle Refueled:</span>
+                  <span style={{ color: 'var(--text-dim)' }}>Vehicle Refueled (Kis Gaadi Mai):</span>
                   <b>{selectedProof.vehicle}</b>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: 'var(--text-dim)' }}>Date & Time:</span>
+                  <span style={{ color: 'var(--text-dim)' }}>Driver Who Refilled (Kisne Dalaya):</span>
+                  <b style={{ color: 'var(--accent)' }}>{selectedProof.driverName}</b>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'var(--text-dim)' }}>Date & Time (Kab Dala):</span>
                   <b>{selectedProof.date}</b>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: 'var(--text-dim)' }}>Fuel Quantity:</span>
+                  <span style={{ color: 'var(--text-dim)' }}>Quantity (Kitna Dala):</span>
                   <b style={{ color: '#ffcc4d' }}>{selectedProof.litres} Litres</b>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: 'var(--text-dim)' }}>Total Amount:</span>
+                  <span style={{ color: 'var(--text-dim)' }}>Total Amount (Kitne Ka Dala):</span>
                   <b style={{ color: 'var(--accent)' }}>{formatINR(selectedProof.amount)}</b>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: 'var(--text-dim)' }}>Station Location:</span>
+                  <span style={{ color: 'var(--text-dim)' }}>Station / Pump Location:</span>
                   <span>{selectedProof.station}</span>
                 </div>
               </div>
@@ -449,15 +707,6 @@ export const FuelLogsView: React.FC = () => {
             <div className="modal-footer">
               <button className="btn-secondary" onClick={() => setSelectedProof(null)}>
                 Close
-              </button>
-              <button
-                className="btn-primary-action"
-                onClick={() => {
-                  alert(`Photo proof for ${selectedProof.vehicle} downloaded.`);
-                  setSelectedProof(null);
-                }}
-              >
-                ⬇ Download Proof
               </button>
             </div>
           </div>

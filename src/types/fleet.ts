@@ -18,6 +18,9 @@ export interface Vehicle {
   registrationNumber: string;
   type: VehicleType;
   assignedTo: string;
+  departmentName?: string;
+  isWeekendTripEnabled?: boolean;
+  currentOperationMode?: VehicleType;
   status: VehicleStatus;
   meta?: string;
   location?: string;
@@ -215,14 +218,38 @@ export interface ContractDepartment {
   status: 'Sent' | 'Paid' | 'Pending';
 }
 
+export type TripType = 'One-way (Single)' | 'Round Trip';
+export type TripStatus = 'Ongoing' | 'Completed' | 'Scheduled';
+
 export interface TripFinancial {
   id: string;
-  route: string;
+  tripNumber?: string;
+  tripType: TripType;
   vehicle: string;
+  vehicleModel?: string;
+  driverName: string;
+  pickupLocation: string;
+  dropLocation: string;
+  route: string;
+  startDate: string;
+  startTime?: string;
+  endDate?: string;
+  startOdometer: number;
+  endOdometer?: number;
+  totalKmRun?: number;
+  initialFuelLitres?: number;
+  fuelCost: number;
+  fastagCost: number;
+  driverBata: number;
+  otherExpenses?: number;
   revenue: number;
   expenses: number;
   profit: number;
   margin: string;
+  status: TripStatus;
+  customerName?: string;
+  customerPhone?: string;
+  notes?: string;
 }
 
 export interface ExpenseRecord {

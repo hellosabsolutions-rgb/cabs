@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useFleet } from '../../../context/FleetContext';
 import { Vehicle, VehicleType, VehicleStatus } from '../../../types/fleet';
+import { Building2, MapPin } from 'lucide-react';
 
 interface AddVehicleModalProps {
   isOpen: boolean;
@@ -12,6 +13,16 @@ const vehicleTypes: VehicleType[] = ['Department', 'Trip-based'];
 const fuelTypes: NonNullable<Vehicle['fuelType']>[] = ['Diesel', 'Petrol', 'CNG', 'Electric'];
 const vehicleStatuses: VehicleStatus[] = ['Running', 'Active', 'Idle', 'Maintenance'];
 
+const commonDepartments = [
+  'Public Works Department (PWD)',
+  'Delhi Jal Nigam (DJN)',
+  'Directorate of Health Services',
+  'Municipal Corporation of Delhi (MCD)',
+  'General Administration Dept (GAD)',
+  'Transport Department',
+  'Irrigation & Flood Control'
+];
+
 export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
   isOpen,
   onClose,
@@ -22,7 +33,8 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
   const [registrationNumber, setRegistrationNumber] = useState('');
   const [model, setModel] = useState('Toyota Innova Crysta');
   const [type, setType] = useState<VehicleType>(defaultType);
-  const [assignedTo, setAssignedTo] = useState('Public Works Department (PWD)');
+  const [departmentName, setDepartmentName] = useState('Public Works Department (PWD)');
+  const [hubStand, setHubStand] = useState('Delhi NCR Trip Stand');
   const [assignedDriver, setAssignedDriver] = useState(drivers[0]?.name || 'Rahul Sharma');
   const [fuelType, setFuelType] = useState<NonNullable<Vehicle['fuelType']>>('Diesel');
   const [seatingCapacity, setSeatingCapacity] = useState('7');
@@ -57,9 +69,7 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
     if (defaultType) {
       setType(defaultType);
       if (defaultType === 'Department') {
-        setAssignedTo(departmentContracts[0]?.departmentName || 'Public Works Department (PWD)');
-      } else {
-        setAssignedTo('Delhi NCR Trip Stand');
+        setDepartmentName(departmentContracts[0]?.departmentName || 'Public Works Department (PWD)');
       }
     }
   }, [defaultType, departmentContracts]);
@@ -112,16 +122,29 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
       return;
     }
 
+    if (type === 'Department' && !departmentName.trim()) {
+      setErrorMsg('Please enter or select Department Name (Gaadi konse department mai lagi hai).');
+      return;
+    }
+
+    const finalAssignedTo =
+      type === 'Department'
+        ? departmentName.trim()
+        : departmentName.trim() && departmentName !== 'Public Works Department (PWD)'
+        ? `${hubStand.trim()} · ${departmentName.trim()}`
+        : hubStand.trim();
+
     addVehicle({
       registrationNumber: cleanReg,
       model: model.trim(),
       type,
-      assignedTo: assignedTo.trim() || (type === 'Department' ? 'PWD' : '—'),
+      assignedTo: finalAssignedTo,
+      departmentName: type === 'Department' ? departmentName.trim() : (departmentName.trim() || undefined),
       status,
       revenue: type === 'Department' ? 85000 : 110000,
       expense: 45000,
       profit: type === 'Department' ? 40000 : 65000,
-      meta: type === 'Department' ? `${assignedTo} Department duty` : `Trip · ${assignedTo}`,
+      meta: type === 'Department' ? `${departmentName} Contract duty` : `Trip · ${hubStand}`,
       fuelType,
       seatingCapacity: Number(seatingCapacity) || 5,
       assignedDriver: assignedDriver !== 'Unassigned' ? assignedDriver : undefined,
@@ -140,7 +163,7 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-dialog" onClick={e => e.stopPropagation()}>
+      <div className="modal-dialog" onClick={e => e.stopPropagation()} style={{ maxWidth: 540 }}>
         <div className="modal-header">
           <div className="modal-title-group">
             <h3 className="modal-title">
@@ -172,7 +195,7 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
               </div>
             )}
 
-            {/* Vehicle Type Selector */}
+            {/* 1. Fleet Category / Operation Type */}
             <div className="form-group" style={{ marginBottom: 0 }}>
               <label className="form-label">Fleet Category / Operation Type *</label>
               <div className="driver-type-grid" style={{ gridTemplateColumns: '1fr 1fr' }}>
@@ -182,10 +205,8 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
                     className={`driver-type-option ${type === t ? 'active' : ''}`}
                     onClick={() => {
                       setType(t);
-                      if (t === 'Department') {
-                        setAssignedTo('Public Works Department (PWD)');
-                      } else {
-                        setAssignedTo('Delhi NCR Trip Stand');
+                      if (t === 'Department' && !departmentName) {
+                        setDepartmentName('Public Works Department (PWD)');
                       }
                     }}
                   >
@@ -195,14 +216,14 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
               </div>
             </div>
 
-            {/* Registration Number & Vehicle Model */}
+            {/* 2. Registration Number & Make / Model */}
             <div className="form-row-2">
               <div className="form-group" style={{ marginBottom: 0 }}>
                 <label className="form-label">Registration Number (e.g. DL01AB1234) *</label>
                 <input
                   type="text"
                   className="form-input"
-                  style={{ textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 600 }}
+                  style={{ textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 700 }}
                   placeholder="DL01AB1234"
                   value={registrationNumber}
                   onChange={e => setRegistrationNumber(e.target.value)}
@@ -223,38 +244,87 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
               </div>
             </div>
 
-            {/* Assigned To / Client & Designated Driver */}
-            <div className="form-row-2">
-              <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label">
-                  {type === 'Department' ? 'Assigned Department *' : 'Assigned Hub / Trip Stand'}
+            {/* 3. PROMINENT DEPARTMENT NAME: Gaadi Konse Department Mai Lagi Hai */}
+            {type === 'Department' ? (
+              <div
+                style={{
+                  background: 'var(--surface-3)',
+                  padding: '12px 14px',
+                  borderRadius: '10px',
+                  border: '1px solid var(--border)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '8px'
+                }}
+              >
+                <label
+                  className="form-label"
+                  style={{ display: 'flex', alignItems: 'center', gap: '6px', margin: 0, color: 'var(--accent)', fontWeight: 600 }}
+                >
+                  <Building2 size={15} /> Department Name (Gaadi Konse Department Mai Lagi Hai) *
                 </label>
-                {type === 'Department' ? (
-                  <select
-                    className="form-input"
-                    value={assignedTo}
-                    onChange={e => setAssignedTo(e.target.value)}
-                  >
-                    {departmentContracts.map(c => (
-                      <option key={c.id} value={c.departmentName}>
-                        {c.departmentName}
-                      </option>
-                    ))}
-                    <option value="Delhi Jal Nigam (DJN)">Delhi Jal Nigam (DJN)</option>
-                    <option value="Directorate of Health Services">Directorate of Health Services</option>
-                    <option value="General Administration Dept">General Administration Dept</option>
-                  </select>
-                ) : (
+                <input
+                  type="text"
+                  className="form-input"
+                  style={{ fontWeight: 600, fontSize: '13.5px' }}
+                  placeholder="e.g. Public Works Department (PWD), Delhi Jal Nigam..."
+                  value={departmentName}
+                  onChange={e => setDepartmentName(e.target.value)}
+                  required
+                />
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                  {commonDepartments.map(dept => (
+                    <button
+                      key={dept}
+                      type="button"
+                      className="btn-secondary"
+                      style={{
+                        fontSize: '11px',
+                        padding: '3px 8px',
+                        background: departmentName === dept ? 'var(--surface-2)' : undefined,
+                        borderColor: departmentName === dept ? 'var(--accent)' : undefined,
+                        color: departmentName === dept ? 'var(--accent)' : undefined
+                      }}
+                      onClick={() => setDepartmentName(dept)}
+                    >
+                      {dept.split('(')[0].trim()}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="form-row-2">
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <MapPin size={13} /> Assigned Hub / Trip Stand *
+                  </label>
                   <input
                     type="text"
                     className="form-input"
-                    placeholder="e.g. Delhi NCR, Airport Stand, Outstation"
-                    value={assignedTo}
-                    onChange={e => setAssignedTo(e.target.value)}
+                    placeholder="e.g. Delhi NCR Trip Stand, Airport Terminal"
+                    value={hubStand}
+                    onChange={e => setHubStand(e.target.value)}
+                    required
                   />
-                )}
-              </div>
+                </div>
 
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label">
+                    Attached Department / Corporate Client (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder="e.g. PWD Pool or Corporate Client"
+                    value={departmentName === 'Public Works Department (PWD)' ? '' : departmentName}
+                    onChange={e => setDepartmentName(e.target.value)}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* 4. Designated Driver & Fuel Type */}
+            <div className="form-row-2">
               <div className="form-group" style={{ marginBottom: 0 }}>
                 <label className="form-label">Designated Driver</label>
                 <select
@@ -270,10 +340,7 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
                   ))}
                 </select>
               </div>
-            </div>
 
-            {/* Fuel Type & Seating Capacity */}
-            <div className="form-row-2">
               <div className="form-group" style={{ marginBottom: 0 }}>
                 <label className="form-label">Fuel Type</label>
                 <select
@@ -288,7 +355,10 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
                   ))}
                 </select>
               </div>
+            </div>
 
+            {/* 5. Seating Capacity & Odometer */}
+            <div className="form-row-2">
               <div className="form-group" style={{ marginBottom: 0 }}>
                 <label className="form-label">Seating Capacity</label>
                 <select
@@ -303,22 +373,22 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
                   <option value="12">12+ Seater (Tempo Traveller)</option>
                 </select>
               </div>
-            </div>
 
-            {/* Current Odometer & Initial Status */}
-            <div className="form-row-2">
               <div className="form-group" style={{ marginBottom: 0 }}>
                 <label className="form-label">Current Odometer (KM)</label>
                 <input
                   type="number"
                   min="0"
                   className="form-input"
-                  placeholder="e.g. 42000"
+                  placeholder="e.g. 35000"
                   value={odometer}
                   onChange={e => setOdometer(e.target.value)}
                 />
               </div>
+            </div>
 
+            {/* 6. Status & FASTag Balance */}
+            <div className="form-row-2">
               <div className="form-group" style={{ marginBottom: 0 }}>
                 <label className="form-label">Current Vehicle Status</label>
                 <select
@@ -333,12 +403,9 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
                   ))}
                 </select>
               </div>
-            </div>
 
-            {/* FASTag Balance & GPS IMEI */}
-            <div className="form-row-2">
               <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label">FASTag Balance (₹)</label>
+                <label className="form-label">FASTag Starting Balance (₹)</label>
                 <input
                   type="number"
                   min="0"
@@ -348,21 +415,21 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
                   onChange={e => setFastagBalance(e.target.value)}
                 />
               </div>
+            </div>
 
+            {/* 7. GPS IMEI & Insurance Expiry */}
+            <div className="form-row-2">
               <div className="form-group" style={{ marginBottom: 0 }}>
                 <label className="form-label">GPS Device IMEI / Telematics ID</label>
                 <input
                   type="text"
                   className="form-input"
-                  placeholder="e.g. IMEI-868291039821"
+                  placeholder="e.g. IMEI-86776347168"
                   value={gpsImei}
                   onChange={e => setGpsImei(e.target.value)}
                 />
               </div>
-            </div>
 
-            {/* Insurance & Fitness Validity */}
-            <div className="form-row-2">
               <div className="form-group" style={{ marginBottom: 0 }}>
                 <label className="form-label">Insurance Expiry Date</label>
                 <input
@@ -372,21 +439,21 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
                   onChange={e => setInsuranceExpiry(e.target.value)}
                 />
               </div>
-
-              <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label">Fitness Certificate Expiry</label>
-                <input
-                  type="date"
-                  className="form-input"
-                  value={fitnessExpiry}
-                  onChange={e => setFitnessExpiry(e.target.value)}
-                />
-              </div>
             </div>
 
-            {/* Document Uploads: Vehicle Photo & RC Certificate */}
+            {/* 8. Fitness Expiry */}
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label className="form-label">Fitness Certificate Expiry Date</label>
+              <input
+                type="date"
+                className="form-input"
+                value={fitnessExpiry}
+                onChange={e => setFitnessExpiry(e.target.value)}
+              />
+            </div>
+
+            {/* 9. Vehicle Photo & RC Proof Upload */}
             <div className="form-row-2">
-              {/* Vehicle Photo */}
               <div className="form-group" style={{ marginBottom: 0 }}>
                 <label className="form-label">Vehicle Photo / Thumbnail</label>
                 <input
@@ -402,7 +469,7 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
                   style={{ padding: '8px 12px' }}
                 >
                   {vehiclePhotoPreview ? (
-                    <img src={vehiclePhotoPreview} alt="Vehicle preview" className="upload-preview" />
+                    <img src={vehiclePhotoPreview} alt="Vehicle" className="upload-preview" />
                   ) : (
                     <div className="upload-icon-placeholder" style={{ width: 34, height: 34, fontSize: 16 }}>
                       🚗
@@ -414,24 +481,9 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
                     </div>
                     <div className="upload-hint">Image preview</div>
                   </div>
-                  {vehiclePhotoName && (
-                    <button
-                      type="button"
-                      className="modal-close-btn"
-                      style={{ width: 22, height: 22, fontSize: 10 }}
-                      onClick={e => {
-                        e.stopPropagation();
-                        setVehiclePhotoName('');
-                        setVehiclePhotoPreview(null);
-                      }}
-                    >
-                      ✕
-                    </button>
-                  )}
                 </div>
               </div>
 
-              {/* RC Upload */}
               <div className="form-group" style={{ marginBottom: 0 }}>
                 <label className="form-label">Registration Certificate (RC) Copy</label>
                 <input
@@ -447,7 +499,7 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
                   style={{ padding: '8px 12px' }}
                 >
                   {rcPhotoPreview ? (
-                    <img src={rcPhotoPreview} alt="RC preview" className="upload-preview" />
+                    <img src={rcPhotoPreview} alt="RC" className="upload-preview" />
                   ) : (
                     <div className="upload-icon-placeholder" style={{ width: 34, height: 34, fontSize: 16 }}>
                       📄
@@ -459,20 +511,6 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
                     </div>
                     <div className="upload-hint">PDF or image</div>
                   </div>
-                  {rcPhotoName && (
-                    <button
-                      type="button"
-                      className="modal-close-btn"
-                      style={{ width: 22, height: 22, fontSize: 10 }}
-                      onClick={e => {
-                        e.stopPropagation();
-                        setRcPhotoName('');
-                        setRcPhotoPreview(null);
-                      }}
-                    >
-                      ✕
-                    </button>
-                  )}
                 </div>
               </div>
             </div>

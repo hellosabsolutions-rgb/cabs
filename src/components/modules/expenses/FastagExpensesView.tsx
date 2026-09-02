@@ -2,99 +2,90 @@ import React, { useState, useMemo } from 'react';
 import { useFleet } from '../../../context/FleetContext';
 import { StatCard } from '../../common/StatCard';
 import { RechargeFastagModal } from './RechargeFastagModal';
-import { AddTollDeductionModal } from './AddTollDeductionModal';
-import { FastagTransaction } from '../../../types/fleet';
-import { CreditCard, AlertTriangle, FileText, CheckCircle2 } from 'lucide-react';
+import { DeductTollModal } from './DeductTollModal';
+import { EditFastagModal } from './EditFastagModal';
+import { CreditCard, AlertTriangle, Zap, ShieldCheck, MinusCircle, Edit3, Plus } from 'lucide-react';
 
 export const FastagExpensesView: React.FC = () => {
   const { vehicles, fastagTransactions, searchQuery } = useFleet();
 
-  const [selectedVehicleFilter, setSelectedVehicleFilter] = useState<string>('All');
-  const [typeFilter, setTypeFilter] = useState<string>('All');
+  const [filterMode, setFilterMode] = useState<'all' | 'low-balance'>('all');
   const [isRechargeModalOpen, setIsRechargeModalOpen] = useState(false);
   const [isDeductModalOpen, setIsDeductModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [modalVehicleTarget, setModalVehicleTarget] = useState<string | undefined>(undefined);
-  const [selectedProof, setSelectedProof] = useState<{
-    title: string;
-    vehicle: string;
-    amount: number;
-    src: string;
-    plaza?: string;
-  } | null>(null);
 
   const formatINR = (val: number) => '₹' + Math.round(val).toLocaleString('en-IN');
 
-  // Per-vehicle statistics
-  const vehicleFastagStats = useMemo(() => {
-    const map: Record<
-      string,
-      {
-        totalToll: number;
-        totalRecharge: number;
-        txCount: number;
-      }
-    > = {};
+  // Compute per-vehicle FASTag summary
+  const vehicleFastagSummaries = useMemo(() => {
+    return vehicles.map(v => {
+      // Find all recharges for this vehicle sorted by latest
+      const recharges = fastagTransactions
+        .filter(tx => tx.vehicle === v.registrationNumber && tx.type === 'Recharge')
+        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
-    vehicles.forEach(v => {
-      map[v.registrationNumber] = { totalToll: 0, totalRecharge: 0, txCount: 0 };
+      const lastRecharge = recharges[0] || null;
+
+      // Find all toll deductions (total expense in fastag)
+      const totalTollExpense = fastagTransactions
+        .filter(tx => tx.vehicle === v.registrationNumber && tx.type === 'Toll Deduction')
+        .reduce((sum, tx) => sum + tx.amount, 0);
+
+      const bal = v.fastagBalance || 0;
+      const isLow = bal < 500;
+
+      return {
+        vehicleReg: v.registrationNumber,
+        model: v.model || v.type,
+        assignedTo: v.assignedTo,
+        driver: v.assignedDriver || 'Assigned Driver',
+        tagId: v.fastagTagId || `34161FA${v.registrationNumber.slice(-4)}`,
+        bank: v.fastagBank || 'ICICI Bank FASTag',
+        currentBalance: bal,
+        isLowBalance: isLow,
+        lastRechargeDate: lastRecharge ? lastRecharge.date : 'No recharge logged',
+        lastRechargeAmount: lastRecharge ? lastRecharge.amount : 0,
+        totalTollExpense
+      };
     });
-
-    fastagTransactions.forEach(tx => {
-      if (!map[tx.vehicle]) {
-        map[tx.vehicle] = { totalToll: 0, totalRecharge: 0, txCount: 0 };
-      }
-      if (tx.type === 'Toll Deduction') {
-        map[tx.vehicle].totalToll += tx.amount;
-      } else {
-        map[tx.vehicle].totalRecharge += tx.amount;
-      }
-      map[tx.vehicle].txCount += 1;
-    });
-
-    return map;
   }, [vehicles, fastagTransactions]);
 
-  // Overall stats
+  // Overall quick stats
   const overallStats = useMemo(() => {
-    let totalBalance = 0;
+    let totalFleetBalance = 0;
     let totalTollSpent = 0;
     let lowBalanceCount = 0;
 
-    vehicles.forEach(v => {
-      const bal = v.fastagBalance || 0;
-      totalBalance += bal;
-      if (bal < 500) lowBalanceCount++;
-    });
-
-    fastagTransactions.forEach(tx => {
-      if (tx.type === 'Toll Deduction') {
-        totalTollSpent += tx.amount;
-      }
+    vehicleFastagSummaries.forEach(s => {
+      totalFleetBalance += s.currentBalance;
+      totalTollSpent += s.totalTollExpense;
+      if (s.isLowBalance) lowBalanceCount++;
     });
 
     return {
-      totalBalance,
+      totalFleetBalance,
       totalTollSpent,
       lowBalanceCount,
-      totalAccounts: vehicles.length
+      totalVehicles: vehicles.length
     };
-  }, [vehicles, fastagTransactions]);
+  }, [vehicleFastagSummaries, vehicles]);
 
-  // Filtered transactions
-  const filteredTransactions = useMemo(() => {
-    return fastagTransactions.filter(tx => {
+  // Filtered by search query & filterMode
+  const filteredSummaries = useMemo(() => {
+    return vehicleFastagSummaries.filter(item => {
       const matchSearch =
-        tx.vehicle.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (tx.tollPlaza && tx.tollPlaza.toLowerCase().includes(searchQuery.toLowerCase())) ||
-        tx.transactionRef.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (tx.linkedDutyOrTrip && tx.linkedDutyOrTrip.toLowerCase().includes(searchQuery.toLowerCase()));
+        item.vehicleReg.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        item.tagId.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        item.bank.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        item.model.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        item.driver.toLowerCase().includes(searchQuery.toLowerCase());
 
-      const matchVehicle = selectedVehicleFilter === 'All' || tx.vehicle === selectedVehicleFilter;
-      const matchType = typeFilter === 'All' || tx.type === typeFilter;
+      const matchMode = filterMode === 'all' || (filterMode === 'low-balance' && item.isLowBalance);
 
-      return matchSearch && matchVehicle && matchType;
+      return matchSearch && matchMode;
     });
-  }, [fastagTransactions, searchQuery, selectedVehicleFilter, typeFilter]);
+  }, [vehicleFastagSummaries, searchQuery, filterMode]);
 
   const handleOpenRecharge = (reg?: string) => {
     setModalVehicleTarget(reg);
@@ -106,211 +97,113 @@ export const FastagExpensesView: React.FC = () => {
     setIsDeductModalOpen(true);
   };
 
+  const handleOpenEdit = (reg: string) => {
+    setModalVehicleTarget(reg);
+    setIsEditModalOpen(true);
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-      {/* Overall Stats */}
+      {/* Manual Mode Operational Banner */}
+      <div
+        style={{
+          background: 'rgba(56, 189, 248, 0.08)',
+          border: '1px solid rgba(56, 189, 248, 0.25)',
+          padding: '10px 16px',
+          borderRadius: '10px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          fontSize: '12.5px',
+          color: 'var(--text-dim)'
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span style={{ fontSize: '16px' }}>⚡</span>
+          <span>
+            <b>Manual FASTag Management (API Free):</b> Yahan aap manually toll deduction (kitna kata/kam hua) record kar sakte hain, recharge daal sakte hain, ya seedhe wallet balance edit kar sakte hain.
+          </span>
+        </div>
+        <span style={{ fontSize: '11px', color: 'var(--accent)', fontWeight: 600 }}>100% Offline / Manual Support</span>
+      </div>
+
+      {/* Overview Stat Cards */}
       <div className="stats-grid">
-        <StatCard label="Total FASTag Fleet Balance" value={formatINR(overallStats.totalBalance)} customColor="var(--accent)" />
-        <StatCard label="Total Toll Incurred" value={formatINR(overallStats.totalTollSpent)} customColor="#38bdf8" />
-        <StatCard label="Active FASTag Units" value={overallStats.totalAccounts} />
         <StatCard
-          label="Low Balance Warnings (< ₹500)"
+          label="Total Fleet FASTag Balance"
+          value={formatINR(overallStats.totalFleetBalance)}
+          customColor="var(--accent)"
+        />
+        <StatCard
+          label="Total Toll Expense Incurred"
+          value={formatINR(overallStats.totalTollSpent)}
+          customColor="#38bdf8"
+        />
+        <StatCard
+          label="Vehicles with Low Balance"
           value={overallStats.lowBalanceCount}
           customColor={overallStats.lowBalanceCount > 0 ? 'var(--danger)' : undefined}
         />
+        <StatCard label="Total Monitored Vehicles" value={overallStats.totalVehicles} />
       </div>
 
-      {/* SECTION 1: PER-VEHICLE FASTAG ACCOUNTS & EXPENSE CARDS */}
-      <div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-          <div>
-            <h3 style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text)' }}>
-              Per-Vehicle FASTag Accounts & Toll Expense
-            </h3>
-            <span style={{ fontSize: '12px', color: 'var(--text-faint)' }}>
-              Live tag balance, total toll spent, and direct recharge per vehicle
-            </span>
-          </div>
-
-          <div style={{ display: 'flex', gap: '8px' }}>
-            <button
-              className="btn-secondary"
-              style={{ fontSize: '12px', padding: '6px 12px' }}
-              onClick={() => handleOpenDeduct()}
-            >
-              + Log Toll Plaza
-            </button>
-            <button
-              className="btn-primary-action"
-              style={{ fontSize: '12px', padding: '6px 14px' }}
-              onClick={() => handleOpenRecharge()}
-            >
-              ⚡ Recharge FASTag
-            </button>
-          </div>
-        </div>
-
-        {/* Per-Vehicle Grid */}
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-            gap: '14px'
-          }}
-        >
-          {vehicles.map(v => {
-            const vStats = vehicleFastagStats[v.registrationNumber] || { totalToll: 0, totalRecharge: 0, txCount: 0 };
-            const bal = v.fastagBalance || 0;
-            const isLow = bal < 500;
-            const isSelected = selectedVehicleFilter === v.registrationNumber;
-
-            return (
-              <div
-                key={v.id}
-                style={{
-                  background: isSelected ? 'var(--surface-3)' : 'var(--surface)',
-                  border: `1px solid ${isSelected ? 'var(--accent)' : isLow ? 'rgba(255, 92, 92, 0.4)' : 'var(--border)'}`,
-                  borderRadius: '12px',
-                  padding: '14px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '10px',
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
-                  transition: 'all 0.2s ease'
-                }}
-              >
-                {/* Header with Reg & Balance */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                  <div>
-                    <div style={{ fontWeight: 700, fontSize: '14.5px', color: 'var(--text)', letterSpacing: '0.5px' }}>
-                      {v.registrationNumber}
-                    </div>
-                    <div style={{ fontSize: '11px', color: 'var(--text-faint)', marginTop: '1px' }}>
-                      {v.model || v.type} · {v.assignedDriver || 'Driver'}
-                    </div>
-                  </div>
-
-                  <div style={{ textAlign: 'right' }}>
-                    <div
-                      style={{
-                        fontSize: '15px',
-                        fontWeight: 700,
-                        color: isLow ? 'var(--danger)' : 'var(--accent)'
-                      }}
-                    >
-                      {formatINR(bal)}
-                    </div>
-                    {isLow && (
-                      <span
-                        style={{
-                          fontSize: '10px',
-                          color: 'var(--danger)',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '2px',
-                          fontWeight: 600
-                        }}
-                      >
-                        <AlertTriangle size={10} /> LOW BALANCE
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                {/* Tag & Bank Details */}
-                <div
-                  style={{
-                    background: 'var(--surface-2)',
-                    padding: '8px 10px',
-                    borderRadius: '8px',
-                    fontSize: '11.5px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '4px',
-                    border: '1px solid var(--border-soft)'
-                  }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: 'var(--text-dim)' }}>Tag Bank:</span>
-                    <span style={{ fontWeight: 500 }}>{v.fastagBank || 'ICICI Bank FASTag'}</span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: 'var(--text-dim)' }}>Tag ID:</span>
-                    <span style={{ fontFamily: 'monospace', fontSize: '11px' }}>{v.fastagTagId || '34161FA8891'}</span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: 'var(--text-dim)' }}>Total Toll Deducted:</span>
-                    <span style={{ fontWeight: 600, color: '#38bdf8' }}>{formatINR(vStats.totalToll)}</span>
-                  </div>
-                </div>
-
-                {/* Card Action Buttons */}
-                <div style={{ display: 'flex', gap: '6px', marginTop: '2px' }}>
-                  <button
-                    className="btn-secondary"
-                    style={{ flex: 1, fontSize: '11px', padding: '5px 0' }}
-                    onClick={() =>
-                      setSelectedVehicleFilter(isSelected ? 'All' : v.registrationNumber)
-                    }
-                  >
-                    {isSelected ? '✓ Showing' : 'View Tolls'}
-                  </button>
-                  <button
-                    className="btn-secondary"
-                    style={{ flex: 1, fontSize: '11px', padding: '5px 0' }}
-                    onClick={() => handleOpenDeduct(v.registrationNumber)}
-                  >
-                    + Toll
-                  </button>
-                  <button
-                    className="btn-primary-action"
-                    style={{ flex: 1, fontSize: '11px', padding: '5px 0' }}
-                    onClick={() => handleOpenRecharge(v.registrationNumber)}
-                  >
-                    ⚡ Topup
-                  </button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* SECTION 2: FASTAG TRANSACTIONS & DEDUCTION STATEMENT */}
+      {/* Main Panel */}
       <div className="panel">
         <div className="panel-head" style={{ flexWrap: 'wrap', gap: '10px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <span className="panel-title">FASTag Toll Statement & Deductions Ledger</span>
+            <span className="panel-title">Vehicle FASTag Balances, Recharges & Toll Deductions</span>
             <span style={{ fontSize: '12px', color: 'var(--text-faint)' }}>
-              ({filteredTransactions.length} transactions)
+              ({filteredSummaries.length} vehicles)
             </span>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <select
-              className="form-input"
-              style={{ width: 'auto', padding: '5px 10px', fontSize: '12px' }}
-              value={selectedVehicleFilter}
-              onChange={e => setSelectedVehicleFilter(e.target.value)}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+            <button
+              className={`subtab-btn ${filterMode === 'all' ? 'active' : ''}`}
+              onClick={() => setFilterMode('all')}
+              style={{ padding: '5px 12px', fontSize: '12px' }}
             >
-              <option value="All">All Vehicles</option>
-              {vehicles.map(v => (
-                <option key={v.id} value={v.registrationNumber}>
-                  {v.registrationNumber}
-                </option>
-              ))}
-            </select>
+              All Vehicles ({vehicleFastagSummaries.length})
+            </button>
+            <button
+              className={`subtab-btn ${filterMode === 'low-balance' ? 'active' : ''}`}
+              onClick={() => setFilterMode('low-balance')}
+              style={{
+                padding: '5px 12px',
+                fontSize: '12px',
+                color: overallStats.lowBalanceCount > 0 ? 'var(--danger)' : undefined
+              }}
+            >
+              <AlertTriangle size={13} />
+              Low Balance ({overallStats.lowBalanceCount})
+            </button>
 
-            <select
-              className="form-input"
-              style={{ width: 'auto', padding: '5px 10px', fontSize: '12px' }}
-              value={typeFilter}
-              onChange={e => setTypeFilter(e.target.value)}
+            {/* Deduct Toll Button */}
+            <button
+              className="btn-secondary"
+              style={{
+                fontSize: '12px',
+                padding: '6px 14px',
+                color: 'var(--danger)',
+                borderColor: 'rgba(255, 92, 92, 0.4)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '5px'
+              }}
+              onClick={() => handleOpenDeduct()}
+              title="Record toll deduction from any vehicle's FASTag"
             >
-              <option value="All">All Transaction Types</option>
-              <option value="Toll Deduction">Toll Deductions</option>
-              <option value="Recharge">Wallet Recharges</option>
-            </select>
+              <MinusCircle size={13} /> - Deduct Toll (Kitna Kata)
+            </button>
+
+            {/* Recharge FASTag Button */}
+            <button
+              className="btn-primary-action"
+              style={{ fontSize: '12px', padding: '7px 16px', display: 'flex', alignItems: 'center', gap: '5px' }}
+              onClick={() => handleOpenRecharge()}
+            >
+              <Zap size={14} /> + Recharge FASTag
+            </button>
           </div>
         </div>
 
@@ -318,112 +211,197 @@ export const FastagExpensesView: React.FC = () => {
           <table>
             <thead>
               <tr>
-                <th>Vehicle & Tag</th>
-                <th>Date & Time</th>
-                <th>Toll Plaza / Operation</th>
-                <th>Lane / Gate</th>
-                <th>Type</th>
-                <th>Amount</th>
-                <th>Balance After</th>
-                <th>NPCI Reference</th>
-                <th>Proof Slip</th>
+                <th>Vehicle (Konsi Gaadi Mai Hai)</th>
+                <th>FASTag Details (Konsa FASTag Hai)</th>
+                <th>Current Balance (Kitne Paise Hai)</th>
+                <th>Last Recharge (Kab & Kitne Ka Hua)</th>
+                <th>Total Toll Expense (Kitna Kata)</th>
+                <th>Actions (Edit / Deduct / Recharge)</th>
               </tr>
             </thead>
             <tbody>
-              {filteredTransactions.length === 0 ? (
+              {filteredSummaries.length === 0 ? (
                 <tr>
-                  <td colSpan={9} style={{ textAlign: 'center', color: 'var(--text-faint)', padding: '30px 0' }}>
-                    No FASTag transactions found matching your filters.
+                  <td colSpan={6} style={{ textAlign: 'center', color: 'var(--text-faint)', padding: '30px 0' }}>
+                    No vehicle FASTag records found matching your filters.
                   </td>
                 </tr>
               ) : (
-                filteredTransactions.map(tx => (
-                  <tr key={tx.id}>
+                filteredSummaries.map(item => (
+                  <tr key={item.vehicleReg}>
+                    {/* 1. Konsa vehicle mai hai */}
                     <td>
                       <div>
-                        <div style={{ fontWeight: 600, color: 'var(--text)' }}>{tx.vehicle}</div>
-                        <div style={{ fontSize: '10.5px', color: 'var(--text-faint)', fontFamily: 'monospace' }}>
-                          {tx.tagId}
+                        <div
+                          style={{
+                            fontWeight: 700,
+                            color: 'var(--text)',
+                            fontSize: '14px',
+                            letterSpacing: '0.5px'
+                          }}
+                        >
+                          {item.vehicleReg}
                         </div>
-                      </div>
-                    </td>
-
-                    <td>
-                      <div style={{ fontWeight: 500 }}>{tx.date}</div>
-                      <div style={{ fontSize: '10.5px', color: 'var(--text-dim)', marginTop: '2px' }}>
-                        {tx.time}
-                      </div>
-                    </td>
-
-                    <td>
-                      <div style={{ fontWeight: 500, fontSize: '12px' }}>
-                        {tx.tollPlaza || 'Electronic Toll Collection Plaza'}
-                      </div>
-                      {tx.linkedDutyOrTrip && (
+                        <div style={{ fontSize: '11px', color: 'var(--text-faint)', marginTop: '2px' }}>
+                          {item.model}
+                        </div>
                         <div style={{ fontSize: '10.5px', color: 'var(--text-dim)', marginTop: '2px' }}>
-                          Linked: {tx.linkedDutyOrTrip}
+                          Driver: <b>{item.driver}</b> · {item.assignedTo}
                         </div>
+                      </div>
+                    </td>
+
+                    {/* 2. Konsa FASTag hai (Tag ID & Bank) */}
+                    <td>
+                      <div>
+                        <div
+                          style={{
+                            fontWeight: 600,
+                            color: 'var(--text)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px'
+                          }}
+                        >
+                          <CreditCard size={14} style={{ color: 'var(--accent)' }} />
+                          {item.bank}
+                        </div>
+                        <div
+                          style={{
+                            fontSize: '11.5px',
+                            fontFamily: 'monospace',
+                            color: 'var(--text-dim)',
+                            marginTop: '3px'
+                          }}
+                        >
+                          Tag ID: <b>{item.tagId}</b>
+                        </div>
+                        <div
+                          style={{
+                            fontSize: '10.5px',
+                            color: 'var(--accent)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '3px',
+                            marginTop: '2px'
+                          }}
+                        >
+                          <ShieldCheck size={11} /> KYC Active
+                        </div>
+                      </div>
+                    </td>
+
+                    {/* 3. Kitne paise hai (Current Balance) + Direct Edit Button */}
+                    <td>
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span
+                            style={{
+                              fontSize: '16px',
+                              fontWeight: 800,
+                              color: item.isLowBalance ? 'var(--danger)' : 'var(--accent)'
+                            }}
+                          >
+                            {formatINR(item.currentBalance)}
+                          </span>
+                          <button
+                            type="button"
+                            className="btn-secondary"
+                            style={{ padding: '2px 6px', fontSize: '10px', display: 'flex', alignItems: 'center', gap: '2px' }}
+                            onClick={() => handleOpenEdit(item.vehicleReg)}
+                            title="Directly edit FASTag wallet balance"
+                          >
+                            <Edit3 size={10} /> Edit
+                          </button>
+                        </div>
+                        {item.isLowBalance ? (
+                          <div
+                            style={{
+                              fontSize: '11px',
+                              color: 'var(--danger)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '3px',
+                              fontWeight: 600,
+                              marginTop: '2px'
+                            }}
+                          >
+                            <AlertTriangle size={11} /> Low balance! Refill needed
+                          </div>
+                        ) : (
+                          <div style={{ fontSize: '11px', color: 'var(--text-faint)', marginTop: '2px' }}>
+                            ● Wallet Active
+                          </div>
+                        )}
+                      </div>
+                    </td>
+
+                    {/* 4. Last recharge kab hua and kitne ka hua */}
+                    <td>
+                      {item.lastRechargeAmount > 0 ? (
+                        <div>
+                          <div style={{ fontWeight: 600, color: 'var(--text)', fontSize: '13px' }}>
+                            <span style={{ color: '#ffcc4d' }}>+</span>{formatINR(item.lastRechargeAmount)}
+                          </div>
+                          <div style={{ fontSize: '11.5px', color: 'var(--text-dim)', marginTop: '2px' }}>
+                            Recharge Date: <b>{item.lastRechargeDate}</b>
+                          </div>
+                        </div>
+                      ) : (
+                        <span style={{ color: 'var(--text-faint)', fontSize: '12px' }}>
+                          No recharge logged
+                        </span>
                       )}
                     </td>
 
-                    <td style={{ fontSize: '11.5px', color: 'var(--text-dim)' }}>
-                      {tx.lane || 'ETC Fast'}
-                    </td>
-
+                    {/* 5. Total expense in FASTag */}
                     <td>
-                      <span
-                        className="driver-type-badge"
+                      <div
+                        className="num"
                         style={{
-                          background:
-                            tx.type === 'Toll Deduction'
-                              ? 'rgba(56, 189, 248, 0.12)'
-                              : 'rgba(57, 255, 110, 0.15)',
-                          color: tx.type === 'Toll Deduction' ? '#38bdf8' : '#39ff6e'
+                          fontWeight: 700,
+                          fontSize: '14px',
+                          color: item.totalTollExpense > 0 ? '#38bdf8' : 'var(--text-faint)'
                         }}
                       >
-                        {tx.type === 'Toll Deduction' ? '🛣️ Toll' : '⚡ Topup'}
-                      </span>
+                        {formatINR(item.totalTollExpense)}
+                      </div>
+                      <div style={{ fontSize: '10.5px', color: 'var(--text-faint)', marginTop: '2px' }}>
+                        Toll Deducted
+                      </div>
                     </td>
 
-                    <td
-                      className="num"
-                      style={{
-                        fontWeight: 700,
-                        color: tx.type === 'Toll Deduction' ? 'var(--text)' : 'var(--accent)'
-                      }}
-                    >
-                      {tx.type === 'Toll Deduction' ? '-' : '+'}{formatINR(tx.amount)}
-                    </td>
-
-                    <td className="num" style={{ fontWeight: 600 }}>
-                      {formatINR(tx.balanceAfter)}
-                    </td>
-
-                    <td style={{ fontFamily: 'monospace', fontSize: '11.5px' }}>
-                      {tx.transactionRef}
-                    </td>
-
+                    {/* 6. Actions: Deduct Toll / Recharge / Edit */}
                     <td>
-                      {tx.proofSlip ? (
-                        <span
-                          className="bill-link"
-                          style={{ fontSize: '11px', display: 'flex', alignItems: 'center', gap: '3px' }}
-                          onClick={() =>
-                            setSelectedProof({
-                              title: tx.type === 'Recharge' ? 'FASTag Wallet Recharge Slip' : 'Toll Plaza Deduction Proof',
-                              vehicle: tx.vehicle,
-                              amount: tx.amount,
-                              src: tx.proofSlip!,
-                              plaza: tx.tollPlaza
-                            })
-                          }
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        {/* Deduct Toll Button */}
+                        <button
+                          className="btn-secondary"
+                          style={{
+                            fontSize: '11px',
+                            padding: '5px 8px',
+                            color: 'var(--danger)',
+                            borderColor: 'rgba(255, 92, 92, 0.3)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '3px'
+                          }}
+                          onClick={() => handleOpenDeduct(item.vehicleReg)}
+                          title="Record toll deduction (kitna kata)"
                         >
-                          <FileText size={11} />
-                          View proof
-                        </span>
-                      ) : (
-                        <span style={{ color: 'var(--text-faint)', fontSize: '11px' }}>—</span>
-                      )}
+                          <MinusCircle size={11} /> Deduct Toll
+                        </button>
+
+                        {/* Recharge Button */}
+                        <button
+                          className="btn-primary-action"
+                          style={{ fontSize: '11px', padding: '5px 10px', display: 'flex', alignItems: 'center', gap: '3px' }}
+                          onClick={() => handleOpenRecharge(item.vehicleReg)}
+                          title="Recharge FASTag balance"
+                        >
+                          <Zap size={11} /> Recharge
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -440,54 +418,20 @@ export const FastagExpensesView: React.FC = () => {
         preselectedVehicle={modalVehicleTarget}
       />
 
-      {/* Toll Deduction Modal */}
-      <AddTollDeductionModal
+      {/* Deduct Toll Modal (Kitna Kata / Kam Hua) */}
+      <DeductTollModal
         isOpen={isDeductModalOpen}
         onClose={() => setIsDeductModalOpen(false)}
         preselectedVehicle={modalVehicleTarget}
       />
 
-      {/* Proof Viewer Modal */}
-      {selectedProof && (
-        <div className="modal-overlay" onClick={() => setSelectedProof(null)}>
-          <div className="modal-dialog" style={{ maxWidth: 440 }} onClick={e => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3 className="modal-title">🧾 {selectedProof.title}</h3>
-              <button className="modal-close-btn" onClick={() => setSelectedProof(null)}>
-                ✕
-              </button>
-            </div>
-            <div className="modal-body" style={{ textAlign: 'center', padding: '20px' }}>
-              {selectedProof.src.startsWith('data:image') ? (
-                <img
-                  src={selectedProof.src}
-                  alt={selectedProof.title}
-                  style={{ maxWidth: '100%', maxHeight: '400px', borderRadius: '8px' }}
-                />
-              ) : (
-                <div style={{ padding: '30px 20px' }}>
-                  <div style={{ fontSize: '48px', marginBottom: '10px' }}>🛣️</div>
-                  <div style={{ fontWeight: 600, fontSize: '14px' }}>
-                    Slip: {selectedProof.src}
-                  </div>
-                  <div style={{ fontSize: '12px', color: 'var(--text-faint)', marginTop: '6px' }}>
-                    Vehicle: {selectedProof.vehicle} · Amount: {formatINR(selectedProof.amount)}
-                  </div>
-                  {selectedProof.plaza && (
-                    <div style={{ fontSize: '11.5px', color: 'var(--text-dim)', marginTop: '4px' }}>
-                      Plaza: {selectedProof.plaza}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-            <div className="modal-footer">
-              <button className="btn-secondary" onClick={() => setSelectedProof(null)}>
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
+      {/* Edit FASTag Modal (Manual direct balance update) */}
+      {modalVehicleTarget && (
+        <EditFastagModal
+          isOpen={isEditModalOpen}
+          onClose={() => setIsEditModalOpen(false)}
+          vehicleReg={modalVehicleTarget}
+        />
       )}
     </div>
   );

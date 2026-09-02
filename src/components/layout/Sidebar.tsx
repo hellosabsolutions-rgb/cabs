@@ -77,41 +77,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onCloseMobile }) => {
         <div className="nav-group">
           <div className="nav-label">Vehicles</div>
           <div
-            className={`nav-item ${activePage === 'vehicles' && vehicleSubTab === 'all' ? 'active' : ''}`}
-            onClick={() => {
-              setVehicleSubTab('all');
-              handleNavClick('vehicles');
-            }}
+            className={`nav-item ${activePage === 'vehicles' ? 'active' : ''}`}
+            onClick={() => handleNavClick('vehicles')}
           >
             <Truck />
-            All vehicles
-          </div>
-          <div
-            className={`nav-item ${activePage === 'vehicles' && vehicleSubTab === 'department' ? 'active' : ''}`}
-            onClick={() => {
-              setVehicleSubTab('department');
-              handleNavClick('vehicles');
-            }}
-          >
-            Department vehicles
-          </div>
-          <div
-            className={`nav-item ${activePage === 'vehicles' && vehicleSubTab === 'trip' ? 'active' : ''}`}
-            onClick={() => {
-              setVehicleSubTab('trip');
-              handleNavClick('vehicles');
-            }}
-          >
-            Trip vehicles
-          </div>
-          <div
-            className={`nav-item ${activePage === 'vehicles' && vehicleSubTab === 'tracking' ? 'active' : ''}`}
-            onClick={() => {
-              setVehicleSubTab('tracking');
-              handleNavClick('vehicles');
-            }}
-          >
-            Live tracking
+            Vehicles
           </div>
         </div>
 
@@ -200,13 +170,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onCloseMobile }) => {
             onClick={() => handleNavClick('trips')}
           >
             <Navigation />
-            All trips
-          </div>
-          <div className="nav-item" onClick={() => handleNavClick('trips')}>
-            Running
-          </div>
-          <div className="nav-item" onClick={() => handleNavClick('trips')}>
-            Completed
+            Trips
           </div>
         </div>
 

@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useMemo } from 'react';
 import {
   PageId,
   Vehicle,
+  VehicleType,
   VehicleStatus,
   VehicleSubTab,
   Driver,
@@ -56,87 +57,13 @@ const pageHeaders: Record<PageId, PageHeaderInfo> = {
   maintenance: { title: 'Maintenance', subtitle: 'Service, repair and tyre change records' }
 };
 
-export type DriverSubTab = 'list' | 'attendance' | 'expenses';
-export type DepartmentSubTab = 'contracts' | 'duty-logs' | 'billing' | 'payments';
-
-export interface AlertItem {
-  type: 'soon' | 'late';
-  who: string;
-  doc: string;
-  text: string;
-}
-
-interface FleetContextType {
-  activePage: PageId;
-  setActivePage: (page: PageId) => void;
-  pageHeader: PageHeaderInfo;
-  searchQuery: string;
-  setSearchQuery: (query: string) => void;
-  
-  // Drivers & Subtabs
-  driverSubTab: DriverSubTab;
-  setDriverSubTab: (tab: DriverSubTab) => void;
-  drivers: Driver[];
-  addDriver: (driver: Omit<Driver, 'id'>) => void;
-  attendanceRecords: DriverAttendance[];
-  markAttendance: (record: Omit<DriverAttendance, 'id'>) => void;
-  updateAttendanceStatus: (id: string, status: AttendanceStatus) => void;
-  driverExpenses: DriverExpenseItem[];
-  addDriverExpense: (expense: Omit<DriverExpenseItem, 'id'>) => void;
-  updateDriverExpenseStatus: (id: string, status: 'Approved' | 'Pending' | 'Paid') => void;
-
-  // Departments & Contracts Subtabs
-  departmentSubTab: DepartmentSubTab;
-  setDepartmentSubTab: (tab: DepartmentSubTab) => void;
-  departmentContracts: DepartmentContract[];
-  addDepartmentContract: (contract: Omit<DepartmentContract, 'id'>) => void;
-  updateContractStatus: (id: string, status: DepartmentContract['status']) => void;
-  dailyDutyLogs: DailyDutyLog[];
-  addDailyDutyLog: (log: Omit<DailyDutyLog, 'id'>) => void;
-  updateDailyDutyLogStatus: (id: string, status: DailyDutyLog['status']) => void;
-  monthlyBills: MonthlyDepartmentBill[];
-  addMonthlyBill: (bill: Omit<MonthlyDepartmentBill, 'id'>) => void;
-  updateBillStatus: (id: string, status: MonthlyDepartmentBill['status']) => void;
-  departmentPayments: DepartmentPayment[];
-  addDepartmentPayment: (payment: Omit<DepartmentPayment, 'id'>) => void;
-
-  // Fuel, FASTag & Expenses
-  expenseSubTab: 'fuel' | 'fastag' | 'all';
-  setExpenseSubTab: (tab: 'fuel' | 'fastag' | 'all') => void;
-  fuelLogs: FuelLogEntry[];
-  addFuelLog: (entry: Omit<FuelLogEntry, 'id'>) => void;
-  fastagTransactions: FastagTransaction[];
-  addFastagTransaction: (tx: Omit<FastagTransaction, 'id'>) => void;
-  rechargeFastag: (vehicleReg: string, amount: number, paymentMode: string, proof?: string | null) => void;
-
-  // Vehicles Subtabs & Actions
-  vehicleSubTab: VehicleSubTab;
-  setVehicleSubTab: (tab: VehicleSubTab) => void;
-  vehicles: Vehicle[];
-  addVehicle: (vehicle: Omit<Vehicle, 'id'>) => void;
-  updateVehicleStatus: (id: string, status: VehicleStatus) => void;
-
-  contracts: ContractDepartment[];
-  trips: TripFinancial[];
-  expenses: ExpenseRecord[];
-  addExpense: (expense: Omit<ExpenseRecord, 'id'>) => void;
-  maintenanceRecords: MaintenanceRecord[];
-  addMaintenanceRecord: (record: Omit<MaintenanceRecord, 'id' | 'status'>) => void;
-  
-  vehicleCompliance: DocumentCompliance[];
-  driverCompliance: DocumentCompliance[];
-  
-  // Compliance computed metrics
-  complianceStats: {
-    expiringSoonCount: number;
-    expiredCount: number;
-    driverDueCount: number;
-    totalDocsCount: number;
-    alerts: AlertItem[];
-  };
-}
-
-const FleetContext = createContext<FleetContextType | undefined>(undefined);
+import {
+  FleetContext,
+  FleetContextType,
+  AlertItem,
+  DriverSubTab,
+  DepartmentSubTab
+} from './FleetContextDef';
 
 export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [activePage, setActivePage] = useState<PageId>('dashboard');
@@ -159,7 +86,7 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [fastagTransactions, setFastagTransactions] = useState<FastagTransaction[]>(initialFastagTransactions);
   
   const [contracts] = useState<ContractDepartment[]>(initialContracts);
-  const [trips] = useState<TripFinancial[]>(initialTrips);
+  const [trips, setTrips] = useState<TripFinancial[]>(initialTrips);
   const [expenses, setExpenses] = useState<ExpenseRecord[]>(initialExpenses);
   const [vehicleCompliance] = useState<DocumentCompliance[]>(vehicleComplianceDocs);
   const [driverCompliance] = useState<DocumentCompliance[]>(driverComplianceDocs);
@@ -180,6 +107,24 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const updateVehicleStatus = (id: string, status: VehicleStatus) => {
     setVehicles(prev =>
       prev.map(v => (v.id === id ? { ...v, status } : v))
+    );
+  };
+
+  const switchVehicleMode = (id: string, mode: VehicleType) => {
+    setVehicles(prev =>
+      prev.map(v => {
+        if (v.id === id) {
+          return {
+            ...v,
+            currentOperationMode: mode,
+            meta:
+              mode === 'Trip-based'
+                ? `Weekend Trip Duty · ${v.assignedTo}`
+                : `${v.departmentName || v.assignedTo} Department Duty`
+          };
+        }
+        return v;
+      })
     );
   };
 
@@ -272,12 +217,120 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     );
   };
 
+  const updateFastagDetails = (vehicleReg: string, balance: number, bank?: string, tagId?: string) => {
+    setVehicles(prev =>
+      prev.map(item => {
+        if (item.registrationNumber === vehicleReg) {
+          return {
+            ...item,
+            fastagBalance: balance,
+            fastagBank: bank !== undefined ? bank : item.fastagBank,
+            fastagTagId: tagId !== undefined ? tagId : item.fastagTagId
+          };
+        }
+        return item;
+      })
+    );
+  };
+
   const addExpense = (expenseData: Omit<ExpenseRecord, 'id'>) => {
     const newExpense: ExpenseRecord = {
       ...expenseData,
       id: 'e_' + Date.now()
     };
     setExpenses(prev => [newExpense, ...prev]);
+  };
+
+  const addTrip = (tripData: Omit<TripFinancial, 'id'>) => {
+    const totalExp =
+      tripData.fuelCost +
+      tripData.fastagCost +
+      tripData.driverBata +
+      (tripData.otherExpenses || 0);
+    const netProfit = tripData.revenue - totalExp;
+    const margin =
+      tripData.revenue > 0 ? ((netProfit / tripData.revenue) * 100).toFixed(1) + '%' : '0%';
+
+    const newTrip: TripFinancial = {
+      ...tripData,
+      id: 't_' + Date.now(),
+      tripNumber: tripData.tripNumber || `TRIP-${Math.floor(Math.random() * 9000 + 1000)}`,
+      expenses: totalExp,
+      profit: netProfit,
+      margin
+    };
+
+    setTrips(prev => [newTrip, ...prev]);
+
+    // Also sync initial trip fuel and FASTag expenses into fleet expenses
+    if (newTrip.fuelCost > 0) {
+      setExpenses(prev => [
+        {
+          id: 'e_fuel_' + Date.now(),
+          date: newTrip.startDate,
+          vehicle: newTrip.vehicle,
+          category: 'Fuel',
+          linkedTo: `Trip ${newTrip.tripNumber}: ${newTrip.route}`,
+          amount: newTrip.fuelCost
+        },
+        ...prev
+      ]);
+    }
+
+    if (newTrip.fastagCost > 0) {
+      setExpenses(prev => [
+        {
+          id: 'e_fastag_' + Date.now(),
+          date: newTrip.startDate,
+          vehicle: newTrip.vehicle,
+          category: 'FASTag / Toll',
+          linkedTo: `Trip ${newTrip.tripNumber}: ${newTrip.route}`,
+          amount: newTrip.fastagCost
+        },
+        ...prev
+      ]);
+    }
+  };
+
+  const completeTrip = (
+    id: string,
+    data: {
+      endOdometer: number;
+      fuelCost: number;
+      fastagCost: number;
+      driverBata: number;
+      otherExpenses?: number;
+      notes?: string;
+    }
+  ) => {
+    setTrips(prev =>
+      prev.map(t => {
+        if (t.id === id) {
+          const totalKm = Math.max(0, data.endOdometer - t.startOdometer);
+          const totalExp =
+            data.fuelCost + data.fastagCost + data.driverBata + (data.otherExpenses || 0);
+          const profit = t.revenue - totalExp;
+          const margin = t.revenue > 0 ? ((profit / t.revenue) * 100).toFixed(1) + '%' : '0%';
+
+          return {
+            ...t,
+            endOdometer: data.endOdometer,
+            totalKmRun: totalKm,
+            fuelCost: data.fuelCost,
+            fastagCost: data.fastagCost,
+            driverBata: data.driverBata,
+            otherExpenses: data.otherExpenses || 0,
+            expenses: totalExp,
+            profit,
+            margin,
+            status: 'Completed',
+            endDate: new Date().toISOString().split('T')[0],
+            notes: data.notes || t.notes
+          };
+        }
+        return t;
+      })
+    );
   };
 
   const addDriver = (driverData: Omit<Driver, 'id'>) => {
@@ -464,6 +517,7 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         vehicles,
         addVehicle,
         updateVehicleStatus,
+        switchVehicleMode,
         drivers,
         addDriver,
         attendanceRecords,
@@ -474,6 +528,8 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         updateDriverExpenseStatus,
         contracts,
         trips,
+        addTrip,
+        completeTrip,
         expenses,
         addExpense,
         expenseSubTab,
@@ -483,6 +539,7 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         fastagTransactions,
         addFastagTransaction,
         rechargeFastag,
+        updateFastagDetails,
         maintenanceRecords,
         addMaintenanceRecord,
         vehicleCompliance,
@@ -495,10 +552,4 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   );
 };
 
-export const useFleet = () => {
-  const context = useContext(FleetContext);
-  if (!context) {
-    throw new Error('useFleet must be used within a FleetProvider');
-  }
-  return context;
-};
+export { useFleet } from './useFleet';
