@@ -2,6 +2,7 @@ import React from 'react';
 import { useFleet } from '../../context/FleetContext';
 import { useTheme } from '../../context/ThemeContext';
 import { PageId } from '../../types/fleet';
+import { AgencySwitcher } from './AgencySwitcher';
 import {
   LayoutDashboard,
   Truck,
@@ -61,6 +62,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onCloseMobile }) => {
           <div className="brand-name">FleetOS</div>
           <div className="brand-sub">Admin console</div>
         </div>
+      </div>
+
+      {/* Agency Switcher & Profile Dropdown */}
+      <div style={{ padding: '0 12px 12px' }}>
+        <AgencySwitcher />
       </div>
 
       <div className="nav" id="nav">

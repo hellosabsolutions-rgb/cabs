@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, useMemo } from 'react';
+import React, { createContext, useContext, useState, useMemo, useEffect } from 'react';
+import { api } from '../services/api';
 import {
   PageId,
   Vehicle,
@@ -135,24 +136,67 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
+  // Fetch vehicles from live backend API
+  const fetchLiveVehicles = async () => {
+    try {
+      const res = await api.get('/vehicles?limit=100');
+      if (res.success && Array.isArray(res.data) && res.data.length > 0) {
+        setVehicles(res.data);
+      }
+    } catch (err) {
+      console.warn('Backend vehicles API not reachable, using local fleet cache.', err);
+    }
+  };
+
+  useEffect(() => {
+    fetchLiveVehicles();
+  }, []);
+
   const refreshData = async () => {
     setIsLoading(true);
     setLoadingKey('refreshing');
     try {
-      await new Promise(resolve => setTimeout(resolve, 450));
-      showToast('info', 'Fleet data synchronized successfully.', 'Refreshed');
+      await fetchLiveVehicles();
+      showToast('info', 'Fleet data synchronized with live server.', 'Refreshed');
     } finally {
       setIsLoading(false);
       setLoadingKey(null);
     }
   };
 
-  const addVehicle = (vehicleData: Omit<Vehicle, 'id'>) => {
+  const addVehicle = async (vehicleData: Omit<Vehicle, 'id'>) => {
     try {
       if (!vehicleData.registrationNumber?.trim()) {
         showToast('error', 'Vehicle registration number is required.', 'Validation Error');
-        return;
+        return { success: false, error: 'Vehicle registration number is required.' };
       }
+
+      // 1. Post to backend API
+      try {
+        const res = await api.post('/vehicles', vehicleData);
+        if (res.success && res.data) {
+          const serverVehicle: Vehicle = {
+            ...res.data,
+            id: res.data.id || res.data._id
+          };
+          setVehicles(prev => [serverVehicle, ...prev.filter(v => v.registrationNumber !== serverVehicle.registrationNumber)]);
+          showToast(
+            'success',
+            `Vehicle ${serverVehicle.registrationNumber} onboarded to ${serverVehicle.type} fleet.`,
+            'Vehicle Registered'
+          );
+          return { success: true, vehicle: serverVehicle };
+        } else if (res.error) {
+          showToast('error', res.error, 'Registration Error');
+          return { success: false, error: res.error };
+        }
+      } catch (apiErr: any) {
+        const msg = apiErr.message || 'Registration failed';
+        showToast('error', msg, 'Registration Failed');
+        return { success: false, error: msg };
+      }
+
+      // 2. Fallback if offline
       const newVehicle: Vehicle = {
         ...vehicleData,
         id: 'v_' + Date.now(),
@@ -166,42 +210,56 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         `Vehicle ${newVehicle.registrationNumber} added to ${newVehicle.type} fleet.`,
         'Vehicle Registered'
       );
-    } catch (err) {
+      return { success: true, vehicle: newVehicle };
+    } catch (err: any) {
       console.error('Failed to add vehicle', err);
-      showToast('error', 'Failed to register vehicle. Please try again.', 'System Error');
+      showToast('error', err.message || 'Failed to register vehicle.', 'System Error');
+      return { success: false, error: err.message };
     }
   };
 
-  const updateVehicleStatus = (id: string, status: VehicleStatus) => {
+  const updateVehicleStatus = async (id: string, status: VehicleStatus) => {
     try {
       setVehicles(prev =>
         prev.map(v => (v.id === id ? { ...v, status } : v))
       );
       showToast('info', `Vehicle duty status updated to "${status}".`, 'Status Changed');
+      try {
+        await api.put(`/vehicles/${id}`, { status });
+      } catch (e) {
+        // silent local fallback
+      }
     } catch (err) {
       console.error('Failed to update vehicle status', err);
       showToast('error', 'Could not update vehicle status.', 'Error');
     }
   };
 
-  const switchVehicleMode = (id: string, mode: VehicleType) => {
+  const switchVehicleMode = async (id: string, mode: VehicleType) => {
     try {
+      let updatedMeta = '';
       setVehicles(prev =>
         prev.map(v => {
           if (v.id === id) {
+            updatedMeta =
+              mode === 'Trip-based'
+                ? `Weekend Trip Duty · ${v.assignedTo}`
+                : `${v.departmentName || v.assignedTo} Department Duty`;
             return {
               ...v,
               currentOperationMode: mode,
-              meta:
-                mode === 'Trip-based'
-                  ? `Weekend Trip Duty · ${v.assignedTo}`
-                  : `${v.departmentName || v.assignedTo} Department Duty`
+              meta: updatedMeta
             };
           }
           return v;
         })
       );
       showToast('info', `Vehicle operation mode switched to ${mode}.`, 'Mode Switched');
+      try {
+        await api.put(`/vehicles/${id}`, { currentOperationMode: mode, meta: updatedMeta });
+      } catch (e) {
+        // silent local fallback
+      }
     } catch (err) {
       console.error('Failed to switch vehicle mode', err);
       showToast('error', 'Failed to switch vehicle mode.', 'Error');

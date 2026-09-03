@@ -13,6 +13,22 @@ export type VehicleStatus = 'Running' | 'Active' | 'Idle' | 'Maintenance';
 export type VehicleType = 'Department' | 'Trip-based';
 export type VehicleSubTab = 'all' | 'department' | 'trip' | 'tracking';
 
+export interface Agency {
+  id: string;
+  _id?: string;
+  name: string;
+  businessType: string;
+  phone?: string;
+  email?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  gstin?: string;
+  pan?: string;
+  logo?: string | null;
+  isDefault?: boolean;
+}
+
 export interface Vehicle {
   id: string;
   registrationNumber: string;

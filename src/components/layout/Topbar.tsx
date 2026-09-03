@@ -1,6 +1,8 @@
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useFleet } from '../../context/FleetContext';
-import { Search, Bell, Menu, RefreshCw } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
+import { useAgency } from '../../context/AgencyContext';
+import { Search, Bell, Menu, RefreshCw, LogOut, User, Shield, Building2 } from 'lucide-react';
 
 interface TopbarProps {
   onToggleMobileSidebar: () => void;
@@ -8,8 +10,34 @@ interface TopbarProps {
 
 export const Topbar: React.FC<TopbarProps> = ({ onToggleMobileSidebar }) => {
   const { pageHeader, searchQuery, setSearchQuery, complianceStats, refreshData, isLoading } = useFleet();
+  const { user, logout } = useAuth();
+  const { currentAgency } = useAgency();
+
+  const [profileOpen, setProfileOpen] = useState(false);
+  const profileRef = useRef<HTMLDivElement>(null);
 
   const totalAlerts = complianceStats.expiringSoonCount + complianceStats.expiredCount;
+
+  // Compute initials
+  const initials = user?.name
+    ? user.name
+        .split(' ')
+        .map(n => n[0])
+        .slice(0, 2)
+        .join('')
+        .toUpperCase()
+    : 'AD';
+
+  // Close profile dropdown on outside click
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (profileRef.current && !profileRef.current.contains(e.target as Node)) {
+        setProfileOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, []);
 
   return (
     <header className="topbar">
@@ -50,8 +78,156 @@ export const Topbar: React.FC<TopbarProps> = ({ onToggleMobileSidebar }) => {
           {totalAlerts > 0 && <div className="dot" />}
         </div>
 
-        <div className="avatar" title="User Profile">
-          RS
+        {/* Profile Avatar & Dropdown Menu */}
+        <div style={{ position: 'relative' }} ref={profileRef}>
+          <div
+            className="avatar"
+            onClick={() => setProfileOpen(prev => !prev)}
+            title={`Logged in as ${user?.name || 'Administrator'}`}
+          >
+            {initials}
+          </div>
+
+          {profileOpen && (
+            <div
+              style={{
+                position: 'absolute',
+                top: '46px',
+                right: 0,
+                width: 240,
+                background: 'var(--surface)',
+                border: '1px solid var(--border)',
+                borderRadius: '12px',
+                boxShadow: '0 12px 30px rgba(0,0,0,0.35)',
+                padding: '12px',
+                zIndex: 100,
+                animation: 'modalSlideUp 0.18s ease'
+              }}
+            >
+              {/* User Info Card */}
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  paddingBottom: '10px',
+                  borderBottom: '1px solid var(--border-soft)'
+                }}
+              >
+                <div
+                  style={{
+                    width: 38,
+                    height: 38,
+                    borderRadius: '10px',
+                    background: 'var(--accent-dim)',
+                    color: 'var(--accent)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontWeight: 700,
+                    fontSize: '13px'
+                  }}
+                >
+                  {initials}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 600, fontSize: '13px', color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {user?.name || 'Administrator'}
+                  </div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-faint)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {user?.email || 'admin@fleetos.com'}
+                  </div>
+                </div>
+              </div>
+
+              {/* Role badge */}
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '8px 0 6px',
+                  fontSize: '11px',
+                  color: 'var(--text-dim)'
+                }}
+              >
+                <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <Shield size={12} color="var(--accent)" /> Access Role:
+                </span>
+                <span
+                  style={{
+                    background: 'var(--accent-dim)',
+                    color: 'var(--accent)',
+                    padding: '2px 8px',
+                    borderRadius: '6px',
+                    fontWeight: 600,
+                    textTransform: 'uppercase',
+                    fontSize: '10px'
+                  }}
+                >
+                  {user?.role || 'admin'}
+                </span>
+              </div>
+
+              {/* Agency Name */}
+              {currentAgency && (
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '0 0 10px',
+                    fontSize: '11px',
+                    color: 'var(--text-dim)'
+                  }}
+                >
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <Building2 size={12} color="#38bdf8" /> Active Agency:
+                  </span>
+                  <span
+                    style={{
+                      maxWidth: 120,
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      fontWeight: 600,
+                      color: 'var(--text)'
+                    }}
+                    title={currentAgency.name}
+                  >
+                    {currentAgency.name}
+                  </span>
+                </div>
+              )}
+
+              {/* Logout Button */}
+              <button
+                type="button"
+                onClick={() => {
+                  setProfileOpen(false);
+                  logout();
+                }}
+                style={{
+                  width: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  padding: '8px 0',
+                  borderRadius: '8px',
+                  border: '1px solid var(--danger)',
+                  background: 'var(--danger-bg)',
+                  color: 'var(--danger)',
+                  fontWeight: 600,
+                  fontSize: '12px',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease'
+                }}
+              >
+                <LogOut size={13} /> Sign Out
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </header>

@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useFleet } from '../../../context/FleetContext';
 import { Vehicle, VehicleType, VehicleStatus } from '../../../types/fleet';
-import { Building2, MapPin, Truck, Briefcase, Upload, FileText, Loader2 } from 'lucide-react';
+import { Building2, MapPin, Truck, Briefcase, Upload, FileText, Loader2, Mic } from 'lucide-react';
+import { VoiceFormFiller } from '../../common/VoiceFormFiller';
+import { ParsedVehicleVoiceData } from '../../../utils/vehicleVoiceParser';
 
 interface AddVehicleModalProps {
   isOpen: boolean;
@@ -115,7 +117,7 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const cleanReg = registrationNumber.trim().toUpperCase().replace(/\s+/g, '');
     if (!cleanReg) {
@@ -137,7 +139,7 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
 
     setIsSubmitting(true);
     try {
-      addVehicle({
+      const res = await addVehicle({
         registrationNumber: cleanReg,
         model: model.trim(),
         type,
@@ -159,17 +161,42 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
         fitnessExpiry
       });
 
+      if (res && !res.success) {
+        setErrorMsg(res.error || 'Failed to onboard vehicle to database.');
+        return;
+      }
+
       setRegistrationNumber('');
       setErrorMsg('');
       onClose();
+    } catch (err: any) {
+      setErrorMsg(err.message || 'An error occurred during onboarding.');
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  const handleApplyVoiceData = (data: ParsedVehicleVoiceData) => {
+    if (data.registrationNumber) setRegistrationNumber(data.registrationNumber);
+    if (data.model) setModel(data.model);
+    if (data.type) setType(data.type);
+    if (data.departmentName) setDepartmentName(data.departmentName);
+    if (data.hubStand) setHubStand(data.hubStand);
+    if (data.fuelType) setFuelType(data.fuelType);
+    if (data.seatingCapacity) setSeatingCapacity(data.seatingCapacity);
+    if (data.assignedDriver) setAssignedDriver(data.assignedDriver);
+    if (data.odometer) setOdometer(data.odometer);
+    if (data.fastagBalance) setFastagBalance(data.fastagBalance);
+    if (data.status) setStatus(data.status);
+  };
+
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-dialog" onClick={e => e.stopPropagation()} style={{ maxWidth: 540 }}>
+      <div
+        className="modal-dialog"
+        onClick={e => e.stopPropagation()}
+        style={{ maxWidth: 580, maxHeight: '92vh', display: 'flex', flexDirection: 'column' }}
+      >
         <div className="modal-header">
           <div className="modal-title-group">
             <h3 className="modal-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -184,8 +211,17 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-          <div className="modal-body">
+        <form
+          onSubmit={handleSubmit}
+          style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, overflow: 'hidden' }}
+        >
+          <div className="modal-body" style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
+            {/* Smart Voice Form Filling Component */}
+            <VoiceFormFiller
+              availableDrivers={drivers.map(d => d.name)}
+              onApplyParsedData={handleApplyVoiceData}
+            />
+
             {errorMsg && (
               <div
                 style={{
@@ -194,7 +230,8 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
                   padding: '10px 14px',
                   borderRadius: '8px',
                   fontSize: '12.5px',
-                  border: '1px solid rgba(255, 92, 92, 0.3)'
+                  border: '1px solid rgba(255, 92, 92, 0.3)',
+                  marginBottom: '12px'
                 }}
               >
                 {errorMsg}
