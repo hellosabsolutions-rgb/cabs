@@ -19,7 +19,9 @@ import {
   TripFinancial,
   ExpenseRecord,
   DocumentCompliance,
-  MaintenanceRecord
+  MaintenanceRecord,
+  ToastNotification,
+  ToastType
 } from '../types/fleet';
 import {
   initialVehicles,
@@ -88,98 +90,200 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [contracts] = useState<ContractDepartment[]>(initialContracts);
   const [trips, setTrips] = useState<TripFinancial[]>(initialTrips);
   const [expenses, setExpenses] = useState<ExpenseRecord[]>(initialExpenses);
-  const [vehicleCompliance] = useState<DocumentCompliance[]>(vehicleComplianceDocs);
-  const [driverCompliance] = useState<DocumentCompliance[]>(driverComplianceDocs);
+  const [vehicleCompliance, setVehicleCompliance] = useState<DocumentCompliance[]>(vehicleComplianceDocs);
+  const [driverCompliance, setDriverCompliance] = useState<DocumentCompliance[]>(driverComplianceDocs);
   
   const [maintenanceRecords, setMaintenanceRecords] = useState<MaintenanceRecord[]>(initialMaintenanceRecords);
 
+  const [isLoading, setIsLoading] = useState(false);
+  const [loadingKey, setLoadingKey] = useState<string | null>(null);
+  const [toasts, setToasts] = useState<ToastNotification[]>([]);
+
+  const showToast = (type: ToastType, message: string, title?: string, duration = 3500) => {
+    const id = 'toast_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
+    const newToast: ToastNotification = { id, type, title, message, duration };
+    setToasts(prev => [...prev, newToast]);
+    if (duration > 0) {
+      setTimeout(() => {
+        dismissToast(id);
+      }, duration);
+    }
+  };
+
+  const dismissToast = (id: string) => {
+    setToasts(prev => prev.filter(t => t.id !== id));
+  };
+
+  const handleSetActivePage = (page: PageId) => {
+    if (page === activePage) return;
+    setIsLoading(true);
+    setActivePage(page);
+    setTimeout(() => {
+      setIsLoading(false);
+    }, 280);
+  };
+
+  const withLoading = async <T,>(fn: () => Promise<T> | T, key?: string): Promise<T> => {
+    setIsLoading(true);
+    if (key) setLoadingKey(key);
+    try {
+      const res = await Promise.resolve(fn());
+      return res;
+    } finally {
+      setIsLoading(false);
+      setLoadingKey(null);
+    }
+  };
+
+  const refreshData = async () => {
+    setIsLoading(true);
+    setLoadingKey('refreshing');
+    try {
+      await new Promise(resolve => setTimeout(resolve, 450));
+      showToast('info', 'Fleet data synchronized successfully.', 'Refreshed');
+    } finally {
+      setIsLoading(false);
+      setLoadingKey(null);
+    }
+  };
+
   const addVehicle = (vehicleData: Omit<Vehicle, 'id'>) => {
-    const newVehicle: Vehicle = {
-      ...vehicleData,
-      id: 'v_' + Date.now(),
-      revenue: vehicleData.revenue || 0,
-      expense: vehicleData.expense || 0,
-      profit: (vehicleData.revenue || 0) - (vehicleData.expense || 0)
-    };
-    setVehicles(prev => [newVehicle, ...prev]);
+    try {
+      if (!vehicleData.registrationNumber?.trim()) {
+        showToast('error', 'Vehicle registration number is required.', 'Validation Error');
+        return;
+      }
+      const newVehicle: Vehicle = {
+        ...vehicleData,
+        id: 'v_' + Date.now(),
+        revenue: vehicleData.revenue || 0,
+        expense: vehicleData.expense || 0,
+        profit: (vehicleData.revenue || 0) - (vehicleData.expense || 0)
+      };
+      setVehicles(prev => [newVehicle, ...prev]);
+      showToast(
+        'success',
+        `Vehicle ${newVehicle.registrationNumber} added to ${newVehicle.type} fleet.`,
+        'Vehicle Registered'
+      );
+    } catch (err) {
+      console.error('Failed to add vehicle', err);
+      showToast('error', 'Failed to register vehicle. Please try again.', 'System Error');
+    }
   };
 
   const updateVehicleStatus = (id: string, status: VehicleStatus) => {
-    setVehicles(prev =>
-      prev.map(v => (v.id === id ? { ...v, status } : v))
-    );
+    try {
+      setVehicles(prev =>
+        prev.map(v => (v.id === id ? { ...v, status } : v))
+      );
+      showToast('info', `Vehicle duty status updated to "${status}".`, 'Status Changed');
+    } catch (err) {
+      console.error('Failed to update vehicle status', err);
+      showToast('error', 'Could not update vehicle status.', 'Error');
+    }
   };
 
   const switchVehicleMode = (id: string, mode: VehicleType) => {
-    setVehicles(prev =>
-      prev.map(v => {
-        if (v.id === id) {
-          return {
-            ...v,
-            currentOperationMode: mode,
-            meta:
-              mode === 'Trip-based'
-                ? `Weekend Trip Duty · ${v.assignedTo}`
-                : `${v.departmentName || v.assignedTo} Department Duty`
-          };
-        }
-        return v;
-      })
-    );
+    try {
+      setVehicles(prev =>
+        prev.map(v => {
+          if (v.id === id) {
+            return {
+              ...v,
+              currentOperationMode: mode,
+              meta:
+                mode === 'Trip-based'
+                  ? `Weekend Trip Duty · ${v.assignedTo}`
+                  : `${v.departmentName || v.assignedTo} Department Duty`
+            };
+          }
+          return v;
+        })
+      );
+      showToast('info', `Vehicle operation mode switched to ${mode}.`, 'Mode Switched');
+    } catch (err) {
+      console.error('Failed to switch vehicle mode', err);
+      showToast('error', 'Failed to switch vehicle mode.', 'Error');
+    }
   };
 
   const addFuelLog = (entryData: Omit<FuelLogEntry, 'id'>) => {
-    const newFuel: FuelLogEntry = {
-      ...entryData,
-      id: 'fuel_' + Date.now()
-    };
-    setFuelLogs(prev => [newFuel, ...prev]);
+    try {
+      if (!entryData.vehicle || !entryData.litres || !entryData.totalCost) {
+        showToast('error', 'Please fill vehicle, litres and total amount.', 'Missing Fields');
+        return;
+      }
+      const newFuel: FuelLogEntry = {
+        ...entryData,
+        id: 'fuel_' + Date.now()
+      };
+      setFuelLogs(prev => [newFuel, ...prev]);
 
-    // Automatically sync with fleet expenses
-    const expEntry: ExpenseRecord = {
-      id: 'e_' + Date.now(),
-      date: newFuel.date,
-      vehicle: newFuel.vehicle,
-      category: 'Fuel',
-      linkedTo: `${newFuel.stationName} (${newFuel.litres}L @ ₹${newFuel.ratePerLitre}/L)`,
-      amount: newFuel.totalCost
-    };
-    setExpenses(prev => [expEntry, ...prev]);
+      // Automatically sync with fleet expenses
+      const expEntry: ExpenseRecord = {
+        id: 'e_' + Date.now(),
+        date: newFuel.date,
+        vehicle: newFuel.vehicle,
+        category: 'Fuel',
+        linkedTo: `${newFuel.stationName} (${newFuel.litres}L @ ₹${newFuel.ratePerLitre}/L)`,
+        amount: newFuel.totalCost
+      };
+      setExpenses(prev => [expEntry, ...prev]);
+      showToast(
+        'success',
+        `Logged ₹${newFuel.totalCost.toLocaleString('en-IN')} (${newFuel.litres}L) for ${newFuel.vehicle}.`,
+        'Fuel Refill Recorded'
+      );
+    } catch (err) {
+      console.error('Failed to add fuel log', err);
+      showToast('error', 'Could not record fuel refill.', 'Error');
+    }
   };
 
   const addFastagTransaction = (txData: Omit<FastagTransaction, 'id'>) => {
-    const newTx: FastagTransaction = {
-      ...txData,
-      id: 'ft_' + Date.now()
-    };
-    setFastagTransactions(prev => [newTx, ...prev]);
-
-    // Update vehicle's fastag balance
-    setVehicles(prev =>
-      prev.map(v => {
-        if (v.registrationNumber === newTx.vehicle) {
-          const currentBal = v.fastagBalance || 0;
-          const newBal =
-            newTx.type === 'Recharge'
-              ? currentBal + newTx.amount
-              : Math.max(0, currentBal - newTx.amount);
-          return { ...v, fastagBalance: newBal };
-        }
-        return v;
-      })
-    );
-
-    // If toll deduction, auto record in fleet expenses
-    if (newTx.type === 'Toll Deduction') {
-      const tollExp: ExpenseRecord = {
-        id: 'e_' + Date.now(),
-        date: newTx.date,
-        vehicle: newTx.vehicle,
-        category: 'FASTag / Toll',
-        linkedTo: `${newTx.tollPlaza || 'Toll Plaza'} (${newTx.transactionRef})`,
-        amount: newTx.amount
+    try {
+      const newTx: FastagTransaction = {
+        ...txData,
+        id: 'ft_' + Date.now()
       };
-      setExpenses(prev => [tollExp, ...prev]);
+      setFastagTransactions(prev => [newTx, ...prev]);
+
+      // Update vehicle's fastag balance
+      setVehicles(prev =>
+        prev.map(v => {
+          if (v.registrationNumber === newTx.vehicle) {
+            const currentBal = v.fastagBalance || 0;
+            const newBal =
+              newTx.type === 'Recharge'
+                ? currentBal + newTx.amount
+                : Math.max(0, currentBal - newTx.amount);
+            return { ...v, fastagBalance: newBal };
+          }
+          return v;
+        })
+      );
+
+      // If toll deduction, auto record in fleet expenses
+      if (newTx.type === 'Toll Deduction') {
+        const tollExp: ExpenseRecord = {
+          id: 'e_' + Date.now(),
+          date: newTx.date,
+          vehicle: newTx.vehicle,
+          category: 'FASTag / Toll',
+          linkedTo: `${newTx.tollPlaza || 'Toll Plaza'} (${newTx.transactionRef})`,
+          amount: newTx.amount
+        };
+        setExpenses(prev => [tollExp, ...prev]);
+        showToast(
+          'info',
+          `Toll deduction of ₹${newTx.amount.toLocaleString('en-IN')} recorded for ${newTx.vehicle}.`,
+          'Toll Deducted'
+        );
+      }
+    } catch (err) {
+      console.error('Failed to record FASTag transaction', err);
+      showToast('error', 'FASTag transaction could not be recorded.', 'Error');
     }
   };
 
@@ -189,106 +293,142 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     paymentMode: string,
     proof?: string | null
   ) => {
-    const v = vehicles.find(item => item.registrationNumber === vehicleReg);
-    const prevBal = v?.fastagBalance || 0;
-    const newBal = prevBal + amount;
+    try {
+      if (!vehicleReg || amount <= 0) {
+        showToast('error', 'Valid vehicle and recharge amount greater than 0 required.', 'Invalid Input');
+        return;
+      }
+      const v = vehicles.find(item => item.registrationNumber === vehicleReg);
+      const prevBal = v?.fastagBalance || 0;
+      const newBal = prevBal + amount;
 
-    const tx: FastagTransaction = {
-      id: 'ft_' + Date.now(),
-      vehicle: vehicleReg,
-      tagId: v?.fastagTagId || 'TAG-FASTAG',
-      type: 'Recharge',
-      date: new Date().toISOString().split('T')[0],
-      time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }),
-      tollPlaza: `${v?.fastagBank || 'FASTag'} Wallet Recharge (${paymentMode})`,
-      amount,
-      balanceAfter: newBal,
-      transactionRef: `REC-${Date.now().toString().slice(-8)}`,
-      linkedDutyOrTrip: 'Wallet Topup',
-      proofSlip: proof || null,
-      status: 'Successful'
-    };
+      const tx: FastagTransaction = {
+        id: 'ft_' + Date.now(),
+        vehicle: vehicleReg,
+        tagId: v?.fastagTagId || 'TAG-FASTAG',
+        type: 'Recharge',
+        date: new Date().toISOString().split('T')[0],
+        time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }),
+        tollPlaza: `${v?.fastagBank || 'FASTag'} Wallet Recharge (${paymentMode})`,
+        amount,
+        balanceAfter: newBal,
+        transactionRef: `REC-${Date.now().toString().slice(-8)}`,
+        linkedDutyOrTrip: 'Wallet Topup',
+        proofSlip: proof || null,
+        status: 'Successful'
+      };
 
-    setFastagTransactions(prev => [tx, ...prev]);
-    setVehicles(prev =>
-      prev.map(item =>
-        item.registrationNumber === vehicleReg ? { ...item, fastagBalance: newBal } : item
-      )
-    );
+      setFastagTransactions(prev => [tx, ...prev]);
+      setVehicles(prev =>
+        prev.map(item =>
+          item.registrationNumber === vehicleReg ? { ...item, fastagBalance: newBal } : item
+        )
+      );
+      showToast(
+        'success',
+        `₹${amount.toLocaleString('en-IN')} added to ${vehicleReg} FASTag wallet (New Balance: ₹${newBal.toLocaleString('en-IN')}).`,
+        'Recharge Complete'
+      );
+    } catch (err) {
+      console.error('Failed to recharge FASTag', err);
+      showToast('error', 'FASTag recharge failed.', 'Error');
+    }
   };
 
   const updateFastagDetails = (vehicleReg: string, balance: number, bank?: string, tagId?: string) => {
-    setVehicles(prev =>
-      prev.map(item => {
-        if (item.registrationNumber === vehicleReg) {
-          return {
-            ...item,
-            fastagBalance: balance,
-            fastagBank: bank !== undefined ? bank : item.fastagBank,
-            fastagTagId: tagId !== undefined ? tagId : item.fastagTagId
-          };
-        }
-        return item;
-      })
-    );
+    try {
+      setVehicles(prev =>
+        prev.map(item => {
+          if (item.registrationNumber === vehicleReg) {
+            return {
+              ...item,
+              fastagBalance: balance,
+              fastagBank: bank !== undefined ? bank : item.fastagBank,
+              fastagTagId: tagId !== undefined ? tagId : item.fastagTagId
+            };
+          }
+          return item;
+        })
+      );
+      showToast('success', `FASTag balance updated to ₹${balance.toLocaleString('en-IN')} for ${vehicleReg}.`, 'FASTag Updated');
+    } catch (err) {
+      console.error('Failed to update FASTag details', err);
+      showToast('error', 'Could not update FASTag details.', 'Error');
+    }
   };
 
   const addExpense = (expenseData: Omit<ExpenseRecord, 'id'>) => {
-    const newExpense: ExpenseRecord = {
-      ...expenseData,
-      id: 'e_' + Date.now()
-    };
-    setExpenses(prev => [newExpense, ...prev]);
+    try {
+      const newExpense: ExpenseRecord = {
+        ...expenseData,
+        id: 'e_' + Date.now()
+      };
+      setExpenses(prev => [newExpense, ...prev]);
+      showToast('success', `Expense of ₹${newExpense.amount.toLocaleString('en-IN')} logged under ${newExpense.category}.`, 'Expense Logged');
+    } catch (err) {
+      console.error('Failed to add expense', err);
+      showToast('error', 'Failed to log expense.', 'Error');
+    }
   };
 
   const addTrip = (tripData: Omit<TripFinancial, 'id'>) => {
-    const totalExp =
-      tripData.fuelCost +
-      tripData.fastagCost +
-      tripData.driverBata +
-      (tripData.otherExpenses || 0);
-    const netProfit = tripData.revenue - totalExp;
-    const margin =
-      tripData.revenue > 0 ? ((netProfit / tripData.revenue) * 100).toFixed(1) + '%' : '0%';
+    try {
+      if (!tripData.vehicle || !tripData.route || !tripData.revenue) {
+        showToast('error', 'Please provide vehicle, route and customer revenue.', 'Missing Information');
+        return;
+      }
+      const totalExp =
+        tripData.fuelCost +
+        tripData.fastagCost +
+        tripData.driverBata +
+        (tripData.otherExpenses || 0);
+      const netProfit = tripData.revenue - totalExp;
+      const margin =
+        tripData.revenue > 0 ? ((netProfit / tripData.revenue) * 100).toFixed(1) + '%' : '0%';
 
-    const newTrip: TripFinancial = {
-      ...tripData,
-      id: 't_' + Date.now(),
-      tripNumber: tripData.tripNumber || `TRIP-${Math.floor(Math.random() * 9000 + 1000)}`,
-      expenses: totalExp,
-      profit: netProfit,
-      margin
-    };
+      const newTrip: TripFinancial = {
+        ...tripData,
+        id: 't_' + Date.now(),
+        tripNumber: tripData.tripNumber || `TRIP-${Math.floor(Math.random() * 9000 + 1000)}`,
+        expenses: totalExp,
+        profit: netProfit,
+        margin
+      };
 
-    setTrips(prev => [newTrip, ...prev]);
+      setTrips(prev => [newTrip, ...prev]);
 
-    // Also sync initial trip fuel and FASTag expenses into fleet expenses
-    if (newTrip.fuelCost > 0) {
-      setExpenses(prev => [
-        {
-          id: 'e_fuel_' + Date.now(),
-          date: newTrip.startDate,
-          vehicle: newTrip.vehicle,
-          category: 'Fuel',
-          linkedTo: `Trip ${newTrip.tripNumber}: ${newTrip.route}`,
-          amount: newTrip.fuelCost
-        },
-        ...prev
-      ]);
-    }
+      // Also sync initial trip fuel and FASTag expenses into fleet expenses
+      if (newTrip.fuelCost > 0) {
+        setExpenses(prev => [
+          {
+            id: 'e_fuel_' + Date.now(),
+            date: newTrip.startDate,
+            vehicle: newTrip.vehicle,
+            category: 'Fuel',
+            linkedTo: `Trip ${newTrip.tripNumber}: ${newTrip.route}`,
+            amount: newTrip.fuelCost
+          },
+          ...prev
+        ]);
+      }
 
-    if (newTrip.fastagCost > 0) {
-      setExpenses(prev => [
-        {
-          id: 'e_fastag_' + Date.now(),
-          date: newTrip.startDate,
-          vehicle: newTrip.vehicle,
-          category: 'FASTag / Toll',
-          linkedTo: `Trip ${newTrip.tripNumber}: ${newTrip.route}`,
-          amount: newTrip.fastagCost
-        },
-        ...prev
-      ]);
+      if (newTrip.fastagCost > 0) {
+        setExpenses(prev => [
+          {
+            id: 'e_fastag_' + Date.now(),
+            date: newTrip.startDate,
+            vehicle: newTrip.vehicle,
+            category: 'FASTag / Toll',
+            linkedTo: `Trip ${newTrip.tripNumber}: ${newTrip.route}`,
+            amount: newTrip.fastagCost
+          },
+          ...prev
+        ]);
+      }
+      showToast('success', `Trip #${newTrip.tripNumber} (${newTrip.route}) booked for ₹${newTrip.revenue.toLocaleString('en-IN')}.`, 'Trip Created');
+    } catch (err) {
+      console.error('Failed to add trip', err);
+      showToast('error', 'Failed to create trip.', 'Error');
     }
   };
 
@@ -303,143 +443,263 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       notes?: string;
     }
   ) => {
-    setTrips(prev =>
-      prev.map(t => {
-        if (t.id === id) {
-          const totalKm = Math.max(0, data.endOdometer - t.startOdometer);
-          const totalExp =
-            data.fuelCost + data.fastagCost + data.driverBata + (data.otherExpenses || 0);
-          const profit = t.revenue - totalExp;
-          const margin = t.revenue > 0 ? ((profit / t.revenue) * 100).toFixed(1) + '%' : '0%';
+    try {
+      setTrips(prev =>
+        prev.map(t => {
+          if (t.id === id) {
+            const totalKm = Math.max(0, data.endOdometer - t.startOdometer);
+            const totalExp =
+              data.fuelCost + data.fastagCost + data.driverBata + (data.otherExpenses || 0);
+            const profit = t.revenue - totalExp;
+            const margin = t.revenue > 0 ? ((profit / t.revenue) * 100).toFixed(1) + '%' : '0%';
 
-          return {
-            ...t,
-            endOdometer: data.endOdometer,
-            totalKmRun: totalKm,
-            fuelCost: data.fuelCost,
-            fastagCost: data.fastagCost,
-            driverBata: data.driverBata,
-            otherExpenses: data.otherExpenses || 0,
-            expenses: totalExp,
-            profit,
-            margin,
-            status: 'Completed',
-            endDate: new Date().toISOString().split('T')[0],
-            notes: data.notes || t.notes
-          };
-        }
-        return t;
-      })
-    );
+            return {
+              ...t,
+              endOdometer: data.endOdometer,
+              totalKmRun: totalKm,
+              fuelCost: data.fuelCost,
+              fastagCost: data.fastagCost,
+              driverBata: data.driverBata,
+              otherExpenses: data.otherExpenses || 0,
+              expenses: totalExp,
+              profit,
+              margin,
+              status: 'Completed',
+              endDate: new Date().toISOString().split('T')[0],
+              notes: data.notes || t.notes
+            };
+          }
+          return t;
+        })
+      );
+      showToast('success', 'Trip marked completed and net profit recorded.', 'Trip Completed');
+    } catch (err) {
+      console.error('Failed to complete trip', err);
+      showToast('error', 'Could not complete trip.', 'Error');
+    }
   };
 
   const addDriver = (driverData: Omit<Driver, 'id'>) => {
-    const newDriver: Driver = {
-      ...driverData,
-      id: 'd_' + Date.now()
-    };
-    setDrivers(prev => [newDriver, ...prev]);
+    try {
+      if (!driverData.name?.trim()) {
+        showToast('error', 'Driver full name is mandatory.', 'Validation Error');
+        return;
+      }
+      const newDriver: Driver = {
+        ...driverData,
+        id: 'd_' + Date.now()
+      };
+      setDrivers(prev => [newDriver, ...prev]);
+      showToast('success', `Driver ${newDriver.name} added to ${newDriver.driverType || 'roster'}.`, 'Driver Registered');
+    } catch (err) {
+      console.error('Failed to add driver', err);
+      showToast('error', 'Could not register driver.', 'Error');
+    }
   };
 
   const markAttendance = (recordData: Omit<DriverAttendance, 'id'>) => {
-    const newRec: DriverAttendance = {
-      ...recordData,
-      id: 'att_' + Date.now()
-    };
-    setAttendanceRecords(prev => [newRec, ...prev]);
+    try {
+      const newRec: DriverAttendance = {
+        ...recordData,
+        id: 'att_' + Date.now()
+      };
+      setAttendanceRecords(prev => [newRec, ...prev]);
+      showToast('success', `Attendance marked as ${newRec.status} for ${newRec.driverName}.`, 'Attendance Logged');
+    } catch (err) {
+      console.error('Failed to mark attendance', err);
+      showToast('error', 'Could not record attendance.', 'Error');
+    }
   };
 
   const updateAttendanceStatus = (id: string, status: AttendanceStatus) => {
-    setAttendanceRecords(prev =>
-      prev.map(item => (item.id === id ? { ...item, status } : item))
-    );
+    try {
+      setAttendanceRecords(prev =>
+        prev.map(item => (item.id === id ? { ...item, status } : item))
+      );
+      showToast('info', `Attendance updated to ${status}.`, 'Attendance Updated');
+    } catch (err) {
+      console.error('Failed to update attendance', err);
+      showToast('error', 'Attendance status update failed.', 'Error');
+    }
   };
 
   const addDriverExpense = (expenseData: Omit<DriverExpenseItem, 'id'>) => {
-    const newExp: DriverExpenseItem = {
-      ...expenseData,
-      id: 'de_' + Date.now()
-    };
-    setDriverExpenses(prev => [newExp, ...prev]);
+    try {
+      const newExp: DriverExpenseItem = {
+        ...expenseData,
+        id: 'de_' + Date.now()
+      };
+      setDriverExpenses(prev => [newExp, ...prev]);
+      showToast('success', `Driver expense of ₹${newExp.amount.toLocaleString('en-IN')} (${newExp.category}) recorded for ${newExp.driverName}.`, 'Expense Saved');
+    } catch (err) {
+      console.error('Failed to add driver expense', err);
+      showToast('error', 'Failed to record driver expense.', 'Error');
+    }
   };
 
   const updateDriverExpenseStatus = (id: string, status: 'Approved' | 'Pending' | 'Paid') => {
-    setDriverExpenses(prev =>
-      prev.map(item => (item.id === id ? { ...item, status } : item))
-    );
+    try {
+      setDriverExpenses(prev =>
+        prev.map(item => (item.id === id ? { ...item, status } : item))
+      );
+      showToast('info', `Expense status updated to ${status}.`, 'Status Updated');
+    } catch (err) {
+      console.error('Failed to update expense status', err);
+      showToast('error', 'Could not update expense status.', 'Error');
+    }
   };
 
   // Department Actions
   const addDepartmentContract = (contractData: Omit<DepartmentContract, 'id'>) => {
-    const newContract: DepartmentContract = {
-      ...contractData,
-      id: 'cnt_' + Date.now()
-    };
-    setDepartmentContracts(prev => [newContract, ...prev]);
+    try {
+      if (!contractData.contractNumber || !contractData.departmentName) {
+        showToast('error', 'Contract number and department name are required.', 'Missing Fields');
+        return;
+      }
+      const newContract: DepartmentContract = {
+        ...contractData,
+        id: 'cnt_' + Date.now()
+      };
+      setDepartmentContracts(prev => [newContract, ...prev]);
+      showToast('success', `Contract ${newContract.contractNumber} (${newContract.departmentName}) added.`, 'Contract Registered');
+    } catch (err) {
+      console.error('Failed to add contract', err);
+      showToast('error', 'Could not register department contract.', 'Error');
+    }
   };
 
   const updateContractStatus = (id: string, status: DepartmentContract['status']) => {
-    setDepartmentContracts(prev =>
-      prev.map(item => (item.id === id ? { ...item, status } : item))
-    );
+    try {
+      setDepartmentContracts(prev =>
+        prev.map(item => (item.id === id ? { ...item, status } : item))
+      );
+      showToast('info', `Contract status changed to ${status}.`, 'Contract Updated');
+    } catch (err) {
+      console.error('Failed to update contract status', err);
+      showToast('error', 'Could not update contract status.', 'Error');
+    }
   };
 
   const addDailyDutyLog = (logData: Omit<DailyDutyLog, 'id'>) => {
-    const newLog: DailyDutyLog = {
-      ...logData,
-      id: 'log_' + Date.now()
-    };
-    setDailyDutyLogs(prev => [newLog, ...prev]);
-
-    // Auto record fuel expense if entered in duty slip
-    if (newLog.fuelAmount && newLog.fuelAmount > 0) {
-      const fuelExp: ExpenseRecord = {
-        id: 'e_' + Date.now(),
-        date: newLog.date,
-        vehicle: newLog.vehicle,
-        category: 'Fuel',
-        linkedTo: `Duty ${newLog.dutySlipNumber} (${newLog.departmentName})`,
-        amount: newLog.fuelAmount
+    try {
+      const newLog: DailyDutyLog = {
+        ...logData,
+        id: 'log_' + Date.now()
       };
-      setExpenses(prev => [fuelExp, ...prev]);
+      setDailyDutyLogs(prev => [newLog, ...prev]);
+
+      // Auto record fuel expense if entered in duty slip
+      if (newLog.fuelAmount && newLog.fuelAmount > 0) {
+        const fuelExp: ExpenseRecord = {
+          id: 'e_' + Date.now(),
+          date: newLog.date,
+          vehicle: newLog.vehicle,
+          category: 'Fuel',
+          linkedTo: `Duty ${newLog.dutySlipNumber} (${newLog.departmentName})`,
+          amount: newLog.fuelAmount
+        };
+        setExpenses(prev => [fuelExp, ...prev]);
+      }
+      showToast('success', `Duty slip #${newLog.dutySlipNumber} (${newLog.vehicle}) recorded successfully.`, 'Duty Slip Saved');
+    } catch (err) {
+      console.error('Failed to add duty log', err);
+      showToast('error', 'Could not save duty log.', 'Error');
     }
   };
 
   const updateDailyDutyLogStatus = (id: string, status: DailyDutyLog['status']) => {
-    setDailyDutyLogs(prev =>
-      prev.map(item => (item.id === id ? { ...item, status } : item))
-    );
+    try {
+      setDailyDutyLogs(prev =>
+        prev.map(item => (item.id === id ? { ...item, status } : item))
+      );
+      showToast('info', `Duty log status changed to ${status}.`, 'Log Updated');
+    } catch (err) {
+      console.error('Failed to update duty log status', err);
+      showToast('error', 'Could not update duty log status.', 'Error');
+    }
   };
 
   const addMonthlyBill = (billData: Omit<MonthlyDepartmentBill, 'id'>) => {
-    const newBill: MonthlyDepartmentBill = {
-      ...billData,
-      id: 'bill_' + Date.now()
-    };
-    setMonthlyBills(prev => [newBill, ...prev]);
+    try {
+      const newBill: MonthlyDepartmentBill = {
+        ...billData,
+        id: 'bill_' + Date.now()
+      };
+      setMonthlyBills(prev => [newBill, ...prev]);
+      showToast('success', `Invoice ${newBill.billNumber} for ₹${newBill.totalBill.toLocaleString('en-IN')} created.`, 'Invoice Generated');
+    } catch (err) {
+      console.error('Failed to generate bill', err);
+      showToast('error', 'Failed to generate invoice.', 'Error');
+    }
   };
 
   const updateBillStatus = (id: string, status: MonthlyDepartmentBill['status']) => {
-    setMonthlyBills(prev =>
-      prev.map(item => (item.id === id ? { ...item, status } : item))
-    );
+    try {
+      setMonthlyBills(prev =>
+        prev.map(item => (item.id === id ? { ...item, status } : item))
+      );
+      showToast('info', `Invoice status marked as ${status}.`, 'Invoice Updated');
+    } catch (err) {
+      console.error('Failed to update bill status', err);
+      showToast('error', 'Could not update invoice status.', 'Error');
+    }
   };
 
   const addDepartmentPayment = (paymentData: Omit<DepartmentPayment, 'id'>) => {
-    const newPay: DepartmentPayment = {
-      ...paymentData,
-      id: 'pay_' + Date.now()
-    };
-    setDepartmentPayments(prev => [newPay, ...prev]);
+    try {
+      const newPay: DepartmentPayment = {
+        ...paymentData,
+        id: 'pay_' + Date.now()
+      };
+      setDepartmentPayments(prev => [newPay, ...prev]);
+      showToast('success', `Payment of ₹${newPay.amountPaid.toLocaleString('en-IN')} recorded for ${newPay.departmentName}.`, 'Payment Recorded');
+    } catch (err) {
+      console.error('Failed to record department payment', err);
+      showToast('error', 'Could not record payment.', 'Error');
+    }
   };
 
   const addMaintenanceRecord = (recordData: Omit<MaintenanceRecord, 'id' | 'status'>) => {
-    const newRecord: MaintenanceRecord = {
-      ...recordData,
-      id: 'm_' + Date.now(),
-      status: 'Completed'
-    };
-    setMaintenanceRecords(prev => [newRecord, ...prev]);
+    try {
+      const newRecord: MaintenanceRecord = {
+        ...recordData,
+        id: 'm_' + Date.now(),
+        status: 'Completed'
+      };
+      setMaintenanceRecords(prev => [newRecord, ...prev]);
+      showToast('success', `${newRecord.type} for ${newRecord.vehicle} (₹${newRecord.cost.toLocaleString('en-IN')}) saved.`, 'Maintenance Logged');
+    } catch (err) {
+      console.error('Failed to add maintenance record', err);
+      showToast('error', 'Failed to save maintenance record.', 'Error');
+    }
+  };
+
+  const addVehicleComplianceDoc = (docData: Omit<DocumentCompliance, 'id'>) => {
+    try {
+      const newDoc: DocumentCompliance = {
+        ...docData,
+        id: 'vdoc_' + Date.now()
+      };
+      setVehicleCompliance(prev => [newDoc, ...prev]);
+      showToast('success', `${newDoc.documentName} for vehicle ${newDoc.entityName} uploaded.`, 'Compliance Updated');
+    } catch (err) {
+      console.error('Failed to add vehicle compliance doc', err);
+      showToast('error', 'Could not save compliance document.', 'Error');
+    }
+  };
+
+  const addDriverComplianceDoc = (docData: Omit<DocumentCompliance, 'id'>) => {
+    try {
+      const newDoc: DocumentCompliance = {
+        ...docData,
+        id: 'ddoc_' + Date.now()
+      };
+      setDriverCompliance(prev => [newDoc, ...prev]);
+      showToast('success', `${newDoc.documentName} for driver ${newDoc.entityName} verified and saved.`, 'Compliance Updated');
+    } catch (err) {
+      console.error('Failed to add driver compliance doc', err);
+      showToast('error', 'Could not save driver compliance doc.', 'Error');
+    }
   };
 
   const complianceStats = useMemo(() => {
@@ -493,10 +753,17 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     <FleetContext.Provider
       value={{
         activePage,
-        setActivePage,
+        setActivePage: handleSetActivePage,
         pageHeader,
         searchQuery,
         setSearchQuery,
+        isLoading,
+        loadingKey,
+        refreshData,
+        withLoading,
+        toasts,
+        showToast,
+        dismissToast,
         driverSubTab,
         setDriverSubTab,
         departmentSubTab,
@@ -543,7 +810,9 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         maintenanceRecords,
         addMaintenanceRecord,
         vehicleCompliance,
+        addVehicleComplianceDoc,
         driverCompliance,
+        addDriverComplianceDoc,
         complianceStats
       }}
     >

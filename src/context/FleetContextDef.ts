@@ -19,7 +19,9 @@ import {
   TripFinancial,
   ExpenseRecord,
   DocumentCompliance,
-  MaintenanceRecord
+  MaintenanceRecord,
+  ToastNotification,
+  ToastType
 } from '../types/fleet';
 
 export type DriverSubTab = 'list' | 'attendance' | 'expenses';
@@ -38,6 +40,17 @@ export interface FleetContextType {
   searchQuery: string;
   setSearchQuery: (query: string) => void;
   pageHeader: { title: string; subtitle: string };
+
+  // Loading & Global Status Management
+  isLoading: boolean;
+  loadingKey: string | null;
+  refreshData: () => Promise<void>;
+  withLoading: <T>(fn: () => Promise<T> | T, key?: string) => Promise<T>;
+
+  // Global Toast Notifications
+  toasts: ToastNotification[];
+  showToast: (type: ToastType, message: string, title?: string, duration?: number) => void;
+  dismissToast: (id: string) => void;
 
   // Driver subtabs & actions
   driverSubTab: DriverSubTab;
@@ -104,7 +117,9 @@ export interface FleetContextType {
   addMaintenanceRecord: (record: Omit<MaintenanceRecord, 'id' | 'status'>) => void;
 
   vehicleCompliance: DocumentCompliance[];
+  addVehicleComplianceDoc: (doc: Omit<DocumentCompliance, 'id'>) => void;
   driverCompliance: DocumentCompliance[];
+  addDriverComplianceDoc: (doc: Omit<DocumentCompliance, 'id'>) => void;
 
   // Compliance computed metrics
   complianceStats: {

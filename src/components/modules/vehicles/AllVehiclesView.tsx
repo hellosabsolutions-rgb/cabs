@@ -4,6 +4,7 @@ import { StatCard } from '../../common/StatCard';
 import { StatusChip } from '../../common/StatusChip';
 import { AddVehicleModal } from './AddVehicleModal';
 import { VehicleStatus } from '../../../types/fleet';
+import { Building2, Briefcase, Fuel, FileText } from 'lucide-react';
 
 export const AllVehiclesView: React.FC = () => {
   const { vehicles, searchQuery, updateVehicleStatus } = useFleet();
@@ -148,8 +149,16 @@ export const AllVehiclesView: React.FC = () => {
                     </td>
 
                     <td>
-                      <span className={`tag ${v.type === 'Department' ? 'dept' : 'trip'}`}>
-                        {v.type === 'Department' ? '🏛️ Department' : '🧳 Trip-based'}
+                      <span className={`tag ${v.type === 'Department' ? 'dept' : 'trip'}`} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                        {v.type === 'Department' ? (
+                          <>
+                            <Building2 size={11} /> Department
+                          </>
+                        ) : (
+                          <>
+                            <Briefcase size={11} /> Trip-based
+                          </>
+                        )}
                       </span>
                     </td>
 
@@ -172,8 +181,8 @@ export const AllVehiclesView: React.FC = () => {
                       <div style={{ fontSize: '12px' }}>
                         {v.odometer ? `${v.odometer.toLocaleString('en-IN')} km` : '42,000 km'}
                       </div>
-                      <div style={{ fontSize: '10.5px', color: 'var(--text-dim)', marginTop: '2px' }}>
-                        ⛽ {v.fuelType || 'Diesel'}
+                      <div style={{ fontSize: '10.5px', color: 'var(--text-dim)', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                        <Fuel size={11} /> {v.fuelType || 'Diesel'}
                       </div>
                     </td>
 
@@ -200,7 +209,7 @@ export const AllVehiclesView: React.FC = () => {
                           style={{ fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}
                           onClick={() => setViewRc(v.rcPhoto!)}
                         >
-                          📄 View RC
+                          <FileText size={12} /> View RC
                         </span>
                       ) : (
                         <span style={{ color: 'var(--text-faint)', fontSize: '12px' }}>—</span>
@@ -225,7 +234,9 @@ export const AllVehiclesView: React.FC = () => {
         <div className="modal-overlay" onClick={() => setViewRc(null)}>
           <div className="modal-dialog" style={{ maxWidth: 440 }} onClick={e => e.stopPropagation()}>
             <div className="modal-header">
-              <h3 className="modal-title">📄 Registration Certificate (RC)</h3>
+              <h3 className="modal-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <FileText size={16} /> Registration Certificate (RC)
+              </h3>
               <button className="modal-close-btn" onClick={() => setViewRc(null)}>
                 ✕
               </button>
@@ -239,7 +250,9 @@ export const AllVehiclesView: React.FC = () => {
                 />
               ) : (
                 <div style={{ padding: '30px' }}>
-                  <div style={{ fontSize: '42px', marginBottom: '10px' }}>📑</div>
+                  <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '10px' }}>
+                    <FileText size={42} color="var(--accent)" />
+                  </div>
                   <div style={{ fontWeight: 600 }}>File: {viewRc}</div>
                   <div style={{ fontSize: '12px', color: 'var(--text-faint)', marginTop: '6px' }}>
                     Government transport authority registration verified.

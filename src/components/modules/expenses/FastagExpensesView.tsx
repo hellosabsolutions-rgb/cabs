@@ -119,7 +119,7 @@ export const FastagExpensesView: React.FC = () => {
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ fontSize: '16px' }}>⚡</span>
+          <Zap size={16} color="#38bdf8" style={{ flexShrink: 0 }} />
           <span>
             <b>Manual FASTag Management (API Free):</b> Yahan aap manually toll deduction (kitna kata/kam hua) record kar sakte hain, recharge daal sakte hain, ya seedhe wallet balance edit kar sakte hain.
           </span>

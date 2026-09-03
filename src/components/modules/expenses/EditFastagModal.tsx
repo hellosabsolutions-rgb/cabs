@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useFleet } from '../../../context/FleetContext';
-import { Edit3, CheckCircle2 } from 'lucide-react';
+import { Edit3, CheckCircle2, Building2, Briefcase } from 'lucide-react';
 
 interface EditFastagModalProps {
   isOpen: boolean;
@@ -75,8 +75,8 @@ export const EditFastagModal: React.FC<EditFastagModalProps> = ({
       <div className="modal-dialog" onClick={e => e.stopPropagation()} style={{ maxWidth: 480 }}>
         <div className="modal-header">
           <div className="modal-title-group">
-            <h3 className="modal-title">
-              <span>✏️</span> Edit FASTag Balance & Details
+            <h3 className="modal-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Edit3 size={18} color="var(--accent)" /> Edit FASTag Balance & Details
             </h3>
             <span className="modal-subtitle">
               Manual balance correction & bank info for {vehicleReg}
@@ -124,15 +124,23 @@ export const EditFastagModal: React.FC<EditFastagModalProps> = ({
                   {currentVehicle.model || currentVehicle.type} · Driver: {currentVehicle.assignedDriver || 'Driver'}
                 </div>
               </div>
-              <span className={`tag ${currentVehicle.type === 'Department' ? 'dept' : 'trip'}`}>
-                {currentVehicle.type === 'Department' ? '🏛️ Department' : '🧳 Trip Cab'}
+              <span className={`tag ${currentVehicle.type === 'Department' ? 'dept' : 'trip'}`} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                {currentVehicle.type === 'Department' ? (
+                  <>
+                    <Building2 size={11} /> Department
+                  </>
+                ) : (
+                  <>
+                    <Briefcase size={11} /> Trip Cab
+                  </>
+                )}
               </span>
             </div>
 
             {/* Current Balance (Manual Edit) */}
             <div className="form-group" style={{ marginBottom: 0 }}>
               <label className="form-label" style={{ fontWeight: 600, color: 'var(--accent)' }}>
-                💰 Current FASTag Wallet Balance (Kitne Paise Hai) (₹) *
+                Current FASTag Wallet Balance (Kitne Paise Hai) (₹) *
               </label>
               <div style={{ position: 'relative' }}>
                 <span
@@ -196,8 +204,8 @@ export const EditFastagModal: React.FC<EditFastagModalProps> = ({
             <button type="button" className="btn-secondary" onClick={onClose}>
               Cancel
             </button>
-            <button type="submit" className="btn-primary-action">
-              <span>✓</span> Update Balance
+            <button type="submit" className="btn-primary-action" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <CheckCircle2 size={14} /> Update Balance
             </button>
           </div>
         </form>

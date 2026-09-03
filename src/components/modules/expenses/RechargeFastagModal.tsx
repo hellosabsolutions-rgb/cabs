@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useFleet } from '../../../context/FleetContext';
+import { Zap, FileText } from 'lucide-react';
 
 interface RechargeFastagModalProps {
   isOpen: boolean;
@@ -83,8 +84,8 @@ export const RechargeFastagModal: React.FC<RechargeFastagModalProps> = ({
       <div className="modal-dialog" onClick={e => e.stopPropagation()} style={{ maxWidth: 480 }}>
         <div className="modal-header">
           <div className="modal-title-group">
-            <h3 className="modal-title">
-              <span>⚡</span> Recharge Vehicle FASTag
+            <h3 className="modal-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Zap size={18} color="#ffcc4d" /> Recharge Vehicle FASTag
             </h3>
             <span className="modal-subtitle">Top up electronic toll wallet for {vehicleReg}</span>
           </div>
@@ -122,7 +123,7 @@ export const RechargeFastagModal: React.FC<RechargeFastagModalProps> = ({
                 {vehicles.map(v => (
                   <option key={v.id} value={v.registrationNumber}>
                     {v.registrationNumber} (Bal: ₹{(v.fastagBalance || 0).toLocaleString('en-IN')})
-                    {(v.fastagBalance || 0) < 500 ? ' ⚠️ LOW' : ''}
+                    {(v.fastagBalance || 0) < 500 ? ' [LOW BALANCE]' : ''}
                   </option>
                 ))}
               </select>
@@ -249,8 +250,8 @@ export const RechargeFastagModal: React.FC<RechargeFastagModalProps> = ({
                 {proofPreview ? (
                   <img src={proofPreview} alt="Receipt" className="upload-preview" />
                 ) : (
-                  <div className="upload-icon-placeholder" style={{ width: 34, height: 34, fontSize: 16 }}>
-                    🧾
+                  <div className="upload-icon-placeholder" style={{ width: 34, height: 34 }}>
+                    <FileText size={16} color="var(--accent)" />
                   </div>
                 )}
                 <div className="upload-info">
@@ -281,8 +282,8 @@ export const RechargeFastagModal: React.FC<RechargeFastagModalProps> = ({
             <button type="button" className="btn-secondary" onClick={onClose}>
               Cancel
             </button>
-            <button type="submit" className="btn-primary-action">
-              <span>⚡</span> Complete Recharge
+            <button type="submit" className="btn-primary-action" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <Zap size={14} /> Complete Recharge
             </button>
           </div>
         </form>

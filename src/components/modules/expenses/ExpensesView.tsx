@@ -4,7 +4,8 @@ import { StatCard } from '../../common/StatCard';
 import { AddExpenseModal } from './AddExpenseModal';
 import { FuelLogsView } from './FuelLogsView';
 import { FastagExpensesView } from './FastagExpensesView';
-import { Fuel, CreditCard, DollarSign } from 'lucide-react';
+import { Fuel, CreditCard, IndianRupee } from 'lucide-react';
+import { SkeletonCard, SkeletonTable } from '../../common/Skeleton';
 
 export const ExpensesView: React.FC = () => {
   const {
@@ -13,7 +14,8 @@ export const ExpensesView: React.FC = () => {
     expenseSubTab,
     setExpenseSubTab,
     fuelLogs,
-    fastagTransactions
+    fastagTransactions,
+    isLoading
   } = useFleet();
   const [isModalOpen, setIsModalOpen] = useState(false);
 
@@ -41,6 +43,15 @@ export const ExpensesView: React.FC = () => {
     return { fuel, toll, driver, maintenance };
   }, [expenses]);
 
+  if (isLoading) {
+    return (
+      <div className="section active" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        <SkeletonCard count={4} />
+        <SkeletonTable rows={5} columns={5} />
+      </div>
+    );
+  }
+
   return (
     <div className="section active">
       {/* Subtab Navigation: Fuel, FASTag & All Expenses */}
@@ -67,7 +78,7 @@ export const ExpensesView: React.FC = () => {
           className={`subtab-btn ${expenseSubTab === 'all' ? 'active' : ''}`}
           onClick={() => setExpenseSubTab('all')}
         >
-          <DollarSign size={16} />
+          <IndianRupee size={16} />
           All fleet expenses
           <span className="subtab-counter">{expenses.length}</span>
         </button>
@@ -140,10 +151,16 @@ export const ExpensesView: React.FC = () => {
                                   ? 'rgba(255, 204, 77, 0.3)'
                                   : e.category === 'FASTag / Toll'
                                   ? 'rgba(56, 189, 248, 0.3)'
-                                  : undefined
+                                  : undefined,
+                              display: 'inline-flex',
+                              alignItems: 'center'
                             }}
                           >
-                            {e.category === 'Fuel' ? '⛽ ' : e.category === 'FASTag / Toll' ? '🛣️ ' : ''}
+                            {e.category === 'Fuel' ? (
+                              <Fuel size={12} style={{ marginRight: '4px' }} />
+                            ) : e.category === 'FASTag / Toll' ? (
+                              <CreditCard size={12} style={{ marginRight: '4px' }} />
+                            ) : null}
                             {e.category}
                           </span>
                         </td>

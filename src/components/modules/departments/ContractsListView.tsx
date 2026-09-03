@@ -3,6 +3,7 @@ import { useFleet } from '../../../context/FleetContext';
 import { StatCard } from '../../common/StatCard';
 import { AddContractModal } from './AddContractModal';
 import { DepartmentContract } from '../../../types/fleet';
+import { FileText, Folder } from 'lucide-react';
 
 export const ContractsListView: React.FC = () => {
   const { departmentContracts, updateContractStatus, searchQuery } = useFleet();
@@ -212,7 +213,7 @@ export const ContractsListView: React.FC = () => {
                           style={{ fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}
                           onClick={() => setViewDoc(c.documentFile!)}
                         >
-                          📄 {c.documentFile.startsWith('data:') ? 'Tender doc' : c.documentFile}
+                          <FileText size={12} /> {c.documentFile.startsWith('data:') ? 'Tender doc' : c.documentFile}
                         </span>
                       ) : (
                         <span style={{ color: 'var(--text-faint)', fontSize: '12px' }}>—</span>
@@ -237,13 +238,17 @@ export const ContractsListView: React.FC = () => {
         <div className="modal-overlay" onClick={() => setViewDoc(null)}>
           <div className="modal-dialog" style={{ maxWidth: 450 }} onClick={e => e.stopPropagation()}>
             <div className="modal-header">
-              <h3 className="modal-title">📑 Contract Document</h3>
+              <h3 className="modal-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <FileText size={16} /> Contract Document
+              </h3>
               <button className="modal-close-btn" onClick={() => setViewDoc(null)}>
                 ✕
               </button>
             </div>
             <div className="modal-body" style={{ textAlign: 'center', padding: '30px' }}>
-              <div style={{ fontSize: '42px', marginBottom: '10px' }}>📁</div>
+              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '10px' }}>
+                <Folder size={42} color="var(--accent)" />
+              </div>
               <div style={{ fontWeight: 600, color: 'var(--text)' }}>{viewDoc}</div>
               <div style={{ fontSize: '12px', color: 'var(--text-faint)', marginTop: '8px' }}>
                 Contract agreement file verified & archived in system.

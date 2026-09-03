@@ -5,6 +5,7 @@ import { DailyDutyLogsView } from './DailyDutyLogsView';
 import { MonthlyBillingView } from './MonthlyBillingView';
 import { DepartmentPaymentsView } from './DepartmentPaymentsView';
 import { FileText, ClipboardList, ReceiptText, CreditCard } from 'lucide-react';
+import { SkeletonCard, SkeletonTable } from '../../common/Skeleton';
 
 export const DepartmentsView: React.FC = () => {
   const {
@@ -13,10 +14,20 @@ export const DepartmentsView: React.FC = () => {
     departmentContracts,
     dailyDutyLogs,
     monthlyBills,
-    departmentPayments
+    departmentPayments,
+    isLoading
   } = useFleet();
 
   const totalMonthlyBilled = monthlyBills.reduce((acc, curr) => acc + curr.totalBill, 0);
+
+  if (isLoading) {
+    return (
+      <div className="section active" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        <SkeletonCard count={4} />
+        <SkeletonTable rows={5} columns={6} />
+      </div>
+    );
+  }
 
   return (
     <div className="section active">

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useFleet } from '../../../context/FleetContext';
 import { ExpenseRecord } from '../../../types/fleet';
+import { IndianRupee, Fuel, CreditCard, User, Wrench, FileText } from 'lucide-react';
 
 interface AddExpenseModalProps {
   isOpen: boolean;
@@ -78,8 +79,8 @@ export const AddExpenseModal: React.FC<AddExpenseModalProps> = ({
       <div className="modal-dialog" onClick={e => e.stopPropagation()}>
         <div className="modal-header">
           <div className="modal-title-group">
-            <h3 className="modal-title">
-              <span>⛽</span> Add Fleet Expense
+            <h3 className="modal-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <IndianRupee size={18} color="var(--accent)" /> Add Fleet Expense
             </h3>
             <span className="modal-subtitle">Log fuel refills, toll, driver bata, or repairs</span>
           </div>
@@ -115,7 +116,17 @@ export const AddExpenseModal: React.FC<AddExpenseModalProps> = ({
                     className={`driver-type-option ${category === cat ? 'active' : ''}`}
                     onClick={() => setCategory(cat)}
                   >
-                    {cat === 'Fuel' ? '⛽ Fuel' : cat === 'FASTag / Toll' ? '🛣️ Toll' : cat}
+                    {cat === 'Fuel' ? (
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}><Fuel size={13} /> Fuel</span>
+                    ) : cat === 'FASTag / Toll' ? (
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}><CreditCard size={13} /> Toll</span>
+                    ) : cat === 'Driver' ? (
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}><User size={13} /> Driver</span>
+                    ) : cat === 'Maintenance' ? (
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}><Wrench size={13} /> Repair</span>
+                    ) : (
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}><FileText size={13} /> General</span>
+                    )}
                   </div>
                 ))}
               </div>

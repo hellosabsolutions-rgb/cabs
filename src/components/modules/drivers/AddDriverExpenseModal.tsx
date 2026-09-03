@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useFleet } from '../../../context/FleetContext';
 import { DriverExpenseCategory } from '../../../types/fleet';
+import { IndianRupee, FileText, Loader2 } from 'lucide-react';
 
 interface AddDriverExpenseModalProps {
   isOpen: boolean;
@@ -31,23 +32,22 @@ export const AddDriverExpenseModal: React.FC<AddDriverExpenseModalProps> = ({
   const [remarks, setRemarks] = useState('');
   const [receiptName, setReceiptName] = useState<string>('');
   const [receiptPreview, setReceiptPreview] = useState<string | null>(null);
-  const [errorMsg, setErrorMsg] = useState('');
+  const [errorMsg, setErrorMsg] = useState<string>('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const receiptInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (drivers.length > 0 && !selectedDriverId) {
       setSelectedDriverId(drivers[0].id);
-      if (drivers[0].assignedVehicle) {
-        setVehicle(drivers[0].assignedVehicle);
-      }
+      setVehicle(drivers[0].assignedVehicle || 'DL01AB1234');
     }
   }, [drivers, selectedDriverId]);
 
-  const handleDriverChange = (id: string) => {
-    setSelectedDriverId(id);
-    const d = drivers.find(drv => drv.id === id);
-    if (d && d.assignedVehicle && d.assignedVehicle !== '—') {
+  const handleDriverChange = (driverId: string) => {
+    setSelectedDriverId(driverId);
+    const d = drivers.find(drv => drv.id === driverId);
+    if (d && d.assignedVehicle) {
       setVehicle(d.assignedVehicle);
     }
   };
@@ -56,11 +56,15 @@ export const AddDriverExpenseModal: React.FC<AddDriverExpenseModalProps> = ({
     const file = e.target.files?.[0];
     if (file) {
       setReceiptName(file.name);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setReceiptPreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+      if (file.type.startsWith('image/')) {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setReceiptPreview(reader.result as string);
+        };
+        reader.readAsDataURL(file);
+      } else {
+        setReceiptPreview(null);
+      }
     }
   };
 
@@ -81,7 +85,7 @@ export const AddDriverExpenseModal: React.FC<AddDriverExpenseModalProps> = ({
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const d = drivers.find(drv => drv.id === selectedDriverId);
     if (!d) {
@@ -93,24 +97,29 @@ export const AddDriverExpenseModal: React.FC<AddDriverExpenseModalProps> = ({
       return;
     }
 
-    addDriverExpense({
-      driverId: d.id,
-      driverName: d.name,
-      vehicle,
-      date,
-      category,
-      amount: Number(amount),
-      status,
-      remarks: remarks.trim() || undefined,
-      receipt: receiptPreview || receiptName || null
-    });
+    setIsSubmitting(true);
+    try {
+      addDriverExpense({
+        driverId: d.id,
+        driverName: d.name,
+        vehicle,
+        date,
+        category,
+        amount: Number(amount),
+        status,
+        remarks: remarks.trim() || undefined,
+        receipt: receiptPreview || receiptName || null
+      });
 
-    setAmount('');
-    setRemarks('');
-    setReceiptName('');
-    setReceiptPreview(null);
-    setErrorMsg('');
-    onClose();
+      setAmount('');
+      setRemarks('');
+      setReceiptName('');
+      setReceiptPreview(null);
+      setErrorMsg('');
+      onClose();
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -119,8 +128,8 @@ export const AddDriverExpenseModal: React.FC<AddDriverExpenseModalProps> = ({
         {/* Header */}
         <div className="modal-header">
           <div className="modal-title-group">
-            <h3 className="modal-title">
-              <span>💵</span> Record Driver Expense
+            <h3 className="modal-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <IndianRupee size={18} color="var(--accent)" /> Record Driver Expense
             </h3>
             <span className="modal-subtitle">Log daily bata, night halt, salary advance or reimbursements</span>
           </div>
@@ -268,7 +277,9 @@ export const AddDriverExpenseModal: React.FC<AddDriverExpenseModalProps> = ({
                 {receiptPreview ? (
                   <img src={receiptPreview} alt="Receipt preview" className="upload-preview" />
                 ) : (
-                  <div className="upload-icon-placeholder">🧾</div>
+                  <div className="upload-icon-placeholder">
+                    <FileText size={18} color="var(--accent)" />
+                  </div>
                 )}
                 <div className="upload-info">
                   <div className="upload-title">
@@ -301,11 +312,24 @@ export const AddDriverExpenseModal: React.FC<AddDriverExpenseModalProps> = ({
 
           {/* Footer */}
           <div className="modal-footer">
-            <button type="button" className="btn-secondary" onClick={onClose}>
+            <button type="button" className="btn-secondary" onClick={onClose} disabled={isSubmitting}>
               Cancel
             </button>
-            <button type="submit" className="btn-primary-action">
-              <span>+</span> Save Driver Expense
+            <button
+              type="submit"
+              className="btn-primary-action"
+              disabled={isSubmitting}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 size={14} className="spin-loader" /> Saving...
+                </>
+              ) : (
+                <>
+                  <span>+</span> Save Driver Expense
+                </>
+              )}
             </button>
           </div>
         </form>

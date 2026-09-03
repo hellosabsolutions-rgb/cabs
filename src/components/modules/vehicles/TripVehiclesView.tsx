@@ -3,6 +3,7 @@ import { useFleet } from '../../../context/FleetContext';
 import { StatCard } from '../../common/StatCard';
 import { StatusChip } from '../../common/StatusChip';
 import { AddVehicleModal } from './AddVehicleModal';
+import { Briefcase, Fuel } from 'lucide-react';
 
 export const TripVehiclesView: React.FC = () => {
   const { vehicles, searchQuery } = useFleet();
@@ -128,8 +129,8 @@ export const TripVehiclesView: React.FC = () => {
                     </td>
 
                     <td>
-                      <span className="tag trip" style={{ fontWeight: 500 }}>
-                        🧳 Trip-based
+                      <span className="tag trip" style={{ fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                        <Briefcase size={11} /> Trip-based
                       </span>
                     </td>
 
@@ -151,8 +152,8 @@ export const TripVehiclesView: React.FC = () => {
                       <div style={{ fontSize: '12px' }}>
                         {v.odometer ? `${v.odometer.toLocaleString('en-IN')} km` : '61,200 km'}
                       </div>
-                      <div style={{ fontSize: '10.5px', color: 'var(--text-dim)', marginTop: '2px' }}>
-                        ⛽ {v.fuelType || 'Diesel'}
+                      <div style={{ fontSize: '10.5px', color: 'var(--text-dim)', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                        <Fuel size={11} /> {v.fuelType || 'Diesel'}
                       </div>
                     </td>
 

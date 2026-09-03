@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useFleet } from '../../../context/FleetContext';
+import { CreditCard } from 'lucide-react';
 
 interface AddTollDeductionModalProps {
   isOpen: boolean;
@@ -107,8 +108,8 @@ export const AddTollDeductionModal: React.FC<AddTollDeductionModalProps> = ({
       <div className="modal-dialog" onClick={e => e.stopPropagation()} style={{ maxWidth: 480 }}>
         <div className="modal-header">
           <div className="modal-title-group">
-            <h3 className="modal-title">
-              <span>🛣️</span> Log Toll Deduction
+            <h3 className="modal-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <CreditCard size={18} color="var(--accent)" /> Log Toll Deduction
             </h3>
             <span className="modal-subtitle">Record FASTag plaza deduction for {vehicleReg}</span>
           </div>
@@ -278,8 +279,8 @@ export const AddTollDeductionModal: React.FC<AddTollDeductionModalProps> = ({
                 {proofPreview ? (
                   <img src={proofPreview} alt="Receipt" className="upload-preview" />
                 ) : (
-                  <div className="upload-icon-placeholder" style={{ width: 34, height: 34, fontSize: 16 }}>
-                    🛣️
+                  <div className="upload-icon-placeholder" style={{ width: 34, height: 34 }}>
+                    <CreditCard size={16} color="var(--accent)" />
                   </div>
                 )}
                 <div className="upload-info">

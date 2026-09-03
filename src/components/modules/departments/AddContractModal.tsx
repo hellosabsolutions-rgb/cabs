@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { Building2, FileText } from 'lucide-react';
 import { useFleet } from '../../../context/FleetContext';
 
 interface AddContractModalProps {
@@ -107,8 +108,8 @@ export const AddContractModal: React.FC<AddContractModalProps> = ({ isOpen, onCl
       <div className="modal-dialog" onClick={e => e.stopPropagation()}>
         <div className="modal-header">
           <div className="modal-title-group">
-            <h3 className="modal-title">
-              <span>📄</span> Add Department Contract
+            <h3 className="modal-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Building2 size={18} color="var(--accent)" /> Add Department Contract
             </h3>
             <span className="modal-subtitle">Register new government or corporate fleet contract</span>
           </div>
@@ -308,7 +309,9 @@ export const AddContractModal: React.FC<AddContractModalProps> = ({ isOpen, onCl
                 style={{ display: 'none' }}
               />
               <div className="upload-box" onClick={() => docInputRef.current?.click()}>
-                <div className="upload-icon-placeholder">📑</div>
+                <div className="upload-icon-placeholder">
+                  <FileText size={18} color="var(--accent)" />
+                </div>
                 <div className="upload-info">
                   <div className="upload-title">
                     {docName ? docName : 'Click to attach signed contract PDF / Tender copy'}

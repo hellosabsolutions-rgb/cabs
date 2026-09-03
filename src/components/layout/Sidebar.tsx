@@ -13,7 +13,7 @@ import {
   ReceiptText,
   CreditCard,
   Navigation,
-  DollarSign,
+  IndianRupee,
   TrendingUp,
   ShieldAlert,
   Wrench,
@@ -203,7 +203,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onCloseMobile }) => {
               handleNavClick('expenses');
             }}
           >
-            <DollarSign />
+            <IndianRupee />
             All expenses
           </div>
           <div

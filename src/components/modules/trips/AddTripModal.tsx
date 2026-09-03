@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useFleet } from '../../../context/FleetContext';
 import { TripType } from '../../../types/fleet';
+import { Navigation, ArrowRight, RotateCcw, Building2 } from 'lucide-react';
 
 interface AddTripModalProps {
   isOpen: boolean;
@@ -125,8 +126,8 @@ export const AddTripModal: React.FC<AddTripModalProps> = ({ isOpen, onClose }) =
       <div className="modal-dialog" onClick={e => e.stopPropagation()} style={{ maxWidth: 560 }}>
         <div className="modal-header">
           <div className="modal-title-group">
-            <h3 className="modal-title">
-              <span>🧭</span> Create & Dispatch Trip
+            <h3 className="modal-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Navigation size={18} color="var(--accent)" /> Add Trip (New Booking)
             </h3>
             <span className="modal-subtitle">
               Dispatch commercial or outstation cab with fuel, toll & profit estimation
@@ -163,8 +164,17 @@ export const AddTripModal: React.FC<AddTripModalProps> = ({ isOpen, onClose }) =
                     key={t}
                     className={`driver-type-option ${tripType === t ? 'active' : ''}`}
                     onClick={() => setTripType(t)}
+                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
                   >
-                    {t === 'One-way (Single)' ? '➡️ Single (One-Way)' : '🔄 Round Trip'}
+                    {t === 'One-way (Single)' ? (
+                      <>
+                        <ArrowRight size={14} /> Single (One-Way)
+                      </>
+                    ) : (
+                      <>
+                        <RotateCcw size={14} /> Round Trip
+                      </>
+                    )}
                   </div>
                 ))}
               </div>
@@ -209,7 +219,7 @@ export const AddTripModal: React.FC<AddTripModalProps> = ({ isOpen, onClose }) =
                   {vehicles.map(v => (
                     <option key={v.id} value={v.registrationNumber}>
                       {v.registrationNumber} ({v.model || v.type})
-                      {v.type === 'Department' ? ` · 🏛️ ${v.departmentName || v.assignedTo} (Sat/Sun Weekend Trip Allowed)` : ' · 🧳 Trip Cab'}
+                      {v.type === 'Department' ? ` · [Dept: ${v.departmentName || v.assignedTo}] (Weekend Trip Allowed)` : ' · [Trip Cab]'}
                     </option>
                   ))}
                 </select>
@@ -246,7 +256,7 @@ export const AddTripModal: React.FC<AddTripModalProps> = ({ isOpen, onClose }) =
                   gap: '8px'
                 }}
               >
-                <span style={{ fontSize: '16px' }}>🏛️</span>
+                <Building2 size={16} color="#38bdf8" style={{ flexShrink: 0 }} />
                 <div>
                   <b style={{ color: 'var(--text)' }}>Weekend / Off-Duty Trip Mode:</b> Ye gaadi weekday par{' '}
                   <span style={{ color: 'var(--accent)', fontWeight: 600 }}>{selectedVehicleObj.departmentName || selectedVehicleObj.assignedTo}</span> me lagi hai. Weekend par trip par bhejne se iska munafa (profit) aur fuel/FASTag alag se Trips me count hoga, jabki department ka monthly contract billing intact rahega!

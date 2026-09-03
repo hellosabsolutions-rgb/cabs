@@ -3,6 +3,7 @@ import { useFleet } from '../../../context/FleetContext';
 import { StatCard } from '../../common/StatCard';
 import { RecordPaymentModal } from './RecordPaymentModal';
 import { DepartmentPayment } from '../../../types/fleet';
+import { FileText, Building2, Receipt } from 'lucide-react';
 
 export const DepartmentPaymentsView: React.FC = () => {
   const { departmentPayments, searchQuery } = useFleet();
@@ -181,7 +182,7 @@ export const DepartmentPaymentsView: React.FC = () => {
                           style={{ fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}
                           onClick={() => setViewProof(p.paymentProof!)}
                         >
-                          📄 {p.paymentProof.startsWith('data:') ? 'Challan slip' : p.paymentProof}
+                          <FileText size={12} /> {p.paymentProof.startsWith('data:') ? 'Challan slip' : p.paymentProof}
                         </span>
                       ) : (
                         <span style={{ color: 'var(--text-faint)', fontSize: '12px' }}>—</span>
@@ -206,7 +207,9 @@ export const DepartmentPaymentsView: React.FC = () => {
         <div className="modal-overlay" onClick={() => setViewProof(null)}>
           <div className="modal-dialog" style={{ maxWidth: 460 }} onClick={e => e.stopPropagation()}>
             <div className="modal-header">
-              <h3 className="modal-title">🧾 Payment Advice / Challan</h3>
+              <h3 className="modal-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Receipt size={16} /> Payment Advice / Challan
+              </h3>
               <button className="modal-close-btn" onClick={() => setViewProof(null)}>
                 ✕
               </button>
@@ -220,7 +223,9 @@ export const DepartmentPaymentsView: React.FC = () => {
                 />
               ) : (
                 <div style={{ padding: '30px' }}>
-                  <div style={{ fontSize: '42px', marginBottom: '10px' }}>🏛️</div>
+                  <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '10px' }}>
+                    <Building2 size={42} color="var(--accent)" />
+                  </div>
                   <div style={{ fontWeight: 600 }}>File: {viewProof}</div>
                   <div style={{ fontSize: '12px', color: 'var(--text-faint)', marginTop: '6px' }}>
                     Government treasury deposit & transaction advice verified.

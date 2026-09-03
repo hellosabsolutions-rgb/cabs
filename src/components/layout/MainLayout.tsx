@@ -11,6 +11,8 @@ import { ExpensesView } from '../modules/expenses/ExpensesView';
 import { ProfitabilityView } from '../modules/profitability/ProfitabilityView';
 import { ComplianceView } from '../modules/compliance/ComplianceView';
 import { MaintenanceView } from '../modules/maintenance/MaintenanceView';
+import { ErrorBoundary } from '../common/ErrorBoundary';
+import { ToastContainer } from '../common/ToastContainer';
 
 export const MainLayout: React.FC = () => {
   const { activePage } = useFleet();
@@ -43,14 +45,24 @@ export const MainLayout: React.FC = () => {
 
   return (
     <div className="app-container">
+      {/* Mobile sidebar backdrop */}
+      <div
+        className={`sidebar-backdrop ${mobileSidebarOpen ? 'visible' : ''}`}
+        onClick={() => setMobileSidebarOpen(false)}
+      />
       <Sidebar
         isOpen={mobileSidebarOpen}
         onCloseMobile={() => setMobileSidebarOpen(false)}
       />
       <div className="main">
         <Topbar onToggleMobileSidebar={() => setMobileSidebarOpen(prev => !prev)} />
-        <main className="content">{renderActiveView()}</main>
+        <main className="content">
+          <ErrorBoundary key={activePage}>
+            {renderActiveView()}
+          </ErrorBoundary>
+        </main>
       </div>
+      <ToastContainer />
     </div>
   );
 };

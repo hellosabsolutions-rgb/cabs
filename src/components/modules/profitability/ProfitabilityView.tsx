@@ -1,14 +1,26 @@
 import React from 'react';
 import { useFleet } from '../../../context/FleetContext';
 import { StatCard } from '../../common/StatCard';
+import { SkeletonCard, SkeletonTable } from '../../common/Skeleton';
 
 export const ProfitabilityView: React.FC = () => {
-  const { vehicles, searchQuery } = useFleet();
+  const { vehicles, searchQuery, isLoading } = useFleet();
 
   const filtered = vehicles.filter(v =>
     v.registrationNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
     v.type.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  if (isLoading) {
+    return (
+      <div className="section active">
+        <SkeletonCard count={4} />
+        <div style={{ marginTop: '20px' }}>
+          <SkeletonTable rows={5} columns={5} />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="section active">

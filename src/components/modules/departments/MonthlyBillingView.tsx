@@ -3,7 +3,7 @@ import { useFleet } from '../../../context/FleetContext';
 import { StatCard } from '../../common/StatCard';
 import { GenerateBillModal } from './GenerateBillModal';
 import { MonthlyDepartmentBill } from '../../../types/fleet';
-import { Building2, Layers, ListFilter } from 'lucide-react';
+import { Building2, Layers, ListFilter, FileText } from 'lucide-react';
 
 export const MonthlyBillingView: React.FC = () => {
   const { monthlyBills, updateBillStatus, searchQuery, departmentContracts } = useFleet();
@@ -348,7 +348,9 @@ export const MonthlyBillingView: React.FC = () => {
                 {/* Department Header Card */}
                 <div className="dept-billing-header">
                   <div className="dept-billing-title-group">
-                    <div className="dept-billing-icon">🏛️</div>
+                    <div className="dept-billing-icon">
+                      <Building2 size={18} color="var(--accent)" />
+                    </div>
                     <div>
                       <div style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text)' }}>
                         {group.departmentName}
@@ -450,7 +452,7 @@ export const MonthlyBillingView: React.FC = () => {
                                 style={{ fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}
                                 onClick={() => setSelectedBillForPreview(b)}
                               >
-                                📄 View bill
+                                <FileText size={12} /> View bill
                               </span>
                             </td>
                           </tr>
@@ -527,7 +529,7 @@ export const MonthlyBillingView: React.FC = () => {
                           style={{ fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}
                           onClick={() => setSelectedBillForPreview(b)}
                         >
-                          📄 View bill
+                          <FileText size={12} /> View bill
                         </span>
                       </td>
                     </tr>
@@ -551,7 +553,9 @@ export const MonthlyBillingView: React.FC = () => {
           <div className="modal-dialog" style={{ maxWidth: 540 }} onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <div className="modal-title-group">
-                <h3 className="modal-title">📑 Official Monthly Invoice</h3>
+                <h3 className="modal-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <FileText size={18} color="var(--accent)" /> Official Monthly Invoice
+                </h3>
                 <span className="modal-subtitle">{selectedBillForPreview.billNumber}</span>
               </div>
               <button className="modal-close-btn" onClick={() => setSelectedBillForPreview(null)}>

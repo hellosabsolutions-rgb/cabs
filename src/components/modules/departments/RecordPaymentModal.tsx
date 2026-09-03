@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useFleet } from '../../../context/FleetContext';
+import { CreditCard, FileText } from 'lucide-react';
 
 interface RecordPaymentModalProps {
   isOpen: boolean;
@@ -106,8 +107,8 @@ export const RecordPaymentModal: React.FC<RecordPaymentModalProps> = ({ isOpen, 
       <div className="modal-dialog" onClick={e => e.stopPropagation()}>
         <div className="modal-header">
           <div className="modal-title-group">
-            <h3 className="modal-title">
-              <span>💳</span> Record Department Payment
+            <h3 className="modal-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <CreditCard size={18} color="var(--accent)" /> Record Department Payment
             </h3>
             <span className="modal-subtitle">Log electronic transfer, RTGS, challan or cheque clearance</span>
           </div>
@@ -269,7 +270,9 @@ export const RecordPaymentModal: React.FC<RecordPaymentModalProps> = ({ isOpen, 
                 style={{ display: 'none' }}
               />
               <div className="upload-box" onClick={() => proofInputRef.current?.click()}>
-                <div className="upload-icon-placeholder">🧾</div>
+                <div className="upload-icon-placeholder">
+                  <FileText size={18} color="var(--accent)" />
+                </div>
                 <div className="upload-info">
                   <div className="upload-title">
                     {proofName ? proofName : 'Click to attach payment advice or challan copy'}

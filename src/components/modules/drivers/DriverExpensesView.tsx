@@ -3,6 +3,7 @@ import { useFleet } from '../../../context/FleetContext';
 import { StatCard } from '../../common/StatCard';
 import { AddDriverExpenseModal } from './AddDriverExpenseModal';
 import { DriverExpenseCategory } from '../../../types/fleet';
+import { FileText } from 'lucide-react';
 
 export const DriverExpensesView: React.FC = () => {
   const { driverExpenses, updateDriverExpenseStatus, searchQuery } = useFleet();
@@ -229,7 +230,7 @@ export const DriverExpensesView: React.FC = () => {
                           style={{ fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}
                           onClick={() => setActiveReceipt(exp.receipt!)}
                         >
-                          📄 {exp.receipt.startsWith('data:') ? 'View attachment' : exp.receipt}
+                          <FileText size={12} /> {exp.receipt.startsWith('data:') ? 'View attachment' : exp.receipt}
                         </span>
                       ) : (
                         <span style={{ color: 'var(--text-faint)', fontSize: '12px' }}>—</span>
@@ -254,7 +255,9 @@ export const DriverExpensesView: React.FC = () => {
         <div className="modal-overlay" onClick={() => setActiveReceipt(null)}>
           <div className="modal-dialog" style={{ maxWidth: 450 }} onClick={e => e.stopPropagation()}>
             <div className="modal-header">
-              <h3 className="modal-title">📄 Receipt / Voucher Document</h3>
+              <h3 className="modal-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <FileText size={16} /> Receipt / Voucher Document
+              </h3>
               <button className="modal-close-btn" onClick={() => setActiveReceipt(null)}>
                 ✕
               </button>
@@ -268,7 +271,9 @@ export const DriverExpensesView: React.FC = () => {
                 />
               ) : (
                 <div style={{ padding: '30px', color: 'var(--text-dim)', fontSize: '13px' }}>
-                  <div style={{ fontSize: '40px', marginBottom: '10px' }}>📑</div>
+                  <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '10px' }}>
+                    <FileText size={40} color="var(--accent)" />
+                  </div>
                   <div>Document File: <b>{activeReceipt}</b></div>
                   <div style={{ fontSize: '11px', color: 'var(--text-faint)', marginTop: '6px' }}>
                     Verified and stored in FleetOS storage.

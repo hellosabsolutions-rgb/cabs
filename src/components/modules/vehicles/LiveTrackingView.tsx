@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useFleet } from '../../../context/FleetContext';
-import { Radio, Navigation, Battery, Cpu, ShieldCheck } from 'lucide-react';
+import { Radio, Navigation, Battery, Cpu, ShieldCheck, Zap, PowerOff } from 'lucide-react';
 
 interface VehicleTelemetry {
   id: string;
@@ -231,7 +231,7 @@ export const LiveTrackingView: React.FC = () => {
       </div>
 
       {/* Main Map & Live Telemetry Layout */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: '20px' }}>
+      <div className="grid-2" style={{ gridTemplateColumns: '1fr 340px' }}>
         {/* Left: GPS Map Simulation Canvas */}
         <div
           style={{
@@ -441,16 +441,28 @@ export const LiveTrackingView: React.FC = () => {
               </div>
               <div style={{ textAlign: 'right' }}>
                 <div style={{ fontSize: '11px', color: 'var(--text-faint)' }}>IGNITION</div>
-                <div
-                  style={{
-                    fontSize: '13px',
-                    fontWeight: 600,
-                    color: selectedVehicle.ignition ? '#39ff6e' : 'var(--text-dim)',
-                    marginTop: '4px'
-                  }}
-                >
-                  {selectedVehicle.ignition ? '⚡ ON (Engine Running)' : '⛔ OFF (Parked)'}
-                </div>
+                  <div
+                    style={{
+                      fontSize: '13px',
+                      fontWeight: 600,
+                      color: selectedVehicle.ignition ? '#39ff6e' : 'var(--text-dim)',
+                      marginTop: '4px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      justifyContent: 'flex-end'
+                    }}
+                  >
+                    {selectedVehicle.ignition ? (
+                      <>
+                        <Zap size={13} /> ON (Engine Running)
+                      </>
+                    ) : (
+                      <>
+                        <PowerOff size={13} /> OFF (Parked)
+                      </>
+                    )}
+                  </div>
               </div>
             </div>
 

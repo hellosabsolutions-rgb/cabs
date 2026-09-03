@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useFleet } from '../../../context/FleetContext';
 import { DriverType } from '../../../types/fleet';
+import { UserPlus, Camera, IdCard } from 'lucide-react';
 
 interface AddDriverModalProps {
   isOpen: boolean;
@@ -130,8 +131,8 @@ export const AddDriverModal: React.FC<AddDriverModalProps> = ({ isOpen, onClose 
         {/* Header */}
         <div className="modal-header">
           <div className="modal-title-group">
-            <h3 className="modal-title">
-              <span>👤</span> Add New Driver
+            <h3 className="modal-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <UserPlus size={18} color="var(--accent)" /> Add New Driver
             </h3>
             <span className="modal-subtitle">Fill in driver identity, license & employment details</span>
           </div>
@@ -173,7 +174,7 @@ export const AddDriverModal: React.FC<AddDriverModalProps> = ({ isOpen, onClose 
                   <img src={photoPreview} alt="Driver preview" className="upload-preview upload-preview-avatar" />
                 ) : (
                   <div className="upload-icon-placeholder" style={{ borderRadius: '50%' }}>
-                    📷
+                    <Camera size={18} color="var(--accent)" />
                   </div>
                 )}
                 <div className="upload-info">
@@ -291,7 +292,9 @@ export const AddDriverModal: React.FC<AddDriverModalProps> = ({ isOpen, onClose 
                 {licensePhotoPreview ? (
                   <img src={licensePhotoPreview} alt="License preview" className="upload-preview" />
                 ) : (
-                  <div className="upload-icon-placeholder">🪪</div>
+                  <div className="upload-icon-placeholder">
+                    <IdCard size={18} color="var(--accent)" />
+                  </div>
                 )}
                 <div className="upload-info">
                   <div className="upload-title">

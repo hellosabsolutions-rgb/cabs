@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useFleet } from '../../../context/FleetContext';
-import { MinusCircle, ShieldCheck } from 'lucide-react';
+import { MinusCircle, ShieldCheck, ArrowRight } from 'lucide-react';
 
 interface DeductTollModalProps {
   isOpen: boolean;
@@ -97,8 +97,8 @@ export const DeductTollModal: React.FC<DeductTollModalProps> = ({
       <div className="modal-dialog" onClick={e => e.stopPropagation()} style={{ maxWidth: 500 }}>
         <div className="modal-header">
           <div className="modal-title-group">
-            <h3 className="modal-title">
-              <span style={{ color: 'var(--danger)' }}>➖</span> Record Toll Deduction (Kitna Kata / Kam Hua)
+            <h3 className="modal-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <MinusCircle size={18} color="var(--danger)" /> Record Toll Deduction (Kitna Kata / Kam Hua)
             </h3>
             <span className="modal-subtitle">
               Manually record toll expense & deduct from vehicle FASTag balance
@@ -235,7 +235,7 @@ export const DeductTollModal: React.FC<DeductTollModalProps> = ({
                   <span style={{ textDecoration: 'line-through', color: 'var(--text-dim)' }}>
                     ₹{currentBal.toLocaleString('en-IN')}
                   </span>
-                  <span style={{ color: 'var(--text-faint)' }}>➔</span>
+                  <ArrowRight size={13} color="var(--text-faint)" />
                   <b style={{ color: estNewBal < 500 ? 'var(--danger)' : 'var(--accent)', fontSize: '14px' }}>
                     ₹{estNewBal.toLocaleString('en-IN')}
                   </b>
@@ -281,9 +281,9 @@ export const DeductTollModal: React.FC<DeductTollModalProps> = ({
             <button
               type="submit"
               className="btn-primary-action"
-              style={{ background: 'var(--danger)', borderColor: 'var(--danger)' }}
+              style={{ background: 'var(--danger)', borderColor: 'var(--danger)', display: 'flex', alignItems: 'center', gap: '6px' }}
             >
-              <span>➖</span> Deduct ₹{numAmount} Toll
+              <MinusCircle size={14} /> Deduct ₹{numAmount} Toll
             </button>
           </div>
         </form>

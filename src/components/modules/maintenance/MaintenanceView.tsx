@@ -3,11 +3,13 @@ import { useFleet } from '../../../context/FleetContext';
 import { StatCard } from '../../common/StatCard';
 import { StatusChip } from '../../common/StatusChip';
 import { MaintenanceType } from '../../../types/fleet';
+import { Paperclip } from 'lucide-react';
+import { SkeletonCard, SkeletonTable } from '../../common/Skeleton';
 
 const vehicleOptions = ['DL01AB1234', 'DL02CD5678', 'DL03EF9012', 'DL07GH2211', 'DL05KL4432'];
 
 export const MaintenanceView: React.FC = () => {
-  const { maintenanceRecords, addMaintenanceRecord, searchQuery } = useFleet();
+  const { maintenanceRecords, addMaintenanceRecord, searchQuery, isLoading } = useFleet();
 
   const [mVehicle, setMVehicle] = useState('DL01AB1234');
   const [mType, setMType] = useState<MaintenanceType>('Service');
@@ -89,6 +91,15 @@ export const MaintenanceView: React.FC = () => {
 
   const formatINR = (val: number) => '₹' + Math.round(val).toLocaleString('en-IN');
 
+  if (isLoading) {
+    return (
+      <div className="section active" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        <SkeletonCard count={4} />
+        <SkeletonTable rows={5} columns={6} />
+      </div>
+    );
+  }
+
   return (
     <div className="section active">
       {/* Quick Stats Grid */}
@@ -128,7 +139,13 @@ export const MaintenanceView: React.FC = () => {
                     </td>
                     <td className="num">{formatINR(m.cost)}</td>
                     <td>
-                      {m.bill ? <span className="bill-link">📎 View</span> : '—'}
+                      {m.bill ? (
+                        <span className="bill-link" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                          <Paperclip size={12} /> View
+                        </span>
+                      ) : (
+                        '—'
+                      )}
                     </td>
                     <td>
                       <StatusChip status={m.status} />

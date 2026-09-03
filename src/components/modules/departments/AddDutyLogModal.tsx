@@ -1,14 +1,21 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useFleet } from '../../../context/FleetContext';
+import { Building2, Briefcase, Calendar, MapPin, IndianRupee, TrendingUp, AlertCircle, CheckCircle2 } from 'lucide-react';
 
 interface AddDutyLogModalProps {
   isOpen: boolean;
   onClose: () => void;
+  defaultDutyType?: 'Official Department Duty' | 'Weekend / Off-Duty Trip';
 }
 
-export const AddDutyLogModal: React.FC<AddDutyLogModalProps> = ({ isOpen, onClose }) => {
-  const { departmentContracts, drivers, addDailyDutyLog } = useFleet();
+export const AddDutyLogModal: React.FC<AddDutyLogModalProps> = ({
+  isOpen,
+  onClose,
+  defaultDutyType = 'Official Department Duty'
+}) => {
+  const { departmentContracts, drivers, vehicles, addDailyDutyLog, addTrip, switchVehicleMode } = useFleet();
 
+  const [dutyType, setDutyType] = useState<'Official Department Duty' | 'Weekend / Off-Duty Trip'>(defaultDutyType);
   const [dutySlipNumber, setDutySlipNumber] = useState(
     () => `SLIP-${Math.floor(Math.random() * 9000 + 1000)}`
   );
@@ -16,17 +23,22 @@ export const AddDutyLogModal: React.FC<AddDutyLogModalProps> = ({ isOpen, onClos
   const [selectedContractId, setSelectedContractId] = useState(departmentContracts[0]?.id || '');
   const [driverName, setDriverName] = useState(drivers[0]?.name || 'Rahul Sharma');
   const [startKm, setStartKm] = useState('45345');
-  const [endKm, setEndKm] = useState('45470');
-  const [startTime, setStartTime] = useState('08:30 AM');
-  const [endTime, setEndTime] = useState('06:30 PM');
-  const [totalHours, setTotalHours] = useState('10.0');
-  const [tollParkingAmount, setTollParkingAmount] = useState('0');
+  const [endKm, setEndKm] = useState('45980');
+  const [startTime, setStartTime] = useState('06:00 AM');
+  const [endTime, setEndTime] = useState('10:30 PM');
+  const [totalHours, setTotalHours] = useState('16.5');
+  const [tollParkingAmount, setTollParkingAmount] = useState('650');
   
   // Fuel expense fields
-  const [fuelAmount, setFuelAmount] = useState('');
-  const [fuelLitres, setFuelLitres] = useState('');
+  const [fuelAmount, setFuelAmount] = useState('3150');
+  const [fuelLitres, setFuelLitres] = useState('35');
   const [fuelBillName, setFuelBillName] = useState('');
   const [fuelBillPreview, setFuelBillPreview] = useState<string | null>(null);
+
+  // Weekend Trip Specific Fields
+  const [tripDestination, setTripDestination] = useState('Delhi to Jaipur (Weekend Round Trip)');
+  const [tripFare, setTripFare] = useState('14500');
+  const [driverBata, setDriverBata] = useState('1200');
 
   const [officerName, setOfficerName] = useState('');
   const [notes, setNotes] = useState('');
@@ -38,6 +50,13 @@ export const AddDutyLogModal: React.FC<AddDutyLogModalProps> = ({ isOpen, onClos
   const fuelInputRef = useRef<HTMLInputElement>(null);
 
   const selectedContract = departmentContracts.find(c => c.id === selectedContractId) || departmentContracts[0];
+  const selectedVehicleObj = vehicles.find(v => v.registrationNumber === selectedContract?.vehicle);
+
+  useEffect(() => {
+    if (defaultDutyType) {
+      setDutyType(defaultDutyType);
+    }
+  }, [defaultDutyType]);
 
   useEffect(() => {
     if (departmentContracts.length > 0 && !selectedContractId) {
@@ -97,7 +116,16 @@ export const AddDutyLogModal: React.FC<AddDutyLogModalProps> = ({ isOpen, onClos
   };
 
   const calcTotalKm = Math.max(0, (Number(endKm) || 0) - (Number(startKm) || 0));
-  const calcExtraKm = Math.max(0, calcTotalKm - 100); // 100 km daily benchmark
+  const calcExtraKm = dutyType === 'Official Department Duty' ? Math.max(0, calcTotalKm - 100) : 0;
+
+  // Weekend trip calculations
+  const fareNum = Number(tripFare) || 0;
+  const fuelNum = Number(fuelAmount) || 0;
+  const tollNum = Number(tollParkingAmount) || 0;
+  const bataNum = Number(driverBata) || 0;
+  const totalTripExpenses = fuelNum + tollNum + bataNum;
+  const netTripProfit = fareNum - totalTripExpenses;
+  const tripMargin = fareNum > 0 ? ((netTripProfit / fareNum) * 100).toFixed(1) + '%' : '0%';
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -106,29 +134,104 @@ export const AddDutyLogModal: React.FC<AddDutyLogModalProps> = ({ isOpen, onClos
       return;
     }
 
-    addDailyDutyLog({
-      dutySlipNumber: dutySlipNumber.trim(),
-      date,
-      departmentName: selectedContract?.departmentName || 'Public Works Department (PWD)',
-      vehicle: selectedContract?.vehicle || 'DL01AB1234',
-      driverName,
-      startKm: Number(startKm) || 0,
-      endKm: Number(endKm) || 0,
-      totalKm: calcTotalKm,
-      extraKm: calcExtraKm,
-      startTime,
-      endTime,
-      totalHours: Number(totalHours) || 10,
-      extraHours: Math.max(0, (Number(totalHours) || 10) - 10),
-      tollParkingAmount: Number(tollParkingAmount) || 0,
-      fuelAmount: fuelAmount ? Number(fuelAmount) : undefined,
-      fuelLitres: fuelLitres ? Number(fuelLitres) : undefined,
-      officerName: officerName.trim() || undefined,
-      dutySlipPhoto: slipPhotoPreview || slipPhotoName || null,
-      fuelBillPhoto: fuelBillPreview || fuelBillName || null,
-      status: 'Approved',
-      notes: notes.trim() || undefined
-    });
+    const deptName = selectedContract?.departmentName || 'Public Works Department (PWD)';
+    const vehicleReg = selectedContract?.vehicle || 'DL01AB1234';
+
+    if (dutyType === 'Weekend / Off-Duty Trip') {
+      const generatedTripSlip = `TRIP-WKND-${Math.floor(Math.random() * 9000 + 1000)}`;
+
+      // 1. Add Daily Duty Log marked as Weekend Trip
+      addDailyDutyLog({
+        dutySlipNumber: generatedTripSlip,
+        date,
+        departmentName: deptName,
+        vehicle: vehicleReg,
+        driverName,
+        dutyType: 'Weekend / Off-Duty Trip',
+        tripDestination: tripDestination.trim(),
+        tripFare: fareNum,
+        tripNetProfit: netTripProfit,
+        startKm: Number(startKm) || 0,
+        endKm: Number(endKm) || 0,
+        totalKm: calcTotalKm,
+        extraKm: 0,
+        startTime,
+        endTime,
+        totalHours: Number(totalHours) || 16,
+        extraHours: 0,
+        tollParkingAmount: tollNum,
+        fuelAmount: fuelNum > 0 ? fuelNum : undefined,
+        fuelLitres: fuelLitres ? Number(fuelLitres) : undefined,
+        officerName: 'Private Client (Weekend Trip)',
+        dutySlipPhoto: slipPhotoPreview || slipPhotoName || null,
+        fuelBillPhoto: fuelBillPreview || fuelBillName || null,
+        status: 'Approved',
+        notes: notes.trim()
+          ? `${notes.trim()} · Sat/Sun weekend trip: Fare ₹${fareNum.toLocaleString('en-IN')}, Profit ₹${netTripProfit.toLocaleString('en-IN')}`
+          : `Sat/Sun weekend trip: Fare ₹${fareNum.toLocaleString('en-IN')}, Profit ₹${netTripProfit.toLocaleString('en-IN')} (Excluded from ${deptName} monthly invoice).`
+      });
+
+      // 2. Also register in Trips financial roster so Munafa is counted in Trips module!
+      addTrip({
+        tripNumber: generatedTripSlip,
+        tripType: 'Round Trip',
+        vehicle: vehicleReg,
+        vehicleModel: selectedVehicleObj?.model,
+        isDepartmentVehicle: true,
+        departmentName: deptName,
+        weekendDutyType: 'Weekend Round Trip',
+        driverName,
+        pickupLocation: tripDestination.split(' to ')[0] || 'Delhi Base',
+        dropLocation: tripDestination.split(' to ')[1] || tripDestination,
+        route: tripDestination,
+        startDate: date,
+        startTime,
+        startOdometer: Number(startKm) || 0,
+        endOdometer: Number(endKm) || 0,
+        totalKmRun: calcTotalKm,
+        initialFuelLitres: Number(fuelLitres) || 0,
+        fuelCost: fuelNum,
+        fastagCost: tollNum,
+        driverBata: bataNum,
+        otherExpenses: 0,
+        revenue: fareNum,
+        expenses: totalTripExpenses,
+        profit: netTripProfit,
+        margin: tripMargin,
+        status: 'Completed',
+        notes: `Weekend trip executed by department vehicle (${deptName} contract). Logged via Department Duty Roster.`
+      });
+
+      if (selectedVehicleObj) {
+        switchVehicleMode(selectedVehicleObj.id, 'Trip-based');
+      }
+    } else {
+      // Official Department Duty
+      addDailyDutyLog({
+        dutySlipNumber: dutySlipNumber.trim(),
+        date,
+        departmentName: deptName,
+        vehicle: vehicleReg,
+        driverName,
+        dutyType: 'Official Department Duty',
+        startKm: Number(startKm) || 0,
+        endKm: Number(endKm) || 0,
+        totalKm: calcTotalKm,
+        extraKm: calcExtraKm,
+        startTime,
+        endTime,
+        totalHours: Number(totalHours) || 10,
+        extraHours: Math.max(0, (Number(totalHours) || 10) - 10),
+        tollParkingAmount: tollNum,
+        fuelAmount: fuelNum > 0 ? fuelNum : undefined,
+        fuelLitres: fuelLitres ? Number(fuelLitres) : undefined,
+        officerName: officerName.trim() || undefined,
+        dutySlipPhoto: slipPhotoPreview || slipPhotoName || null,
+        fuelBillPhoto: fuelBillPreview || fuelBillName || null,
+        status: 'Approved',
+        notes: notes.trim() || undefined
+      });
+    }
 
     setNotes('');
     setFuelAmount('');
@@ -143,13 +246,20 @@ export const AddDutyLogModal: React.FC<AddDutyLogModalProps> = ({ isOpen, onClos
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-dialog" onClick={e => e.stopPropagation()}>
+      <div className="modal-dialog" onClick={e => e.stopPropagation()} style={{ maxWidth: 560 }}>
         <div className="modal-header">
           <div className="modal-title-group">
-            <h3 className="modal-title">
-              <span>📋</span> Log Daily Duty Slip
+            <h3 className="modal-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              {dutyType === 'Weekend / Off-Duty Trip' ? <Briefcase size={18} color="#38bdf8" /> : <Building2 size={18} color="var(--accent)" />}
+              {dutyType === 'Weekend / Off-Duty Trip'
+                ? 'Log Weekend / Sat-Sun Trip for Department Vehicle'
+                : 'Log Official Department Duty Slip'}
             </h3>
-            <span className="modal-subtitle">Record official department vehicle running, KM & hours</span>
+            <span className="modal-subtitle">
+              {dutyType === 'Weekend / Off-Duty Trip'
+                ? 'Record commercial trip taken by department car on Saturday/Sunday with profit tracking'
+                : 'Record official department vehicle running, KM & hours'}
+            </span>
           </div>
           <button className="modal-close-btn" onClick={onClose} type="button">
             ✕
@@ -173,10 +283,41 @@ export const AddDutyLogModal: React.FC<AddDutyLogModalProps> = ({ isOpen, onClos
               </div>
             )}
 
-            {/* Department Contract & Slip No */}
+            {/* Duty Type Selector: Official Department vs Weekend Trip */}
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label className="form-label">Duty Category / Log Type *</label>
+              <div className="driver-type-grid" style={{ gridTemplateColumns: '1fr 1fr' }}>
+                <div
+                  className={`driver-type-option ${dutyType === 'Official Department Duty' ? 'active' : ''}`}
+                  onClick={() => {
+                    setDutyType('Official Department Duty');
+                    setStartKm('45345');
+                    setEndKm('45470');
+                    setTollParkingAmount('0');
+                  }}
+                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                >
+                  <Building2 size={15} /> Official Duty (Mon - Fri)
+                </div>
+                <div
+                  className={`driver-type-option ${dutyType === 'Weekend / Off-Duty Trip' ? 'active' : ''}`}
+                  onClick={() => {
+                    setDutyType('Weekend / Off-Duty Trip');
+                    setStartKm('45345');
+                    setEndKm('45980');
+                    setTollParkingAmount('650');
+                  }}
+                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                >
+                  <Briefcase size={15} /> Weekend Trip (Sat / Sun)
+                </div>
+              </div>
+            </div>
+
+            {/* Department Contract Vehicle & Date */}
             <div className="form-row-2">
               <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label">Department Contract *</label>
+                <label className="form-label">Department Contract Vehicle *</label>
                 <select
                   className="form-input"
                   value={selectedContractId}
@@ -185,28 +326,16 @@ export const AddDutyLogModal: React.FC<AddDutyLogModalProps> = ({ isOpen, onClos
                 >
                   {departmentContracts.map(c => (
                     <option key={c.id} value={c.id}>
-                      {c.departmentName} ({c.vehicle})
+                      {c.vehicle} — {c.departmentName}
                     </option>
                   ))}
                 </select>
               </div>
 
               <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label">Duty Slip No. *</label>
-                <input
-                  type="text"
-                  className="form-input"
-                  value={dutySlipNumber}
-                  onChange={e => setDutySlipNumber(e.target.value)}
-                  required
-                />
-              </div>
-            </div>
-
-            {/* Date & Driver */}
-            <div className="form-row-2">
-              <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label">Duty Date *</label>
+                <label className="form-label">
+                  {dutyType === 'Weekend / Off-Duty Trip' ? 'Weekend Trip Date (Sat / Sun) *' : 'Duty Date *'}
+                </label>
                 <input
                   type="date"
                   className="form-input"
@@ -215,29 +344,118 @@ export const AddDutyLogModal: React.FC<AddDutyLogModalProps> = ({ isOpen, onClos
                   required
                 />
               </div>
+            </div>
 
+            {/* IF WEEKEND TRIP: Route & Customer Fare */}
+            {dutyType === 'Weekend / Off-Duty Trip' && (
+              <div
+                style={{
+                  background: 'rgba(56, 189, 248, 0.07)',
+                  border: '1px solid rgba(56, 189, 248, 0.3)',
+                  padding: '12px 14px',
+                  borderRadius: '10px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '10px'
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#38bdf8', fontWeight: 600, fontSize: '13px' }}>
+                  <MapPin size={15} />
+                  <span>Weekend Commercial Trip Details (Sat / Sun Off-Duty Run)</span>
+                </div>
+
+                <div className="form-row-2">
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label className="form-label">Trip Route (Khn Se Khn Ki Trip) *</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="e.g. Delhi to Jaipur (Round Trip)"
+                      value={tripDestination}
+                      onChange={e => setTripDestination(e.target.value)}
+                      required
+                    />
+                  </div>
+
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label className="form-label">Customer Fare / Revenue (Kitne Ki Trip Hai) (₹) *</label>
+                    <input
+                      type="number"
+                      min="0"
+                      className="form-input"
+                      style={{ fontWeight: 800, color: 'var(--accent)', fontSize: '15px' }}
+                      placeholder="14500"
+                      value={tripFare}
+                      onChange={e => setTripFare(e.target.value)}
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label">Driver Bata / Outstation Allowance (Driver Ko Kitna Diya) (₹)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    className="form-input"
+                    placeholder="1200"
+                    value={driverBata}
+                    onChange={e => setDriverBata(e.target.value)}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Driver & Duty Slip No / Officer */}
+            <div className="form-row-2">
               <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label">Driver On Duty</label>
+                <label className="form-label">Driver Name (Pilot on Duty) *</label>
                 <select
                   className="form-input"
                   value={driverName}
                   onChange={e => setDriverName(e.target.value)}
+                  required
                 >
                   {drivers.map(d => (
                     <option key={d.id} value={d.name}>
-                      {d.name}
+                      {d.name} ({d.driverType || 'Driver'})
                     </option>
                   ))}
                 </select>
               </div>
+
+              {dutyType === 'Official Department Duty' ? (
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label">Duty Slip No. *</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    value={dutySlipNumber}
+                    onChange={e => setDutySlipNumber(e.target.value)}
+                    required
+                  />
+                </div>
+              ) : (
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label">Officer / Private Client Reference</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder="e.g. Private Client Booking / Family Trip"
+                    value={officerName}
+                    onChange={e => setOfficerName(e.target.value)}
+                  />
+                </div>
+              )}
             </div>
 
-            {/* Odometer Readings: Start & End KM */}
+            {/* Odometer Readings */}
             <div className="form-row-2">
               <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label">Start Odometer KM *</label>
+                <label className="form-label">Start Odometer (KM) *</label>
                 <input
                   type="number"
+                  min="0"
                   className="form-input"
                   value={startKm}
                   onChange={e => setStartKm(e.target.value)}
@@ -246,9 +464,10 @@ export const AddDutyLogModal: React.FC<AddDutyLogModalProps> = ({ isOpen, onClos
               </div>
 
               <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label">End Odometer KM *</label>
+                <label className="form-label">End Odometer (KM) *</label>
                 <input
                   type="number"
+                  min="0"
                   className="form-input"
                   value={endKm}
                   onChange={e => setEndKm(e.target.value)}
@@ -257,208 +476,102 @@ export const AddDutyLogModal: React.FC<AddDutyLogModalProps> = ({ isOpen, onClos
               </div>
             </div>
 
-            {/* Calculated Running & Fuel summary */}
-            <div
-              style={{
-                background: 'var(--surface-2)',
-                padding: '8px 12px',
-                borderRadius: '8px',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                fontSize: '12px',
-                border: '1px solid var(--border)'
-              }}
-            >
-              <span>Total Distance: <b style={{ color: 'var(--accent)' }}>{calcTotalKm} km</b></span>
-              <span>Extra KM: <b>{calcExtraKm} km</b></span>
-              <span>Fuel Added: <b style={{ color: fuelAmount && Number(fuelAmount) > 0 ? 'var(--warning)' : 'var(--text-dim)' }}>
-                {fuelAmount ? `₹${Number(fuelAmount).toLocaleString('en-IN')}` : '₹0'}
-              </b></span>
-            </div>
-
-            {/* Timings & Total Hours */}
+            {/* Fuel Dala & Toll Kata */}
             <div className="form-row-2">
               <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label">Start Time</label>
-                <input
-                  type="text"
-                  className="form-input"
-                  placeholder="08:30 AM"
-                  value={startTime}
-                  onChange={e => setStartTime(e.target.value)}
-                />
-              </div>
-
-              <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label">End Time</label>
-                <input
-                  type="text"
-                  className="form-input"
-                  placeholder="06:30 PM"
-                  value={endTime}
-                  onChange={e => setEndTime(e.target.value)}
-                />
-              </div>
-            </div>
-
-            {/* Total Hours & Toll/Parking */}
-            <div className="form-row-2">
-              <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label">Total Hours</label>
-                <input
-                  type="number"
-                  step="0.5"
-                  className="form-input"
-                  value={totalHours}
-                  onChange={e => setTotalHours(e.target.value)}
-                />
-              </div>
-
-              <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label">Toll / Parking Paid (₹)</label>
+                <label className="form-label">Fuel Expense (Kitne Ka Fuel Dala) (₹)</label>
                 <input
                   type="number"
                   min="0"
                   className="form-input"
-                  placeholder="0"
-                  value={tollParkingAmount}
-                  onChange={e => setTollParkingAmount(e.target.value)}
-                />
-              </div>
-            </div>
-
-            {/* Fuel Expense & Fuel Quantity */}
-            <div className="form-row-2">
-              <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                  <span>⛽</span> Fuel Expense (₹)
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  className="form-input"
-                  placeholder="e.g. 2500"
+                  placeholder="3150"
                   value={fuelAmount}
                   onChange={e => setFuelAmount(e.target.value)}
                 />
               </div>
 
               <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label">Fuel Quantity (Litres / CNG Kg)</label>
+                <label className="form-label">FASTag Toll Paid (₹)</label>
                 <input
                   type="number"
                   min="0"
-                  step="0.1"
                   className="form-input"
-                  placeholder="e.g. 26.5"
-                  value={fuelLitres}
-                  onChange={e => setFuelLitres(e.target.value)}
+                  placeholder="650"
+                  value={tollParkingAmount}
+                  onChange={e => setTollParkingAmount(e.target.value)}
                 />
               </div>
             </div>
 
-            {/* Officer Name & Route Details */}
-            <div className="form-row-2">
-              <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label">Officer / Authorized User</label>
-                <input
-                  type="text"
-                  className="form-input"
-                  placeholder="e.g. Er. Singhal (Exec Engineer)"
-                  value={officerName}
-                  onChange={e => setOfficerName(e.target.value)}
-                />
-              </div>
-
-              <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label">Route / Locations Visited</label>
-                <input
-                  type="text"
-                  className="form-input"
-                  placeholder="e.g. ITO, Connaught Place, Ring Road site"
-                  value={notes}
-                  onChange={e => setNotes(e.target.value)}
-                />
-              </div>
-            </div>
-
-            {/* Duty Slip Scan / Signature */}
-            <div className="form-group" style={{ marginBottom: 0 }}>
-              <label className="form-label">Duty Slip Photo / Signed Sheet</label>
-              <input
-                type="file"
-                ref={photoInputRef}
-                onChange={handlePhotoUpload}
-                accept="image/*,.pdf"
-                style={{ display: 'none' }}
-              />
-              <div className="upload-box" onClick={() => photoInputRef.current?.click()}>
-                {slipPhotoPreview ? (
-                  <img src={slipPhotoPreview} alt="Slip preview" className="upload-preview" />
-                ) : (
-                  <div className="upload-icon-placeholder">📑</div>
-                )}
-                <div className="upload-info">
-                  <div className="upload-title">
-                    {slipPhotoName ? slipPhotoName : 'Click to attach signed duty slip scan'}
+            {/* LIVE PROFIT DISPLAY FOR WEEKEND TRIP */}
+            {dutyType === 'Weekend / Off-Duty Trip' && (
+              <div
+                style={{
+                  background: netTripProfit >= 0 ? 'rgba(57, 255, 110, 0.08)' : 'rgba(255, 92, 92, 0.08)',
+                  border: `1px solid ${netTripProfit >= 0 ? 'rgba(57, 255, 110, 0.3)' : 'rgba(255, 92, 92, 0.3)'}`,
+                  padding: '12px 14px',
+                  borderRadius: '10px',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center'
+                }}
+              >
+                <div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-faint)' }}>
+                    Total KM: <b>{calcTotalKm} km</b> · Total Expenses: <b>₹{totalTripExpenses.toLocaleString('en-IN')}</b>
                   </div>
-                  <div className="upload-hint">Upload officer signed physical slip</div>
+                  <div style={{ fontSize: '15px', fontWeight: 800, color: netTripProfit >= 0 ? '#39ff6e' : 'var(--danger)', marginTop: '2px' }}>
+                    Net Munafa (Profit): ₹{netTripProfit.toLocaleString('en-IN')} ({tripMargin})
+                  </div>
                 </div>
-                {(slipPhotoPreview || slipPhotoName) && (
-                  <button
-                    type="button"
-                    className="modal-close-btn"
-                    style={{ width: 26, height: 26, fontSize: 11 }}
-                    onClick={e => {
-                      e.stopPropagation();
-                      setSlipPhotoName('');
-                      setSlipPhotoPreview(null);
-                    }}
-                  >
-                    ✕
-                  </button>
-                )}
+
+                <div style={{ textAlign: 'right', fontSize: '11px', color: 'var(--text-dim)' }}>
+                  <div>Fare: ₹{fareNum.toLocaleString('en-IN')}</div>
+                  <div style={{ color: 'var(--danger)' }}>- Kharcha: ₹{totalTripExpenses.toLocaleString('en-IN')}</div>
+                </div>
               </div>
+            )}
+
+            {/* Explanatory Policy Alert */}
+            <div
+              style={{
+                background: 'var(--surface-3)',
+                padding: '9px 12px',
+                borderRadius: '8px',
+                fontSize: '11.5px',
+                color: 'var(--text-dim)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                border: '1px solid var(--border)'
+              }}
+            >
+              <AlertCircle size={15} style={{ flexShrink: 0, color: 'var(--accent)' }} />
+              {dutyType === 'Weekend / Off-Duty Trip' ? (
+                <span>
+                  <b>Audit Note:</b> Ye log <b>{selectedContract?.departmentName}</b> ke monthly tender bill me shamil <b>NAHI</b> hoga. Iska pure munafa <b>Trips Ledger</b> me record hoga aur gaadi ka odometer reading update rahega.
+                </span>
+              ) : (
+                <span>
+                  Ye official department duty slip hai. Iska extra KM aur toll department ke monthly invoice me judega.
+                </span>
+              )}
             </div>
 
-            {/* Fuel Bill / Receipt Upload */}
+            {/* Notes */}
             <div className="form-group" style={{ marginBottom: 0 }}>
-              <label className="form-label">Fuel Bill / Petrol Pump Receipt (Optional)</label>
+              <label className="form-label">Duty / Trip Notes (Optional)</label>
               <input
-                type="file"
-                ref={fuelInputRef}
-                onChange={handleFuelUpload}
-                accept="image/*,.pdf"
-                style={{ display: 'none' }}
+                type="text"
+                className="form-input"
+                placeholder={
+                  dutyType === 'Weekend / Off-Duty Trip'
+                    ? 'e.g. Sunday off from PWD. Commercial outstation trip.'
+                    : 'e.g. Site visit with Junior Engineer to Ring Road bypass'
+                }
+                value={notes}
+                onChange={e => setNotes(e.target.value)}
               />
-              <div className="upload-box" onClick={() => fuelInputRef.current?.click()}>
-                {fuelBillPreview ? (
-                  <img src={fuelBillPreview} alt="Fuel receipt preview" className="upload-preview" />
-                ) : (
-                  <div className="upload-icon-placeholder">⛽</div>
-                )}
-                <div className="upload-info">
-                  <div className="upload-title">
-                    {fuelBillName ? fuelBillName : 'Click to attach petrol pump invoice / receipt'}
-                  </div>
-                  <div className="upload-hint">Upload fuel pump printed bill or image</div>
-                </div>
-                {(fuelBillPreview || fuelBillName) && (
-                  <button
-                    type="button"
-                    className="modal-close-btn"
-                    style={{ width: 26, height: 26, fontSize: 11 }}
-                    onClick={e => {
-                      e.stopPropagation();
-                      setFuelBillName('');
-                      setFuelBillPreview(null);
-                    }}
-                  >
-                    ✕
-                  </button>
-                )}
-              </div>
             </div>
           </div>
 
@@ -466,8 +579,8 @@ export const AddDutyLogModal: React.FC<AddDutyLogModalProps> = ({ isOpen, onClos
             <button type="button" className="btn-secondary" onClick={onClose}>
               Cancel
             </button>
-            <button type="submit" className="btn-primary-action">
-              <span>+</span> Record Duty Slip
+            <button type="submit" className="btn-primary-action" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <CheckCircle2 size={14} /> {dutyType === 'Weekend / Off-Duty Trip' ? 'Save Weekend Trip Log' : 'Log Duty Slip'}
             </button>
           </div>
         </form>

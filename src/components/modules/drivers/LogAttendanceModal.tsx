@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useFleet } from '../../../context/FleetContext';
 import { AttendanceStatus } from '../../../types/fleet';
+import { Calendar, CheckCircle2, Loader2 } from 'lucide-react';
 
 interface LogAttendanceModalProps {
   isOpen: boolean;
@@ -28,6 +29,7 @@ export const LogAttendanceModal: React.FC<LogAttendanceModalProps> = ({
   const [workingHours, setWorkingHours] = useState('10.0');
   const [notes, setNotes] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Keep state in sync with selected driver defaults
   useEffect(() => {
@@ -64,7 +66,7 @@ export const LogAttendanceModal: React.FC<LogAttendanceModalProps> = ({
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const d = drivers.find(drv => drv.id === selectedDriverId);
     if (!d) {
@@ -72,22 +74,27 @@ export const LogAttendanceModal: React.FC<LogAttendanceModalProps> = ({
       return;
     }
 
-    markAttendance({
-      driverId: d.id,
-      driverName: d.name,
-      date,
-      status,
-      checkIn: status === 'Absent' || status === 'On Leave' ? '—' : checkIn,
-      checkOut: status === 'Absent' || status === 'On Leave' ? '—' : checkOut,
-      assignedVehicle: vehicle,
-      dutyType,
-      workingHours: status === 'Absent' || status === 'On Leave' ? 0 : Number(workingHours) || 0,
-      notes: notes.trim() || undefined
-    });
+    setIsSubmitting(true);
+    try {
+      markAttendance({
+        driverId: d.id,
+        driverName: d.name,
+        date,
+        status,
+        checkIn: status === 'Absent' || status === 'On Leave' ? '—' : checkIn,
+        checkOut: status === 'Absent' || status === 'On Leave' ? '—' : checkOut,
+        assignedVehicle: vehicle,
+        dutyType,
+        workingHours: status === 'Absent' || status === 'On Leave' ? 0 : Number(workingHours) || 0,
+        notes: notes.trim() || undefined
+      });
 
-    setNotes('');
-    setErrorMsg('');
-    onClose();
+      setNotes('');
+      setErrorMsg('');
+      onClose();
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -96,8 +103,8 @@ export const LogAttendanceModal: React.FC<LogAttendanceModalProps> = ({
         {/* Header */}
         <div className="modal-header">
           <div className="modal-title-group">
-            <h3 className="modal-title">
-              <span>📅</span> Log Driver Attendance
+            <h3 className="modal-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Calendar size={18} color="var(--accent)" /> Log Driver Attendance
             </h3>
             <span className="modal-subtitle">Record duty check-in, timings, route & hours</span>
           </div>
@@ -263,11 +270,24 @@ export const LogAttendanceModal: React.FC<LogAttendanceModalProps> = ({
 
           {/* Footer */}
           <div className="modal-footer">
-            <button type="button" className="btn-secondary" onClick={onClose}>
+            <button type="button" className="btn-secondary" onClick={onClose} disabled={isSubmitting}>
               Cancel
             </button>
-            <button type="submit" className="btn-primary-action">
-              <span>✓</span> Save Attendance
+            <button
+              type="submit"
+              className="btn-primary-action"
+              disabled={isSubmitting}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 size={14} className="spin-loader" /> Saving...
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 size={14} /> Save Attendance
+                </>
+              )}
             </button>
           </div>
         </form>

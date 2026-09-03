@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useFleet } from '../../../context/FleetContext';
 import { FuelLogEntry } from '../../../types/fleet';
+import { Fuel, Camera, FileText } from 'lucide-react';
 
 interface AddFuelLogModalProps {
   isOpen: boolean;
@@ -154,8 +155,8 @@ export const AddFuelLogModal: React.FC<AddFuelLogModalProps> = ({
       <div className="modal-dialog" onClick={e => e.stopPropagation()}>
         <div className="modal-header">
           <div className="modal-title-group">
-            <h3 className="modal-title">
-              <span>⛽</span> Add Vehicle Fuel Refill
+            <h3 className="modal-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Fuel size={18} color="var(--accent)" /> Add Vehicle Fuel Refill
             </h3>
             <span className="modal-subtitle">Log vehicle, quantity, date/time with pump meter & bill photo proof</span>
           </div>
@@ -344,8 +345,8 @@ export const AddFuelLogModal: React.FC<AddFuelLogModalProps> = ({
 
             {/* 4. PHOTO PROOFS */}
             <div style={{ marginTop: '4px' }}>
-              <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text)', marginBottom: '8px' }}>
-                📸 Fuel Photo Proofs (Meter Reading & Pump Receipt)
+              <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text)', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Camera size={14} color="var(--accent)" /> Fuel Photo Proofs (Meter Reading & Pump Receipt)
               </div>
 
               <div className="form-row-2">
@@ -369,8 +370,8 @@ export const AddFuelLogModal: React.FC<AddFuelLogModalProps> = ({
                     {meterPhotoPreview ? (
                       <img src={meterPhotoPreview} alt="Meter" className="upload-preview" />
                     ) : (
-                      <div className="upload-icon-placeholder" style={{ width: 34, height: 34, fontSize: 16 }}>
-                        📸
+                      <div className="upload-icon-placeholder" style={{ width: 34, height: 34 }}>
+                        <Camera size={16} color="var(--accent)" />
                       </div>
                     )}
                     <div className="upload-info">
@@ -416,8 +417,8 @@ export const AddFuelLogModal: React.FC<AddFuelLogModalProps> = ({
                     {receiptPhotoPreview ? (
                       <img src={receiptPhotoPreview} alt="Receipt" className="upload-preview" />
                     ) : (
-                      <div className="upload-icon-placeholder" style={{ width: 34, height: 34, fontSize: 16 }}>
-                        🧾
+                      <div className="upload-icon-placeholder" style={{ width: 34, height: 34 }}>
+                        <FileText size={16} color="var(--accent)" />
                       </div>
                     )}
                     <div className="upload-info">

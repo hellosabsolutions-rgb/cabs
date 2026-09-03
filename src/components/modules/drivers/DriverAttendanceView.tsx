@@ -3,6 +3,7 @@ import { useFleet } from '../../../context/FleetContext';
 import { StatCard } from '../../common/StatCard';
 import { LogAttendanceModal } from './LogAttendanceModal';
 import { AttendanceStatus, DriverAttendance } from '../../../types/fleet';
+import { Calendar, CheckCircle2 } from 'lucide-react';
 
 export const DriverAttendanceView: React.FC = () => {
   const {
@@ -246,7 +247,9 @@ export const DriverAttendanceView: React.FC = () => {
               gap: '8px'
             }}
           >
-            <span>📅 {formattedDateLabel}</span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+              <Calendar size={14} color="var(--accent)" /> {formattedDateLabel}
+            </span>
             <input
               type="date"
               className="form-input"
@@ -260,7 +263,7 @@ export const DriverAttendanceView: React.FC = () => {
             style={{ padding: '6px 12px', fontSize: '12px' }}
             onClick={() => shiftDate(1)}
           >
-            Next Day ▶
+            Next Day &rarr;
           </button>
           <button
             className="btn-secondary"
@@ -274,11 +277,11 @@ export const DriverAttendanceView: React.FC = () => {
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <button
             className="btn-secondary"
-            style={{ fontSize: '12px', padding: '7px 14px' }}
+            style={{ fontSize: '12px', padding: '7px 14px', display: 'flex', alignItems: 'center', gap: '4px' }}
             onClick={handleMarkAllPresent}
             title="Mark all registered drivers present for this date"
           >
-            ✓ Mark All Present
+            <CheckCircle2 size={13} /> Mark All Present
           </button>
           <button
             className="btn-primary-action"

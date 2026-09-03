@@ -4,12 +4,13 @@ import { StatCard } from '../../common/StatCard';
 import { AddTripModal } from './AddTripModal';
 import { CompleteTripModal } from './CompleteTripModal';
 import { TripFinancial, TripStatus } from '../../../types/fleet';
-import { Navigation, Plus, CheckCircle2, Clock, MapPin, Gauge, Fuel, CreditCard, User, TrendingUp } from 'lucide-react';
+import { Navigation, Plus, CheckCircle2, Clock, MapPin, Gauge, Fuel, CreditCard, User, TrendingUp, RotateCcw, ArrowRight, Building2 } from 'lucide-react';
+import { SkeletonCard, SkeletonTable } from '../../common/Skeleton';
 
 export const TripsView: React.FC = () => {
-  const { trips, searchQuery } = useFleet();
+  const { trips, searchQuery, isLoading } = useFleet();
 
-  const [statusFilter, setStatusFilter] = useState<'All' | 'Ongoing' | 'Completed'>('All');
+  const [statusFilter, setStatusFilter] = useState<'All' | 'Ongoing' | 'Completed' | 'Dept-Weekend'>('All');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [completingTrip, setCompletingTrip] = useState<TripFinancial | null>(null);
 
@@ -22,9 +23,15 @@ export const TripsView: React.FC = () => {
         t.vehicle.toLowerCase().includes(searchQuery.toLowerCase()) ||
         (t.tripNumber && t.tripNumber.toLowerCase().includes(searchQuery.toLowerCase())) ||
         t.driverName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (t.departmentName && t.departmentName.toLowerCase().includes(searchQuery.toLowerCase())) ||
         (t.customerName && t.customerName.toLowerCase().includes(searchQuery.toLowerCase()));
 
-      const matchStatus = statusFilter === 'All' || t.status === statusFilter;
+      const matchStatus =
+        statusFilter === 'All'
+          ? true
+          : statusFilter === 'Dept-Weekend'
+          ? Boolean(t.isDepartmentVehicle || t.weekendDutyType)
+          : t.status === statusFilter;
 
       return matchSearch && matchStatus;
     });
@@ -32,6 +39,7 @@ export const TripsView: React.FC = () => {
 
   const ongoingCount = trips.filter(t => t.status === 'Ongoing').length;
   const completedCount = trips.filter(t => t.status === 'Completed').length;
+  const deptWeekendCount = trips.filter(t => t.isDepartmentVehicle || t.weekendDutyType).length;
 
   const stats = useMemo(() => {
     let totalRevenue = 0;
@@ -61,6 +69,15 @@ export const TripsView: React.FC = () => {
       avgMargin
     };
   }, [trips]);
+
+  if (isLoading) {
+    return (
+      <div className="section active" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        <SkeletonCard count={4} />
+        <SkeletonTable rows={6} columns={7} />
+      </div>
+    );
+  }
 
   return (
     <div className="section active" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -111,9 +128,24 @@ export const TripsView: React.FC = () => {
             <button
               className={`subtab-btn ${statusFilter === 'Completed' ? 'active' : ''}`}
               onClick={() => setStatusFilter('Completed')}
-              style={{ padding: '5px 12px', fontSize: '12px' }}
+              style={{ padding: '5px 12px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}
             >
-              ✓ Completed ({completedCount})
+              <CheckCircle2 size={13} /> Completed ({completedCount})
+            </button>
+
+            <button
+              className={`subtab-btn ${statusFilter === 'Dept-Weekend' ? 'active' : ''}`}
+              onClick={() => setStatusFilter('Dept-Weekend')}
+              style={{
+                padding: '5px 12px',
+                fontSize: '12px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                color: deptWeekendCount > 0 ? '#38bdf8' : undefined
+              }}
+            >
+              <Building2 size={13} /> Dept Sat/Sun Trips ({deptWeekendCount})
             </button>
 
             <button
@@ -159,9 +191,17 @@ export const TripsView: React.FC = () => {
                         </div>
                         <span
                           className={`tag ${trip.tripType === 'Round Trip' ? 'dept' : 'trip'}`}
-                          style={{ marginTop: '3px', fontSize: '10.5px' }}
+                          style={{ marginTop: '3px', fontSize: '10.5px', display: 'inline-flex', alignItems: 'center', gap: '3px' }}
                         >
-                          {trip.tripType === 'Round Trip' ? '🔄 Round Trip' : '➡️ One-way'}
+                          {trip.tripType === 'Round Trip' ? (
+                            <>
+                              <RotateCcw size={10} /> Round Trip
+                            </>
+                          ) : (
+                            <>
+                              <ArrowRight size={10} /> One-way
+                            </>
+                          )}
                         </span>
                         <div style={{ fontSize: '10.5px', color: 'var(--text-faint)', marginTop: '3px' }}>
                           {trip.startDate}
@@ -181,6 +221,24 @@ export const TripsView: React.FC = () => {
                         <div style={{ fontSize: '11px', color: 'var(--text-dim)', marginTop: '2px' }}>
                           Driver: <b>{trip.driverName}</b>
                         </div>
+                        {(trip.isDepartmentVehicle || trip.weekendDutyType) && (
+                          <div
+                            style={{
+                              fontSize: '10px',
+                              color: '#38bdf8',
+                              fontWeight: 600,
+                              marginTop: '3px',
+                              background: 'rgba(56, 189, 248, 0.1)',
+                              padding: '2px 5px',
+                              borderRadius: '4px',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '3px'
+                            }}
+                          >
+                            <Building2 size={10} /> Dept Sat/Sun Trip ({trip.departmentName || 'Dept Fleet'})
+                          </div>
+                        )}
                       </div>
                     </td>
 
@@ -237,16 +295,22 @@ export const TripsView: React.FC = () => {
                     {/* 6. Expenses Breakdown: Fuel, FASTag, Driver Bata */}
                     <td>
                       <div style={{ fontSize: '11.5px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px' }}>
-                          <span style={{ color: 'var(--text-dim)' }}>⛽ Fuel:</span>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', alignItems: 'center' }}>
+                          <span style={{ color: 'var(--text-dim)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                            <Fuel size={12} color="#ffcc4d" /> Fuel:
+                          </span>
                           <span style={{ fontWeight: 600, color: '#ffcc4d' }}>{formatINR(trip.fuelCost)}</span>
                         </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px' }}>
-                          <span style={{ color: 'var(--text-dim)' }}>🛣️ FASTag:</span>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', alignItems: 'center' }}>
+                          <span style={{ color: 'var(--text-dim)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                            <CreditCard size={12} color="#38bdf8" /> FASTag:
+                          </span>
                           <span style={{ fontWeight: 600, color: '#38bdf8' }}>{formatINR(trip.fastagCost)}</span>
                         </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px' }}>
-                          <span style={{ color: 'var(--text-dim)' }}>👨‍✈️ Driver:</span>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', alignItems: 'center' }}>
+                          <span style={{ color: 'var(--text-dim)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                            <User size={12} /> Driver:
+                          </span>
                           <span style={{ fontWeight: 600 }}>{formatINR(trip.driverBata)}</span>
                         </div>
                         <div
@@ -308,10 +372,10 @@ export const TripsView: React.FC = () => {
                             </span>
                             <button
                               className="btn-primary-action"
-                              style={{ fontSize: '11px', padding: '5px 10px', width: '100%', textAlign: 'center' }}
+                              style={{ fontSize: '11px', padding: '5px 10px', width: '100%', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}
                               onClick={() => setCompletingTrip(trip)}
                             >
-                              🏁 Complete
+                              <CheckCircle2 size={12} /> Complete
                             </button>
                           </>
                         ) : (
@@ -320,10 +384,13 @@ export const TripsView: React.FC = () => {
                             style={{
                               background: 'var(--surface-3)',
                               color: 'var(--text)',
-                              fontSize: '11px'
+                              fontSize: '11px',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px'
                             }}
                           >
-                            ✓ Completed
+                            <CheckCircle2 size={11} color="var(--accent)" /> Completed
                           </span>
                         )}
                       </div>

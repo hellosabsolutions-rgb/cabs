@@ -4,10 +4,11 @@ import { StatCard } from '../../common/StatCard';
 import { StatusChip } from '../../common/StatusChip';
 import { AddVehicleModal } from './AddVehicleModal';
 import { VehicleStatus, VehicleType } from '../../../types/fleet';
-import { Truck, Briefcase, Building2, Plus, FileText } from 'lucide-react';
+import { Truck, Briefcase, Building2, Plus, FileText, RotateCcw, MapPin, Fuel, AlertTriangle } from 'lucide-react';
+import { SkeletonCard, SkeletonTable } from '../../common/Skeleton';
 
 export const VehiclesView: React.FC = () => {
-  const { vehicles, searchQuery, updateVehicleStatus, switchVehicleMode } = useFleet();
+  const { vehicles, searchQuery, updateVehicleStatus, switchVehicleMode, isLoading } = useFleet();
 
   const [typeFilter, setTypeFilter] = useState<'All' | VehicleType>('All');
   const [statusFilter, setStatusFilter] = useState<string>('All');
@@ -66,6 +67,15 @@ export const VehiclesView: React.FC = () => {
     };
     updateVehicleStatus(id, nextStatus[current]);
   };
+
+  if (isLoading) {
+    return (
+      <div className="section active" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        <SkeletonCard count={4} />
+        <SkeletonTable rows={6} columns={7} />
+      </div>
+    );
+  }
 
   return (
     <div className="section active" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -196,12 +206,21 @@ export const VehiclesView: React.FC = () => {
                               ? 'dept'
                               : 'trip'
                           }`}
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}
                         >
-                          {v.currentOperationMode === 'Trip-based' && v.type === 'Department'
-                            ? '🧳 Weekend Trip Active'
-                            : v.type === 'Department'
-                            ? '🏛️ Dept (Mon-Fri)'
-                            : '🧳 Trip-based'}
+                          {v.currentOperationMode === 'Trip-based' && v.type === 'Department' ? (
+                            <>
+                              <Briefcase size={10} /> Weekend Trip Active
+                            </>
+                          ) : v.type === 'Department' ? (
+                            <>
+                              <Building2 size={10} /> Dept (Mon-Fri)
+                            </>
+                          ) : (
+                            <>
+                              <Briefcase size={10} /> Trip-based
+                            </>
+                          )}
                         </span>
                         {v.type === 'Department' && (
                           <button
@@ -211,7 +230,9 @@ export const VehiclesView: React.FC = () => {
                               fontSize: '10px',
                               padding: '2px 6px',
                               marginTop: '4px',
-                              display: 'block',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '3px',
                               whiteSpace: 'nowrap'
                             }}
                             onClick={() =>
@@ -224,9 +245,15 @@ export const VehiclesView: React.FC = () => {
                             }
                             title="Click to switch vehicle between Department duty and Weekend commercial trip"
                           >
-                            {v.currentOperationMode === 'Trip-based'
-                              ? '🏛️ Return to Dept'
-                              : '🔀 Sat/Sun Trip Mode'}
+                            {v.currentOperationMode === 'Trip-based' ? (
+                              <>
+                                <Building2 size={10} /> Return to Dept
+                              </>
+                            ) : (
+                              <>
+                                <RotateCcw size={10} /> Sat/Sun Trip Mode
+                              </>
+                            )}
                           </button>
                         )}
                       </div>
@@ -236,7 +263,7 @@ export const VehiclesView: React.FC = () => {
                     <td>
                       <div>
                         <div style={{ fontWeight: 600, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                          {v.type === 'Department' ? '🏛️' : '📍'} {v.departmentName || v.assignedTo}
+                          {v.type === 'Department' ? <Building2 size={13} color="#ffcc4d" /> : <MapPin size={13} color="#38bdf8" />} {v.departmentName || v.assignedTo}
                         </div>
                         {v.type === 'Department' && (
                           <div style={{ fontSize: '10.5px', color: 'var(--accent)', marginTop: '2px' }}>
@@ -268,8 +295,8 @@ export const VehiclesView: React.FC = () => {
                       <div style={{ fontSize: '12px' }}>
                         {v.odometer ? `${v.odometer.toLocaleString('en-IN')} km` : '42,000 km'}
                       </div>
-                      <div style={{ fontSize: '10.5px', color: 'var(--text-dim)', marginTop: '2px' }}>
-                        ⛽ {v.fuelType || 'Diesel'}
+                      <div style={{ fontSize: '10.5px', color: 'var(--text-dim)', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                        <Fuel size={11} /> {v.fuelType || 'Diesel'}
                       </div>
                     </td>
 
@@ -285,8 +312,8 @@ export const VehiclesView: React.FC = () => {
                         ₹{(v.fastagBalance || 0).toLocaleString('en-IN')}
                       </span>
                       {(v.fastagBalance || 0) < 500 && (
-                        <div style={{ fontSize: '10px', color: 'var(--danger)', fontWeight: 600 }}>
-                          ⚠️ Low
+                        <div style={{ fontSize: '10px', color: 'var(--danger)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '3px' }}>
+                          <AlertTriangle size={10} /> Low
                         </div>
                       )}
                     </td>
@@ -336,7 +363,9 @@ export const VehiclesView: React.FC = () => {
         <div className="modal-overlay" onClick={() => setViewRc(null)}>
           <div className="modal-dialog" style={{ maxWidth: 440 }} onClick={e => e.stopPropagation()}>
             <div className="modal-header">
-              <h3 className="modal-title">📄 Vehicle Registration Certificate (RC)</h3>
+              <h3 className="modal-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <FileText size={16} /> Vehicle Registration Certificate (RC)
+              </h3>
               <button className="modal-close-btn" onClick={() => setViewRc(null)}>
                 ✕
               </button>
@@ -350,7 +379,9 @@ export const VehiclesView: React.FC = () => {
                 />
               ) : (
                 <div style={{ padding: '30px' }}>
-                  <div style={{ fontSize: '42px', marginBottom: '10px' }}>📑</div>
+                  <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '10px' }}>
+                    <FileText size={42} color="var(--accent)" />
+                  </div>
                   <div style={{ fontWeight: 600 }}>File: {viewRc}</div>
                   <div style={{ fontSize: '12px', color: 'var(--text-faint)', marginTop: '6px' }}>
                     Government transport authority registration verified.

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useFleet } from '../../../context/FleetContext';
 import { TripFinancial } from '../../../types/fleet';
+import { CheckCircle2, Fuel, CreditCard, User } from 'lucide-react';
 
 interface CompleteTripModalProps {
   isOpen: boolean;
@@ -88,8 +89,8 @@ export const CompleteTripModal: React.FC<CompleteTripModalProps> = ({
       <div className="modal-dialog" onClick={e => e.stopPropagation()} style={{ maxWidth: 520 }}>
         <div className="modal-header">
           <div className="modal-title-group">
-            <h3 className="modal-title">
-              <span>🏁</span> Complete Trip & Calculate Profit
+            <h3 className="modal-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <CheckCircle2 size={18} color="var(--accent)" /> Complete Trip & Calculate Profit
             </h3>
             <span className="modal-subtitle">
               Closing details for {trip.tripNumber || 'Trip'} · {trip.route}
@@ -202,7 +203,7 @@ export const CompleteTripModal: React.FC<CompleteTripModalProps> = ({
               <div className="form-row-2">
                 <div className="form-group" style={{ marginBottom: 0 }}>
                   <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    ⛽ Fuel Kitne Ka Dala (₹) *
+                    <Fuel size={13} color="#ffcc4d" /> Fuel Kitne Ka Dala (₹) *
                   </label>
                   <input
                     type="number"
@@ -218,7 +219,7 @@ export const CompleteTripModal: React.FC<CompleteTripModalProps> = ({
                 {/* FASTag Kitna */}
                 <div className="form-group" style={{ marginBottom: 0 }}>
                   <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    🛣️ Kitna FASTag Toll Laga (₹) *
+                    <CreditCard size={13} color="#38bdf8" /> Kitna FASTag Toll Laga (₹) *
                   </label>
                   <input
                     type="number"
@@ -235,7 +236,9 @@ export const CompleteTripModal: React.FC<CompleteTripModalProps> = ({
               {/* Driver Ko Kitna Diya & Other Expenses */}
               <div className="form-row-2">
                 <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label">👨‍✈️ Driver Ko Kitna Diya (Bata ₹) *</label>
+                  <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <User size={13} /> Driver Ko Kitna Diya (Bata ₹) *
+                  </label>
                   <input
                     type="number"
                     min="0"
@@ -325,8 +328,8 @@ export const CompleteTripModal: React.FC<CompleteTripModalProps> = ({
             <button type="button" className="btn-secondary" onClick={onClose}>
               Cancel
             </button>
-            <button type="submit" className="btn-primary-action">
-              <span>✓</span> Complete Trip & Save Profit
+            <button type="submit" className="btn-primary-action" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <CheckCircle2 size={14} /> Complete Trip & Save Profit
             </button>
           </div>
         </form>

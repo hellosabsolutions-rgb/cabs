@@ -6,7 +6,8 @@ import { AddDriverModal } from './AddDriverModal';
 import { DriverAttendanceView } from './DriverAttendanceView';
 import { DriverExpensesView } from './DriverExpensesView';
 import { DriverType } from '../../../types/fleet';
-import { Users, CalendarCheck, Receipt } from 'lucide-react';
+import { Users, CalendarCheck, Receipt, MapPin } from 'lucide-react';
+import { SkeletonCard, SkeletonTable } from '../../common/Skeleton';
 
 export const DriversView: React.FC = () => {
   const {
@@ -15,7 +16,8 @@ export const DriversView: React.FC = () => {
     driverSubTab,
     setDriverSubTab,
     attendanceRecords,
-    driverExpenses
+    driverExpenses,
+    isLoading
   } = useFleet();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -64,6 +66,15 @@ export const DriversView: React.FC = () => {
   const onDutyCount = drivers.filter(d => d.status === 'On duty').length;
   const fullTimeCount = drivers.filter(d => d.driverType === 'Full Time').length;
   const totalExpenseSum = driverExpenses.reduce((acc, curr) => acc + curr.amount, 0);
+
+  if (isLoading) {
+    return (
+      <div className="section active" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        <SkeletonCard count={4} />
+        <SkeletonTable rows={6} columns={6} />
+      </div>
+    );
+  }
 
   return (
     <div className="section active">
@@ -199,8 +210,8 @@ export const DriversView: React.FC = () => {
                                 </div>
                               )}
                               {d.address && (
-                                <div style={{ fontSize: '10.5px', color: 'var(--text-faint)', marginTop: '1px' }}>
-                                  📍 {d.address}
+                                <div style={{ fontSize: '10.5px', color: 'var(--text-faint)', marginTop: '1px', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                                  <MapPin size={10} /> {d.address}
                                 </div>
                               )}
                             </div>

@@ -381,7 +381,6 @@ body {
 
 .content {
   padding: 26px 28px 60px;
-  max-width: 1400px;
   width: 100%;
 }
 
@@ -814,7 +813,7 @@ textarea.form-input {
 /* Responsive queries */
 @media (max-width: 1024px) {
   .grid-2, .two-col-tables {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr !important;
   }
 }
 
@@ -934,12 +933,6 @@ textarea.form-input {
   text-align: right;
 }
 
-@media (max-width: 600px) {
-  .dept-stat-item {
-    text-align: left;
-  }
-}
-
 .dept-stat-label {
   font-size: 10.5px;
   color: var(--text-faint);
@@ -953,30 +946,502 @@ textarea.form-input {
   color: var(--text);
 }
 
+/* ==========================================================================
+   Mobile sidebar overlay backdrop
+   ========================================================================== */
+.sidebar-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 9;
+  animation: modalFadeIn 0.2s ease;
+}
 
+.sidebar-backdrop.visible {
+  display: block;
+}
 
+/* ==========================================================================
+   Responsive utility classes for components with inline styles
+   ========================================================================== */
+.section.active {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* ==========================================================================
+   Responsive: Tablet (≤1200px)
+   ========================================================================== */
+@media (max-width: 1200px) {
+  .sidebar {
+    width: 220px;
+  }
+  .nav-item {
+    font-size: 12.5px;
+    padding: 8px 10px;
+  }
+  .nav-label {
+    font-size: 9.5px;
+  }
+  .brand {
+    padding: 16px 14px;
+  }
+  .brand-name {
+    font-size: 15px;
+  }
+  .content {
+    padding: 22px 20px 50px;
+  }
+}
+
+/* ==========================================================================
+   Responsive: Small tablet / large phone (≤768px)
+   ========================================================================== */
 @media (max-width: 768px) {
+  /* Show hamburger */
   .menu-toggle {
     display: flex;
   }
+
+  /* Sidebar as mobile drawer */
   .sidebar {
     position: fixed;
-    left: -260px;
+    left: 0;
     top: 0;
     bottom: 0;
+    width: 270px;
+    transform: translateX(-100%);
+    z-index: 10;
+    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
   }
   .sidebar.open {
-    transform: translateX(260px);
-    box-shadow: 0 0 30px rgba(0,0,0,0.5);
+    transform: translateX(0);
+    box-shadow: 8px 0 40px rgba(0, 0, 0, 0.45);
   }
+
+  /* Topbar compact */
   .topbar {
-    padding: 14px 18px;
+    padding: 12px 16px;
+    gap: 8px;
   }
-  .content {
-    padding: 18px 18px 40px;
+  .page-title {
+    font-size: 16px;
   }
+  .page-sub {
+    font-size: 11px;
+  }
+  .topbar-right {
+    gap: 10px;
+  }
+
+  /* Search collapse on mobile */
   .search {
-    width: 160px;
+    width: 140px;
+    font-size: 12px;
+    padding: 7px 12px 7px 32px;
+  }
+
+  /* Content full width */
+  .content {
+    padding: 16px 14px 40px;
+  }
+
+  /* Stats grid 2 columns on tablet */
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+  .stat-value {
+    font-size: 20px;
+  }
+  .stat-card {
+    padding: 14px 16px;
+  }
+
+  /* Table cells compact */
+  th {
+    font-size: 10px;
+    padding: 0 8px 8px;
+    white-space: nowrap;
+  }
+  td {
+    padding: 10px 8px;
+    font-size: 12px;
+  }
+
+  /* Subtab wrap for touch - horizontal scroll */
+  .subtab-nav {
+    gap: 6px;
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    padding-bottom: 10px;
+  }
+  .subtab-nav::-webkit-scrollbar {
+    display: none;
+  }
+  .subtab-btn {
+    padding: 7px 12px;
+    font-size: 12px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  /* Panels stack */
+  .grid-2, .two-col-tables {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Section headers with inline flex: force wrapping */
+  .section.active > div[style*="justify-content"] {
+    flex-wrap: wrap !important;
+  }
+
+  /* All inline grid layouts: force single column */
+  div[style*="gridTemplateColumns: '1fr 340px'"],
+  div[style*="gridTemplateColumns: '1.4fr 1fr'"] {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Dept billing card compact */
+  .dept-billing-header {
+    padding: 12px 14px;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .dept-billing-stats-strip {
+    width: 100%;
+    justify-content: space-between;
+  }
+  .dept-stat-item {
+    text-align: left;
+  }
+
+  /* Modal responsive - slide up from bottom */
+  .modal-overlay {
+    padding: 8px;
+    align-items: flex-end;
+  }
+  .modal-dialog {
+    max-width: 100% !important;
+    max-height: 92vh;
+    border-radius: 16px 16px 0 0;
+  }
+  .modal-header {
+    padding: 14px 16px;
+  }
+  .modal-body {
+    padding: 16px;
+  }
+  .modal-footer {
+    padding: 12px 16px;
+    flex-wrap: wrap;
+  }
+  .modal-title {
+    font-size: 15px;
+  }
+  .modal-subtitle {
+    font-size: 11px;
+  }
+
+  /* Form rows stack */
+  .form-row-2 {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  /* Driver type grids in modals — 2 cols on tablet */
+  .driver-type-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  /* Status chip & tags compact */
+  .chip, .tag {
+    font-size: 10px;
+    padding: 2px 7px;
+  }
+
+  /* Toast bottom full width */
+  .toast-container {
+    bottom: 12px;
+    right: 12px;
+    left: 12px;
+    max-width: none;
+    width: auto;
+  }
+
+  /* FuelLogs filter strip: horizontal scroll */
+  div[style*="overflowX: 'auto'"] {
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  /* Panel head wrap */
+  .panel-head {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+}
+
+/* ==========================================================================
+   Responsive: Phone (≤480px)
+   ========================================================================== */
+@media (max-width: 480px) {
+  .content {
+    padding: 12px 10px 32px;
+  }
+
+  /* Section gap smaller */
+  .section.active {
+    gap: 14px;
+  }
+
+  /* Stats: single column */
+  .stats-grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  .stat-card {
+    padding: 12px 14px;
+    flex-direction: row;
+    align-items: center;
+    gap: 14px;
+  }
+  .stat-top {
+    flex: 1;
+    margin-bottom: 0;
+  }
+  .stat-value {
+    font-size: 18px;
+  }
+  .stat-label {
+    font-size: 10.5px;
+  }
+  .stat-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+  }
+  .stat-delta {
+    font-size: 10.5px;
+    margin-top: 4px;
+  }
+
+  /* Topbar ultra compact */
+  .topbar {
+    padding: 10px 12px;
+  }
+  .page-title {
+    font-size: 14px;
+  }
+  .page-sub {
+    display: none;
+  }
+
+  /* Hide search on small phones */
+  .search-box {
+    display: none;
+  }
+
+  .topbar-right {
+    gap: 8px;
+  }
+  .icon-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 7px;
+  }
+  .avatar {
+    width: 32px;
+    height: 32px;
+    font-size: 11px;
+    border-radius: 7px;
+  }
+
+  /* Table scroll horizontal */
+  .table-responsive {
+    margin: 0 -10px;
+    padding: 0 10px;
+  }
+  table {
+    font-size: 11.5px;
+    min-width: 600px;
+  }
+
+  /* Subtab scrollable pills */
+  .subtab-btn {
+    padding: 6px 10px;
+    font-size: 11.5px;
+  }
+
+  /* Panel compact */
+  .panel {
+    padding: 14px 14px;
+    border-radius: 10px;
+  }
+  .panel-title {
+    font-size: 13px;
+  }
+
+  /* Bar chart shorter */
+  .bars {
+    height: 120px;
+    gap: 6px;
+  }
+  .bar-track {
+    height: 90px;
+  }
+  .bar-lbl {
+    font-size: 9px;
+  }
+
+  /* Modal full screen on phone */
+  .modal-overlay {
+    padding: 0;
+  }
+  .modal-dialog {
+    border-radius: 0 !important;
+    max-height: 100vh !important;
+    height: 100vh;
+  }
+  .modal-header {
+    padding: 12px 14px;
+  }
+  .modal-body {
+    padding: 14px;
+    gap: 12px;
+  }
+  .modal-footer {
+    padding: 10px 14px;
+    gap: 8px;
+  }
+  .modal-title {
+    font-size: 14px;
+  }
+  .modal-close-btn {
+    width: 28px;
+    height: 28px;
+    font-size: 13px;
+  }
+
+  /* Forms compact */
+  .form-group {
+    margin-bottom: 10px;
+  }
+  .form-label {
+    font-size: 11px;
+    margin-bottom: 4px;
+  }
+  .form-input {
+    padding: 8px 10px;
+    font-size: 12.5px;
+    border-radius: 7px;
+  }
+  .btn-secondary {
+    padding: 8px 14px;
+    font-size: 12px;
+  }
+  .btn-primary-action {
+    padding: 8px 16px;
+    font-size: 12px;
+  }
+
+  /* Driver type grid: 2 cols on phone */
+  .driver-type-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 6px;
+  }
+  .driver-type-option {
+    padding: 6px 8px;
+    font-size: 11px;
+  }
+
+  /* Dept billing card */
+  .dept-billing-icon {
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    font-size: 15px;
+  }
+  .dept-billing-stats-strip {
+    gap: 10px;
+  }
+  .dept-stat-val {
+    font-size: 13px;
+  }
+  .dept-stat-label {
+    font-size: 9.5px;
+  }
+
+  /* Driver info compact */
+  .driver-info-cell {
+    gap: 8px;
+  }
+  .driver-avatar-circle {
+    width: 28px;
+    height: 28px;
+    font-size: 10px;
+  }
+
+  /* Upload box compact */
+  .upload-box {
+    padding: 10px;
+    gap: 10px;
+  }
+  .upload-preview {
+    width: 40px;
+    height: 40px;
+    border-radius: 6px;
+  }
+  .upload-icon-placeholder {
+    width: 36px;
+    height: 36px;
+  }
+  .upload-title {
+    font-size: 11px;
+  }
+  .upload-hint {
+    font-size: 10px;
+  }
+
+  /* Status list compact */
+  .status-row {
+    padding: 8px 0;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .status-name {
+    font-size: 12px;
+  }
+  .status-meta {
+    font-size: 10px;
+  }
+
+  /* Theme toggle compact */
+  .theme-toggle-wrap {
+    padding: 10px;
+  }
+  .theme-btn {
+    padding: 6px 0;
+    font-size: 11px;
+  }
+
+  /* Compliance & Alert rows compact */
+  .alert-row {
+    gap: 8px;
+    font-size: 12px;
+    padding: 8px 0;
+  }
+  .alert-icon {
+    width: 24px;
+    height: 24px;
+    border-radius: 6px;
+    font-size: 11px;
   }
 }
 
@@ -1318,3 +1783,160 @@ textarea.form-input {
   color: #c084fc;
   border-color: rgba(168, 85, 247, 0.3);
 }
+
+/* ==========================================================================
+   Skeleton Shimmer & Loading States
+   ========================================================================== */
+@keyframes skeleton-shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.skeleton-box {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.04) 25%,
+    rgba(255, 255, 255, 0.09) 37%,
+    rgba(255, 255, 255, 0.04) 63%
+  );
+  background-size: 400% 100%;
+  animation: skeleton-shimmer 1.4s ease infinite;
+  border-radius: 6px;
+  display: inline-block;
+}
+
+.skeleton-table-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.skeleton-stat-card {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* Loading button spinner */
+@keyframes spin-loader {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.spin-loader {
+  animation: spin-loader 0.8s linear infinite;
+}
+
+/* ==========================================================================
+   Global Toast Notifications
+   ========================================================================== */
+.toast-container {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 99999;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 420px;
+  width: calc(100vw - 32px);
+  pointer-events: none;
+}
+
+@keyframes toast-slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.toast-item {
+  pointer-events: auto;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: 10px;
+  background: #181c24;
+  border: 1px solid var(--border);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.4);
+  animation: toast-slide-in 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  backdrop-filter: blur(12px);
+  transition: all 0.2s ease;
+}
+
+.toast-item.success {
+  border-left: 4px solid var(--accent);
+}
+
+.toast-item.error {
+  border-left: 4px solid var(--danger);
+}
+
+.toast-item.warning {
+  border-left: 4px solid var(--warning);
+}
+
+.toast-item.info {
+  border-left: 4px solid #38bdf8;
+}
+
+.toast-icon {
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+.toast-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.toast-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 2px;
+}
+
+.toast-message {
+  font-size: 12px;
+  color: var(--text-dim);
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+.toast-close-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-faint);
+  cursor: pointer;
+  padding: 2px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s ease;
+}
+
+.toast-close-btn:hover {
+  color: var(--text);
+}
+

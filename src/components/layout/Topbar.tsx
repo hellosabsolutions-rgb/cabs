@@ -1,13 +1,13 @@
 import React from 'react';
 import { useFleet } from '../../context/FleetContext';
-import { Search, Bell, Menu } from 'lucide-react';
+import { Search, Bell, Menu, RefreshCw } from 'lucide-react';
 
 interface TopbarProps {
   onToggleMobileSidebar: () => void;
 }
 
 export const Topbar: React.FC<TopbarProps> = ({ onToggleMobileSidebar }) => {
-  const { pageHeader, searchQuery, setSearchQuery, complianceStats } = useFleet();
+  const { pageHeader, searchQuery, setSearchQuery, complianceStats, refreshData, isLoading } = useFleet();
 
   const totalAlerts = complianceStats.expiringSoonCount + complianceStats.expiredCount;
 
@@ -33,6 +33,17 @@ export const Topbar: React.FC<TopbarProps> = ({ onToggleMobileSidebar }) => {
             onChange={e => setSearchQuery(e.target.value)}
           />
         </div>
+
+        <button
+          type="button"
+          className="icon-btn"
+          onClick={refreshData}
+          disabled={isLoading}
+          title="Synchronize & refresh fleet data"
+          aria-label="Refresh data"
+        >
+          <RefreshCw size={15} className={isLoading ? 'spin-loader' : ''} />
+        </button>
 
         <div className="icon-btn" title={`${totalAlerts} active alert(s)`}>
           <Bell size={16} />

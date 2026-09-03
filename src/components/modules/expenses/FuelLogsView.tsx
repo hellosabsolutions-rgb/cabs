@@ -3,7 +3,7 @@ import { useFleet } from '../../../context/FleetContext';
 import { StatCard } from '../../common/StatCard';
 import { AddFuelLogModal } from './AddFuelLogModal';
 import { FuelLogEntry } from '../../../types/fleet';
-import { Fuel, Camera, FileText, Plus, CheckCircle2, Building2, User, Gauge } from 'lucide-react';
+import { Fuel, Camera, FileText, Plus, CheckCircle2, Building2, User, Gauge, Truck, Briefcase } from 'lucide-react';
 
 export const FuelLogsView: React.FC = () => {
   const { fuelLogs, vehicles, searchQuery } = useFleet();
@@ -186,16 +186,16 @@ export const FuelLogsView: React.FC = () => {
             <button
               className={`subtab-btn ${viewMode === 'by-vehicle' ? 'active' : ''}`}
               onClick={() => setViewMode('by-vehicle')}
-              style={{ padding: '4px 12px', fontSize: '12px', borderRadius: '6px' }}
+              style={{ padding: '4px 12px', fontSize: '12px', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}
             >
-              🚗 According to Vehicle (Gaadi-wise History)
+              <Truck size={13} /> According to Vehicle (Gaadi-wise History)
             </button>
             <button
               className={`subtab-btn ${viewMode === 'table' ? 'active' : ''}`}
               onClick={() => setViewMode('table')}
-              style={{ padding: '4px 12px', fontSize: '12px', borderRadius: '6px' }}
+              style={{ padding: '4px 12px', fontSize: '12px', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}
             >
-              📋 All Refills Master Table
+              <FileText size={13} /> All Refills Master Table
             </button>
           </div>
         </div>
@@ -256,26 +256,32 @@ export const FuelLogsView: React.FC = () => {
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                     <div
                       style={{
-                        width: 40,
-                        height: 40,
-                        borderRadius: '10px',
-                        background: 'rgba(255, 204, 77, 0.15)',
-                        color: '#ffcc4d',
+                        width: '38px',
+                        height: '38px',
+                        borderRadius: '8px',
+                        background: 'rgba(255, 204, 77, 0.12)',
                         display: 'flex',
                         alignItems: 'center',
-                        justifyContent: 'center',
-                        fontSize: '18px'
+                        justifyContent: 'center'
                       }}
                     >
-                      ⛽
+                      <Fuel size={18} color="#ffcc4d" />
                     </div>
                     <div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <span style={{ fontWeight: 800, fontSize: '16px', color: 'var(--text)', letterSpacing: '0.5px' }}>
                           {v.registrationNumber}
                         </span>
-                        <span className={`tag ${v.type === 'Department' ? 'dept' : 'trip'}`}>
-                          {v.type === 'Department' ? `🏛️ ${v.departmentName || v.assignedTo}` : `🧳 Trip Cab (${v.assignedTo})`}
+                        <span className={`tag ${v.type === 'Department' ? 'dept' : 'trip'}`} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                          {v.type === 'Department' ? (
+                            <>
+                              <Building2 size={11} /> {v.departmentName || v.assignedTo}
+                            </>
+                          ) : (
+                            <>
+                              <Briefcase size={11} /> Trip Cab ({v.assignedTo})
+                            </>
+                          )}
                         </span>
                       </div>
                       <div style={{ fontSize: '12px', color: 'var(--text-faint)', marginTop: '2px' }}>
@@ -568,13 +574,13 @@ export const FuelLogsView: React.FC = () => {
                                 })
                               }
                             >
-                              📸 Meter Photo
+                              <Camera size={11} style={{ marginRight: '4px' }} /> Meter Photo
                             </span>
                           )}
                           {log.receiptPhoto && (
                             <span
                               className="bill-link"
-                              style={{ fontSize: '11px', cursor: 'pointer' }}
+                              style={{ fontSize: '11px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}
                               onClick={() =>
                                 setSelectedProof({
                                   title: 'Printed Fuel Pump Receipt / Bill Slip',
@@ -588,7 +594,7 @@ export const FuelLogsView: React.FC = () => {
                                 })
                               }
                             >
-                              🧾 Bill Slip Photo
+                              <FileText size={11} style={{ marginRight: '4px' }} /> Bill Slip Photo
                             </span>
                           )}
                         </div>
@@ -618,7 +624,9 @@ export const FuelLogsView: React.FC = () => {
           <div className="modal-dialog" style={{ maxWidth: 480 }} onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <div className="modal-title-group">
-                <h3 className="modal-title">📸 {selectedProof.title}</h3>
+                <h3 className="modal-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Camera size={18} color="var(--accent)" /> {selectedProof.title}
+                </h3>
                 <span className="modal-subtitle">
                   {selectedProof.vehicle} · {selectedProof.litres}L · {formatINR(selectedProof.amount)}
                 </span>
@@ -652,7 +660,9 @@ export const FuelLogsView: React.FC = () => {
                   />
                 ) : (
                   <div style={{ padding: '30px 20px' }}>
-                    <div style={{ fontSize: '50px', marginBottom: '10px' }}>⛽</div>
+                    <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '10px' }}>
+                      <Fuel size={48} color="var(--accent)" />
+                    </div>
                     <div style={{ fontWeight: 600, fontSize: '14px' }}>
                       Verified Refill Proof: {selectedProof.src}
                     </div>

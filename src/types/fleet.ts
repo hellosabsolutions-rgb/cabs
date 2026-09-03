@@ -121,6 +121,10 @@ export interface DailyDutyLog {
   departmentName: string;
   vehicle: string;
   driverName: string;
+  dutyType?: 'Official Department Duty' | 'Weekend / Off-Duty Trip';
+  tripDestination?: string;
+  tripFare?: number;
+  tripNetProfit?: number;
   startKm: number;
   endKm: number;
   totalKm: number;
@@ -227,6 +231,9 @@ export interface TripFinancial {
   tripType: TripType;
   vehicle: string;
   vehicleModel?: string;
+  isDepartmentVehicle?: boolean;
+  departmentName?: string;
+  weekendDutyType?: 'Saturday Trip' | 'Sunday Trip' | 'Weekend Round Trip' | 'Regular Commercial Trip';
   driverName: string;
   pickupLocation: string;
   dropLocation: string;
@@ -266,6 +273,12 @@ export interface DocumentCompliance {
   entityName: string; // Vehicle registration or Driver name
   entityType: 'Vehicle' | 'Driver';
   documentName: string;
+  documentNumber?: string;
+  issueDate?: string;
+  expiryDate?: string;
+  issuingAuthority?: string;
+  documentPhoto?: string | null;
+  notes?: string;
   expiryLabel: string;
   statusType: 'ok' | 'soon' | 'late';
   daysLeft?: number;
@@ -290,3 +303,25 @@ export interface RevenueVsExpenseData {
   month: string;
   revenueHeight: number; // percentage
 }
+
+export type ToastType = 'success' | 'error' | 'warning' | 'info';
+
+export interface ToastNotification {
+  id: string;
+  type: ToastType;
+  title?: string;
+  message: string;
+  duration?: number;
+}
+
+export interface ActionResult<T = void> {
+  success: boolean;
+  data?: T;
+  error?: string;
+}
+
+export interface LoadingState {
+  isLoading: boolean;
+  loadingKey: string | null;
+}
+

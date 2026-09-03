@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useFleet } from '../../../context/FleetContext';
+import { FileText, CheckCircle2 } from 'lucide-react';
 
 interface GenerateBillModalProps {
   isOpen: boolean;
@@ -90,8 +91,8 @@ export const GenerateBillModal: React.FC<GenerateBillModalProps> = ({ isOpen, on
       <div className="modal-dialog" onClick={e => e.stopPropagation()}>
         <div className="modal-header">
           <div className="modal-title-group">
-            <h3 className="modal-title">
-              <span>📑</span> Generate Department Monthly Invoice
+            <h3 className="modal-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <FileText size={18} color="var(--accent)" /> Generate Department Monthly Invoice
             </h3>
             <span className="modal-subtitle">Compile base contract, extra km/hours & toll billing</span>
           </div>
@@ -260,8 +261,8 @@ export const GenerateBillModal: React.FC<GenerateBillModalProps> = ({ isOpen, on
             <button type="button" className="btn-secondary" onClick={onClose}>
               Cancel
             </button>
-            <button type="submit" className="btn-primary-action">
-              <span>✓</span> Generate Invoice
+            <button type="submit" className="btn-primary-action" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <CheckCircle2 size={14} /> Generate Invoice
             </button>
           </div>
         </form>

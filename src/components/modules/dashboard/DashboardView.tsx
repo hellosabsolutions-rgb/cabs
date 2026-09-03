@@ -3,16 +3,28 @@ import { useFleet } from '../../../context/FleetContext';
 import { StatCard } from '../../common/StatCard';
 import { StatusChip } from '../../common/StatusChip';
 import { chartData } from '../../../data/mockFleetData';
-import { DollarSign, CreditCard, TrendingUp, Truck } from 'lucide-react';
+import { IndianRupee, CreditCard, TrendingUp, Truck } from 'lucide-react';
+import { SkeletonCard, SkeletonTable } from '../../common/Skeleton';
 
 export const DashboardView: React.FC = () => {
-  const { vehicles, searchQuery, setActivePage } = useFleet();
+  const { vehicles, searchQuery, setActivePage, isLoading } = useFleet();
 
   const filteredVehicles = vehicles.filter(v => 
     v.registrationNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
     v.assignedTo.toLowerCase().includes(searchQuery.toLowerCase()) ||
     (v.meta && v.meta.toLowerCase().includes(searchQuery.toLowerCase()))
   );
+
+  if (isLoading) {
+    return (
+      <div className="section active">
+        <SkeletonCard count={4} />
+        <div style={{ marginTop: '20px' }}>
+          <SkeletonTable rows={5} columns={5} />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="section active">
@@ -23,7 +35,7 @@ export const DashboardView: React.FC = () => {
           value="₹11,00,000"
           delta="↑ Dept ₹4.8L · Trip ₹6.2L"
           isUp
-          icon={<DollarSign size={16} />}
+          icon={<IndianRupee size={16} />}
         />
         <StatCard
           label="Total expense"

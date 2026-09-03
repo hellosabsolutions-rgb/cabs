@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useFleet } from '../../../context/FleetContext';
 import { Vehicle, VehicleType, VehicleStatus } from '../../../types/fleet';
-import { Building2, MapPin } from 'lucide-react';
+import { Building2, MapPin, Truck, Briefcase, Upload, FileText, Loader2 } from 'lucide-react';
 
 interface AddVehicleModalProps {
   isOpen: boolean;
@@ -61,6 +61,7 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
   const [vehiclePhotoPreview, setVehiclePhotoPreview] = useState<string | null>(null);
 
   const [errorMsg, setErrorMsg] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const rcInputRef = useRef<HTMLInputElement>(null);
   const photoInputRef = useRef<HTMLInputElement>(null);
@@ -134,31 +135,36 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
         ? `${hubStand.trim()} · ${departmentName.trim()}`
         : hubStand.trim();
 
-    addVehicle({
-      registrationNumber: cleanReg,
-      model: model.trim(),
-      type,
-      assignedTo: finalAssignedTo,
-      departmentName: type === 'Department' ? departmentName.trim() : (departmentName.trim() || undefined),
-      status,
-      revenue: type === 'Department' ? 85000 : 110000,
-      expense: 45000,
-      profit: type === 'Department' ? 40000 : 65000,
-      meta: type === 'Department' ? `${departmentName} Contract duty` : `Trip · ${hubStand}`,
-      fuelType,
-      seatingCapacity: Number(seatingCapacity) || 5,
-      assignedDriver: assignedDriver !== 'Unassigned' ? assignedDriver : undefined,
-      odometer: Number(odometer) || 0,
-      fastagBalance: Number(fastagBalance) || 0,
-      gpsImei: gpsImei.trim(),
-      rcPhoto: rcPhotoPreview || rcPhotoName || null,
-      insuranceExpiry,
-      fitnessExpiry
-    });
+    setIsSubmitting(true);
+    try {
+      addVehicle({
+        registrationNumber: cleanReg,
+        model: model.trim(),
+        type,
+        assignedTo: finalAssignedTo,
+        departmentName: type === 'Department' ? departmentName.trim() : (departmentName.trim() || undefined),
+        status,
+        revenue: type === 'Department' ? 85000 : 110000,
+        expense: 45000,
+        profit: type === 'Department' ? 40000 : 65000,
+        meta: type === 'Department' ? `${departmentName} Contract duty` : `Trip · ${hubStand}`,
+        fuelType,
+        seatingCapacity: Number(seatingCapacity) || 5,
+        assignedDriver: assignedDriver !== 'Unassigned' ? assignedDriver : undefined,
+        odometer: Number(odometer) || 0,
+        fastagBalance: Number(fastagBalance) || 0,
+        gpsImei: gpsImei.trim(),
+        rcPhoto: rcPhotoPreview || rcPhotoName || null,
+        insuranceExpiry,
+        fitnessExpiry
+      });
 
-    setRegistrationNumber('');
-    setErrorMsg('');
-    onClose();
+      setRegistrationNumber('');
+      setErrorMsg('');
+      onClose();
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -166,8 +172,8 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
       <div className="modal-dialog" onClick={e => e.stopPropagation()} style={{ maxWidth: 540 }}>
         <div className="modal-header">
           <div className="modal-title-group">
-            <h3 className="modal-title">
-              <span>🚚</span> Add New Vehicle to Fleet
+            <h3 className="modal-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Truck size={18} color="var(--accent)" /> Add New Vehicle to Fleet
             </h3>
             <span className="modal-subtitle">
               Register commercial or department vehicle with specs, driver, FASTag & RC proof
@@ -209,8 +215,17 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
                         setDepartmentName('Public Works Department (PWD)');
                       }
                     }}
+                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
                   >
-                    {t === 'Department' ? '🏛️ Department Contract' : '🧳 Trip / Rental Fleet'}
+                    {t === 'Department' ? (
+                      <>
+                        <Building2 size={14} /> Department Contract
+                      </>
+                    ) : (
+                      <>
+                        <Briefcase size={14} /> Trip / Rental Fleet
+                      </>
+                    )}
                   </div>
                 ))}
               </div>
@@ -471,8 +486,8 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
                   {vehiclePhotoPreview ? (
                     <img src={vehiclePhotoPreview} alt="Vehicle" className="upload-preview" />
                   ) : (
-                    <div className="upload-icon-placeholder" style={{ width: 34, height: 34, fontSize: 16 }}>
-                      🚗
+                    <div className="upload-icon-placeholder" style={{ width: 34, height: 34 }}>
+                      <Truck size={16} color="var(--accent)" />
                     </div>
                   )}
                   <div className="upload-info">
@@ -501,8 +516,8 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
                   {rcPhotoPreview ? (
                     <img src={rcPhotoPreview} alt="RC" className="upload-preview" />
                   ) : (
-                    <div className="upload-icon-placeholder" style={{ width: 34, height: 34, fontSize: 16 }}>
-                      📄
+                    <div className="upload-icon-placeholder" style={{ width: 34, height: 34 }}>
+                      <FileText size={16} color="var(--accent)" />
                     </div>
                   )}
                   <div className="upload-info">
@@ -517,11 +532,24 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
           </div>
 
           <div className="modal-footer">
-            <button type="button" className="btn-secondary" onClick={onClose}>
+            <button type="button" className="btn-secondary" onClick={onClose} disabled={isSubmitting}>
               Cancel
             </button>
-            <button type="submit" className="btn-primary-action">
-              <span>+</span> Register Vehicle
+            <button
+              type="submit"
+              className="btn-primary-action"
+              disabled={isSubmitting}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 size={14} className="spin-loader" /> Registering...
+                </>
+              ) : (
+                <>
+                  <span>+</span> Register Vehicle
+                </>
+              )}
             </button>
           </div>
         </form>
