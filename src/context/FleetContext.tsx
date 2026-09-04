@@ -148,16 +148,29 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
+  // Fetch drivers from live backend API
+  const fetchLiveDrivers = async () => {
+    try {
+      const res = await api.get('/drivers?limit=100');
+      if (res.success && Array.isArray(res.data) && res.data.length > 0) {
+        setDrivers(res.data);
+      }
+    } catch (err) {
+      console.warn('Backend drivers API not reachable, using local driver cache.', err);
+    }
+  };
+
   useEffect(() => {
     fetchLiveVehicles();
+    fetchLiveDrivers();
   }, []);
 
   const refreshData = async () => {
     setIsLoading(true);
     setLoadingKey('refreshing');
     try {
-      await fetchLiveVehicles();
-      showToast('info', 'Fleet data synchronized with live server.', 'Refreshed');
+      await Promise.all([fetchLiveVehicles(), fetchLiveDrivers()]);
+      showToast('info', 'Fleet & Driver roster synchronized with live server.', 'Refreshed');
     } finally {
       setIsLoading(false);
       setLoadingKey(null);
@@ -180,9 +193,50 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             id: res.data.id || res.data._id
           };
           setVehicles(prev => [serverVehicle, ...prev.filter(v => v.registrationNumber !== serverVehicle.registrationNumber)]);
+
+          // Sync compliance records for the 5 documents
+          const cleanReg = serverVehicle.registrationNumber;
+          const calcMeta = (expDate?: string) => {
+            if (!expDate) return { statusType: 'ok' as const, daysLeft: 365, expiryLabel: 'Valid' };
+            const exp = new Date(expDate);
+            const now = new Date();
+            const diff = Math.ceil((exp.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+            if (isNaN(diff)) return { statusType: 'ok' as const, daysLeft: 365, expiryLabel: 'Valid' };
+            if (diff < 0) return { statusType: 'late' as const, daysLeft: diff, expiryLabel: `Expired ${Math.abs(diff)}d ago` };
+            if (diff <= 30) return { statusType: 'soon' as const, daysLeft: diff, expiryLabel: `Expires in ${diff}d` };
+            return { statusType: 'ok' as const, daysLeft: diff, expiryLabel: `Valid (${diff}d left)` };
+          };
+
+          const docsToAdd: DocumentCompliance[] = [];
+          const createDoc = (name: string, exp?: string, photo?: string | null) => {
+            if (!exp && !photo) return;
+            const meta = calcMeta(exp);
+            docsToAdd.push({
+              id: 'vc_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
+              entityName: cleanReg,
+              entityType: 'Vehicle',
+              documentName: name,
+              expiryDate: exp || '',
+              documentPhoto: photo || null,
+              expiryLabel: meta.expiryLabel,
+              statusType: meta.statusType,
+              daysLeft: meta.daysLeft
+            });
+          };
+
+          createDoc('Registration Certificate (RC)', vehicleData.rcExpiry, vehicleData.rcPhoto);
+          createDoc('Commercial Insurance Policy', vehicleData.insuranceExpiry, vehicleData.insurancePhoto);
+          createDoc('Pollution Under Control (PUCC)', vehicleData.pollutionExpiry, vehicleData.pollutionPhoto);
+          createDoc('Commercial Vehicle Permit', vehicleData.permitExpiry, vehicleData.permitPhoto);
+          createDoc('Permit Authorization (Auth)', vehicleData.authExpiry, vehicleData.authPhoto);
+
+          if (docsToAdd.length > 0) {
+            setVehicleCompliance(prev => [...docsToAdd, ...prev]);
+          }
+
           showToast(
             'success',
-            `Vehicle ${serverVehicle.registrationNumber} onboarded to ${serverVehicle.type} fleet.`,
+            `Vehicle ${serverVehicle.registrationNumber} onboarded with 5 compliance documents.`,
             'Vehicle Registered'
           );
           return { success: true, vehicle: serverVehicle };
@@ -205,6 +259,46 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         profit: (vehicleData.revenue || 0) - (vehicleData.expense || 0)
       };
       setVehicles(prev => [newVehicle, ...prev]);
+
+      const cleanReg = newVehicle.registrationNumber;
+      const calcMeta = (expDate?: string) => {
+        if (!expDate) return { statusType: 'ok' as const, daysLeft: 365, expiryLabel: 'Valid' };
+        const exp = new Date(expDate);
+        const now = new Date();
+        const diff = Math.ceil((exp.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+        if (isNaN(diff)) return { statusType: 'ok' as const, daysLeft: 365, expiryLabel: 'Valid' };
+        if (diff < 0) return { statusType: 'late' as const, daysLeft: diff, expiryLabel: `Expired ${Math.abs(diff)}d ago` };
+        if (diff <= 30) return { statusType: 'soon' as const, daysLeft: diff, expiryLabel: `Expires in ${diff}d` };
+        return { statusType: 'ok' as const, daysLeft: diff, expiryLabel: `Valid (${diff}d left)` };
+      };
+
+      const docsToAdd: DocumentCompliance[] = [];
+      const createDoc = (name: string, exp?: string, photo?: string | null) => {
+        if (!exp && !photo) return;
+        const meta = calcMeta(exp);
+        docsToAdd.push({
+          id: 'vc_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
+          entityName: cleanReg,
+          entityType: 'Vehicle',
+          documentName: name,
+          expiryDate: exp || '',
+          documentPhoto: photo || null,
+          expiryLabel: meta.expiryLabel,
+          statusType: meta.statusType,
+          daysLeft: meta.daysLeft
+        });
+      };
+
+      createDoc('Registration Certificate (RC)', vehicleData.rcExpiry, vehicleData.rcPhoto);
+      createDoc('Commercial Insurance Policy', vehicleData.insuranceExpiry, vehicleData.insurancePhoto);
+      createDoc('Pollution Under Control (PUCC)', vehicleData.pollutionExpiry, vehicleData.pollutionPhoto);
+      createDoc('Commercial Vehicle Permit', vehicleData.permitExpiry, vehicleData.permitPhoto);
+      createDoc('Permit Authorization (Auth)', vehicleData.authExpiry, vehicleData.authPhoto);
+
+      if (docsToAdd.length > 0) {
+        setVehicleCompliance(prev => [...docsToAdd, ...prev]);
+      }
+
       showToast(
         'success',
         `Vehicle ${newVehicle.registrationNumber} added to ${newVehicle.type} fleet.`,
@@ -537,21 +631,143 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
-  const addDriver = (driverData: Omit<Driver, 'id'>) => {
+  const addDriver = async (driverData: Omit<Driver, 'id'>) => {
     try {
       if (!driverData.name?.trim()) {
         showToast('error', 'Driver full name is mandatory.', 'Validation Error');
-        return;
+        return { success: false, error: 'Driver full name is mandatory.' };
       }
+      if (!driverData.phone?.trim()) {
+        showToast('error', 'Driver phone number is mandatory.', 'Validation Error');
+        return { success: false, error: 'Driver phone number is mandatory.' };
+      }
+
+      // 1. Post to backend Driver API
+      try {
+        const res = await api.post('/drivers', driverData);
+        if (res.success && res.data) {
+          const serverDriver: Driver = {
+            ...res.data,
+            id: res.data.id || res.data._id
+          };
+          setDrivers(prev => [serverDriver, ...prev.filter(d => d.id !== serverDriver.id)]);
+
+          // If assignedVehicle was specified, sync with local vehicle state
+          if (serverDriver.assignedVehicle && serverDriver.assignedVehicle !== '—') {
+            setVehicles(prev =>
+              prev.map(v =>
+                v.registrationNumber === serverDriver.assignedVehicle
+                  ? { ...v, assignedDriver: serverDriver.name }
+                  : v
+              )
+            );
+          }
+
+          showToast(
+            'success',
+            `Driver ${serverDriver.name} added to ${serverDriver.driverType || 'roster'}.`,
+            'Driver Registered'
+          );
+          return { success: true, driver: serverDriver };
+        } else if (res.error) {
+          showToast('error', res.error, 'Registration Error');
+          return { success: false, error: res.error };
+        }
+      } catch (apiErr: any) {
+        const msg = apiErr.message || 'Registration failed';
+        showToast('error', msg, 'Registration Failed');
+        return { success: false, error: msg };
+      }
+
+      // 2. Offline fallback
       const newDriver: Driver = {
         ...driverData,
         id: 'd_' + Date.now()
       };
       setDrivers(prev => [newDriver, ...prev]);
-      showToast('success', `Driver ${newDriver.name} added to ${newDriver.driverType || 'roster'}.`, 'Driver Registered');
-    } catch (err) {
+      showToast(
+        'success',
+        `Driver ${newDriver.name} added to ${newDriver.driverType || 'roster'}.`,
+        'Driver Registered'
+      );
+      return { success: true, driver: newDriver };
+    } catch (err: any) {
       console.error('Failed to add driver', err);
-      showToast('error', 'Could not register driver.', 'Error');
+      showToast('error', err.message || 'Could not register driver.', 'Error');
+      return { success: false, error: err.message };
+    }
+  };
+
+  const updateDriverStatus = async (id: string, status: 'On duty' | 'Off duty') => {
+    try {
+      setDrivers(prev =>
+        prev.map(d => (d.id === id ? { ...d, status } : d))
+      );
+      showToast('info', `Driver duty status updated to "${status}".`, 'Status Updated');
+      try {
+        await api.patch(`/drivers/${id}/status`, { status });
+      } catch {
+        // Silent fallback for offline
+      }
+    } catch (err) {
+      console.error('Failed to update driver status', err);
+      showToast('error', 'Could not update driver status.', 'Error');
+    }
+  };
+
+  const updateDriver = async (id: string, data: Partial<Driver>) => {
+    try {
+      try {
+        const res = await api.put(`/drivers/${id}`, data);
+        if (res.success && res.data) {
+          const updated: Driver = {
+            ...res.data,
+            id: res.data.id || res.data._id
+          };
+          setDrivers(prev => prev.map(d => (d.id === id ? updated : d)));
+          showToast('success', `Driver ${updated.name} updated successfully.`, 'Driver Updated');
+          return { success: true, driver: updated };
+        }
+      } catch (apiErr: any) {
+        showToast('error', apiErr.message || 'Failed to update driver.', 'Update Failed');
+        return { success: false, error: apiErr.message };
+      }
+
+      // Offline fallback
+      setDrivers(prev => prev.map(d => (d.id === id ? { ...d, ...data } : d)));
+      showToast('success', 'Driver updated locally.', 'Driver Updated');
+      return { success: true };
+    } catch (err: any) {
+      console.error('Failed to update driver', err);
+      showToast('error', 'Could not update driver.', 'Error');
+      return { success: false, error: err.message };
+    }
+  };
+
+  const deleteDriver = async (id: string) => {
+    try {
+      const targetDriver = drivers.find(d => d.id === id);
+      setDrivers(prev => prev.filter(d => d.id !== id));
+      if (targetDriver?.assignedVehicle && targetDriver.assignedVehicle !== '—') {
+        setVehicles(prev =>
+          prev.map(v =>
+            v.registrationNumber === targetDriver.assignedVehicle && v.assignedDriver === targetDriver.name
+              ? { ...v, assignedDriver: undefined }
+              : v
+          )
+        );
+      }
+      showToast('info', `Driver ${targetDriver?.name || ''} removed from roster.`, 'Driver Deleted');
+      try {
+        await api.delete(`/drivers/${id}`);
+        return { success: true };
+      } catch (apiErr: any) {
+        return { success: false, error: apiErr.message };
+      }
+    } catch (err: any) {
+      console.error('Failed to delete driver', err);
+      showToast('error', 'Could not delete driver.', 'Error');
+      return { success: false, error: err.message };
     }
   };
 
@@ -845,6 +1061,9 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         switchVehicleMode,
         drivers,
         addDriver,
+        updateDriverStatus,
+        updateDriver,
+        deleteDriver,
         attendanceRecords,
         markAttendance,
         updateAttendanceStatus,

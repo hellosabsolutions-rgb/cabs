@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useFleet } from '../../../context/FleetContext';
 import { DriverType } from '../../../types/fleet';
 import { UserPlus, Camera, IdCard } from 'lucide-react';
+import { MinimalVoiceFiller } from '../../common/MinimalVoiceFiller';
 
 interface AddDriverModalProps {
   isOpen: boolean;
@@ -29,6 +30,7 @@ export const AddDriverModal: React.FC<AddDriverModalProps> = ({ isOpen, onClose 
   const [licenseFileName, setLicenseFileName] = useState<string>('');
 
   const [errorMsg, setErrorMsg] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const photoInputRef = useRef<HTMLInputElement>(null);
   const licenseInputRef = useRef<HTMLInputElement>(null);
@@ -36,7 +38,7 @@ export const AddDriverModal: React.FC<AddDriverModalProps> = ({ isOpen, onClose 
   // Close on ESC key
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
+      if (e.key === 'Escape' && !isSubmitting) {
         onClose();
       }
     };
@@ -48,7 +50,7 @@ export const AddDriverModal: React.FC<AddDriverModalProps> = ({ isOpen, onClose 
       window.removeEventListener('keydown', handleKeyDown);
       document.body.style.overflow = 'unset';
     };
-  }, [isOpen, onClose]);
+  }, [isOpen, onClose, isSubmitting]);
 
   if (!isOpen) return null;
 
@@ -75,7 +77,7 @@ export const AddDriverModal: React.FC<AddDriverModalProps> = ({ isOpen, onClose 
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!name.trim()) {
@@ -98,31 +100,46 @@ export const AddDriverModal: React.FC<AddDriverModalProps> = ({ isOpen, onClose 
       });
     }
 
-    addDriver({
-      name: name.trim(),
-      phone: phone.trim(),
-      photo: photoPreview || undefined,
-      address: address.trim() || undefined,
-      emergencyContact: emergencyContact.trim() || undefined,
-      licenseNumber: licenseNumber.trim() || undefined,
-      licensePhoto: licensePhotoPreview || licenseFileName || undefined,
-      driverType,
-      assignedVehicle: assignedVehicle || '—',
-      joiningDate: formattedDate,
-      status
-    });
-
-    // Reset & Close
-    setName('');
-    setPhone('');
-    setAddress('');
-    setEmergencyContact('');
-    setLicenseNumber('');
-    setPhotoPreview(null);
-    setLicensePhotoPreview(null);
-    setLicenseFileName('');
+    setIsSubmitting(true);
     setErrorMsg('');
-    onClose();
+
+    try {
+      const res = await addDriver({
+        name: name.trim(),
+        phone: phone.trim(),
+        photo: photoPreview || undefined,
+        address: address.trim() || undefined,
+        emergencyContact: emergencyContact.trim() || undefined,
+        licenseNumber: licenseNumber.trim() || undefined,
+        licensePhoto: licensePhotoPreview || licenseFileName || undefined,
+        driverType,
+        assignedVehicle: assignedVehicle || '—',
+        joiningDate: formattedDate,
+        status
+      });
+
+      if (res && !res.success) {
+        setErrorMsg(res.error || 'Failed to save driver. Please try again.');
+        setIsSubmitting(false);
+        return;
+      }
+
+      // Reset & Close
+      setName('');
+      setPhone('');
+      setAddress('');
+      setEmergencyContact('');
+      setLicenseNumber('');
+      setPhotoPreview(null);
+      setLicensePhotoPreview(null);
+      setLicenseFileName('');
+      setErrorMsg('');
+      setIsSubmitting(false);
+      onClose();
+    } catch (err: any) {
+      setErrorMsg(err.message || 'An unexpected error occurred.');
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -144,6 +161,23 @@ export const AddDriverModal: React.FC<AddDriverModalProps> = ({ isOpen, onClose 
         {/* Body Form */}
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           <div className="modal-body">
+            {/* Minimal Voice Form Filler */}
+            <MinimalVoiceFiller
+              formType="driver"
+              context={{ vehicles: vehicles.map(v => v.registrationNumber) }}
+              placeholder="Speak driver details (e.g. 'Driver Rajesh Sharma phone 9876543210 Full Time DL01AB1234')"
+              onApplyParsedData={(data) => {
+                if (data.name) setName(data.name);
+                if (data.phone) setPhone(data.phone);
+                if (data.driverType) setDriverType(data.driverType);
+                if (data.assignedVehicle) setAssignedVehicle(data.assignedVehicle);
+                if (data.status) setStatus(data.status);
+                if (data.licenseNumber) setLicenseNumber(data.licenseNumber);
+                if (data.address) setAddress(data.address);
+                if (data.emergencyContact) setEmergencyContact(data.emergencyContact);
+              }}
+            />
+
             {errorMsg && (
               <div
                 style={{
@@ -368,11 +402,20 @@ export const AddDriverModal: React.FC<AddDriverModalProps> = ({ isOpen, onClose 
 
           {/* Footer */}
           <div className="modal-footer">
-            <button type="button" className="btn-secondary" onClick={onClose}>
+            <button type="button" className="btn-secondary" onClick={onClose} disabled={isSubmitting}>
               Cancel
             </button>
-            <button type="submit" className="btn-primary-action">
-              <span>+</span> Save Driver
+            <button type="submit" className="btn-primary-action" disabled={isSubmitting}>
+              {isSubmitting ? (
+                <>
+                  <span className="spinner" style={{ width: 14, height: 14, border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', display: 'inline-block', animation: 'spin 0.8s linear infinite' }}></span>
+                  <span>Saving Driver...</span>
+                </>
+              ) : (
+                <>
+                  <span>+</span> Save Driver
+                </>
+              )}
             </button>
           </div>
         </form>

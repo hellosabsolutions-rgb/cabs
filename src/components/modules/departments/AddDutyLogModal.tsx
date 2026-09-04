@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useFleet } from '../../../context/FleetContext';
 import { Building2, Briefcase, Calendar, MapPin, IndianRupee, TrendingUp, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { MinimalVoiceFiller } from '../../common/MinimalVoiceFiller';
 
 interface AddDutyLogModalProps {
   isOpen: boolean;
@@ -268,6 +269,26 @@ export const AddDutyLogModal: React.FC<AddDutyLogModalProps> = ({
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           <div className="modal-body">
+            {/* Minimal Voice Form Filler */}
+            <MinimalVoiceFiller
+              formType="general"
+              context={{
+                vehicles: vehicles.map(v => v.registrationNumber),
+                drivers: drivers.map(d => d.name),
+                departments: departmentContracts.map(c => c.departmentName)
+              }}
+              placeholder="Speak duty info (e.g. 'Rahul Sharma start 45300 end 45600 toll 200 fuel 2500')"
+              onApplyParsedData={(data) => {
+                if (data.driverName) setDriverName(data.driverName);
+                if (data.vehicle) {
+                  const matchContract = departmentContracts.find(c => c.vehicle === data.vehicle);
+                  if (matchContract) setSelectedContractId(matchContract.id);
+                }
+                if (data.amount) setTollParkingAmount(data.amount);
+                if (data.litres) setFuelLitres(data.litres);
+              }}
+            />
+
             {errorMsg && (
               <div
                 style={{

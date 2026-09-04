@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useFleet } from '../../../context/FleetContext';
 import { FuelLogEntry } from '../../../types/fleet';
 import { Fuel, Camera, FileText } from 'lucide-react';
+import { MinimalVoiceFiller } from '../../common/MinimalVoiceFiller';
 
 interface AddFuelLogModalProps {
   isOpen: boolean;
@@ -167,6 +168,22 @@ export const AddFuelLogModal: React.FC<AddFuelLogModalProps> = ({
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           <div className="modal-body">
+            {/* Minimal Voice Form Filler */}
+            <MinimalVoiceFiller
+              formType="expense"
+              context={{
+                vehicles: vehicles.map(v => v.registrationNumber),
+                drivers: drivers.map(d => d.name)
+              }}
+              placeholder="Speak fuel refill info (e.g. 'DL01AB1234 Rahul Sharma 35 Litre 3150 Rupees Indian Oil')"
+              onApplyParsedData={(data) => {
+                if (data.vehicle) setVehicle(data.vehicle);
+                if (data.driverName) setDriverName(data.driverName);
+                if (data.litres) setLitres(data.litres);
+                if (data.totalCost || data.amount) setTotalCost(data.totalCost || data.amount);
+              }}
+            />
+
             {errorMsg && (
               <div
                 style={{

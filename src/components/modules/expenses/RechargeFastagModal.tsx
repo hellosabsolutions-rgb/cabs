@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useFleet } from '../../../context/FleetContext';
 import { Zap, FileText } from 'lucide-react';
+import { MinimalVoiceFiller } from '../../common/MinimalVoiceFiller';
 
 interface RechargeFastagModalProps {
   isOpen: boolean;
@@ -96,6 +97,17 @@ export const RechargeFastagModal: React.FC<RechargeFastagModalProps> = ({
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           <div className="modal-body">
+            {/* Minimal Voice Form Filler */}
+            <MinimalVoiceFiller
+              formType="expense"
+              context={{ vehicles: vehicles.map(v => v.registrationNumber) }}
+              placeholder="Speak recharge info (e.g. 'DL01AB1234 recharge 2000 Rupees UPI')"
+              onApplyParsedData={(data) => {
+                if (data.vehicle) setVehicleReg(data.vehicle);
+                if (data.amount) setAmount(data.amount);
+              }}
+            />
+
             {errorMsg && (
               <div
                 style={{

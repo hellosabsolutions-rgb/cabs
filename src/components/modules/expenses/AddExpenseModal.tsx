@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useFleet } from '../../../context/FleetContext';
 import { ExpenseRecord } from '../../../types/fleet';
 import { IndianRupee, Fuel, CreditCard, User, Wrench, FileText } from 'lucide-react';
+import { MinimalVoiceFiller } from '../../common/MinimalVoiceFiller';
 
 interface AddExpenseModalProps {
   isOpen: boolean;
@@ -22,7 +23,7 @@ export const AddExpenseModal: React.FC<AddExpenseModalProps> = ({
   onClose,
   defaultCategory = 'Fuel'
 }) => {
-  const { vehicles, addExpense } = useFleet();
+  const { vehicles, drivers, addExpense } = useFleet();
 
   const [date, setDate] = useState(() => new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }));
   const [vehicle, setVehicle] = useState(vehicles[0]?.registrationNumber || 'DL01AB1234');
@@ -91,6 +92,22 @@ export const AddExpenseModal: React.FC<AddExpenseModalProps> = ({
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           <div className="modal-body">
+            {/* Minimal Voice Form Filler */}
+            <MinimalVoiceFiller
+              formType="expense"
+              context={{
+                vehicles: vehicles.map(v => v.registrationNumber),
+                drivers: drivers.map(d => d.name)
+              }}
+              placeholder="Speak expense details (e.g. 'Driver Rahul Sharma 1200 DL01AB1234 Bata')"
+              onApplyParsedData={(data) => {
+                if (data.category) setCategory(data.category as any);
+                if (data.vehicle) setVehicle(data.vehicle);
+                if (data.amount) setAmount(data.amount);
+                if (data.driverName) setLinkedTo(`${data.driverName} - Bata / Outstation`);
+              }}
+            />
+
             {errorMsg && (
               <div
                 style={{
@@ -203,14 +220,48 @@ export const AddExpenseModal: React.FC<AddExpenseModalProps> = ({
 
             {/* Linked To */}
             <div className="form-group" style={{ marginBottom: 0 }}>
-              <label className="form-label">Linked To / Purpose</label>
-              <input
-                type="text"
-                className="form-input"
-                placeholder="e.g. Indian Oil Pump Delhi, Department Duty"
-                value={linkedTo}
-                onChange={e => setLinkedTo(e.target.value)}
-              />
+              <label className="form-label">
+                {category === 'Driver' ? 'Driver / Duty Purpose' : 'Linked To / Purpose'}
+              </label>
+              {category === 'Driver' && drivers.length > 0 ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <select
+                    className="form-input"
+                    value={drivers.some(d => linkedTo.startsWith(d.name)) ? drivers.find(d => linkedTo.startsWith(d.name))?.name : ''}
+                    onChange={e => {
+                      if (e.target.value) {
+                        setLinkedTo(`${e.target.value} - Outstation Bata / Allowance`);
+                      }
+                    }}
+                  >
+                    <option value="">Select registered driver (or type custom below)...</option>
+                    {drivers.map(d => (
+                      <option key={d.id} value={d.name}>
+                        {d.name} ({d.driverType || 'Driver'} - {d.assignedVehicle || 'No vehicle'})
+                      </option>
+                    ))}
+                  </select>
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder="e.g. Ramesh Kumar - Outstation Bata / Allowance"
+                    value={linkedTo}
+                    onChange={e => setLinkedTo(e.target.value)}
+                  />
+                </div>
+              ) : (
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder={
+                    category === 'Driver'
+                      ? 'e.g. Ramesh Kumar - Outstation Bata / Allowance'
+                      : 'e.g. Indian Oil Pump Delhi, Department Duty'
+                  }
+                  value={linkedTo}
+                  onChange={e => setLinkedTo(e.target.value)}
+                />
+              )}
             </div>
           </div>
 

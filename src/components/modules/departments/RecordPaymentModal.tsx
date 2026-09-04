@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useFleet } from '../../../context/FleetContext';
 import { CreditCard, FileText } from 'lucide-react';
+import { MinimalVoiceFiller } from '../../common/MinimalVoiceFiller';
 
 interface RecordPaymentModalProps {
   isOpen: boolean;
@@ -119,6 +120,17 @@ export const RecordPaymentModal: React.FC<RecordPaymentModalProps> = ({ isOpen, 
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           <div className="modal-body">
+            {/* Minimal Voice Form Filler */}
+            <MinimalVoiceFiller
+              formType="expense"
+              context={{ departments: departmentContracts.map(c => c.departmentName) }}
+              placeholder="Speak payment details (e.g. 'Public Works Department 85000 NEFT RTGS')"
+              onApplyParsedData={(data) => {
+                if (data.amount) setAmountPaid(data.amount);
+                if (data.departmentName) setDepartmentName(data.departmentName);
+              }}
+            />
+
             {errorMsg && (
               <div
                 style={{

@@ -443,6 +443,11 @@ export const MonthlyBillingView: React.FC = () => {
                             <td className="num">{formatINR(b.tollParkingCost)}</td>
                             <td className="num" style={{ fontWeight: 700, color: 'var(--accent)' }}>
                               {formatINR(b.totalBill)}
+                              {b.gstRate !== undefined && b.gstRate > 0 && (
+                                <div style={{ fontSize: '10.5px', color: 'var(--text-dim)', fontWeight: 400 }}>
+                                  Incl. {b.gstRate}% GST ({formatINR(b.gstAmount || 0)})
+                                </div>
+                              )}
                             </td>
                             <td>{getStatusBadge(b.status, b.id)}</td>
                             <td style={{ fontSize: '12px', color: 'var(--text-dim)' }}>{b.dueDate}</td>
@@ -520,6 +525,11 @@ export const MonthlyBillingView: React.FC = () => {
                       <td className="num">{formatINR(b.tollParkingCost)}</td>
                       <td className="num" style={{ fontWeight: 700, color: 'var(--accent)' }}>
                         {formatINR(b.totalBill)}
+                        {b.gstRate !== undefined && b.gstRate > 0 && (
+                          <div style={{ fontSize: '10.5px', color: 'var(--text-dim)', fontWeight: 400 }}>
+                            Incl. {b.gstRate}% GST ({formatINR(b.gstAmount || 0)})
+                          </div>
+                        )}
                       </td>
                       <td>{getStatusBadge(b.status, b.id)}</td>
                       <td style={{ fontSize: '12px', color: 'var(--text-dim)' }}>{b.dueDate}</td>
@@ -617,6 +627,22 @@ export const MonthlyBillingView: React.FC = () => {
                     <span style={{ color: 'var(--text-dim)' }}>Toll / Parking Reimbursement:</span>
                     <span style={{ fontWeight: 600 }}>{formatINR(selectedBillForPreview.tollParkingCost)}</span>
                   </div>
+
+                  {/* Taxable Subtotal */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px dashed var(--border-soft)', paddingTop: '8px', marginTop: '2px' }}>
+                    <span style={{ color: 'var(--text-dim)' }}>Taxable Subtotal:</span>
+                    <span style={{ fontWeight: 600 }}>
+                      {formatINR(selectedBillForPreview.subtotal ?? (selectedBillForPreview.baseContractAmount + selectedBillForPreview.extraKmCost + selectedBillForPreview.extraHoursCost + selectedBillForPreview.tollParkingCost))}
+                    </span>
+                  </div>
+
+                  {/* GST Line Item */}
+                  {(selectedBillForPreview.gstRate !== undefined && selectedBillForPreview.gstRate > 0) && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', color: '#ffcc4d' }}>
+                      <span>GST ({selectedBillForPreview.gstRate}%):</span>
+                      <span style={{ fontWeight: 600 }}>+{formatINR(selectedBillForPreview.gstAmount || 0)}</span>
+                    </div>
+                  )}
                 </div>
 
                 <div

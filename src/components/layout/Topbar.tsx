@@ -2,7 +2,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useFleet } from '../../context/FleetContext';
 import { useAuth } from '../../context/AuthContext';
 import { useAgency } from '../../context/AgencyContext';
-import { Search, Bell, Menu, RefreshCw, LogOut, User, Shield, Building2 } from 'lucide-react';
+import { useTheme } from '../../context/ThemeContext';
+import { Search, Bell, Menu, RefreshCw, LogOut, User, Shield, Building2, Sun, Moon } from 'lucide-react';
 
 interface TopbarProps {
   onToggleMobileSidebar: () => void;
@@ -12,6 +13,7 @@ export const Topbar: React.FC<TopbarProps> = ({ onToggleMobileSidebar }) => {
   const { pageHeader, searchQuery, setSearchQuery, complianceStats, refreshData, isLoading } = useFleet();
   const { user, logout } = useAuth();
   const { currentAgency } = useAgency();
+  const { theme, toggleTheme } = useTheme();
 
   const [profileOpen, setProfileOpen] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
@@ -71,6 +73,16 @@ export const Topbar: React.FC<TopbarProps> = ({ onToggleMobileSidebar }) => {
           aria-label="Refresh data"
         >
           <RefreshCw size={15} className={isLoading ? 'spin-loader' : ''} />
+        </button>
+
+        <button
+          type="button"
+          className="icon-btn"
+          onClick={toggleTheme}
+          title={theme === 'dark' ? 'Switch to Light Mode (Blue KABPRO)' : 'Switch to Dark Mode (Dark KABPRO)'}
+          aria-label="Toggle Theme"
+        >
+          {theme === 'dark' ? <Sun size={15} color="#ffcc4d" /> : <Moon size={15} color="#3b82f6" />}
         </button>
 
         <div className="icon-btn" title={`${totalAlerts} active alert(s)`}>
@@ -135,7 +147,7 @@ export const Topbar: React.FC<TopbarProps> = ({ onToggleMobileSidebar }) => {
                     {user?.name || 'Administrator'}
                   </div>
                   <div style={{ fontSize: '11px', color: 'var(--text-faint)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    {user?.email || 'admin@fleetos.com'}
+                    {user?.email || 'admin@kabpro.com'}
                   </div>
                 </div>
               </div>

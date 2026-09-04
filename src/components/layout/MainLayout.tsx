@@ -42,7 +42,7 @@ export const MainLayout: React.FC = () => {
       >
         <Loader2 size={32} className="spin-loader" color="var(--accent)" />
         <div style={{ fontSize: '13px', color: 'var(--text-faint)', fontWeight: 500 }}>
-          Initializing FleetOS Session...
+          Initializing KABPRO Session...
         </div>
       </div>
     );

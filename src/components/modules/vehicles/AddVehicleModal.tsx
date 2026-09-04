@@ -1,8 +1,23 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useFleet } from '../../../context/FleetContext';
 import { Vehicle, VehicleType, VehicleStatus } from '../../../types/fleet';
-import { Building2, MapPin, Truck, Briefcase, Upload, FileText, Loader2, Mic } from 'lucide-react';
-import { VoiceFormFiller } from '../../common/VoiceFormFiller';
+import {
+  Building2,
+  MapPin,
+  Truck,
+  Briefcase,
+  Upload,
+  FileText,
+  Loader2,
+  Shield,
+  Wind,
+  FileCheck,
+  Award,
+  X,
+  CheckCircle2,
+  Calendar
+} from 'lucide-react';
+import { MinimalVoiceFiller } from '../../common/MinimalVoiceFiller';
 import { ParsedVehicleVoiceData } from '../../../utils/vehicleVoiceParser';
 
 interface AddVehicleModalProps {
@@ -44,29 +59,73 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
   const [status, setStatus] = useState<VehicleStatus>('Running');
   const [fastagBalance, setFastagBalance] = useState('2500');
   const [gpsImei, setGpsImei] = useState(() => `IMEI-86${Math.floor(Math.random() * 900000000 + 100000000)}`);
+
+  // -------------------------------------------------------------
+  // 5 Mandatory Compliance Documents: RC, Insurance, Pollution, Permit, Auth
+  // -------------------------------------------------------------
+  // 1. RC (Registration Certificate)
+  const [rcExpiry, setRcExpiry] = useState(() => {
+    const d = new Date();
+    d.setFullYear(d.getFullYear() + 5);
+    return d.toISOString().split('T')[0];
+  });
+  const [rcPhotoName, setRcPhotoName] = useState('');
+  const [rcPhotoPreview, setRcPhotoPreview] = useState<string | null>(null);
+  const rcInputRef = useRef<HTMLInputElement>(null);
+
+  // 2. Insurance Policy
   const [insuranceExpiry, setInsuranceExpiry] = useState(() => {
     const d = new Date();
     d.setFullYear(d.getFullYear() + 1);
     return d.toISOString().split('T')[0];
   });
+  const [insurancePhotoName, setInsurancePhotoName] = useState('');
+  const [insurancePhotoPreview, setInsurancePhotoPreview] = useState<string | null>(null);
+  const insuranceInputRef = useRef<HTMLInputElement>(null);
+
+  // 3. Pollution Under Control (PUCC)
+  const [pollutionExpiry, setPollutionExpiry] = useState(() => {
+    const d = new Date();
+    d.setMonth(d.getMonth() + 6);
+    return d.toISOString().split('T')[0];
+  });
+  const [pollutionPhotoName, setPollutionPhotoName] = useState('');
+  const [pollutionPhotoPreview, setPollutionPhotoPreview] = useState<string | null>(null);
+  const pollutionInputRef = useRef<HTMLInputElement>(null);
+
+  // 4. Commercial Permit
+  const [permitExpiry, setPermitExpiry] = useState(() => {
+    const d = new Date();
+    d.setFullYear(d.getFullYear() + 5);
+    return d.toISOString().split('T')[0];
+  });
+  const [permitPhotoName, setPermitPhotoName] = useState('');
+  const [permitPhotoPreview, setPermitPhotoPreview] = useState<string | null>(null);
+  const permitInputRef = useRef<HTMLInputElement>(null);
+
+  // 5. Permit Authorization (Auth)
+  const [authExpiry, setAuthExpiry] = useState(() => {
+    const d = new Date();
+    d.setFullYear(d.getFullYear() + 1);
+    return d.toISOString().split('T')[0];
+  });
+  const [authPhotoName, setAuthPhotoName] = useState('');
+  const [authPhotoPreview, setAuthPhotoPreview] = useState<string | null>(null);
+  const authInputRef = useRef<HTMLInputElement>(null);
+
+  // Vehicle Exterior Photo / Thumbnail
+  const [vehiclePhotoName, setVehiclePhotoName] = useState('');
+  const [vehiclePhotoPreview, setVehiclePhotoPreview] = useState<string | null>(null);
+  const photoInputRef = useRef<HTMLInputElement>(null);
+
   const [fitnessExpiry, setFitnessExpiry] = useState(() => {
     const d = new Date();
     d.setFullYear(d.getFullYear() + 2);
     return d.toISOString().split('T')[0];
   });
 
-  // RC & Vehicle Photo Upload
-  const [rcPhotoName, setRcPhotoName] = useState('');
-  const [rcPhotoPreview, setRcPhotoPreview] = useState<string | null>(null);
-
-  const [vehiclePhotoName, setVehiclePhotoName] = useState('');
-  const [vehiclePhotoPreview, setVehiclePhotoPreview] = useState<string | null>(null);
-
   const [errorMsg, setErrorMsg] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const rcInputRef = useRef<HTMLInputElement>(null);
-  const photoInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (defaultType) {
@@ -93,29 +152,28 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
 
   if (!isOpen) return null;
 
-  const handleRcUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // File upload helper factory
+  const handleFileUpload = (
+    setName: (name: string) => void,
+    setPreview: (preview: string | null) => void
+  ) => (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      setRcPhotoName(file.name);
+      setName(file.name);
       const reader = new FileReader();
       reader.onloadend = () => {
-        setRcPhotoPreview(reader.result as string);
+        setPreview(reader.result as string);
       };
       reader.readAsDataURL(file);
     }
   };
 
-  const handleVehiclePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setVehiclePhotoName(file.name);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setVehiclePhotoPreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
+  const handleRcUpload = handleFileUpload(setRcPhotoName, setRcPhotoPreview);
+  const handleInsuranceUpload = handleFileUpload(setInsurancePhotoName, setInsurancePhotoPreview);
+  const handlePollutionUpload = handleFileUpload(setPollutionPhotoName, setPollutionPhotoPreview);
+  const handlePermitUpload = handleFileUpload(setPermitPhotoName, setPermitPhotoPreview);
+  const handleAuthUpload = handleFileUpload(setAuthPhotoName, setAuthPhotoPreview);
+  const handleVehiclePhotoUpload = handleFileUpload(setVehiclePhotoName, setVehiclePhotoPreview);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -156,8 +214,18 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
         odometer: Number(odometer) || 0,
         fastagBalance: Number(fastagBalance) || 0,
         gpsImei: gpsImei.trim(),
+        vehiclePhoto: vehiclePhotoPreview || vehiclePhotoName || null,
+        // 5 Documents: RC, Insurance, Pollution, Permit, Auth
+        rcExpiry,
         rcPhoto: rcPhotoPreview || rcPhotoName || null,
         insuranceExpiry,
+        insurancePhoto: insurancePhotoPreview || insurancePhotoName || null,
+        pollutionExpiry,
+        pollutionPhoto: pollutionPhotoPreview || pollutionPhotoName || null,
+        permitExpiry,
+        permitPhoto: permitPhotoPreview || permitPhotoName || null,
+        authExpiry,
+        authPhoto: authPhotoPreview || authPhotoName || null,
         fitnessExpiry
       });
 
@@ -188,6 +256,11 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
     if (data.odometer) setOdometer(data.odometer);
     if (data.fastagBalance) setFastagBalance(data.fastagBalance);
     if (data.status) setStatus(data.status);
+    if (data.rcExpiry) setRcExpiry(data.rcExpiry);
+    if (data.insuranceExpiry) setInsuranceExpiry(data.insuranceExpiry);
+    if (data.pollutionExpiry) setPollutionExpiry(data.pollutionExpiry);
+    if (data.permitExpiry) setPermitExpiry(data.permitExpiry);
+    if (data.authExpiry) setAuthExpiry(data.authExpiry);
   };
 
   return (
@@ -216,10 +289,15 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
           style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, overflow: 'hidden' }}
         >
           <div className="modal-body" style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
-            {/* Smart Voice Form Filling Component */}
-            <VoiceFormFiller
-              availableDrivers={drivers.map(d => d.name)}
-              onApplyParsedData={handleApplyVoiceData}
+            {/* Minimal Voice Form Filler */}
+            <MinimalVoiceFiller
+              formType="vehicle"
+              context={{
+                vehicles: [],
+                drivers: drivers.map(d => d.name)
+              }}
+              placeholder="Speak vehicle info (e.g. 'DL01AB1234 Innova Crysta Diesel PWD Rahul Sharma')"
+              onApplyParsedData={(data) => handleApplyVoiceData(data as any)}
             />
 
             {errorMsg && (
@@ -469,7 +547,7 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
               </div>
             </div>
 
-            {/* 7. GPS IMEI & Insurance Expiry */}
+            {/* 7. GPS IMEI & Vehicle Photo */}
             <div className="form-row-2">
               <div className="form-group" style={{ marginBottom: 0 }}>
                 <label className="form-label">GPS Device IMEI / Telematics ID</label>
@@ -483,31 +561,7 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
               </div>
 
               <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label">Insurance Expiry Date</label>
-                <input
-                  type="date"
-                  className="form-input"
-                  value={insuranceExpiry}
-                  onChange={e => setInsuranceExpiry(e.target.value)}
-                />
-              </div>
-            </div>
-
-            {/* 8. Fitness Expiry */}
-            <div className="form-group" style={{ marginBottom: 0 }}>
-              <label className="form-label">Fitness Certificate Expiry Date</label>
-              <input
-                type="date"
-                className="form-input"
-                value={fitnessExpiry}
-                onChange={e => setFitnessExpiry(e.target.value)}
-              />
-            </div>
-
-            {/* 9. Vehicle Photo & RC Proof Upload */}
-            <div className="form-row-2">
-              <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label">Vehicle Photo / Thumbnail</label>
+                <label className="form-label">Vehicle Exterior Photo / Thumbnail</label>
                 <input
                   type="file"
                   ref={photoInputRef}
@@ -518,50 +572,647 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
                 <div
                   className="upload-box"
                   onClick={() => photoInputRef.current?.click()}
-                  style={{ padding: '8px 12px' }}
+                  style={{
+                    padding: '4px 10px',
+                    height: '38px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    borderColor: vehiclePhotoPreview ? 'var(--accent)' : undefined
+                  }}
                 >
                   {vehiclePhotoPreview ? (
-                    <img src={vehiclePhotoPreview} alt="Vehicle" className="upload-preview" />
+                    <img
+                      src={vehiclePhotoPreview}
+                      alt="Vehicle"
+                      style={{ width: 28, height: 28, objectFit: 'cover', borderRadius: 4, flexShrink: 0 }}
+                    />
                   ) : (
-                    <div className="upload-icon-placeholder" style={{ width: 34, height: 34 }}>
-                      <Truck size={16} color="var(--accent)" />
-                    </div>
+                    <Truck size={14} color="var(--accent)" style={{ flexShrink: 0 }} />
                   )}
-                  <div className="upload-info">
-                    <div className="upload-title" style={{ fontSize: '12px' }}>
-                      {vehiclePhotoName ? vehiclePhotoName : 'Upload vehicle photo'}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div
+                      style={{
+                        fontSize: '11.5px',
+                        fontWeight: 500,
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        color: vehiclePhotoName ? 'var(--text)' : 'var(--text-faint)'
+                      }}
+                    >
+                      {vehiclePhotoName || 'Upload vehicle photo'}
                     </div>
-                    <div className="upload-hint">Image preview</div>
+                  </div>
+                  {vehiclePhotoPreview && (
+                    <button
+                      type="button"
+                      onClick={e => {
+                        e.stopPropagation();
+                        setVehiclePhotoName('');
+                        setVehiclePhotoPreview(null);
+                      }}
+                      style={{
+                        background: 'rgba(255, 92, 92, 0.1)',
+                        border: 'none',
+                        color: 'var(--danger)',
+                        cursor: 'pointer',
+                        borderRadius: '4px',
+                        padding: '2px 5px',
+                        fontSize: '11px'
+                      }}
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* 8. MANDATORY FLEET DOCUMENTS (RC, Insurance, Pollution, Permit, Auth) */}
+            <div
+              style={{
+                marginTop: '16px',
+                padding: '16px',
+                background: 'var(--surface-3)',
+                borderRadius: '12px',
+                border: '1px solid var(--border)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '12px'
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <div
+                    style={{
+                      fontWeight: 700,
+                      fontSize: '14px',
+                      color: 'var(--text)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px'
+                    }}
+                  >
+                    <FileCheck size={17} color="var(--accent)" />
+                    5 Mandatory Fleet Documents (Expiry & Photos)
+                  </div>
+                  <div style={{ fontSize: '11.5px', color: 'var(--text-faint)', marginTop: '2px' }}>
+                    RC, Insurance, Pollution, Permit & Auth (Auto-synced to Live Compliance)
+                  </div>
+                </div>
+                <span className="status-chip active" style={{ fontSize: '10.5px' }}>
+                  5 Tracked Docs
+                </span>
+              </div>
+
+              {/* Doc 1: RC */}
+              <div
+                style={{
+                  background: 'var(--surface-2)',
+                  borderRadius: '10px',
+                  padding: '12px 14px',
+                  border: '1px solid var(--border)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '10px'
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <FileText size={15} color="#38bdf8" />
+                    <span style={{ fontWeight: 600, fontSize: '13px', color: 'var(--text)' }}>
+                      1. Registration Certificate (RC)
+                    </span>
+                  </div>
+                  <span style={{ fontSize: '10px', color: 'var(--text-faint)', textTransform: 'uppercase' }}>
+                    RTO Document
+                  </span>
+                </div>
+                <div className="form-row-2" style={{ marginBottom: 0 }}>
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label className="form-label" style={{ fontSize: '11px', marginBottom: '4px' }}>
+                      RC Expiry Date *
+                    </label>
+                    <input
+                      type="date"
+                      className="form-input"
+                      value={rcExpiry}
+                      onChange={e => setRcExpiry(e.target.value)}
+                      style={{ fontSize: '12px', height: '38px' }}
+                      required
+                    />
+                  </div>
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label className="form-label" style={{ fontSize: '11px', marginBottom: '4px' }}>
+                      RC Photo / Scan Copy
+                    </label>
+                    <input
+                      type="file"
+                      ref={rcInputRef}
+                      onChange={handleRcUpload}
+                      accept="image/*,.pdf"
+                      style={{ display: 'none' }}
+                    />
+                    <div
+                      className="upload-box"
+                      onClick={() => rcInputRef.current?.click()}
+                      style={{
+                        padding: '4px 10px',
+                        height: '38px',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        borderColor: rcPhotoPreview ? 'var(--accent)' : undefined
+                      }}
+                    >
+                      {rcPhotoPreview ? (
+                        <img
+                          src={rcPhotoPreview}
+                          alt="RC"
+                          style={{ width: 28, height: 28, objectFit: 'cover', borderRadius: 4, flexShrink: 0 }}
+                        />
+                      ) : (
+                        <Upload size={14} color="var(--accent)" style={{ flexShrink: 0 }} />
+                      )}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div
+                          style={{
+                            fontSize: '11.5px',
+                            fontWeight: 500,
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            color: rcPhotoName ? 'var(--text)' : 'var(--text-faint)'
+                          }}
+                        >
+                          {rcPhotoName || 'Upload RC scan / photo'}
+                        </div>
+                      </div>
+                      {rcPhotoPreview && (
+                        <button
+                          type="button"
+                          onClick={e => {
+                            e.stopPropagation();
+                            setRcPhotoName('');
+                            setRcPhotoPreview(null);
+                          }}
+                          style={{
+                            background: 'rgba(255, 92, 92, 0.1)',
+                            border: 'none',
+                            color: 'var(--danger)',
+                            cursor: 'pointer',
+                            borderRadius: '4px',
+                            padding: '2px 5px',
+                            fontSize: '11px'
+                          }}
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
 
-              <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label">Registration Certificate (RC) Copy</label>
-                <input
-                  type="file"
-                  ref={rcInputRef}
-                  onChange={handleRcUpload}
-                  accept="image/*,.pdf"
-                  style={{ display: 'none' }}
-                />
-                <div
-                  className="upload-box"
-                  onClick={() => rcInputRef.current?.click()}
-                  style={{ padding: '8px 12px' }}
-                >
-                  {rcPhotoPreview ? (
-                    <img src={rcPhotoPreview} alt="RC" className="upload-preview" />
-                  ) : (
-                    <div className="upload-icon-placeholder" style={{ width: 34, height: 34 }}>
-                      <FileText size={16} color="var(--accent)" />
+              {/* Doc 2: Insurance */}
+              <div
+                style={{
+                  background: 'var(--surface-2)',
+                  borderRadius: '10px',
+                  padding: '12px 14px',
+                  border: '1px solid var(--border)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '10px'
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Shield size={15} color="#38bdf8" />
+                    <span style={{ fontWeight: 600, fontSize: '13px', color: 'var(--text)' }}>
+                      2. Commercial Insurance Policy
+                    </span>
+                  </div>
+                  <span style={{ fontSize: '10px', color: 'var(--text-faint)', textTransform: 'uppercase' }}>
+                    Annual Policy
+                  </span>
+                </div>
+                <div className="form-row-2" style={{ marginBottom: 0 }}>
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label className="form-label" style={{ fontSize: '11px', marginBottom: '4px' }}>
+                      Insurance Expiry Date *
+                    </label>
+                    <input
+                      type="date"
+                      className="form-input"
+                      value={insuranceExpiry}
+                      onChange={e => setInsuranceExpiry(e.target.value)}
+                      style={{ fontSize: '12px', height: '38px' }}
+                      required
+                    />
+                  </div>
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label className="form-label" style={{ fontSize: '11px', marginBottom: '4px' }}>
+                      Insurance Policy Copy / Photo
+                    </label>
+                    <input
+                      type="file"
+                      ref={insuranceInputRef}
+                      onChange={handleInsuranceUpload}
+                      accept="image/*,.pdf"
+                      style={{ display: 'none' }}
+                    />
+                    <div
+                      className="upload-box"
+                      onClick={() => insuranceInputRef.current?.click()}
+                      style={{
+                        padding: '4px 10px',
+                        height: '38px',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        borderColor: insurancePhotoPreview ? 'var(--accent)' : undefined
+                      }}
+                    >
+                      {insurancePhotoPreview ? (
+                        <img
+                          src={insurancePhotoPreview}
+                          alt="Insurance"
+                          style={{ width: 28, height: 28, objectFit: 'cover', borderRadius: 4, flexShrink: 0 }}
+                        />
+                      ) : (
+                        <Upload size={14} color="var(--accent)" style={{ flexShrink: 0 }} />
+                      )}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div
+                          style={{
+                            fontSize: '11.5px',
+                            fontWeight: 500,
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            color: insurancePhotoName ? 'var(--text)' : 'var(--text-faint)'
+                          }}
+                        >
+                          {insurancePhotoName || 'Upload insurance copy'}
+                        </div>
+                      </div>
+                      {insurancePhotoPreview && (
+                        <button
+                          type="button"
+                          onClick={e => {
+                            e.stopPropagation();
+                            setInsurancePhotoName('');
+                            setInsurancePhotoPreview(null);
+                          }}
+                          style={{
+                            background: 'rgba(255, 92, 92, 0.1)',
+                            border: 'none',
+                            color: 'var(--danger)',
+                            cursor: 'pointer',
+                            borderRadius: '4px',
+                            padding: '2px 5px',
+                            fontSize: '11px'
+                          }}
+                        >
+                          ✕
+                        </button>
+                      )}
                     </div>
-                  )}
-                  <div className="upload-info">
-                    <div className="upload-title" style={{ fontSize: '12px' }}>
-                      {rcPhotoName ? rcPhotoName : 'Upload RC scan copy'}
+                  </div>
+                </div>
+              </div>
+
+              {/* Doc 3: Pollution (PUCC) */}
+              <div
+                style={{
+                  background: 'var(--surface-2)',
+                  borderRadius: '10px',
+                  padding: '12px 14px',
+                  border: '1px solid var(--border)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '10px'
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Wind size={15} color="#39ff6e" />
+                    <span style={{ fontWeight: 600, fontSize: '13px', color: 'var(--text)' }}>
+                      3. Pollution Under Control (PUCC)
+                    </span>
+                  </div>
+                  <span style={{ fontSize: '10px', color: 'var(--text-faint)', textTransform: 'uppercase' }}>
+                    Emissions
+                  </span>
+                </div>
+                <div className="form-row-2" style={{ marginBottom: 0 }}>
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label className="form-label" style={{ fontSize: '11px', marginBottom: '4px' }}>
+                      Pollution Expiry Date *
+                    </label>
+                    <input
+                      type="date"
+                      className="form-input"
+                      value={pollutionExpiry}
+                      onChange={e => setPollutionExpiry(e.target.value)}
+                      style={{ fontSize: '12px', height: '38px' }}
+                      required
+                    />
+                  </div>
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label className="form-label" style={{ fontSize: '11px', marginBottom: '4px' }}>
+                      PUCC Photo / Scan Copy
+                    </label>
+                    <input
+                      type="file"
+                      ref={pollutionInputRef}
+                      onChange={handlePollutionUpload}
+                      accept="image/*,.pdf"
+                      style={{ display: 'none' }}
+                    />
+                    <div
+                      className="upload-box"
+                      onClick={() => pollutionInputRef.current?.click()}
+                      style={{
+                        padding: '4px 10px',
+                        height: '38px',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        borderColor: pollutionPhotoPreview ? 'var(--accent)' : undefined
+                      }}
+                    >
+                      {pollutionPhotoPreview ? (
+                        <img
+                          src={pollutionPhotoPreview}
+                          alt="PUCC"
+                          style={{ width: 28, height: 28, objectFit: 'cover', borderRadius: 4, flexShrink: 0 }}
+                        />
+                      ) : (
+                        <Upload size={14} color="var(--accent)" style={{ flexShrink: 0 }} />
+                      )}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div
+                          style={{
+                            fontSize: '11.5px',
+                            fontWeight: 500,
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            color: pollutionPhotoName ? 'var(--text)' : 'var(--text-faint)'
+                          }}
+                        >
+                          {pollutionPhotoName || 'Upload PUCC scan'}
+                        </div>
+                      </div>
+                      {pollutionPhotoPreview && (
+                        <button
+                          type="button"
+                          onClick={e => {
+                            e.stopPropagation();
+                            setPollutionPhotoName('');
+                            setPollutionPhotoPreview(null);
+                          }}
+                          style={{
+                            background: 'rgba(255, 92, 92, 0.1)',
+                            border: 'none',
+                            color: 'var(--danger)',
+                            cursor: 'pointer',
+                            borderRadius: '4px',
+                            padding: '2px 5px',
+                            fontSize: '11px'
+                          }}
+                        >
+                          ✕
+                        </button>
+                      )}
                     </div>
-                    <div className="upload-hint">PDF or image</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Doc 4: Commercial Permit */}
+              <div
+                style={{
+                  background: 'var(--surface-2)',
+                  borderRadius: '10px',
+                  padding: '12px 14px',
+                  border: '1px solid var(--border)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '10px'
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <FileCheck size={15} color="#ffcc4d" />
+                    <span style={{ fontWeight: 600, fontSize: '13px', color: 'var(--text)' }}>
+                      4. Commercial Vehicle Permit
+                    </span>
+                  </div>
+                  <span style={{ fontSize: '10px', color: 'var(--text-faint)', textTransform: 'uppercase' }}>
+                    State / AITP
+                  </span>
+                </div>
+                <div className="form-row-2" style={{ marginBottom: 0 }}>
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label className="form-label" style={{ fontSize: '11px', marginBottom: '4px' }}>
+                      Permit Expiry Date *
+                    </label>
+                    <input
+                      type="date"
+                      className="form-input"
+                      value={permitExpiry}
+                      onChange={e => setPermitExpiry(e.target.value)}
+                      style={{ fontSize: '12px', height: '38px' }}
+                      required
+                    />
+                  </div>
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label className="form-label" style={{ fontSize: '11px', marginBottom: '4px' }}>
+                      Permit Certificate Copy / Photo
+                    </label>
+                    <input
+                      type="file"
+                      ref={permitInputRef}
+                      onChange={handlePermitUpload}
+                      accept="image/*,.pdf"
+                      style={{ display: 'none' }}
+                    />
+                    <div
+                      className="upload-box"
+                      onClick={() => permitInputRef.current?.click()}
+                      style={{
+                        padding: '4px 10px',
+                        height: '38px',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        borderColor: permitPhotoPreview ? 'var(--accent)' : undefined
+                      }}
+                    >
+                      {permitPhotoPreview ? (
+                        <img
+                          src={permitPhotoPreview}
+                          alt="Permit"
+                          style={{ width: 28, height: 28, objectFit: 'cover', borderRadius: 4, flexShrink: 0 }}
+                        />
+                      ) : (
+                        <Upload size={14} color="var(--accent)" style={{ flexShrink: 0 }} />
+                      )}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div
+                          style={{
+                            fontSize: '11.5px',
+                            fontWeight: 500,
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            color: permitPhotoName ? 'var(--text)' : 'var(--text-faint)'
+                          }}
+                        >
+                          {permitPhotoName || 'Upload permit copy'}
+                        </div>
+                      </div>
+                      {permitPhotoPreview && (
+                        <button
+                          type="button"
+                          onClick={e => {
+                            e.stopPropagation();
+                            setPermitPhotoName('');
+                            setPermitPhotoPreview(null);
+                          }}
+                          style={{
+                            background: 'rgba(255, 92, 92, 0.1)',
+                            border: 'none',
+                            color: 'var(--danger)',
+                            cursor: 'pointer',
+                            borderRadius: '4px',
+                            padding: '2px 5px',
+                            fontSize: '11px'
+                          }}
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Doc 5: Permit Authorization (Auth) */}
+              <div
+                style={{
+                  background: 'var(--surface-2)',
+                  borderRadius: '10px',
+                  padding: '12px 14px',
+                  border: '1px solid var(--border)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '10px'
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Award size={15} color="#a78bfa" />
+                    <span style={{ fontWeight: 600, fontSize: '13px', color: 'var(--text)' }}>
+                      5. Permit Authorization (Auth)
+                    </span>
+                  </div>
+                  <span style={{ fontSize: '10px', color: 'var(--text-faint)', textTransform: 'uppercase' }}>
+                    National / State Auth
+                  </span>
+                </div>
+                <div className="form-row-2" style={{ marginBottom: 0 }}>
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label className="form-label" style={{ fontSize: '11px', marginBottom: '4px' }}>
+                      Auth Expiry Date *
+                    </label>
+                    <input
+                      type="date"
+                      className="form-input"
+                      value={authExpiry}
+                      onChange={e => setAuthExpiry(e.target.value)}
+                      style={{ fontSize: '12px', height: '38px' }}
+                      required
+                    />
+                  </div>
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label className="form-label" style={{ fontSize: '11px', marginBottom: '4px' }}>
+                      Authorization Letter Photo / Scan
+                    </label>
+                    <input
+                      type="file"
+                      ref={authInputRef}
+                      onChange={handleAuthUpload}
+                      accept="image/*,.pdf"
+                      style={{ display: 'none' }}
+                    />
+                    <div
+                      className="upload-box"
+                      onClick={() => authInputRef.current?.click()}
+                      style={{
+                        padding: '4px 10px',
+                        height: '38px',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        borderColor: authPhotoPreview ? 'var(--accent)' : undefined
+                      }}
+                    >
+                      {authPhotoPreview ? (
+                        <img
+                          src={authPhotoPreview}
+                          alt="Auth"
+                          style={{ width: 28, height: 28, objectFit: 'cover', borderRadius: 4, flexShrink: 0 }}
+                        />
+                      ) : (
+                        <Upload size={14} color="var(--accent)" style={{ flexShrink: 0 }} />
+                      )}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div
+                          style={{
+                            fontSize: '11.5px',
+                            fontWeight: 500,
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            color: authPhotoName ? 'var(--text)' : 'var(--text-faint)'
+                          }}
+                        >
+                          {authPhotoName || 'Upload auth document'}
+                        </div>
+                      </div>
+                      {authPhotoPreview && (
+                        <button
+                          type="button"
+                          onClick={e => {
+                            e.stopPropagation();
+                            setAuthPhotoName('');
+                            setAuthPhotoPreview(null);
+                          }}
+                          style={{
+                            background: 'rgba(255, 92, 92, 0.1)',
+                            border: 'none',
+                            color: 'var(--danger)',
+                            cursor: 'pointer',
+                            borderRadius: '4px',
+                            padding: '2px 5px',
+                            fontSize: '11px'
+                          }}
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>

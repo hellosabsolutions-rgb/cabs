@@ -9,6 +9,7 @@ import {
   CheckCircle2,
   AlertCircle
 } from 'lucide-react';
+import { MinimalVoiceFiller } from '../../common/MinimalVoiceFiller';
 
 interface AddDriverComplianceModalProps {
   isOpen: boolean;
@@ -202,6 +203,24 @@ export const AddDriverComplianceModal: React.FC<AddDriverComplianceModalProps> =
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           <div className="modal-body">
+            {/* Minimal Voice Form Filler */}
+            <MinimalVoiceFiller
+              formType="driver"
+              context={{ drivers: drivers.map(d => d.name) }}
+              placeholder="Speak compliance doc info (e.g. 'Rahul Sharma Driving Licence DL0420180092341')"
+              onApplyParsedData={(data) => {
+                if (data.name) {
+                  const matched = drivers.find(d => d.name.toLowerCase().includes(data.name.toLowerCase()));
+                  if (matched) setDriverName(matched.name);
+                }
+                if (data.driverName) {
+                  const matched = drivers.find(d => d.name.toLowerCase().includes(data.driverName.toLowerCase()));
+                  if (matched) setDriverName(matched.name);
+                }
+                if (data.licenseNumber) setLicenseNumber(data.licenseNumber);
+              }}
+            />
+
             {errorMsg && (
               <div
                 style={{

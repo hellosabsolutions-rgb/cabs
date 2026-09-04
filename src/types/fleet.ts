@@ -52,8 +52,18 @@ export interface Vehicle {
   fastagBank?: string;
   fastagBalance?: number;
   gpsImei?: string;
+  vehiclePhoto?: string | null;
+  // 5 Mandatory Compliance Documents
+  rcExpiry?: string;
   rcPhoto?: string | null;
   insuranceExpiry?: string;
+  insurancePhoto?: string | null;
+  pollutionExpiry?: string;
+  pollutionPhoto?: string | null;
+  permitExpiry?: string;
+  permitPhoto?: string | null;
+  authExpiry?: string;
+  authPhoto?: string | null;
   fitnessExpiry?: string;
 }
 
@@ -170,6 +180,9 @@ export interface MonthlyDepartmentBill {
   extraKmCost: number;
   extraHoursCost: number;
   tollParkingCost: number;
+  subtotal?: number;
+  gstRate?: number;
+  gstAmount?: number;
   totalBill: number;
   paidAmount: number;
   balanceDue: number;

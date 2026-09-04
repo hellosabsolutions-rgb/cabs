@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useFleet } from '../../../context/FleetContext';
 import { DriverExpenseCategory } from '../../../types/fleet';
 import { IndianRupee, FileText, Loader2 } from 'lucide-react';
+import { MinimalVoiceFiller } from '../../common/MinimalVoiceFiller';
 
 interface AddDriverExpenseModalProps {
   isOpen: boolean;
@@ -141,6 +142,28 @@ export const AddDriverExpenseModal: React.FC<AddDriverExpenseModalProps> = ({
         {/* Form Body */}
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           <div className="modal-body">
+            {/* Minimal Voice Form Filler */}
+            <MinimalVoiceFiller
+              formType="expense"
+              context={{
+                vehicles: vehicles.map(v => v.registrationNumber),
+                drivers: drivers.map(d => d.name)
+              }}
+              placeholder="Speak driver expense (e.g. 'Rahul Sharma Daily Bata 500 DL01AB1234')"
+              onApplyParsedData={(data) => {
+                if (data.driverName) {
+                  const matched = drivers.find(d => d.name.toLowerCase().includes(data.driverName.toLowerCase()));
+                  if (matched) handleDriverChange(matched.id);
+                }
+                if (data.vehicle) setVehicle(data.vehicle);
+                if (data.amount) setAmount(data.amount);
+                if (data.category) {
+                  const matchedCat = expenseCategories.find(c => c.toLowerCase().includes(data.category.toLowerCase()));
+                  if (matchedCat) setCategory(matchedCat);
+                }
+              }}
+            />
+
             {errorMsg && (
               <div
                 style={{

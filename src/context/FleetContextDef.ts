@@ -56,7 +56,10 @@ export interface FleetContextType {
   driverSubTab: DriverSubTab;
   setDriverSubTab: (tab: DriverSubTab) => void;
   drivers: Driver[];
-  addDriver: (driver: Omit<Driver, 'id'>) => void;
+  addDriver: (driver: Omit<Driver, 'id'>) => Promise<{ success: boolean; driver?: Driver; error?: string } | void> | void;
+  updateDriverStatus: (id: string, status: 'On duty' | 'Off duty') => Promise<void>;
+  updateDriver: (id: string, data: Partial<Driver>) => Promise<{ success: boolean; driver?: Driver; error?: string }>;
+  deleteDriver: (id: string) => Promise<{ success: boolean; error?: string }>;
   attendanceRecords: DriverAttendance[];
   markAttendance: (record: Omit<DriverAttendance, 'id'>) => void;
   updateAttendanceStatus: (id: string, status: AttendanceStatus) => void;

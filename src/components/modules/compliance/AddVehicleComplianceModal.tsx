@@ -11,6 +11,7 @@ import {
   CheckCircle2,
   Upload
 } from 'lucide-react';
+import { MinimalVoiceFiller } from '../../common/MinimalVoiceFiller';
 
 interface AddVehicleComplianceModalProps {
   isOpen: boolean;
@@ -211,6 +212,17 @@ export const AddVehicleComplianceModal: React.FC<AddVehicleComplianceModalProps>
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           <div className="modal-body">
+            {/* Minimal Voice Form Filler */}
+            <MinimalVoiceFiller
+              formType="vehicle"
+              context={{ vehicles: vehicles.map(v => v.registrationNumber) }}
+              placeholder="Speak vehicle document info (e.g. 'DL01AB1234 Insurance Policy POL9988')"
+              onApplyParsedData={(data) => {
+                if (data.registrationNumber) setVehicleReg(data.registrationNumber);
+                if (data.vehicle) setVehicleReg(data.vehicle);
+              }}
+            />
+
             {errorMsg && (
               <div
                 style={{

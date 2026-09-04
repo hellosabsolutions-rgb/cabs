@@ -11,10 +11,14 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [theme, setThemeState] = useState<Theme>('dark');
+  const [theme, setThemeState] = useState<Theme>(() => {
+    const saved = localStorage.getItem('kabpro_theme') || localStorage.getItem('fleetos_theme');
+    return saved === 'light' || saved === 'dark' ? saved : 'dark';
+  });
 
   const setTheme = (newTheme: Theme) => {
     setThemeState(newTheme);
+    localStorage.setItem('kabpro_theme', newTheme);
     document.documentElement.setAttribute('data-theme', newTheme);
   };
 

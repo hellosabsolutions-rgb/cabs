@@ -129,18 +129,26 @@ export const LoginView: React.FC = () => {
               display: 'inline-flex',
               alignItems: 'center',
               justifyContent: 'center',
-              width: 52,
-              height: 52,
-              borderRadius: '14px',
-              background: 'var(--accent-dim)',
-              color: 'var(--accent)',
-              marginBottom: '14px'
+              width: 64,
+              height: 64,
+              borderRadius: '16px',
+              background: '#ffffff',
+              padding: '4px',
+              boxShadow: theme === 'dark'
+                ? '0 4px 20px rgba(0, 230, 153, 0.2), 0 0 0 1px rgba(255,255,255,0.1)'
+                : '0 4px 20px rgba(37, 99, 235, 0.2), 0 0 0 1px rgba(0,0,0,0.06)',
+              marginBottom: '14px',
+              overflow: 'hidden'
             }}
           >
-            <Truck size={26} />
+            <img
+              src={theme === 'dark' ? '/logo-dark.jpg' : '/logo-light.png'}
+              alt="KABPRO Logo"
+              style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+            />
           </div>
-          <h2 style={{ fontSize: '22px', fontWeight: 700, letterSpacing: '-0.3px', color: 'var(--text)' }}>
-            FleetOS
+          <h2 style={{ fontSize: '24px', fontWeight: 800, letterSpacing: '-0.3px', color: 'var(--text)' }}>
+            KABPRO
           </h2>
           <p style={{ fontSize: '12.5px', color: 'var(--text-faint)', marginTop: '4px' }}>
             Enterprise Logistics & Commercial Fleet Management
@@ -271,7 +279,7 @@ export const LoginView: React.FC = () => {
               <input
                 type="email"
                 className="form-input"
-                placeholder="e.g. admin@fleetos.com"
+                placeholder="e.g. admin@kabpro.com"
                 value={email}
                 onChange={e => setEmail(e.target.value)}
                 style={{ paddingLeft: '38px' }}
@@ -336,7 +344,7 @@ export const LoginView: React.FC = () => {
             ) : (
               <>
                 <ShieldCheck size={16} />
-                {mode === 'login' ? 'Sign In to FleetOS' : 'Create Admin Account'}
+                {mode === 'login' ? 'Sign In to KABPRO' : 'Create Admin Account'}
               </>
             )}
           </button>

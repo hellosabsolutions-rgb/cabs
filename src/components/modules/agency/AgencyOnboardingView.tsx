@@ -439,7 +439,7 @@ export const AgencyOnboardingView: React.FC = () => {
             ) : (
               <>
                 <ShieldCheck size={18} />
-                Register Agency & Launch FleetOS
+                Register Agency & Launch KABPRO
               </>
             )}
           </button>

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useFleet } from '../../../context/FleetContext';
 import { FileText, CheckCircle2 } from 'lucide-react';
+import { MinimalVoiceFiller } from '../../common/MinimalVoiceFiller';
 
 interface GenerateBillModalProps {
   isOpen: boolean;
@@ -17,6 +18,7 @@ export const GenerateBillModal: React.FC<GenerateBillModalProps> = ({ isOpen, on
   const [extraKmCost, setExtraKmCost] = useState('6720');
   const [extraHoursCost, setExtraHoursCost] = useState('2280');
   const [tollParkingCost, setTollParkingCost] = useState('1500');
+  const [gstRate, setGstRate] = useState('5');
   const [status, setStatus] = useState<'Sent' | 'Paid' | 'Pending' | 'Overdue' | 'Draft'>('Sent');
   const [dueDate, setDueDate] = useState(() => {
     const d = new Date();
@@ -49,11 +51,15 @@ export const GenerateBillModal: React.FC<GenerateBillModalProps> = ({ isOpen, on
 
   if (!isOpen) return null;
 
-  const totalBillCalculated =
+  const subtotalCalculated =
     (Number(baseAmount) || 0) +
     (Number(extraKmCost) || 0) +
     (Number(extraHoursCost) || 0) +
     (Number(tollParkingCost) || 0);
+
+  const gstPercentNum = Math.max(0, Number(gstRate) || 0);
+  const gstAmountCalculated = Math.round((subtotalCalculated * gstPercentNum) / 100);
+  const totalBillCalculated = subtotalCalculated + gstAmountCalculated;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -74,6 +80,9 @@ export const GenerateBillModal: React.FC<GenerateBillModalProps> = ({ isOpen, on
       extraKmCost: Number(extraKmCost) || 0,
       extraHoursCost: Number(extraHoursCost) || 0,
       tollParkingCost: Number(tollParkingCost) || 0,
+      subtotal: subtotalCalculated,
+      gstRate: gstPercentNum,
+      gstAmount: gstAmountCalculated,
       totalBill: totalBillCalculated,
       paidAmount: status === 'Paid' ? totalBillCalculated : 0,
       balanceDue: status === 'Paid' ? 0 : totalBillCalculated,
@@ -103,6 +112,21 @@ export const GenerateBillModal: React.FC<GenerateBillModalProps> = ({ isOpen, on
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           <div className="modal-body">
+            {/* Minimal Voice Form Filler */}
+            <MinimalVoiceFiller
+              formType="general"
+              context={{ departments: departmentContracts.map(c => c.departmentName) }}
+              placeholder="Speak bill details (e.g. 'Public Works Department Base 85000 Extra 6720')"
+              onApplyParsedData={(data) => {
+                if (data.amount) setBaseAmount(data.amount);
+                if (data.gstRate) setGstRate(data.gstRate);
+                if (data.departmentName) {
+                  const match = departmentContracts.find(c => c.departmentName.toLowerCase().includes(data.departmentName.toLowerCase()));
+                  if (match) setSelectedContractId(match.id);
+                }
+              }}
+            />
+
             {errorMsg && (
               <div
                 style={{
@@ -195,7 +219,7 @@ export const GenerateBillModal: React.FC<GenerateBillModalProps> = ({ isOpen, on
               </div>
             </div>
 
-            {/* Toll/Parking & Due Date */}
+            {/* Toll/Parking & GST Rate */}
             <div className="form-row-2">
               <div className="form-group" style={{ marginBottom: 0 }}>
                 <label className="form-label">Toll & Parking Reimbursed (₹)</label>
@@ -208,6 +232,54 @@ export const GenerateBillModal: React.FC<GenerateBillModalProps> = ({ isOpen, on
               </div>
 
               <div className="form-group" style={{ marginBottom: 0 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <label className="form-label">GST Rate (%)</label>
+                  <span style={{ fontSize: '11px', color: '#ffcc4d', fontWeight: 600 }}>
+                    {gstPercentNum > 0 ? `+₹${gstAmountCalculated.toLocaleString('en-IN')}` : 'Nil Tax (0%)'}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', gap: '6px' }}>
+                  <input
+                    type="number"
+                    min="0"
+                    max="40"
+                    step="0.5"
+                    className="form-input"
+                    placeholder="e.g. 5 or 18"
+                    value={gstRate}
+                    onChange={e => setGstRate(e.target.value)}
+                    style={{ flex: 1 }}
+                  />
+                  {/* Quick Tax Presets */}
+                  <div style={{ display: 'flex', gap: '3px' }}>
+                    {['0', '5', '12', '18'].map(rate => (
+                      <button
+                        key={rate}
+                        type="button"
+                        onClick={() => setGstRate(rate)}
+                        className={`driver-type-option ${gstRate === rate ? 'active' : ''}`}
+                        style={{
+                          padding: '4px 7px',
+                          fontSize: '11px',
+                          minWidth: '32px',
+                          height: '36px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          borderRadius: '8px'
+                        }}
+                      >
+                        {rate}%
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Payment Due Date & Bill Status */}
+            <div className="form-row-2">
+              <div className="form-group" style={{ marginBottom: 0 }}>
                 <label className="form-label">Payment Due Date</label>
                 <input
                   type="date"
@@ -216,21 +288,20 @@ export const GenerateBillModal: React.FC<GenerateBillModalProps> = ({ isOpen, on
                   onChange={e => setDueDate(e.target.value)}
                 />
               </div>
-            </div>
 
-            {/* Bill Status */}
-            <div className="form-group" style={{ marginBottom: 0 }}>
-              <label className="form-label">Invoice Status</label>
-              <select
-                className="form-input"
-                value={status}
-                onChange={e => setStatus(e.target.value as typeof status)}
-              >
-                <option value="Sent">Sent (Awaiting Payment)</option>
-                <option value="Pending">Pending Dispatch</option>
-                <option value="Draft">Draft</option>
-                <option value="Paid">Already Paid</option>
-              </select>
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label">Invoice Status</label>
+                <select
+                  className="form-input"
+                  value={status}
+                  onChange={e => setStatus(e.target.value as typeof status)}
+                >
+                  <option value="Sent">Sent (Awaiting Payment)</option>
+                  <option value="Pending">Pending Dispatch</option>
+                  <option value="Draft">Draft</option>
+                  <option value="Paid">Already Paid</option>
+                </select>
+              </div>
             </div>
 
             {/* Computed Grand Total Banner */}
@@ -241,18 +312,48 @@ export const GenerateBillModal: React.FC<GenerateBillModalProps> = ({ isOpen, on
                 borderRadius: '10px',
                 border: '1px solid var(--border)',
                 display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center'
+                flexDirection: 'column',
+                gap: '8px'
               }}
             >
-              <div>
-                <div style={{ fontSize: '11px', color: 'var(--text-faint)' }}>TOTAL INVOICE AMOUNT</div>
-                <div style={{ fontSize: '12px', color: 'var(--text-dim)', marginTop: '2px' }}>
-                  Base + Extra KM + Extra Hrs + Toll
-                </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px' }}>
+                <span style={{ color: 'var(--text-dim)' }}>
+                  Subtotal (Base + Extra KM + Extra Hrs + Toll):
+                </span>
+                <span style={{ fontWeight: 600, color: 'var(--text)' }}>
+                  ₹{subtotalCalculated.toLocaleString('en-IN')}
+                </span>
               </div>
-              <div style={{ fontSize: '20px', fontWeight: 700, color: 'var(--accent)' }}>
-                ₹{totalBillCalculated.toLocaleString('en-IN')}
+
+              {gstPercentNum > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px' }}>
+                  <span style={{ color: 'var(--text-dim)' }}>
+                    GST @ {gstPercentNum}% ({gstPercentNum >= 2 ? `CGST ${(gstPercentNum / 2).toFixed(1)}% + SGST ${(gstPercentNum / 2).toFixed(1)}%` : 'Tax'}):
+                  </span>
+                  <span style={{ fontWeight: 600, color: '#ffcc4d' }}>
+                    +₹{gstAmountCalculated.toLocaleString('en-IN')}
+                  </span>
+                </div>
+              )}
+
+              <div
+                style={{
+                  borderTop: '1px solid var(--border)',
+                  paddingTop: '6px',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center'
+                }}
+              >
+                <div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-faint)' }}>TOTAL INVOICE AMOUNT</div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-dim)' }}>
+                    {gstPercentNum > 0 ? `Includes ₹${gstAmountCalculated.toLocaleString('en-IN')} GST (${gstPercentNum}%)` : 'Exempt / Nil GST'}
+                  </div>
+                </div>
+                <div style={{ fontSize: '22px', fontWeight: 800, color: 'var(--accent)' }}>
+                  ₹{totalBillCalculated.toLocaleString('en-IN')}
+                </div>
               </div>
             </div>
           </div>

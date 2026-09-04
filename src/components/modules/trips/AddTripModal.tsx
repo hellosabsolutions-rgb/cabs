@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useFleet } from '../../../context/FleetContext';
 import { TripType } from '../../../types/fleet';
 import { Navigation, ArrowRight, RotateCcw, Building2 } from 'lucide-react';
+import { MinimalVoiceFiller } from '../../common/MinimalVoiceFiller';
 
 interface AddTripModalProps {
   isOpen: boolean;
@@ -140,6 +141,33 @@ export const AddTripModal: React.FC<AddTripModalProps> = ({ isOpen, onClose }) =
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           <div className="modal-body">
+            {/* Minimal Voice Form Filler */}
+            <MinimalVoiceFiller
+              formType="trip"
+              context={{
+                vehicles: vehicles.map(v => v.registrationNumber),
+                drivers: drivers.map(d => d.name)
+              }}
+              placeholder="Speak trip details (e.g. 'Customer Amit Sharma Delhi to Jaipur DL02CD5678 Fare 14500')"
+              onApplyParsedData={(data) => {
+                if (data.customerName) setCustomerName(data.customerName);
+                if (data.customerPhone) setCustomerPhone(data.customerPhone);
+                if (data.route) {
+                  const parts = data.route.split(/\s*(?:to|se|-)\s*/i);
+                  if (parts.length >= 2) {
+                    setPickupLocation(parts[0]);
+                    setDropLocation(parts[1]);
+                  } else {
+                    setDropLocation(data.route);
+                  }
+                }
+                if (data.vehicle) setVehicleReg(data.vehicle);
+                if (data.driverName) setDriverName(data.driverName);
+                if (data.revenue) setRevenue(data.revenue);
+                if (data.advancePayment) setNotes(prev => (prev ? `${prev} · Advance: ₹${data.advancePayment}` : `Advance: ₹${data.advancePayment}`));
+              }}
+            />
+
             {errorMsg && (
               <div
                 style={{

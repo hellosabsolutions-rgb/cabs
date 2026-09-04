@@ -56,11 +56,43 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onCloseMobile }) => {
 
   return (
     <aside className={`sidebar ${isOpen ? 'open' : ''}`}>
-      <div className="brand">
-        <div className="brand-dot"></div>
+      <div className="brand" style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '16px 16px 14px' }}>
+        <div
+          style={{
+            width: '44px',
+            height: '44px',
+            borderRadius: '12px',
+            background: '#ffffff',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '3px',
+            boxShadow: theme === 'dark'
+              ? '0 2px 10px rgba(0, 230, 153, 0.15), 0 0 0 1px rgba(255,255,255,0.1)'
+              : '0 2px 10px rgba(37, 99, 235, 0.15), 0 0 0 1px rgba(0,0,0,0.06)',
+            flexShrink: 0,
+            overflow: 'hidden',
+            transition: 'all 0.3s ease'
+          }}
+        >
+          <img
+            src={theme === 'dark' ? '/logo-dark.jpg' : '/logo-light.png'}
+            alt="KABPRO Logo"
+            style={{
+              width: '100%',
+              height: '100%',
+              objectFit: 'contain',
+              borderRadius: '8px'
+            }}
+          />
+        </div>
         <div>
-          <div className="brand-name">FleetOS</div>
-          <div className="brand-sub">Admin console</div>
+          <div className="brand-name" style={{ fontSize: '17px', fontWeight: 800, letterSpacing: '0.5px' }}>
+            KABPRO
+          </div>
+          <div className="brand-sub" style={{ fontSize: '10px', color: 'var(--text-faint)', letterSpacing: '0.4px' }}>
+            Commercial Fleet
+          </div>
         </div>
       </div>
 

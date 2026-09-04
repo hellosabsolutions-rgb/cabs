@@ -50,6 +50,9 @@ export const api = {
   put: <T = any>(endpoint: string, data?: any, options?: RequestOptions) => 
     apiRequest<T>(endpoint, { ...options, method: 'PUT', data }),
 
+  patch: <T = any>(endpoint: string, data?: any, options?: RequestOptions) => 
+    apiRequest<T>(endpoint, { ...options, method: 'PATCH', data }),
+
   delete: <T = any>(endpoint: string, options?: RequestOptions) => 
     apiRequest<T>(endpoint, { ...options, method: 'DELETE' })
 };

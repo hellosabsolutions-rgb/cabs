@@ -6,7 +6,7 @@ import { AddDriverModal } from './AddDriverModal';
 import { DriverAttendanceView } from './DriverAttendanceView';
 import { DriverExpensesView } from './DriverExpensesView';
 import { DriverType } from '../../../types/fleet';
-import { Users, CalendarCheck, Receipt, MapPin } from 'lucide-react';
+import { Users, CalendarCheck, Receipt, MapPin, Trash2, Power } from 'lucide-react';
 import { SkeletonCard, SkeletonTable } from '../../common/Skeleton';
 
 export const DriversView: React.FC = () => {
@@ -17,7 +17,9 @@ export const DriversView: React.FC = () => {
     setDriverSubTab,
     attendanceRecords,
     driverExpenses,
-    isLoading
+    isLoading,
+    updateDriverStatus,
+    deleteDriver
   } = useFleet();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -181,12 +183,13 @@ export const DriversView: React.FC = () => {
                     <th>License No.</th>
                     <th>Joining date</th>
                     <th>Status</th>
+                    <th style={{ textAlign: 'right' }}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filtered.length === 0 ? (
                     <tr>
-                      <td colSpan={7} style={{ textAlign: 'center', color: 'var(--text-faint)', padding: '30px 0' }}>
+                      <td colSpan={8} style={{ textAlign: 'center', color: 'var(--text-faint)', padding: '30px 0' }}>
                         No drivers match your criteria. Click "+ Add Driver" to create one.
                       </td>
                     </tr>
@@ -231,7 +234,41 @@ export const DriversView: React.FC = () => {
                         </td>
                         <td>{d.joiningDate}</td>
                         <td>
-                          <StatusChip status={d.status} />
+                          <button
+                            type="button"
+                            onClick={() => updateDriverStatus(d.id, d.status === 'On duty' ? 'Off duty' : 'On duty')}
+                            style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
+                            title={`Click to switch to ${d.status === 'On duty' ? 'Off duty' : 'On duty'}`}
+                          >
+                            <StatusChip status={d.status} />
+                          </button>
+                        </td>
+                        <td style={{ textAlign: 'right' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '6px' }}>
+                            <button
+                              type="button"
+                              className="btn-secondary"
+                              style={{ padding: '4px 8px', fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                              onClick={() => updateDriverStatus(d.id, d.status === 'On duty' ? 'Off duty' : 'On duty')}
+                              title={`Toggle duty status (Currently ${d.status})`}
+                            >
+                              <Power size={11} color={d.status === 'On duty' ? 'var(--accent)' : 'var(--text-faint)'} />
+                              <span>{d.status === 'On duty' ? 'Off duty' : 'On duty'}</span>
+                            </button>
+                            <button
+                              type="button"
+                              className="btn-secondary"
+                              style={{ padding: '4px 7px', color: 'var(--danger)', borderColor: 'rgba(255, 92, 92, 0.2)' }}
+                              onClick={() => {
+                                if (window.confirm(`Are you sure you want to remove driver "${d.name}" from the system?`)) {
+                                  deleteDriver(d.id);
+                                }
+                              }}
+                              title="Delete driver"
+                            >
+                              <Trash2 size={12} />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))

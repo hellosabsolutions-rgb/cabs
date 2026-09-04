@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Building2, FileText } from 'lucide-react';
 import { useFleet } from '../../../context/FleetContext';
+import { MinimalVoiceFiller } from '../../common/MinimalVoiceFiller';
 
 interface AddContractModalProps {
   isOpen: boolean;
@@ -120,6 +121,22 @@ export const AddContractModal: React.FC<AddContractModalProps> = ({ isOpen, onCl
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           <div className="modal-body">
+            {/* Minimal Voice Form Filler */}
+            <MinimalVoiceFiller
+              formType="general"
+              context={{
+                vehicles: vehicles.map(v => v.registrationNumber),
+                drivers: drivers.map(d => d.name)
+              }}
+              placeholder="Speak contract info (e.g. 'Public Works Department DL01AB1234 Rahul Sharma 85000')"
+              onApplyParsedData={(data) => {
+                if (data.departmentName) setDepartmentName(data.departmentName);
+                if (data.vehicle) setVehicle(data.vehicle);
+                if (data.driverName) setDriverName(data.driverName);
+                if (data.amount) setMonthlyBaseAmount(data.amount);
+              }}
+            />
+
             {errorMsg && (
               <div
                 style={{

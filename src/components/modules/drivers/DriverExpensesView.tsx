@@ -276,7 +276,7 @@ export const DriverExpensesView: React.FC = () => {
                   </div>
                   <div>Document File: <b>{activeReceipt}</b></div>
                   <div style={{ fontSize: '11px', color: 'var(--text-faint)', marginTop: '6px' }}>
-                    Verified and stored in FleetOS storage.
+                    Verified and stored in KABPRO storage.
                   </div>
                 </div>
               )}

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useFleet } from '../../../context/FleetContext';
 import { MinusCircle, ShieldCheck, ArrowRight } from 'lucide-react';
+import { MinimalVoiceFiller } from '../../common/MinimalVoiceFiller';
 
 interface DeductTollModalProps {
   isOpen: boolean;
@@ -111,6 +112,17 @@ export const DeductTollModal: React.FC<DeductTollModalProps> = ({
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           <div className="modal-body">
+            {/* Minimal Voice Form Filler */}
+            <MinimalVoiceFiller
+              formType="expense"
+              context={{ vehicles: vehicles.map(v => v.registrationNumber) }}
+              placeholder="Speak toll info (e.g. 'DL01AB1234 Kherki Daula Toll 150 Rupees')"
+              onApplyParsedData={(data) => {
+                if (data.vehicle) setVehicleReg(data.vehicle);
+                if (data.amount) setAmount(data.amount);
+              }}
+            />
+
             {errorMsg && (
               <div
                 style={{

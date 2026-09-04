@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useFleet } from '../../../context/FleetContext';
 import { AttendanceStatus } from '../../../types/fleet';
 import { Calendar, CheckCircle2, Loader2 } from 'lucide-react';
+import { MinimalVoiceFiller } from '../../common/MinimalVoiceFiller';
 
 interface LogAttendanceModalProps {
   isOpen: boolean;
@@ -116,6 +117,25 @@ export const LogAttendanceModal: React.FC<LogAttendanceModalProps> = ({
         {/* Form Body */}
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           <div className="modal-body">
+            {/* Minimal Voice Form Filler */}
+            <MinimalVoiceFiller
+              formType="attendance"
+              context={{
+                vehicles: vehicles.map(v => v.registrationNumber),
+                drivers: drivers.map(d => d.name)
+              }}
+              placeholder="Speak attendance (e.g. 'Rahul Sharma Present DL01AB1234 Department Duty')"
+              onApplyParsedData={(data) => {
+                if (data.driverName) {
+                  const matched = drivers.find(d => d.name.toLowerCase().includes(data.driverName.toLowerCase()));
+                  if (matched) handleDriverChange(matched.id);
+                }
+                if (data.status) setStatus(data.status);
+                if (data.assignedVehicle) setVehicle(data.assignedVehicle);
+                if (data.dutyType) setDutyType(data.dutyType);
+              }}
+            />
+
             {errorMsg && (
               <div
                 style={{

@@ -3,8 +3,8 @@ import { useFleet } from '../../../context/FleetContext';
 import { StatCard } from '../../common/StatCard';
 import { StatusChip } from '../../common/StatusChip';
 import { AddVehicleModal } from './AddVehicleModal';
-import { VehicleStatus, VehicleType } from '../../../types/fleet';
-import { Truck, Briefcase, Building2, Plus, FileText, RotateCcw, MapPin, Fuel, AlertTriangle } from 'lucide-react';
+import { Vehicle, VehicleStatus, VehicleType } from '../../../types/fleet';
+import { Truck, Briefcase, Building2, Plus, FileText, RotateCcw, MapPin, Fuel, AlertTriangle, Shield, Wind, FileCheck, Award, Eye } from 'lucide-react';
 import { SkeletonCard, SkeletonTable } from '../../common/Skeleton';
 
 export const VehiclesView: React.FC = () => {
@@ -14,6 +14,7 @@ export const VehiclesView: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<string>('All');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [viewRc, setViewRc] = useState<string | null>(null);
+  const [selectedVehicleDocs, setSelectedVehicleDocs] = useState<Vehicle | null>(null);
 
   const deptCount = vehicles.filter(v => v.type === 'Department').length;
   const tripCount = vehicles.filter(v => v.type === 'Trip-based' || v.currentOperationMode === 'Trip-based').length;
@@ -170,7 +171,7 @@ export const VehiclesView: React.FC = () => {
                 <th>Odometer & Fuel</th>
                 <th>FASTag Balance</th>
                 <th>Status (Click Toggle)</th>
-                <th>RC Document</th>
+                <th>Compliance (5 Docs)</th>
               </tr>
             </thead>
             <tbody>
@@ -329,19 +330,43 @@ export const VehiclesView: React.FC = () => {
                       </span>
                     </td>
 
-                    {/* RC Document */}
+                    {/* 5 Compliance Documents */}
                     <td>
-                      {v.rcPhoto ? (
-                        <span
-                          className="bill-link"
-                          style={{ fontSize: '11.5px', display: 'flex', alignItems: 'center', gap: '4px' }}
-                          onClick={() => setViewRc(v.rcPhoto!)}
-                        >
-                          <FileText size={12} /> View RC
-                        </span>
-                      ) : (
-                        <span style={{ color: 'var(--text-faint)', fontSize: '12px' }}>—</span>
-                      )}
+                      {(() => {
+                        const docs = [
+                          { name: 'RC', photo: v.rcPhoto, exp: v.rcExpiry },
+                          { name: 'Insurance', photo: v.insurancePhoto, exp: v.insuranceExpiry },
+                          { name: 'Pollution', photo: v.pollutionPhoto, exp: v.pollutionExpiry },
+                          { name: 'Permit', photo: v.permitPhoto, exp: v.permitExpiry },
+                          { name: 'Auth', photo: v.authPhoto, exp: v.authExpiry }
+                        ];
+                        const count = docs.filter(d => d.photo || d.exp).length;
+                        const photoCount = docs.filter(d => d.photo).length;
+
+                        return (
+                          <button
+                            type="button"
+                            className="subtab-btn"
+                            style={{
+                              fontSize: '11px',
+                              padding: '3px 8px',
+                              borderRadius: '6px',
+                              background: count > 0 ? 'rgba(56, 189, 248, 0.12)' : 'var(--surface-2)',
+                              color: count > 0 ? '#38bdf8' : 'var(--text-faint)',
+                              borderColor: count > 0 ? 'rgba(56, 189, 248, 0.3)' : 'var(--border)',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              cursor: 'pointer'
+                            }}
+                            onClick={() => setSelectedVehicleDocs(v)}
+                            title="Click to view all 5 Compliance Documents & Photos"
+                          >
+                            <FileCheck size={12} />
+                            <span>{photoCount > 0 ? `${photoCount}/5 Photos` : `${count}/5 Docs`}</span>
+                          </button>
+                        );
+                      })()}
                     </td>
                   </tr>
                 ))
@@ -358,33 +383,164 @@ export const VehiclesView: React.FC = () => {
         defaultType={typeFilter !== 'All' ? typeFilter : 'Trip-based'}
       />
 
-      {/* RC Document Viewer Modal */}
+      {/* 5 Compliance Documents Viewer Modal */}
+      {selectedVehicleDocs && (
+        <div className="modal-overlay" onClick={() => setSelectedVehicleDocs(null)}>
+          <div className="modal-dialog" style={{ maxWidth: 540 }} onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <div className="modal-title-group">
+                <h3 className="modal-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <FileCheck size={18} color="var(--accent)" /> 5 Vehicle Compliance Documents
+                </h3>
+                <span className="modal-subtitle">
+                  {selectedVehicleDocs.registrationNumber} · {selectedVehicleDocs.model || 'Commercial Vehicle'}
+                </span>
+              </div>
+              <button className="modal-close-btn" onClick={() => setSelectedVehicleDocs(null)}>
+                ✕
+              </button>
+            </div>
+
+            <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {[
+                {
+                  id: 'rc',
+                  name: '1. Registration Certificate (RC)',
+                  exp: selectedVehicleDocs.rcExpiry,
+                  photo: selectedVehicleDocs.rcPhoto,
+                  icon: <FileText size={15} color="#38bdf8" />
+                },
+                {
+                  id: 'insurance',
+                  name: '2. Commercial Insurance Policy',
+                  exp: selectedVehicleDocs.insuranceExpiry,
+                  photo: selectedVehicleDocs.insurancePhoto,
+                  icon: <Shield size={15} color="#38bdf8" />
+                },
+                {
+                  id: 'pollution',
+                  name: '3. Pollution Under Control (PUCC)',
+                  exp: selectedVehicleDocs.pollutionExpiry,
+                  photo: selectedVehicleDocs.pollutionPhoto,
+                  icon: <Wind size={15} color="#39ff6e" />
+                },
+                {
+                  id: 'permit',
+                  name: '4. Commercial Vehicle Permit',
+                  exp: selectedVehicleDocs.permitExpiry,
+                  photo: selectedVehicleDocs.permitPhoto,
+                  icon: <FileCheck size={15} color="#ffcc4d" />
+                },
+                {
+                  id: 'auth',
+                  name: '5. Permit Authorization (Auth)',
+                  exp: selectedVehicleDocs.authExpiry,
+                  photo: selectedVehicleDocs.authPhoto,
+                  icon: <Award size={15} color="#a78bfa" />
+                }
+              ].map(doc => {
+                let badgeClass = 'idle';
+                let badgeLabel = 'No date set';
+                if (doc.exp) {
+                  const exp = new Date(doc.exp);
+                  const now = new Date();
+                  const diff = Math.ceil((exp.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+                  if (diff < 0) {
+                    badgeClass = 'maintenance';
+                    badgeLabel = `Expired ${Math.abs(diff)}d ago`;
+                  } else if (diff <= 30) {
+                    badgeClass = 'active';
+                    badgeLabel = `Expires in ${diff}d`;
+                  } else {
+                    badgeClass = 'running';
+                    badgeLabel = `Valid (${diff}d left)`;
+                  }
+                }
+
+                return (
+                  <div
+                    key={doc.id}
+                    style={{
+                      background: 'var(--surface-2)',
+                      padding: '12px 14px',
+                      borderRadius: '10px',
+                      border: '1px solid var(--border)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: '12px'
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+                      <div style={{ flexShrink: 0 }}>{doc.icon}</div>
+                      <div>
+                        <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text)' }}>
+                          {doc.name}
+                        </div>
+                        <div style={{ fontSize: '11px', color: 'var(--text-faint)', marginTop: '2px' }}>
+                          Expiry: <b>{doc.exp || 'Not recorded'}</b>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                      <span className={`status-chip ${badgeClass}`} style={{ fontSize: '10.5px' }}>
+                        {badgeLabel}
+                      </span>
+                      {doc.photo ? (
+                        <button
+                          type="button"
+                          className="subtab-btn"
+                          style={{ fontSize: '11px', padding: '3px 8px', borderRadius: '6px' }}
+                          onClick={() => setViewRc(doc.photo!)}
+                        >
+                          <Eye size={11} /> Proof
+                        </button>
+                      ) : (
+                        <span style={{ fontSize: '11px', color: 'var(--text-faint)' }}>No Photo</span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="modal-footer">
+              <button className="btn-secondary" onClick={() => setSelectedVehicleDocs(null)}>
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Enlarged Document Proof Viewer Modal */}
       {viewRc && (
         <div className="modal-overlay" onClick={() => setViewRc(null)}>
-          <div className="modal-dialog" style={{ maxWidth: 440 }} onClick={e => e.stopPropagation()}>
+          <div className="modal-dialog" style={{ maxWidth: 460 }} onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <h3 className="modal-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <FileText size={16} /> Vehicle Registration Certificate (RC)
+                <FileText size={16} color="var(--accent)" /> Verified Document Scan Copy
               </h3>
               <button className="modal-close-btn" onClick={() => setViewRc(null)}>
                 ✕
               </button>
             </div>
-            <div className="modal-body" style={{ textAlign: 'center', padding: '20px' }}>
+            <div className="modal-body" style={{ textAlign: 'center', padding: '16px' }}>
               {viewRc.startsWith('data:image') ? (
                 <img
                   src={viewRc}
-                  alt="Vehicle RC"
-                  style={{ maxWidth: '100%', maxHeight: '420px', borderRadius: '8px' }}
+                  alt="Document Proof"
+                  style={{ maxWidth: '100%', maxHeight: '420px', borderRadius: '8px', objectFit: 'contain' }}
                 />
               ) : (
-                <div style={{ padding: '30px' }}>
+                <div style={{ padding: '24px' }}>
                   <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '10px' }}>
                     <FileText size={42} color="var(--accent)" />
                   </div>
                   <div style={{ fontWeight: 600 }}>File: {viewRc}</div>
                   <div style={{ fontSize: '12px', color: 'var(--text-faint)', marginTop: '6px' }}>
-                    Government transport authority registration verified.
+                    Document stored & verified in KABPRO compliance storage.
                   </div>
                 </div>
               )}

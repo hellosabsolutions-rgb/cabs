@@ -14,6 +14,11 @@ export interface ParsedVehicleVoiceData {
   odometer?: string;
   fastagBalance?: string;
   status?: 'Running' | 'Active' | 'Idle' | 'Maintenance';
+  rcExpiry?: string;
+  insuranceExpiry?: string;
+  pollutionExpiry?: string;
+  permitExpiry?: string;
+  authExpiry?: string;
 }
 
 const KNOWN_MODELS = [
@@ -184,6 +189,31 @@ export function parseVehicleVoiceInput(
     result.status = 'Maintenance';
     detectedFieldsCount++;
   }
+
+  // 10. Parse Document Expiries (RC, Insurance, Pollution, Permit, Auth)
+  const parseDateAfter = (keyword: string): string | null => {
+    const idx = text.indexOf(keyword);
+    if (idx === -1) return null;
+    const sub = text.slice(idx + keyword.length, idx + keyword.length + 40);
+    const isoMatch = sub.match(/(\d{4})[-\/.](\d{1,2})[-\/.](\d{1,2})/);
+    if (isoMatch) return `${isoMatch[1]}-${isoMatch[2].padStart(2, '0')}-${isoMatch[3].padStart(2, '0')}`;
+    const dmyMatch = sub.match(/(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{4})/);
+    if (dmyMatch) return `${dmyMatch[3]}-${dmyMatch[2].padStart(2, '0')}-${dmyMatch[1].padStart(2, '0')}`;
+    const yrMatch = sub.match(/\b(202[4-9]|203[0-9])\b/);
+    if (yrMatch) return `${yrMatch[1]}-12-31`;
+    return null;
+  };
+
+  const rcDate = parseDateAfter('rc');
+  if (rcDate) { result.rcExpiry = rcDate; detectedFieldsCount++; }
+  const insDate = parseDateAfter('insurance') || parseDateAfter('bima');
+  if (insDate) { result.insuranceExpiry = insDate; detectedFieldsCount++; }
+  const polDate = parseDateAfter('pollution') || parseDateAfter('puc');
+  if (polDate) { result.pollutionExpiry = polDate; detectedFieldsCount++; }
+  const perDate = parseDateAfter('permit');
+  if (perDate) { result.permitExpiry = perDate; detectedFieldsCount++; }
+  const authDate = parseDateAfter('auth') || parseDateAfter('authorization');
+  if (authDate) { result.authExpiry = authDate; detectedFieldsCount++; }
 
   return { parsed: result, detectedFieldsCount };
 }
