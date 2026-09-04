@@ -46,6 +46,18 @@ const monthlyBillSchema = new mongoose.Schema(
       type: Number,
       default: 0
     },
+    subtotal: {
+      type: Number,
+      default: 0
+    },
+    gstRate: {
+      type: Number,
+      default: 0
+    },
+    gstAmount: {
+      type: Number,
+      default: 0
+    },
     totalBill: {
       type: Number,
       required: true

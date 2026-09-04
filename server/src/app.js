@@ -98,7 +98,7 @@ app.use('/api/dashboard', dashboardRoutes);
 
 // Root route
 app.get('/', (req, res) => {
-  res.send('FleetOS API Server is running. Access API endpoints at /api/...');
+  res.send('KABPRO API Server is running. Access API endpoints at /api/...');
 });
 
 // 404 & Error Handler

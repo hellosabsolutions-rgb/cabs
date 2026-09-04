@@ -12,7 +12,7 @@ connectDB();
 
 // Start HTTP Server
 const server = app.listen(PORT, () => {
-  console.log(`🚀 FleetOS Server running in ${process.env.NODE_ENV || 'development'} mode on http://localhost:${PORT}`);
+  console.log(`🚀 KABPRO Server running in ${process.env.NODE_ENV || 'development'} mode on http://localhost:${PORT}`);
   console.log(`📡 Health Check: http://localhost:${PORT}/api/health`);
   console.log(`🚗 Vehicles API: http://localhost:${PORT}/api/vehicles`);
 });

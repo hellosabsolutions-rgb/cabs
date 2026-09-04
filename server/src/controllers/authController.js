@@ -68,7 +68,13 @@ export const login = asyncHandler(async (req, res) => {
   }
 
   // Find user and explicitly select password field
-  const user = await User.findOne({ email: email.toLowerCase().trim() }).select('+password');
+  const cleanEmail = email.toLowerCase().trim();
+  let user = await User.findOne({ email: cleanEmail }).select('+password');
+  if (!user && cleanEmail === 'admin@kabpro.com') {
+    user = await User.findOne({ email: 'admin@fleetos.com' }).select('+password');
+  } else if (!user && cleanEmail === 'admin@fleetos.com') {
+    user = await User.findOne({ email: 'admin@kabpro.com' }).select('+password');
+  }
 
   if (!user) {
     return res.status(401).json({

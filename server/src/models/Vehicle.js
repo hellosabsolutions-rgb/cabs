@@ -100,7 +100,39 @@ const vehicleSchema = new mongoose.Schema(
       type: String,
       trim: true
     },
+    // 5 Mandatory Compliance Documents & Photos
+    rcExpiry: {
+      type: String
+    },
     rcPhoto: {
+      type: String,
+      default: null
+    },
+    insuranceExpiry: {
+      type: String
+    },
+    insurancePhoto: {
+      type: String,
+      default: null
+    },
+    pollutionExpiry: {
+      type: String
+    },
+    pollutionPhoto: {
+      type: String,
+      default: null
+    },
+    permitExpiry: {
+      type: String
+    },
+    permitPhoto: {
+      type: String,
+      default: null
+    },
+    authExpiry: {
+      type: String
+    },
+    authPhoto: {
       type: String,
       default: null
     },
@@ -112,16 +144,10 @@ const vehicleSchema = new mongoose.Schema(
       type: String,
       trim: true
     },
-    insuranceExpiry: {
-      type: String
-    },
     fitnessExpiry: {
       type: String
     },
     puccExpiry: {
-      type: String
-    },
-    permitExpiry: {
       type: String
     },
     roadTaxExpiry: {

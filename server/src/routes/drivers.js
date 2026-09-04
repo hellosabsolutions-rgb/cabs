@@ -1,9 +1,7 @@
 import express from 'express';
-import { Driver } from '../models/Driver.js';
-import { createCrudController } from '../controllers/crudFactory.js';
+import { driverController } from '../controllers/driverController.js';
 
 const router = express.Router();
-const driverController = createCrudController(Driver, ['name', 'phone', 'assignedVehicle', 'licenseNumber']);
 
 router
   .route('/')
@@ -15,5 +13,9 @@ router
   .get(driverController.getById)
   .put(driverController.update)
   .delete(driverController.delete);
+
+router
+  .route('/:id/status')
+  .patch(driverController.updateStatus);
 
 export default router;

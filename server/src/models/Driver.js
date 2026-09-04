@@ -52,6 +52,11 @@ const driverSchema = new mongoose.Schema(
       enum: ['On duty', 'Off duty'],
       default: 'On duty',
       index: true
+    },
+    agencyId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Agency',
+      index: true
     }
   },
   {

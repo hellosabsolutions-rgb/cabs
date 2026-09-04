@@ -35,12 +35,19 @@ export const onboardVehicle = asyncHandler(async (req, res) => {
     fastagBalance,
     gpsImei,
     status,
+    rcExpiry,
     rcPhoto,
-    vehiclePhoto,
     insuranceExpiry,
+    insurancePhoto,
+    pollutionExpiry,
+    pollutionPhoto,
+    permitExpiry,
+    permitPhoto,
+    authExpiry,
+    authPhoto,
+    vehiclePhoto,
     fitnessExpiry,
     puccExpiry,
-    permitExpiry,
     roadTaxExpiry,
     revenue,
     expense,
@@ -108,12 +115,19 @@ export const onboardVehicle = asyncHandler(async (req, res) => {
     fastagBalance: Number(fastagBalance) || 0,
     gpsImei: gpsImei ? gpsImei.trim() : undefined,
     status: status || 'Running',
+    rcExpiry: rcExpiry || undefined,
     rcPhoto: rcPhoto || null,
+    insuranceExpiry: insuranceExpiry || undefined,
+    insurancePhoto: insurancePhoto || null,
+    pollutionExpiry: pollutionExpiry || puccExpiry || undefined,
+    pollutionPhoto: pollutionPhoto || null,
+    permitExpiry: permitExpiry || undefined,
+    permitPhoto: permitPhoto || null,
+    authExpiry: authExpiry || undefined,
+    authPhoto: authPhoto || null,
     vehiclePhoto: vehiclePhoto || null,
-    insuranceExpiry,
     fitnessExpiry,
-    puccExpiry,
-    permitExpiry,
+    puccExpiry: pollutionExpiry || puccExpiry || undefined,
     roadTaxExpiry,
     revenue: calcRev,
     expense: calcExp,
@@ -122,40 +136,111 @@ export const onboardVehicle = asyncHandler(async (req, res) => {
     agencyId: agencyId || req.user?.currentAgency || undefined
   });
 
-  // 4. Auto-generate Compliance Records if dates provided
+  // Helper for compliance date status calculation
+  const calcComplianceMeta = (expDateStr) => {
+    if (!expDateStr) return { statusType: 'ok', daysLeft: 365, expiryLabel: 'Valid' };
+    const exp = new Date(expDateStr);
+    const now = new Date();
+    const diffDays = Math.ceil((exp.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    if (isNaN(diffDays)) return { statusType: 'ok', daysLeft: 365, expiryLabel: 'Valid' };
+    if (diffDays < 0) {
+      return { statusType: 'late', daysLeft: diffDays, expiryLabel: `Expired ${Math.abs(diffDays)}d ago` };
+    } else if (diffDays <= 30) {
+      return { statusType: 'soon', daysLeft: diffDays, expiryLabel: `Expires in ${diffDays}d` };
+    }
+    return { statusType: 'ok', daysLeft: diffDays, expiryLabel: `Valid (${diffDays}d left)` };
+  };
+
+  // 4. Auto-generate Compliance Records for 5 documents (RC, Insurance, Pollution, Permit, Auth)
   const complianceEntries = [];
 
-  if (insuranceExpiry) {
+  // Document 1: RC (Registration Certificate)
+  if (rcExpiry || rcPhoto) {
+    const meta = calcComplianceMeta(rcExpiry);
+    complianceEntries.push({
+      entityName: cleanReg,
+      entityType: 'Vehicle',
+      documentName: 'Registration Certificate (RC)',
+      expiryDate: rcExpiry || '',
+      documentPhoto: rcPhoto || null,
+      expiryLabel: meta.expiryLabel,
+      statusType: meta.statusType,
+      daysLeft: meta.daysLeft
+    });
+  }
+
+  // Document 2: Insurance Policy
+  if (insuranceExpiry || insurancePhoto) {
+    const meta = calcComplianceMeta(insuranceExpiry);
     complianceEntries.push({
       entityName: cleanReg,
       entityType: 'Vehicle',
       documentName: 'Commercial Insurance Policy',
-      expiryDate: insuranceExpiry,
-      documentPhoto: rcPhoto || null,
-      expiryLabel: 'Annual Policy',
-      statusType: 'ok'
+      expiryDate: insuranceExpiry || '',
+      documentPhoto: insurancePhoto || null,
+      expiryLabel: meta.expiryLabel,
+      statusType: meta.statusType,
+      daysLeft: meta.daysLeft
     });
   }
 
+  // Document 3: Pollution (PUCC)
+  const finalPollutionExpiry = pollutionExpiry || puccExpiry;
+  if (finalPollutionExpiry || pollutionPhoto) {
+    const meta = calcComplianceMeta(finalPollutionExpiry);
+    complianceEntries.push({
+      entityName: cleanReg,
+      entityType: 'Vehicle',
+      documentName: 'Pollution Under Control (PUCC)',
+      expiryDate: finalPollutionExpiry || '',
+      documentPhoto: pollutionPhoto || null,
+      expiryLabel: meta.expiryLabel,
+      statusType: meta.statusType,
+      daysLeft: meta.daysLeft
+    });
+  }
+
+  // Document 4: Permit (Commercial Vehicle Permit)
+  if (permitExpiry || permitPhoto) {
+    const meta = calcComplianceMeta(permitExpiry);
+    complianceEntries.push({
+      entityName: cleanReg,
+      entityType: 'Vehicle',
+      documentName: 'Commercial Vehicle Permit',
+      expiryDate: permitExpiry || '',
+      documentPhoto: permitPhoto || null,
+      expiryLabel: meta.expiryLabel,
+      statusType: meta.statusType,
+      daysLeft: meta.daysLeft
+    });
+  }
+
+  // Document 5: Auth (Permit Authorization)
+  if (authExpiry || authPhoto) {
+    const meta = calcComplianceMeta(authExpiry);
+    complianceEntries.push({
+      entityName: cleanReg,
+      entityType: 'Vehicle',
+      documentName: 'Permit Authorization (Auth)',
+      expiryDate: authExpiry || '',
+      documentPhoto: authPhoto || null,
+      expiryLabel: meta.expiryLabel,
+      statusType: meta.statusType,
+      daysLeft: meta.daysLeft
+    });
+  }
+
+  // Optional: Fitness Certificate
   if (fitnessExpiry) {
+    const meta = calcComplianceMeta(fitnessExpiry);
     complianceEntries.push({
       entityName: cleanReg,
       entityType: 'Vehicle',
       documentName: 'Vehicle Fitness Certificate',
       expiryDate: fitnessExpiry,
-      expiryLabel: 'Fitness Test',
-      statusType: 'ok'
-    });
-  }
-
-  if (puccExpiry) {
-    complianceEntries.push({
-      entityName: cleanReg,
-      entityType: 'Vehicle',
-      documentName: 'Pollution Under Control (PUCC)',
-      expiryDate: puccExpiry,
-      expiryLabel: 'Emissions',
-      statusType: 'ok'
+      expiryLabel: meta.expiryLabel,
+      statusType: meta.statusType,
+      daysLeft: meta.daysLeft
     });
   }
 
