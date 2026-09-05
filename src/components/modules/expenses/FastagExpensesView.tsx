@@ -121,7 +121,7 @@ export const FastagExpensesView: React.FC = () => {
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <Zap size={16} color="#38bdf8" style={{ flexShrink: 0 }} />
           <span>
-            <b>Manual FASTag Management (API Free):</b> Yahan aap manually toll deduction (kitna kata/kam hua) record kar sakte hain, recharge daal sakte hain, ya seedhe wallet balance edit kar sakte hain.
+            <b>Manual FASTag Management (No API Required):</b> You can manually record toll deductions, log FASTag recharges, or directly edit current wallet balances.
           </span>
         </div>
         <span style={{ fontSize: '11px', color: 'var(--accent)', fontWeight: 600 }}>100% Offline / Manual Support</span>
@@ -193,7 +193,7 @@ export const FastagExpensesView: React.FC = () => {
               onClick={() => handleOpenDeduct()}
               title="Record toll deduction from any vehicle's FASTag"
             >
-              <MinusCircle size={13} /> - Deduct Toll (Kitna Kata)
+              <MinusCircle size={13} /> - Deduct Toll
             </button>
 
             {/* Recharge FASTag Button */}
@@ -211,12 +211,12 @@ export const FastagExpensesView: React.FC = () => {
           <table>
             <thead>
               <tr>
-                <th>Vehicle (Konsi Gaadi Mai Hai)</th>
-                <th>FASTag Details (Konsa FASTag Hai)</th>
-                <th>Current Balance (Kitne Paise Hai)</th>
-                <th>Last Recharge (Kab & Kitne Ka Hua)</th>
-                <th>Total Toll Expense (Kitna Kata)</th>
-                <th>Actions (Edit / Deduct / Recharge)</th>
+                <th>Vehicle</th>
+                <th>FASTag Details</th>
+                <th>Current Balance</th>
+                <th>Last Recharge</th>
+                <th>Total Toll Expenses</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -387,7 +387,7 @@ export const FastagExpensesView: React.FC = () => {
                             gap: '3px'
                           }}
                           onClick={() => handleOpenDeduct(item.vehicleReg)}
-                          title="Record toll deduction (kitna kata)"
+                          title="Record toll deduction"
                         >
                           <MinusCircle size={11} /> Deduct Toll
                         </button>

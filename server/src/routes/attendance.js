@@ -1,19 +1,41 @@
 import express from 'express';
-import { DriverAttendance } from '../models/DriverAttendance.js';
-import { createCrudController } from '../controllers/crudFactory.js';
+import {
+  getAttendance,
+  getAttendanceSummary,
+  getAttendanceAnalytics,
+  getAttendanceById,
+  markAttendance,
+  bulkMarkAttendance,
+  updateAttendanceStatus,
+  updateAttendance,
+  deleteAttendance
+} from '../controllers/attendanceController.js';
 
 const router = express.Router();
-const attendanceController = createCrudController(DriverAttendance, ['driverName', 'assignedVehicle', 'date']);
 
+// Summary stats for a date
+router.get('/summary', getAttendanceSummary);
+
+// Monthly & Yearly Analytics
+router.get('/analytics', getAttendanceAnalytics);
+
+// Bulk operations
+router.post('/bulk', bulkMarkAttendance);
+
+// Specific status toggle
+router.patch('/:id/status', updateAttendanceStatus);
+
+// Core collection routes
 router
   .route('/')
-  .get(attendanceController.getAll)
-  .post(attendanceController.create);
+  .get(getAttendance)
+  .post(markAttendance);
 
+// Single record routes
 router
   .route('/:id')
-  .get(attendanceController.getById)
-  .put(attendanceController.update)
-  .delete(attendanceController.delete);
+  .get(getAttendanceById)
+  .put(updateAttendance)
+  .delete(deleteAttendance);
 
 export default router;

@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { MinimalVoiceFiller } from '../../common/MinimalVoiceFiller';
 import { ParsedVehicleVoiceData } from '../../../utils/vehicleVoiceParser';
+import { DatePicker } from '../../common/DatePicker';
 
 interface AddVehicleModalProps {
   isOpen: boolean;
@@ -51,7 +52,7 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
   const [model, setModel] = useState('Toyota Innova Crysta');
   const [type, setType] = useState<VehicleType>(defaultType);
   const [departmentName, setDepartmentName] = useState('Public Works Department (PWD)');
-  const [hubStand, setHubStand] = useState('Delhi NCR Trip Stand');
+  const [hubStand, setHubStand] = useState('Delhi NCR Booking Stand');
   const [assignedDriver, setAssignedDriver] = useState(drivers[0]?.name || 'Rahul Sharma');
   const [fuelType, setFuelType] = useState<NonNullable<Vehicle['fuelType']>>('Diesel');
   const [seatingCapacity, setSeatingCapacity] = useState('7');
@@ -184,7 +185,7 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
     }
 
     if (type === 'Department' && !departmentName.trim()) {
-      setErrorMsg('Please enter or select Department Name (Gaadi konse department mai lagi hai).');
+      setErrorMsg('Please enter or select Department Name.');
       return;
     }
 
@@ -207,7 +208,7 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
         revenue: type === 'Department' ? 85000 : 110000,
         expense: 45000,
         profit: type === 'Department' ? 40000 : 65000,
-        meta: type === 'Department' ? `${departmentName} Contract duty` : `Trip · ${hubStand}`,
+        meta: type === 'Department' ? `${departmentName} Contract duty` : `Booking · ${hubStand}`,
         fuelType,
         seatingCapacity: Number(seatingCapacity) || 5,
         assignedDriver: assignedDriver !== 'Unassigned' ? assignedDriver : undefined,
@@ -338,7 +339,7 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
                       </>
                     ) : (
                       <>
-                        <Briefcase size={14} /> Trip / Rental Fleet
+                        <Briefcase size={14} /> Booking / Rental Fleet
                       </>
                     )}
                   </div>
@@ -391,7 +392,7 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
                   className="form-label"
                   style={{ display: 'flex', alignItems: 'center', gap: '6px', margin: 0, color: 'var(--accent)', fontWeight: 600 }}
                 >
-                  <Building2 size={15} /> Department Name (Gaadi Konse Department Mai Lagi Hai) *
+                  <Building2 size={15} /> Department Name *
                 </label>
                 <input
                   type="text"
@@ -426,12 +427,12 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
               <div className="form-row-2">
                 <div className="form-group" style={{ marginBottom: 0 }}>
                   <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <MapPin size={13} /> Assigned Hub / Trip Stand *
+                    <MapPin size={13} /> Assigned Hub / Booking Stand *
                   </label>
                   <input
                     type="text"
                     className="form-input"
-                    placeholder="e.g. Delhi NCR Trip Stand, Airport Terminal"
+                    placeholder="e.g. Delhi NCR Booking Stand, Airport Terminal"
                     value={hubStand}
                     onChange={e => setHubStand(e.target.value)}
                     required
@@ -695,12 +696,9 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
                     <label className="form-label" style={{ fontSize: '11px', marginBottom: '4px' }}>
                       RC Expiry Date *
                     </label>
-                    <input
-                      type="date"
-                      className="form-input"
+                    <DatePicker
                       value={rcExpiry}
-                      onChange={e => setRcExpiry(e.target.value)}
-                      style={{ fontSize: '12px', height: '38px' }}
+                      onChange={d => setRcExpiry(d)}
                       required
                     />
                   </div>
@@ -803,14 +801,11 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
                 <div className="form-row-2" style={{ marginBottom: 0 }}>
                   <div className="form-group" style={{ marginBottom: 0 }}>
                     <label className="form-label" style={{ fontSize: '11px', marginBottom: '4px' }}>
-                      Insurance Expiry Date *
+                       Insurance Expiry Date *
                     </label>
-                    <input
-                      type="date"
-                      className="form-input"
+                    <DatePicker
                       value={insuranceExpiry}
-                      onChange={e => setInsuranceExpiry(e.target.value)}
-                      style={{ fontSize: '12px', height: '38px' }}
+                      onChange={d => setInsuranceExpiry(d)}
                       required
                     />
                   </div>
@@ -915,12 +910,9 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
                     <label className="form-label" style={{ fontSize: '11px', marginBottom: '4px' }}>
                       Pollution Expiry Date *
                     </label>
-                    <input
-                      type="date"
-                      className="form-input"
+                    <DatePicker
                       value={pollutionExpiry}
-                      onChange={e => setPollutionExpiry(e.target.value)}
-                      style={{ fontSize: '12px', height: '38px' }}
+                      onChange={d => setPollutionExpiry(d)}
                       required
                     />
                   </div>
@@ -1025,12 +1017,9 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
                     <label className="form-label" style={{ fontSize: '11px', marginBottom: '4px' }}>
                       Permit Expiry Date *
                     </label>
-                    <input
-                      type="date"
-                      className="form-input"
+                    <DatePicker
                       value={permitExpiry}
-                      onChange={e => setPermitExpiry(e.target.value)}
-                      style={{ fontSize: '12px', height: '38px' }}
+                      onChange={d => setPermitExpiry(d)}
                       required
                     />
                   </div>
@@ -1135,12 +1124,9 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
                     <label className="form-label" style={{ fontSize: '11px', marginBottom: '4px' }}>
                       Auth Expiry Date *
                     </label>
-                    <input
-                      type="date"
-                      className="form-input"
+                    <DatePicker
                       value={authExpiry}
-                      onChange={e => setAuthExpiry(e.target.value)}
-                      style={{ fontSize: '12px', height: '38px' }}
+                      onChange={d => setAuthExpiry(d)}
                       required
                     />
                   </div>

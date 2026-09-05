@@ -9,6 +9,11 @@ const dutyLogController = createCrudController(DailyDutyLog, [
   'vehicle',
   'driverName',
   'officerName',
+  'officerDesignation',
+  'journeyFrom',
+  'journeyTo',
+  'purposeOfJourney',
+  'headOfAccount',
   'tripDestination'
 ]);
 

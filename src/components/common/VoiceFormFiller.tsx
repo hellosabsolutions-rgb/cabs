@@ -358,7 +358,7 @@ export const VoiceFormFiller: React.FC<VoiceFormFillerProps> = ({
       {/* Helpful Hint when idle */}
       {!isListening && !transcript && (
         <div style={{ fontSize: '11px', color: 'var(--text-faint)', lineHeight: 1.35 }}>
-          💡 <em>Example bolen: "Gaadi number DL 01 AB 1234, Model Innova Crysta, Fuel Diesel, Driver Rahul Sharma, 7 seater"</em>
+          💡 <em>Example: "Vehicle number DL 01 AB 1234, Model Innova Crysta, Fuel Diesel, Driver Rahul Sharma, 7 seater"</em>
         </div>
       )}
     </div>

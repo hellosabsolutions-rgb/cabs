@@ -86,7 +86,7 @@ export const TripsView: React.FC = () => {
         <StatCard label="Total Trips Revenue" value={formatINR(stats.totalRevenue)} customColor="var(--accent)" />
         <StatCard label="Total Trip Expenses" value={formatINR(stats.totalExpenses)} customColor="#ff5c5c" />
         <StatCard
-          label="Total Net Profit (Munafa)"
+          label="Total Net Profit"
           value={formatINR(stats.totalProfit)}
           customColor="var(--accent)"
         />
@@ -165,11 +165,11 @@ export const TripsView: React.FC = () => {
               <tr>
                 <th>Trip & Type</th>
                 <th>Vehicle & Driver</th>
-                <th>Route (Khn Se Khn)</th>
+                <th>Route</th>
                 <th>Odometer (KM)</th>
-                <th>Fare (Trip Kitne Ki Hai)</th>
+                <th>Agreed Fare</th>
                 <th>Expenses (Fuel + FASTag + Driver)</th>
-                <th>Count Profit (Munafa)</th>
+                <th>Net Profit</th>
                 <th>Status & Action</th>
               </tr>
             </thead>

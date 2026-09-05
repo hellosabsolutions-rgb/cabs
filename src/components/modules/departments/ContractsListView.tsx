@@ -3,10 +3,10 @@ import { useFleet } from '../../../context/FleetContext';
 import { StatCard } from '../../common/StatCard';
 import { AddContractModal } from './AddContractModal';
 import { DepartmentContract } from '../../../types/fleet';
-import { FileText, Folder } from 'lucide-react';
+import { FileText, Folder, Trash2 } from 'lucide-react';
 
 export const ContractsListView: React.FC = () => {
-  const { departmentContracts, updateContractStatus, searchQuery } = useFleet();
+  const { departmentContracts, updateContractStatus, deleteDepartmentContract, searchQuery } = useFleet();
 
   const [statusFilter, setStatusFilter] = useState<string>('All');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -152,12 +152,13 @@ export const ContractsListView: React.FC = () => {
                 <th>Validity</th>
                 <th>Status (Toggle)</th>
                 <th>Agreement</th>
+                <th style={{ textAlign: 'center', width: '60px' }}>Action</th>
               </tr>
             </thead>
             <tbody>
               {filteredContracts.length === 0 ? (
                 <tr>
-                  <td colSpan={8} style={{ textAlign: 'center', color: 'var(--text-faint)', padding: '30px 0' }}>
+                  <td colSpan={9} style={{ textAlign: 'center', color: 'var(--text-faint)', padding: '30px 0' }}>
                     No department contracts found. Click "+ New Contract" to create one.
                   </td>
                 </tr>
@@ -218,6 +219,40 @@ export const ContractsListView: React.FC = () => {
                       ) : (
                         <span style={{ color: 'var(--text-faint)', fontSize: '12px' }}>—</span>
                       )}
+                    </td>
+                    <td style={{ textAlign: 'center' }}>
+                      <button
+                        type="button"
+                        style={{
+                          width: '28px',
+                          height: '28px',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          borderRadius: '6px',
+                          border: '1px solid var(--border)',
+                          background: 'transparent',
+                          color: 'var(--text-faint)',
+                          cursor: 'pointer',
+                          transition: 'all 0.15s ease'
+                        }}
+                        title={`Delete contract ${c.contractNumber}`}
+                        onClick={() => {
+                          if (window.confirm(`Are you sure you want to delete contract "${c.contractNumber}" (${c.departmentName})?`)) {
+                            deleteDepartmentContract(c.id);
+                          }
+                        }}
+                        onMouseEnter={e => {
+                          e.currentTarget.style.color = 'var(--danger)';
+                          e.currentTarget.style.borderColor = 'var(--danger)';
+                        }}
+                        onMouseLeave={e => {
+                          e.currentTarget.style.color = 'var(--text-faint)';
+                          e.currentTarget.style.borderColor = 'var(--border)';
+                        }}
+                      >
+                        <Trash2 size={13} />
+                      </button>
                     </td>
                   </tr>
                 ))

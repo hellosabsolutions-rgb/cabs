@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useFleet } from '../../../context/FleetContext';
 import { FileText, CheckCircle2 } from 'lucide-react';
 import { MinimalVoiceFiller } from '../../common/MinimalVoiceFiller';
+import { DatePicker } from '../../common/DatePicker';
 
 interface GenerateBillModalProps {
   isOpen: boolean;
@@ -281,11 +282,9 @@ export const GenerateBillModal: React.FC<GenerateBillModalProps> = ({ isOpen, on
             <div className="form-row-2">
               <div className="form-group" style={{ marginBottom: 0 }}>
                 <label className="form-label">Payment Due Date</label>
-                <input
-                  type="date"
-                  className="form-input"
+                <DatePicker
                   value={dueDate}
-                  onChange={e => setDueDate(e.target.value)}
+                  onChange={d => setDueDate(d)}
                 />
               </div>
 

@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useFleet } from '../../../context/FleetContext';
-import { Building2, Briefcase, Calendar, MapPin, IndianRupee, TrendingUp, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Building2, Briefcase, Calendar, MapPin, IndianRupee, TrendingUp, AlertCircle, CheckCircle2, Navigation, PenTool } from 'lucide-react';
 import { MinimalVoiceFiller } from '../../common/MinimalVoiceFiller';
+import { DatePicker } from '../../common/DatePicker';
 
 interface AddDutyLogModalProps {
   isOpen: boolean;
@@ -24,24 +25,34 @@ export const AddDutyLogModal: React.FC<AddDutyLogModalProps> = ({
   const [selectedContractId, setSelectedContractId] = useState(departmentContracts[0]?.id || '');
   const [driverName, setDriverName] = useState(drivers[0]?.name || 'Rahul Sharma');
   const [startKm, setStartKm] = useState('45345');
-  const [endKm, setEndKm] = useState('45980');
-  const [startTime, setStartTime] = useState('06:00 AM');
-  const [endTime, setEndTime] = useState('10:30 PM');
-  const [totalHours, setTotalHours] = useState('16.5');
-  const [tollParkingAmount, setTollParkingAmount] = useState('650');
+  const [endKm, setEndKm] = useState('45475');
+  const [startTime, setStartTime] = useState('08:30 AM');
+  const [endTime, setEndTime] = useState('07:30 PM');
+  const [totalHours, setTotalHours] = useState('11.0');
+  const [tollParkingAmount, setTollParkingAmount] = useState('240');
   
   // Fuel expense fields
-  const [fuelAmount, setFuelAmount] = useState('3150');
-  const [fuelLitres, setFuelLitres] = useState('35');
+  const [fuelAmount, setFuelAmount] = useState('2400');
+  const [fuelLitres, setFuelLitres] = useState('25.5');
   const [fuelBillName, setFuelBillName] = useState('');
   const [fuelBillPreview, setFuelBillPreview] = useState<string | null>(null);
+
+  // Missing Log Book Fields
+  const [journeyFrom, setJourneyFrom] = useState('GSON Base');
+  const [journeyTo, setJourneyTo] = useState('Jogiwala & Site');
+  const [purposeOfJourney, setPurposeOfJourney] = useState('Official Office Duty');
+  const [headOfAccount, setHeadOfAccount] = useState('PWD-M&E-2026');
+  const [motorOilUsed, setMotorOilUsed] = useState('None');
+  const [officerName, setOfficerName] = useState('Er. R. K. Singhal');
+  const [officerDesignation, setOfficerDesignation] = useState('Executive Engineer (Civil)');
+  const [officerSignatureStatus, setOfficerSignatureStatus] = useState<'Signed' | 'Pending' | 'Exempt'>('Signed');
+  const [driverSignatureStatus, setDriverSignatureStatus] = useState<'Signed' | 'Pending'>('Signed');
 
   // Weekend Trip Specific Fields
   const [tripDestination, setTripDestination] = useState('Delhi to Jaipur (Weekend Round Trip)');
   const [tripFare, setTripFare] = useState('14500');
   const [driverBata, setDriverBata] = useState('1200');
 
-  const [officerName, setOfficerName] = useState('');
   const [notes, setNotes] = useState('');
   const [slipPhotoName, setSlipPhotoName] = useState('');
   const [slipPhotoPreview, setSlipPhotoPreview] = useState<string | null>(null);
@@ -163,7 +174,15 @@ export const AddDutyLogModal: React.FC<AddDutyLogModalProps> = ({
         tollParkingAmount: tollNum,
         fuelAmount: fuelNum > 0 ? fuelNum : undefined,
         fuelLitres: fuelLitres ? Number(fuelLitres) : undefined,
+        motorOilUsed: motorOilUsed.trim() || 'None',
+        journeyFrom: tripDestination.split(' to ')[0] || 'Delhi Base',
+        journeyTo: tripDestination.split(' to ')[1] || tripDestination,
+        purposeOfJourney: 'Weekend Outstation Booking',
+        headOfAccount: 'Fleet Commercial Trips',
         officerName: 'Private Client (Weekend Trip)',
+        officerDesignation: 'Client Guest',
+        officerSignatureStatus: 'Signed',
+        driverSignatureStatus: 'Signed',
         dutySlipPhoto: slipPhotoPreview || slipPhotoName || null,
         fuelBillPhoto: fuelBillPreview || fuelBillName || null,
         status: 'Approved',
@@ -226,7 +245,15 @@ export const AddDutyLogModal: React.FC<AddDutyLogModalProps> = ({
         tollParkingAmount: tollNum,
         fuelAmount: fuelNum > 0 ? fuelNum : undefined,
         fuelLitres: fuelLitres ? Number(fuelLitres) : undefined,
+        motorOilUsed: motorOilUsed.trim() || 'None',
+        journeyFrom: journeyFrom.trim() || 'GSON Base',
+        journeyTo: journeyTo.trim() || 'Site Office',
+        purposeOfJourney: purposeOfJourney.trim() || 'Official Office Duty',
+        headOfAccount: headOfAccount.trim() || 'General Duty / Fleet',
         officerName: officerName.trim() || undefined,
+        officerDesignation: officerDesignation.trim() || undefined,
+        officerSignatureStatus,
+        driverSignatureStatus,
         dutySlipPhoto: slipPhotoPreview || slipPhotoName || null,
         fuelBillPhoto: fuelBillPreview || fuelBillName || null,
         status: 'Approved',
@@ -330,7 +357,7 @@ export const AddDutyLogModal: React.FC<AddDutyLogModalProps> = ({
                   }}
                   style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
                 >
-                  <Briefcase size={15} /> Weekend Trip (Sat / Sun)
+                  <Briefcase size={15} /> Weekend Booking (Sat / Sun)
                 </div>
               </div>
             </div>
@@ -355,13 +382,11 @@ export const AddDutyLogModal: React.FC<AddDutyLogModalProps> = ({
 
               <div className="form-group" style={{ marginBottom: 0 }}>
                 <label className="form-label">
-                  {dutyType === 'Weekend / Off-Duty Trip' ? 'Weekend Trip Date (Sat / Sun) *' : 'Duty Date *'}
+                  {dutyType === 'Weekend / Off-Duty Trip' ? 'Weekend Booking Date (Sat / Sun) *' : 'Duty Date *'}
                 </label>
-                <input
-                  type="date"
-                  className="form-input"
+                <DatePicker
                   value={date}
-                  onChange={e => setDate(e.target.value)}
+                  onChange={d => setDate(d)}
                   required
                 />
               </div>
@@ -371,23 +396,22 @@ export const AddDutyLogModal: React.FC<AddDutyLogModalProps> = ({
             {dutyType === 'Weekend / Off-Duty Trip' && (
               <div
                 style={{
-                  background: 'rgba(56, 189, 248, 0.07)',
-                  border: '1px solid rgba(56, 189, 248, 0.3)',
-                  padding: '12px 14px',
+                  background: 'rgba(56, 189, 248, 0.05)',
+                  border: '1px solid rgba(56, 189, 248, 0.2)',
                   borderRadius: '10px',
+                  padding: '14px',
                   display: 'flex',
                   flexDirection: 'column',
-                  gap: '10px'
+                  gap: '12px'
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#38bdf8', fontWeight: 600, fontSize: '13px' }}>
-                  <MapPin size={15} />
-                  <span>Weekend Commercial Trip Details (Sat / Sun Off-Duty Run)</span>
+                <div style={{ fontSize: '12.5px', fontWeight: 700, color: '#38bdf8', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Briefcase size={14} /> Weekend Commercial Booking Details & Net Profit
                 </div>
 
                 <div className="form-row-2">
                   <div className="form-group" style={{ marginBottom: 0 }}>
-                    <label className="form-label">Trip Route (Khn Se Khn Ki Trip) *</label>
+                    <label className="form-label">Booking Route *</label>
                     <input
                       type="text"
                       className="form-input"
@@ -399,7 +423,7 @@ export const AddDutyLogModal: React.FC<AddDutyLogModalProps> = ({
                   </div>
 
                   <div className="form-group" style={{ marginBottom: 0 }}>
-                    <label className="form-label">Customer Fare / Revenue (Kitne Ki Trip Hai) (₹) *</label>
+                    <label className="form-label">Customer Fare / Revenue (₹) *</label>
                     <input
                       type="number"
                       min="0"
@@ -414,7 +438,7 @@ export const AddDutyLogModal: React.FC<AddDutyLogModalProps> = ({
                 </div>
 
                 <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label">Driver Bata / Outstation Allowance (Driver Ko Kitna Diya) (₹)</label>
+                  <label className="form-label">Driver Bata / Outstation Allowance (₹)</label>
                   <input
                     type="number"
                     min="0"
@@ -427,7 +451,126 @@ export const AddDutyLogModal: React.FC<AddDutyLogModalProps> = ({
               </div>
             )}
 
-            {/* Driver & Duty Slip No / Officer */}
+            {/* Official Department Duty Log Book Fields */}
+            {dutyType === 'Official Department Duty' && (
+              <>
+                {/* Log Book: Details of Journey (From & To) */}
+                <div
+                  style={{
+                    background: 'var(--surface-2)',
+                    border: '1px solid var(--border)',
+                    borderRadius: '10px',
+                    padding: '12px 14px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '10px'
+                  }}
+                >
+                  <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Navigation size={13} color="var(--accent)" /> Details of Journey (Log Book Entry)
+                  </div>
+                  <div className="form-row-2">
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                      <label className="form-label">Journey From (Origin) *</label>
+                      <input
+                        type="text"
+                        className="form-input"
+                        placeholder="e.g. GSON / Head Office"
+                        value={journeyFrom}
+                        onChange={e => setJourneyFrom(e.target.value)}
+                        required
+                      />
+                    </div>
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                      <label className="form-label">Journey To (Destination) *</label>
+                      <input
+                        type="text"
+                        className="form-input"
+                        placeholder="e.g. Jogiwala / Treasury / Site"
+                        value={journeyTo}
+                        onChange={e => setJourneyTo(e.target.value)}
+                        required
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Purpose of Journey & Head of A/c */}
+                <div className="form-row-2">
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label className="form-label">Purpose of Journey *</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="e.g. for office duty, site inspection"
+                      value={purposeOfJourney}
+                      onChange={e => setPurposeOfJourney(e.target.value)}
+                      required
+                    />
+                    {/* Quick preset chips */}
+                    <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', marginTop: '6px' }}>
+                      {['Office Duty', 'Site Inspection', 'Treasury', 'PHC / Health', 'Bank Visit'].map(p => (
+                        <button
+                          type="button"
+                          key={p}
+                          onClick={() => setPurposeOfJourney(p)}
+                          style={{
+                            background: purposeOfJourney === p ? 'var(--accent)' : 'var(--surface-3)',
+                            color: purposeOfJourney === p ? '#fff' : 'var(--text-dim)',
+                            border: '1px solid var(--border)',
+                            borderRadius: '4px',
+                            padding: '2px 7px',
+                            fontSize: '10.5px',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          {p}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label className="form-label">Head of Account (Head of A/c)</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="e.g. PWD-M&E-2026 / Office Duty"
+                      value={headOfAccount}
+                      onChange={e => setHeadOfAccount(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                {/* Officer Name & Designation */}
+                <div className="form-row-2">
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label className="form-label">Officer Name *</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="e.g. Er. R. K. Singhal"
+                      value={officerName}
+                      onChange={e => setOfficerName(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label className="form-label">Officer Designation *</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="e.g. Executive Engineer (Civil) / AE / CMO"
+                      value={officerDesignation}
+                      onChange={e => setOfficerDesignation(e.target.value)}
+                      required
+                    />
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* Driver & Duty Slip No / Officer Reference */}
             <div className="form-row-2">
               <div className="form-group" style={{ marginBottom: 0 }}>
                 <label className="form-label">Driver Name (Pilot on Duty) *</label>
@@ -485,7 +628,12 @@ export const AddDutyLogModal: React.FC<AddDutyLogModalProps> = ({
               </div>
 
               <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label">End Odometer (KM) *</label>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <label className="form-label">End Odometer (KM) *</label>
+                  <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--accent)' }}>
+                    Done: {calcTotalKm} km
+                  </span>
+                </div>
                 <input
                   type="number"
                   min="0"
@@ -497,20 +645,44 @@ export const AddDutyLogModal: React.FC<AddDutyLogModalProps> = ({
               </div>
             </div>
 
-            {/* Fuel Dala & Toll Kata */}
+            {/* Fuel, Litres, Toll & M. Oil Used */}
             <div className="form-row-2">
               <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label">Fuel Expense (Kitne Ka Fuel Dala) (₹)</label>
-                <input
-                  type="number"
-                  min="0"
-                  className="form-input"
-                  placeholder="3150"
-                  value={fuelAmount}
-                  onChange={e => setFuelAmount(e.target.value)}
-                />
+                <label className="form-label">Fuel Expense (₹) & Litres</label>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                  <input
+                    type="number"
+                    min="0"
+                    className="form-input"
+                    placeholder="₹ Amount"
+                    value={fuelAmount}
+                    onChange={e => setFuelAmount(e.target.value)}
+                  />
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.1"
+                    className="form-input"
+                    placeholder="Litres"
+                    value={fuelLitres}
+                    onChange={e => setFuelLitres(e.target.value)}
+                  />
+                </div>
               </div>
 
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label">M. Oil / Other Stores Used</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="e.g. 1 L Mobil Super / None"
+                  value={motorOilUsed}
+                  onChange={e => setMotorOilUsed(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="form-row-2">
               <div className="form-group" style={{ marginBottom: 0 }}>
                 <label className="form-label">FASTag Toll Paid (₹)</label>
                 <input
@@ -521,6 +693,55 @@ export const AddDutyLogModal: React.FC<AddDutyLogModalProps> = ({
                   value={tollParkingAmount}
                   onChange={e => setTollParkingAmount(e.target.value)}
                 />
+              </div>
+
+              {/* Signatures verification status */}
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label">Log Book Signatures (Sig.)</label>
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center', height: '38px' }}>
+                  <button
+                    type="button"
+                    onClick={() => setOfficerSignatureStatus(prev => prev === 'Signed' ? 'Pending' : 'Signed')}
+                    style={{
+                      flex: 1,
+                      padding: '7px 8px',
+                      fontSize: '11px',
+                      fontWeight: 600,
+                      borderRadius: '6px',
+                      border: officerSignatureStatus === 'Signed' ? '1px solid #39ff6e' : '1px solid var(--border)',
+                      background: officerSignatureStatus === 'Signed' ? 'rgba(57, 255, 110, 0.12)' : 'var(--surface-2)',
+                      color: officerSignatureStatus === 'Signed' ? '#39ff6e' : 'var(--text-faint)',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '4px'
+                    }}
+                  >
+                    <CheckCircle2 size={12} /> {officerSignatureStatus === 'Signed' ? 'Sig. Officer' : 'Officer Pending'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDriverSignatureStatus(prev => prev === 'Signed' ? 'Pending' : 'Signed')}
+                    style={{
+                      flex: 1,
+                      padding: '7px 8px',
+                      fontSize: '11px',
+                      fontWeight: 600,
+                      borderRadius: '6px',
+                      border: driverSignatureStatus === 'Signed' ? '1px solid #39ff6e' : '1px solid var(--border)',
+                      background: driverSignatureStatus === 'Signed' ? 'rgba(57, 255, 110, 0.12)' : 'var(--surface-2)',
+                      color: driverSignatureStatus === 'Signed' ? '#39ff6e' : 'var(--text-faint)',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '4px'
+                    }}
+                  >
+                    <CheckCircle2 size={12} /> {driverSignatureStatus === 'Signed' ? 'Sig. Driver' : 'Driver Pending'}
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -542,13 +763,13 @@ export const AddDutyLogModal: React.FC<AddDutyLogModalProps> = ({
                     Total KM: <b>{calcTotalKm} km</b> · Total Expenses: <b>₹{totalTripExpenses.toLocaleString('en-IN')}</b>
                   </div>
                   <div style={{ fontSize: '15px', fontWeight: 800, color: netTripProfit >= 0 ? '#39ff6e' : 'var(--danger)', marginTop: '2px' }}>
-                    Net Munafa (Profit): ₹{netTripProfit.toLocaleString('en-IN')} ({tripMargin})
+                    Net Profit: ₹{netTripProfit.toLocaleString('en-IN')} ({tripMargin})
                   </div>
                 </div>
 
                 <div style={{ textAlign: 'right', fontSize: '11px', color: 'var(--text-dim)' }}>
                   <div>Fare: ₹{fareNum.toLocaleString('en-IN')}</div>
-                  <div style={{ color: 'var(--danger)' }}>- Kharcha: ₹{totalTripExpenses.toLocaleString('en-IN')}</div>
+                  <div style={{ color: 'var(--danger)' }}>- Expenses: ₹{totalTripExpenses.toLocaleString('en-IN')}</div>
                 </div>
               </div>
             )}
@@ -570,11 +791,11 @@ export const AddDutyLogModal: React.FC<AddDutyLogModalProps> = ({
               <AlertCircle size={15} style={{ flexShrink: 0, color: 'var(--accent)' }} />
               {dutyType === 'Weekend / Off-Duty Trip' ? (
                 <span>
-                  <b>Audit Note:</b> Ye log <b>{selectedContract?.departmentName}</b> ke monthly tender bill me shamil <b>NAHI</b> hoga. Iska pure munafa <b>Trips Ledger</b> me record hoga aur gaadi ka odometer reading update rahega.
+                  <b>Audit Note:</b> This log will <b>NOT</b> be included in <b>{selectedContract?.departmentName}</b>'s monthly tender bill. Its net profit will be recorded in the <b>Trips Ledger</b> and vehicle odometer will stay updated.
                 </span>
               ) : (
                 <span>
-                  Ye official department duty slip hai. Iska extra KM aur toll department ke monthly invoice me judega.
+                  This is an official department duty slip. Extra KM and tolls will be billed to the department's monthly invoice.
                 </span>
               )}
             </div>

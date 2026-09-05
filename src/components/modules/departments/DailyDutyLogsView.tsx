@@ -3,11 +3,27 @@ import { useFleet } from '../../../context/FleetContext';
 import { StatCard } from '../../common/StatCard';
 import { AddDutyLogModal } from './AddDutyLogModal';
 import { DailyDutyLog } from '../../../types/fleet';
-import { Building2, Briefcase, Plus, Calendar, FileText, CheckCircle2, MapPin, Fuel, CreditCard } from 'lucide-react';
+import {
+  Building2,
+  Briefcase,
+  Plus,
+  Calendar,
+  FileText,
+  CheckCircle2,
+  MapPin,
+  Fuel,
+  CreditCard,
+  BookOpen,
+  Trash2,
+  Printer,
+  Navigation,
+  Droplets,
+  UserCheck
+} from 'lucide-react';
 import { SkeletonCard, SkeletonTable } from '../../common/Skeleton';
 
 export const DailyDutyLogsView: React.FC = () => {
-  const { dailyDutyLogs, updateDailyDutyLogStatus, searchQuery, isLoading } = useFleet();
+  const { dailyDutyLogs, updateDailyDutyLogStatus, deleteDailyDutyLog, searchQuery, isLoading } = useFleet();
 
   const [deptFilter, setDeptFilter] = useState<string>('All');
   const [dutyCategoryFilter, setDutyCategoryFilter] = useState<'All' | 'Official' | 'Weekend'>('All');
@@ -17,16 +33,24 @@ export const DailyDutyLogsView: React.FC = () => {
     'Official Department Duty' | 'Weekend / Off-Duty Trip'
   >('Official Department Duty');
   const [viewSlip, setViewSlip] = useState<{ title: string; src: string } | null>(null);
+  const [selectedLogBookSlip, setSelectedLogBookSlip] = useState<DailyDutyLog | null>(null);
 
   const filteredLogs = useMemo(() => {
     return dailyDutyLogs.filter(log => {
+      const q = searchQuery.toLowerCase();
       const matchSearch =
-        log.departmentName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        log.dutySlipNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        log.vehicle.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        log.driverName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (log.tripDestination && log.tripDestination.toLowerCase().includes(searchQuery.toLowerCase())) ||
-        (log.officerName && log.officerName.toLowerCase().includes(searchQuery.toLowerCase()));
+        !q ||
+        log.departmentName.toLowerCase().includes(q) ||
+        log.dutySlipNumber.toLowerCase().includes(q) ||
+        log.vehicle.toLowerCase().includes(q) ||
+        log.driverName.toLowerCase().includes(q) ||
+        (log.journeyFrom && log.journeyFrom.toLowerCase().includes(q)) ||
+        (log.journeyTo && log.journeyTo.toLowerCase().includes(q)) ||
+        (log.purposeOfJourney && log.purposeOfJourney.toLowerCase().includes(q)) ||
+        (log.headOfAccount && log.headOfAccount.toLowerCase().includes(q)) ||
+        (log.officerDesignation && log.officerDesignation.toLowerCase().includes(q)) ||
+        (log.tripDestination && log.tripDestination.toLowerCase().includes(q)) ||
+        (log.officerName && log.officerName.toLowerCase().includes(q));
 
       const matchDept = deptFilter === 'All' || log.departmentName === deptFilter;
       const matchStatus = statusFilter === 'All' || log.status === statusFilter;
@@ -142,15 +166,15 @@ export const DailyDutyLogsView: React.FC = () => {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       {/* Stats Grid */}
       <div className="stats-grid">
-        <StatCard label="Total Duty & Trip Slips" value={stats.totalSlips} />
+        <StatCard label="Total Duty & Booking Slips" value={stats.totalSlips} />
         <StatCard label="Total Kilometres Run" value={`${stats.totalKm.toLocaleString('en-IN')} km`} />
         <StatCard
-          label="Sat / Sun Weekend Trips Done"
-          value={`${stats.weekendTripsCount} Trips`}
+          label="Sat / Sun Weekend Bookings Done"
+          value={`${stats.weekendTripsCount} Bookings`}
           customColor="#38bdf8"
         />
         <StatCard
-          label="Weekend Private Profit (Munafa)"
+          label="Weekend Private Profit"
           value={`₹${stats.weekendTripProfit.toLocaleString('en-IN')}`}
           customColor="#39ff6e"
         />
@@ -160,7 +184,7 @@ export const DailyDutyLogsView: React.FC = () => {
       <div className="panel">
         <div className="panel-head" style={{ flexWrap: 'wrap', gap: '10px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <span className="panel-title">Daily Duty Slips & Weekend Trip Logs</span>
+            <span className="panel-title">Daily Duty Slips & Weekend Booking Logs</span>
             <span style={{ fontSize: '12px', color: 'var(--text-faint)' }}>
               ({filteredLogs.length} logs)
             </span>
@@ -194,7 +218,7 @@ export const DailyDutyLogsView: React.FC = () => {
                 color: dutyCategoryFilter === 'Weekend' ? '#38bdf8' : undefined
               }}
             >
-              <Briefcase size={13} /> Sat/Sun Trips ({stats.weekendTripsCount})
+              <Briefcase size={13} /> Sat/Sun Bookings ({stats.weekendTripsCount})
             </button>
 
             {/* Department Filter */}
@@ -238,9 +262,9 @@ export const DailyDutyLogsView: React.FC = () => {
                 gap: '5px'
               }}
               onClick={() => handleOpenModal('Weekend / Off-Duty Trip')}
-              title="Record commercial outstation trip taken by department car on Saturday or Sunday"
+              title="Record commercial outstation booking taken by department car on Saturday or Sunday"
             >
-              <Briefcase size={13} /> + Log Weekend Trip (Sat/Sun)
+              <Briefcase size={13} /> + Log Weekend Booking (Sat/Sun)
             </button>
 
             {/* Log Official Duty Slip Button */}
@@ -274,7 +298,7 @@ export const DailyDutyLogsView: React.FC = () => {
               {filteredLogs.length === 0 ? (
                 <tr>
                   <td colSpan={10} style={{ textAlign: 'center', color: 'var(--text-faint)', padding: '30px 0' }}>
-                    No daily duty or weekend trip logs match your query. Click "+ Log Weekend Trip" or "+ Log Official Duty".
+                    No daily duty or weekend booking logs match your query. Click "+ Log Weekend Booking" or "+ Log Official Duty".
                   </td>
                 </tr>
               ) : (
@@ -306,7 +330,7 @@ export const DailyDutyLogsView: React.FC = () => {
                           <span className={`tag ${isWeekend ? 'trip' : 'dept'}`} style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
                             {isWeekend ? (
                               <>
-                                <Briefcase size={10} /> Sat/Sun Trip
+                                <Briefcase size={10} /> Sat/Sun Booking
                               </>
                             ) : (
                               <>
@@ -354,7 +378,7 @@ export const DailyDutyLogsView: React.FC = () => {
                         {isWeekend ? (
                           <div>
                             <div style={{ fontSize: '12.5px', fontWeight: 800, color: '#39ff6e' }}>
-                              +₹{(log.tripNetProfit || 0).toLocaleString('en-IN')} Munafa
+                              +₹{(log.tripNetProfit || 0).toLocaleString('en-IN')} Profit
                             </div>
                             <div style={{ fontSize: '10.5px', color: 'var(--text-faint)', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>
                               Fare: ₹{(log.tripFare || 0).toLocaleString('en-IN')} · <Fuel size={10} color="#ffcc4d" /> ₹{log.fuelAmount || 0}

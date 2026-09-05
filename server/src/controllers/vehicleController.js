@@ -160,7 +160,7 @@ export const onboardVehicle = asyncHandler(async (req, res) => {
     complianceEntries.push({
       entityName: cleanReg,
       entityType: 'Vehicle',
-      documentName: 'Registration Certificate (RC)',
+      documentName: 'RC',
       expiryDate: rcExpiry || '',
       documentPhoto: rcPhoto || null,
       expiryLabel: meta.expiryLabel,
@@ -175,7 +175,7 @@ export const onboardVehicle = asyncHandler(async (req, res) => {
     complianceEntries.push({
       entityName: cleanReg,
       entityType: 'Vehicle',
-      documentName: 'Commercial Insurance Policy',
+      documentName: 'Insurance',
       expiryDate: insuranceExpiry || '',
       documentPhoto: insurancePhoto || null,
       expiryLabel: meta.expiryLabel,
@@ -191,7 +191,7 @@ export const onboardVehicle = asyncHandler(async (req, res) => {
     complianceEntries.push({
       entityName: cleanReg,
       entityType: 'Vehicle',
-      documentName: 'Pollution Under Control (PUCC)',
+      documentName: 'PUC',
       expiryDate: finalPollutionExpiry || '',
       documentPhoto: pollutionPhoto || null,
       expiryLabel: meta.expiryLabel,
@@ -206,7 +206,7 @@ export const onboardVehicle = asyncHandler(async (req, res) => {
     complianceEntries.push({
       entityName: cleanReg,
       entityType: 'Vehicle',
-      documentName: 'Commercial Vehicle Permit',
+      documentName: 'Permit',
       expiryDate: permitExpiry || '',
       documentPhoto: permitPhoto || null,
       expiryLabel: meta.expiryLabel,
@@ -221,7 +221,7 @@ export const onboardVehicle = asyncHandler(async (req, res) => {
     complianceEntries.push({
       entityName: cleanReg,
       entityType: 'Vehicle',
-      documentName: 'Permit Authorization (Auth)',
+      documentName: 'Auth',
       expiryDate: authExpiry || '',
       documentPhoto: authPhoto || null,
       expiryLabel: meta.expiryLabel,

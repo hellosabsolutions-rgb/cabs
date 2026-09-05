@@ -53,19 +53,19 @@ export const TripVehiclesView: React.FC = () => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-      {/* Trip Fleet Stats */}
+      {/* Booking Fleet Stats */}
       <div className="stats-grid">
-        <StatCard label="Trip & Taxi Fleet" value={stats.total} customColor="var(--accent)" />
-        <StatCard label="On Active Trip" value={stats.onTrip} />
+        <StatCard label="Booking & Taxi Fleet" value={stats.total} customColor="var(--accent)" />
+        <StatCard label="On Active Booking" value={stats.onTrip} />
         <StatCard label="Available in Stand / Hub" value={stats.available} />
-        <StatCard label="Total Trip Revenue (₹)" value={`₹${stats.totalRev.toLocaleString('en-IN')}`} />
+        <StatCard label="Total Booking Revenue (₹)" value={`₹${stats.totalRev.toLocaleString('en-IN')}`} />
       </div>
 
-      {/* Trip Vehicles Table Panel */}
+      {/* Booking Vehicles Table Panel */}
       <div className="panel">
         <div className="panel-head" style={{ flexWrap: 'wrap', gap: '10px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <span className="panel-title">Commercial Trip & Rental Fleet</span>
+            <span className="panel-title">Commercial Booking & Rental Fleet</span>
             <span style={{ fontSize: '12px', color: 'var(--text-faint)' }}>
               ({filtered.length} vehicles)
             </span>
@@ -78,8 +78,8 @@ export const TripVehiclesView: React.FC = () => {
               value={statusFilter}
               onChange={e => setStatusFilter(e.target.value)}
             >
-              <option value="All">All Trip Statuses</option>
-              <option value="Running">On Active Trip (Running)</option>
+              <option value="All">All Booking Statuses</option>
+              <option value="Running">On Active Booking (Running)</option>
               <option value="Idle">Available in Stand (Idle)</option>
               <option value="Maintenance">In Workshop (Maintenance)</option>
             </select>
@@ -89,7 +89,7 @@ export const TripVehiclesView: React.FC = () => {
               style={{ fontSize: '12px', padding: '7px 16px' }}
               onClick={() => setIsModalOpen(true)}
             >
-              + Add Trip Vehicle
+              + Add Booking Vehicle
             </button>
           </div>
         </div>
@@ -103,7 +103,7 @@ export const TripVehiclesView: React.FC = () => {
                 <th>Current Route / Stand</th>
                 <th>Driver On Duty</th>
                 <th>Odometer & Fuel</th>
-                <th>Trip Revenue</th>
+                <th>Booking Revenue</th>
                 <th>Booking Status</th>
               </tr>
             </thead>
@@ -111,7 +111,7 @@ export const TripVehiclesView: React.FC = () => {
               {filtered.length === 0 ? (
                 <tr>
                   <td colSpan={7} style={{ textAlign: 'center', color: 'var(--text-faint)', padding: '30px 0' }}>
-                    No trip vehicles found matching your filter.
+                    No booking vehicles found matching your filter.
                   </td>
                 </tr>
               ) : (
@@ -130,7 +130,7 @@ export const TripVehiclesView: React.FC = () => {
 
                     <td>
                       <span className="tag trip" style={{ fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                        <Briefcase size={11} /> Trip-based
+                        <Briefcase size={11} /> Booking-based
                       </span>
                     </td>
 

@@ -1,24 +1,27 @@
 import express from 'express';
-import { Compliance } from '../models/Compliance.js';
-import { createCrudController } from '../controllers/crudFactory.js';
+import {
+  getComplianceDocs,
+  getComplianceExpiry,
+  createComplianceDoc,
+  updateComplianceDoc,
+  deleteComplianceDoc
+} from '../controllers/complianceController.js';
 
 const router = express.Router();
-const complianceController = createCrudController(Compliance, [
-  'entityName',
-  'documentName',
-  'documentNumber',
-  'issuingAuthority'
-]);
 
+// Real-time calculated Expiry alerts, vehicle & driver breakdowns
+router.get('/expiry', getComplianceExpiry);
+router.get('/alerts', getComplianceExpiry);
+
+// General compliance endpoints
 router
   .route('/')
-  .get(complianceController.getAll)
-  .post(complianceController.create);
+  .get(getComplianceDocs)
+  .post(createComplianceDoc);
 
 router
   .route('/:id')
-  .get(complianceController.getById)
-  .put(complianceController.update)
-  .delete(complianceController.delete);
+  .put(updateComplianceDoc)
+  .delete(deleteComplianceDoc);
 
 export default router;

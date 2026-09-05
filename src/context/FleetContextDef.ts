@@ -61,21 +61,31 @@ export interface FleetContextType {
   updateDriver: (id: string, data: Partial<Driver>) => Promise<{ success: boolean; driver?: Driver; error?: string }>;
   deleteDriver: (id: string) => Promise<{ success: boolean; error?: string }>;
   attendanceRecords: DriverAttendance[];
-  markAttendance: (record: Omit<DriverAttendance, 'id'>) => void;
-  updateAttendanceStatus: (id: string, status: AttendanceStatus) => void;
+  markAttendance: (record: Omit<DriverAttendance, 'id'>) => Promise<{ success: boolean; data?: DriverAttendance; error?: string } | void> | void;
+  updateAttendanceStatus: (id: string, status: AttendanceStatus) => Promise<{ success: boolean; data?: DriverAttendance; error?: string } | void> | void;
+  updateAttendance: (id: string, data: Partial<DriverAttendance>) => Promise<{ success: boolean; data?: DriverAttendance; error?: string }>;
+  bulkMarkAttendance: (date: string, records: Omit<DriverAttendance, 'id'>[]) => Promise<{ success: boolean; error?: string }>;
+  fetchLiveAttendance: (queryParam?: string | { date?: string; month?: string; year?: string }) => Promise<void>;
   driverExpenses: DriverExpenseItem[];
-  addDriverExpense: (expense: Omit<DriverExpenseItem, 'id'>) => void;
-  updateDriverExpenseStatus: (id: string, status: 'Approved' | 'Pending' | 'Paid') => void;
+  fetchLiveDriverExpenses: (queryParam?: string | { date?: string; month?: string; year?: string; driver?: string; driverName?: string; driverId?: string }) => Promise<void>;
+  addDriverExpense: (expense: Omit<DriverExpenseItem, 'id'>) => Promise<{ success: boolean; data?: DriverExpenseItem; error?: string }>;
+  updateDriverExpense: (id: string, data: Partial<DriverExpenseItem>) => Promise<{ success: boolean; data?: DriverExpenseItem; error?: string }>;
+  updateDriverExpenseStatus: (id: string, status: 'Approved' | 'Pending' | 'Paid') => Promise<{ success: boolean; data?: DriverExpenseItem; error?: string }>;
+  deleteDriverExpense: (id: string) => Promise<{ success: boolean; error?: string }>;
 
   // Department subtabs & actions
   departmentSubTab: DepartmentSubTab;
   setDepartmentSubTab: (tab: DepartmentSubTab) => void;
   departmentContracts: DepartmentContract[];
-  addDepartmentContract: (contract: Omit<DepartmentContract, 'id'>) => void;
-  updateContractStatus: (id: string, status: DepartmentContract['status']) => void;
+  addDepartmentContract: (contract: Omit<DepartmentContract, 'id'>) => Promise<{ success: boolean; contract?: DepartmentContract; error?: string }>;
+  updateContractStatus: (id: string, status: DepartmentContract['status']) => Promise<void>;
+  updateDepartmentContract: (id: string, data: Partial<DepartmentContract>) => Promise<{ success: boolean; contract?: DepartmentContract; error?: string }>;
+  deleteDepartmentContract: (id: string) => Promise<{ success: boolean; error?: string }>;
   dailyDutyLogs: DailyDutyLog[];
-  addDailyDutyLog: (log: Omit<DailyDutyLog, 'id'>) => void;
-  updateDailyDutyLogStatus: (id: string, status: DailyDutyLog['status']) => void;
+  fetchLiveDailyDutyLogs: (queryParam?: { month?: string; date?: string; vehicle?: string; department?: string; status?: string; search?: string }) => Promise<void>;
+  addDailyDutyLog: (log: Omit<DailyDutyLog, 'id'>) => Promise<{ success: boolean; log?: DailyDutyLog; error?: string }>;
+  updateDailyDutyLogStatus: (id: string, status: DailyDutyLog['status']) => Promise<void>;
+  deleteDailyDutyLog: (id: string) => Promise<{ success: boolean; error?: string }>;
   monthlyBills: MonthlyDepartmentBill[];
   addMonthlyBill: (bill: Omit<MonthlyDepartmentBill, 'id'>) => void;
   updateBillStatus: (id: string, status: MonthlyDepartmentBill['status']) => void;
@@ -102,7 +112,10 @@ export interface FleetContextType {
 
   contracts: ContractDepartment[];
   trips: TripFinancial[];
-  addTrip: (trip: Omit<TripFinancial, 'id'>) => void;
+  bookings: TripFinancial[];
+  fetchLiveBookings: () => Promise<void>;
+  addTrip: (trip: Omit<TripFinancial, 'id'>) => Promise<{ success: boolean; data?: TripFinancial; error?: string } | void> | void;
+  addBooking: (booking: Partial<TripFinancial>) => Promise<{ success: boolean; data?: TripFinancial; error?: string }>;
   completeTrip: (
     id: string,
     data: {
@@ -112,8 +125,37 @@ export interface FleetContextType {
       driverBata: number;
       otherExpenses?: number;
       notes?: string;
+      balanceReceived?: boolean;
+      balancePaid?: number;
+      balancePaymentMode?: string;
+      paymentNotes?: string;
     }
-  ) => void;
+  ) => Promise<{ success: boolean; data?: TripFinancial; error?: string } | void> | void;
+  completeBooking: (
+    id: string,
+    data: {
+      endOdometer: number;
+      fuelCost: number;
+      fastagCost: number;
+      driverBata: number;
+      otherExpenses?: number;
+      notes?: string;
+      balanceReceived?: boolean;
+      balancePaid?: number;
+      balancePaymentMode?: string;
+      paymentNotes?: string;
+    }
+  ) => Promise<{ success: boolean; data?: TripFinancial; error?: string }>;
+  recordBookingPayment: (
+    id: string,
+    payment: {
+      amount: number;
+      paymentMode?: string;
+      paymentDate?: string;
+      notes?: string;
+    }
+  ) => Promise<{ success: boolean; data?: TripFinancial; error?: string }>;
+  checkVehicleAvailability: (date: string) => Promise<import('../types/fleet').VehicleAvailabilityResult | null>;
   expenses: ExpenseRecord[];
   addExpense: (expense: Omit<ExpenseRecord, 'id'>) => void;
   maintenanceRecords: MaintenanceRecord[];

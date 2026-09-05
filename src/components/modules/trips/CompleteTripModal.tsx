@@ -196,14 +196,14 @@ export const CompleteTripModal: React.FC<CompleteTripModalProps> = ({
               }}
             >
               <div style={{ fontSize: '12.5px', fontWeight: 600, color: 'var(--text)' }}>
-                Final Trip Expenses Breakdown (Kharcha)
+                Final Trip Expenses Breakdown
               </div>
 
-              {/* Fuel Dala */}
+              {/* Fuel Refill */}
               <div className="form-row-2">
                 <div className="form-group" style={{ marginBottom: 0 }}>
                   <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <Fuel size={13} color="#ffcc4d" /> Fuel Kitne Ka Dala (₹) *
+                    <Fuel size={13} color="#ffcc4d" /> Fuel Cost (₹) *
                   </label>
                   <input
                     type="number"
@@ -216,10 +216,10 @@ export const CompleteTripModal: React.FC<CompleteTripModalProps> = ({
                   />
                 </div>
 
-                {/* FASTag Kitna */}
+                {/* FASTag Toll */}
                 <div className="form-group" style={{ marginBottom: 0 }}>
                   <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <CreditCard size={13} color="#38bdf8" /> Kitna FASTag Toll Laga (₹) *
+                    <CreditCard size={13} color="#38bdf8" /> FASTag Toll (₹) *
                   </label>
                   <input
                     type="number"
@@ -233,11 +233,11 @@ export const CompleteTripModal: React.FC<CompleteTripModalProps> = ({
                 </div>
               </div>
 
-              {/* Driver Ko Kitna Diya & Other Expenses */}
+              {/* Driver Allowance & Other Expenses */}
               <div className="form-row-2">
                 <div className="form-group" style={{ marginBottom: 0 }}>
                   <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <User size={13} /> Driver Ko Kitna Diya (Bata ₹) *
+                    <User size={13} /> Driver Bata / Allowance (₹) *
                   </label>
                   <input
                     type="number"
@@ -294,7 +294,7 @@ export const CompleteTripModal: React.FC<CompleteTripModalProps> = ({
                 }}
               >
                 <div>
-                  <div style={{ fontSize: '11px', color: 'var(--text-faint)' }}>COUNT PROFIT (MUNAFA)</div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-faint)' }}>NET PROFIT</div>
                   <div
                     style={{
                       fontSize: '20px',

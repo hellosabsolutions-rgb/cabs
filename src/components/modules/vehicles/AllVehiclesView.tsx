@@ -89,7 +89,7 @@ export const AllVehiclesView: React.FC = () => {
             >
               <option value="All">All Categories</option>
               <option value="Department">Department</option>
-              <option value="Trip-based">Trip-based</option>
+              <option value="Trip-based">Booking-based</option>
             </select>
 
             <select
@@ -157,7 +157,7 @@ export const AllVehiclesView: React.FC = () => {
                           </>
                         ) : (
                           <>
-                            <Briefcase size={11} /> Trip-based
+                            <Briefcase size={11} /> Booking-based
                           </>
                         )}
                       </span>
@@ -168,7 +168,7 @@ export const AllVehiclesView: React.FC = () => {
                         {v.departmentName || v.assignedTo}
                       </div>
                       <div style={{ fontSize: '11px', color: 'var(--text-faint)', marginTop: '2px' }}>
-                        {v.type === 'Department' ? 'Tender Contract' : 'Trip Stand'}
+                        {v.type === 'Department' ? 'Tender Contract' : 'Booking Stand'}
                       </div>
                     </td>
 

@@ -1,19 +1,20 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useFleet } from '../../../context/FleetContext';
-import { DriverType } from '../../../types/fleet';
-import { UserPlus, Camera, IdCard } from 'lucide-react';
+import { Driver, DriverType } from '../../../types/fleet';
+import { Edit2, Camera, IdCard, Loader2 } from 'lucide-react';
 import { MinimalVoiceFiller } from '../../common/MinimalVoiceFiller';
 import { DatePicker } from '../../common/DatePicker';
 
-interface AddDriverModalProps {
+interface EditDriverModalProps {
   isOpen: boolean;
   onClose: () => void;
+  driver: Driver | null;
 }
 
 const driverTypes: DriverType[] = ['Full Time', 'Part Time', 'Contract', 'Owner Driver'];
 
-export const AddDriverModal: React.FC<AddDriverModalProps> = ({ isOpen, onClose }) => {
-  const { vehicles, addDriver } = useFleet();
+export const EditDriverModal: React.FC<EditDriverModalProps> = ({ isOpen, onClose, driver }) => {
+  const { vehicles, updateDriver } = useFleet();
 
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
@@ -22,11 +23,11 @@ export const AddDriverModal: React.FC<AddDriverModalProps> = ({ isOpen, onClose 
   const [licenseNumber, setLicenseNumber] = useState('');
   const [licenseExpiry, setLicenseExpiry] = useState('');
   const [driverType, setDriverType] = useState<DriverType>('Full Time');
-  const [assignedVehicle, setAssignedVehicle] = useState(vehicles[0]?.registrationNumber || 'DL01AB1234');
+  const [assignedVehicle, setAssignedVehicle] = useState('—');
   const [status, setStatus] = useState<'On duty' | 'Off duty'>('On duty');
-  const [joiningDate, setJoiningDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [joiningDate, setJoiningDate] = useState('');
 
-  // Photo uploads
+  // Photos
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [licensePhotoPreview, setLicensePhotoPreview] = useState<string | null>(null);
   const [licenseFileName, setLicenseFileName] = useState<string>('');
@@ -37,7 +38,27 @@ export const AddDriverModal: React.FC<AddDriverModalProps> = ({ isOpen, onClose 
   const photoInputRef = useRef<HTMLInputElement>(null);
   const licenseInputRef = useRef<HTMLInputElement>(null);
 
-  // Close on ESC key
+  // Sync form state with selected driver
+  useEffect(() => {
+    if (driver) {
+      setName(driver.name || '');
+      setPhone(driver.phone || '');
+      setAddress(driver.address || '');
+      setEmergencyContact(driver.emergencyContact || '');
+      setLicenseNumber(driver.licenseNumber || '');
+      setLicenseExpiry(driver.licenseExpiry || '');
+      setDriverType(driver.driverType || 'Full Time');
+      setAssignedVehicle(driver.assignedVehicle || '—');
+      setStatus(driver.status || 'On duty');
+      setJoiningDate(driver.joiningDate || '');
+      setPhotoPreview(driver.photo || null);
+      setLicensePhotoPreview(driver.licensePhoto || null);
+      setLicenseFileName('');
+      setErrorMsg('');
+    }
+  }, [driver, isOpen]);
+
+  // Close on ESC
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && !isSubmitting) {
@@ -54,7 +75,7 @@ export const AddDriverModal: React.FC<AddDriverModalProps> = ({ isOpen, onClose 
     };
   }, [isOpen, onClose, isSubmitting]);
 
-  if (!isOpen) return null;
+  if (!isOpen || !driver) return null;
 
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -91,22 +112,11 @@ export const AddDriverModal: React.FC<AddDriverModalProps> = ({ isOpen, onClose 
       return;
     }
 
-    // Format Joining Date
-    let formattedDate = joiningDate;
-    if (joiningDate) {
-      const d = new Date(joiningDate + 'T00:00:00');
-      formattedDate = d.toLocaleDateString('en-GB', {
-        day: '2-digit',
-        month: 'short',
-        year: 'numeric'
-      });
-    }
-
     setIsSubmitting(true);
     setErrorMsg('');
 
     try {
-      const res = await addDriver({
+      const res = await updateDriver(driver.id, {
         name: name.trim(),
         phone: phone.trim(),
         photo: photoPreview || undefined,
@@ -117,30 +127,20 @@ export const AddDriverModal: React.FC<AddDriverModalProps> = ({ isOpen, onClose 
         licenseExpiry: licenseExpiry || undefined,
         driverType,
         assignedVehicle: assignedVehicle || '—',
-        joiningDate: formattedDate,
+        joiningDate: joiningDate || driver.joiningDate,
         status
       });
 
       if (res && !res.success) {
-        setErrorMsg(res.error || 'Failed to save driver. Please try again.');
+        setErrorMsg(res.error || 'Failed to update driver details.');
         setIsSubmitting(false);
         return;
       }
 
-      // Reset & Close
-      setName('');
-      setPhone('');
-      setAddress('');
-      setEmergencyContact('');
-      setLicenseNumber('');
-      setPhotoPreview(null);
-      setLicensePhotoPreview(null);
-      setLicenseFileName('');
-      setErrorMsg('');
       setIsSubmitting(false);
       onClose();
     } catch (err: any) {
-      setErrorMsg(err.message || 'An unexpected error occurred.');
+      setErrorMsg(err.message || 'An unexpected error occurred while saving.');
       setIsSubmitting(false);
     }
   };
@@ -152,9 +152,11 @@ export const AddDriverModal: React.FC<AddDriverModalProps> = ({ isOpen, onClose 
         <div className="modal-header">
           <div className="modal-title-group">
             <h3 className="modal-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <UserPlus size={18} color="var(--accent)" /> Add New Driver
+              <Edit2 size={18} color="var(--accent)" /> Edit Driver Details
             </h3>
-            <span className="modal-subtitle">Fill in driver identity, license & employment details</span>
+            <span className="modal-subtitle">
+              Updating profile and credentials for <strong style={{ color: 'var(--text)' }}>{driver.name}</strong>
+            </span>
           </div>
           <button className="modal-close-btn" onClick={onClose} type="button" title="Close modal">
             ✕
@@ -168,7 +170,7 @@ export const AddDriverModal: React.FC<AddDriverModalProps> = ({ isOpen, onClose 
             <MinimalVoiceFiller
               formType="driver"
               context={{ vehicles: vehicles.map(v => v.registrationNumber) }}
-              placeholder="Speak driver details (e.g. 'Driver Rajesh Sharma phone 9876543210 Full Time DL01AB1234')"
+              placeholder="Speak driver updates (e.g. 'phone 9876543210 Full Time DL02CD5678')"
               onApplyParsedData={(data) => {
                 if (data.name) setName(data.name);
                 if (data.phone) setPhone(data.phone);
@@ -370,7 +372,7 @@ export const AddDriverModal: React.FC<AddDriverModalProps> = ({ isOpen, onClose 
               </div>
             </div>
 
-            {/* Vehicle & Status & Joining Date */}
+            {/* Vehicle & Status */}
             <div className="form-row-2">
               <div className="form-group" style={{ marginBottom: 0 }}>
                 <label className="form-label">Assigned Vehicle</label>
@@ -389,7 +391,7 @@ export const AddDriverModal: React.FC<AddDriverModalProps> = ({ isOpen, onClose 
               </div>
 
               <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label">Status</label>
+                <label className="form-label">Duty Status</label>
                 <select
                   className="form-input"
                   value={status}
@@ -401,30 +403,41 @@ export const AddDriverModal: React.FC<AddDriverModalProps> = ({ isOpen, onClose 
               </div>
             </div>
 
+            {/* Joining Date */}
             <div className="form-group" style={{ marginBottom: 0 }}>
               <label className="form-label">Joining Date</label>
-              <DatePicker
+              <input
+                type="text"
+                className="form-input"
+                placeholder="e.g. 12 Jan 2024"
                 value={joiningDate}
-                onChange={d => setJoiningDate(d)}
+                onChange={e => setJoiningDate(e.target.value)}
               />
             </div>
           </div>
 
-          {/* Footer */}
+          {/* Footer Actions */}
           <div className="modal-footer">
-            <button type="button" className="btn-secondary" onClick={onClose} disabled={isSubmitting}>
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={onClose}
+              disabled={isSubmitting}
+            >
               Cancel
             </button>
-            <button type="submit" className="btn-primary-action" disabled={isSubmitting}>
+            <button
+              type="submit"
+              className="btn-primary-action"
+              disabled={isSubmitting}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+            >
               {isSubmitting ? (
                 <>
-                  <span className="spinner" style={{ width: 14, height: 14, border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', display: 'inline-block', animation: 'spin 0.8s linear infinite' }}></span>
-                  <span>Saving Driver...</span>
+                  <Loader2 size={15} className="animate-spin" /> Saving Changes...
                 </>
               ) : (
-                <>
-                  <span>+</span> Save Driver
-                </>
+                'Save Changes'
               )}
             </button>
           </div>

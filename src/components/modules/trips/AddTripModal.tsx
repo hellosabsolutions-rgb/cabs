@@ -3,6 +3,7 @@ import { useFleet } from '../../../context/FleetContext';
 import { TripType } from '../../../types/fleet';
 import { Navigation, ArrowRight, RotateCcw, Building2 } from 'lucide-react';
 import { MinimalVoiceFiller } from '../../common/MinimalVoiceFiller';
+import { DatePicker } from '../../common/DatePicker';
 
 interface AddTripModalProps {
   isOpen: boolean;
@@ -208,10 +209,10 @@ export const AddTripModal: React.FC<AddTripModalProps> = ({ isOpen, onClose }) =
               </div>
             </div>
 
-            {/* 2. Route: Khn se khn ki trip hai */}
+            {/* 2. Route */}
             <div className="form-row-2">
               <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label">Pickup Location (Khn se) *</label>
+                <label className="form-label">Pickup Location *</label>
                 <input
                   type="text"
                   className="form-input"
@@ -223,7 +224,7 @@ export const AddTripModal: React.FC<AddTripModalProps> = ({ isOpen, onClose }) =
               </div>
 
               <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label">Drop Location (Khn tak) *</label>
+                <label className="form-label">Drop Location *</label>
                 <input
                   type="text"
                   className="form-input"
@@ -286,8 +287,8 @@ export const AddTripModal: React.FC<AddTripModalProps> = ({ isOpen, onClose }) =
               >
                 <Building2 size={16} color="#38bdf8" style={{ flexShrink: 0 }} />
                 <div>
-                  <b style={{ color: 'var(--text)' }}>Weekend / Off-Duty Trip Mode:</b> Ye gaadi weekday par{' '}
-                  <span style={{ color: 'var(--accent)', fontWeight: 600 }}>{selectedVehicleObj.departmentName || selectedVehicleObj.assignedTo}</span> me lagi hai. Weekend par trip par bhejne se iska munafa (profit) aur fuel/FASTag alag se Trips me count hoga, jabki department ka monthly contract billing intact rahega!
+                  <b style={{ color: 'var(--text)' }}>Weekend / Off-Duty Trip Mode:</b> This vehicle is assigned to{' '}
+                  <span style={{ color: 'var(--accent)', fontWeight: 600 }}>{selectedVehicleObj.departmentName || selectedVehicleObj.assignedTo}</span> on weekdays. Dispatching it on a trip will record its profit and fuel/FASTag under Trips, while the department's monthly contract billing remains intact.
                 </div>
               </div>
             )}
@@ -309,13 +310,13 @@ export const AddTripModal: React.FC<AddTripModalProps> = ({ isOpen, onClose }) =
 
               <div className="form-group" style={{ marginBottom: 0 }}>
                 <label className="form-label">Start Date & Time</label>
-                <div style={{ display: 'flex', gap: '6px' }}>
-                  <input
-                    type="date"
-                    className="form-input"
-                    value={startDate}
-                    onChange={e => setStartDate(e.target.value)}
-                  />
+                <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                  <div style={{ flex: 1 }}>
+                    <DatePicker
+                      value={startDate}
+                      onChange={date => setStartDate(date)}
+                    />
+                  </div>
                   <input
                     type="text"
                     className="form-input"
@@ -327,7 +328,7 @@ export const AddTripModal: React.FC<AddTripModalProps> = ({ isOpen, onClose }) =
               </div>
             </div>
 
-            {/* 5. Fuel: Fuel kitna hai & Kitne ka dala fuel */}
+            {/* 5. Fuel */}
             <div className="form-row-2">
               <div className="form-group" style={{ marginBottom: 0 }}>
                 <label className="form-label">Fuel Quantity (Litres / KG)</label>
@@ -342,7 +343,7 @@ export const AddTripModal: React.FC<AddTripModalProps> = ({ isOpen, onClose }) =
               </div>
 
               <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label">Fuel Refill Cost (₹ Kitne Ka Dala) *</label>
+                <label className="form-label">Fuel Refill Cost (₹) *</label>
                 <input
                   type="number"
                   min="0"
@@ -372,7 +373,7 @@ export const AddTripModal: React.FC<AddTripModalProps> = ({ isOpen, onClose }) =
               </div>
 
               <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label">Driver Bata / Allowance (₹ Diya)</label>
+                <label className="form-label">Driver Bata / Allowance (₹)</label>
                 <input
                   type="number"
                   min="0"
@@ -384,10 +385,10 @@ export const AddTripModal: React.FC<AddTripModalProps> = ({ isOpen, onClose }) =
               </div>
             </div>
 
-            {/* 7. Trip Fare / Revenue: Trip kitne rupee ki hai */}
+            {/* 7. Trip Fare / Revenue */}
             <div className="form-row-2">
               <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label">Customer Trip Fare (₹ Kitne Rupee Ki Hai) *</label>
+                <label className="form-label">Customer Trip Fare (₹) *</label>
                 <input
                   type="number"
                   min="1"

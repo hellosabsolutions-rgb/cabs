@@ -4,6 +4,7 @@ import { StatCard } from '../../common/StatCard';
 import { GenerateBillModal } from './GenerateBillModal';
 import { MonthlyDepartmentBill } from '../../../types/fleet';
 import { Building2, Layers, ListFilter, FileText } from 'lucide-react';
+import { MonthPicker } from '../../common/MonthPicker';
 
 export const MonthlyBillingView: React.FC = () => {
   const { monthlyBills, updateBillStatus, searchQuery, departmentContracts } = useFleet();
@@ -297,19 +298,13 @@ export const MonthlyBillingView: React.FC = () => {
           </select>
 
           {/* Month Select */}
-          <select
-            className="form-input"
-            style={{ width: 'auto', padding: '5px 10px', fontSize: '12px' }}
+          <MonthPicker
             value={monthFilter}
-            onChange={e => setMonthFilter(e.target.value)}
-          >
-            <option value="All">All Months</option>
-            {availableMonths.map(m => (
-              <option key={m} value={m}>
-                {m}
-              </option>
-            ))}
-          </select>
+            onChange={setMonthFilter}
+            availableMonths={availableMonths}
+            placeholder="All Months"
+            align="left"
+          />
 
           {/* Status Select */}
           <select

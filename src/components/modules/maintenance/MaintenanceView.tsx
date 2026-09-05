@@ -5,6 +5,7 @@ import { StatusChip } from '../../common/StatusChip';
 import { MaintenanceType } from '../../../types/fleet';
 import { Paperclip } from 'lucide-react';
 import { SkeletonCard, SkeletonTable } from '../../common/Skeleton';
+import { DatePicker } from '../../common/DatePicker';
 
 const vehicleOptions = ['DL01AB1234', 'DL02CD5678', 'DL03EF9012', 'DL07GH2211', 'DL05KL4432'];
 
@@ -208,11 +209,9 @@ export const MaintenanceView: React.FC = () => {
 
               <div className="form-group">
                 <label className="form-label">Date</label>
-                <input
-                  type="date"
-                  className="form-input"
+                <DatePicker
                   value={mDate}
-                  onChange={e => setMDate(e.target.value)}
+                  onChange={date => setMDate(date)}
                 />
               </div>
 

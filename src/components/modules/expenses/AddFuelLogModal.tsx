@@ -3,6 +3,7 @@ import { useFleet } from '../../../context/FleetContext';
 import { FuelLogEntry } from '../../../types/fleet';
 import { Fuel, Camera, FileText } from 'lucide-react';
 import { MinimalVoiceFiller } from '../../common/MinimalVoiceFiller';
+import { DatePicker } from '../../common/DatePicker';
 
 interface AddFuelLogModalProps {
   isOpen: boolean;
@@ -199,10 +200,10 @@ export const AddFuelLogModal: React.FC<AddFuelLogModalProps> = ({
               </div>
             )}
 
-            {/* 1. KIS GAADI MAI (Vehicle & Driver) */}
+            {/* 1. Vehicle & Driver */}
             <div className="form-row-2">
               <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label">Vehicle (Kis Gaadi Mai) *</label>
+                <label className="form-label">Vehicle *</label>
                 <select
                   className="form-input"
                   value={vehicle}
@@ -233,15 +234,13 @@ export const AddFuelLogModal: React.FC<AddFuelLogModalProps> = ({
               </div>
             </div>
 
-            {/* 2. KB DALA (Date, Time, Odometer) */}
+            {/* 2. Date, Time, Odometer */}
             <div className="form-row-2">
               <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label">Date (Kb Dala) *</label>
-                <input
-                  type="date"
-                  className="form-input"
+                <label className="form-label">Date *</label>
+                <DatePicker
                   value={date}
-                  onChange={e => setDate(e.target.value)}
+                  onChange={d => setDate(d)}
                   required
                 />
               </div>
@@ -286,11 +285,11 @@ export const AddFuelLogModal: React.FC<AddFuelLogModalProps> = ({
               </div>
             </div>
 
-            {/* 3. KITNA FUEL DALA (Litres, Rate, Total) */}
+            {/* 3. Fuel Quantity, Rate, Total */}
             <div className="form-row-2">
               <div className="form-group" style={{ marginBottom: 0 }}>
                 <label className="form-label" style={{ color: 'var(--accent)' }}>
-                  Quantity ({fuelType === 'CNG' ? 'Kg' : 'Litres'}) (Kitna Dala) *
+                  Quantity ({fuelType === 'CNG' ? 'Kg' : 'Litres'}) *
                 </label>
                 <input
                   type="number"

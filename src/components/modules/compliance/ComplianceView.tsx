@@ -39,30 +39,18 @@ export const ComplianceView: React.FC = () => {
   );
 
   const getDocIcon = (name: string) => {
-    switch (name) {
-      case 'Insurance':
-        return <Shield size={14} color="#38bdf8" />;
-      case 'Permit':
-      case 'State permit':
-        return <FileCheck size={14} color="#ffcc4d" />;
-      case 'PUC':
-      case 'Pollution (PUC)':
-        return <Wind size={14} color="#39ff6e" />;
-      case 'RC':
-        return <FileText size={14} color="#38bdf8" />;
-      case 'Fitness':
-        return <Settings size={14} color="#ffcc4d" />;
-      case 'Road tax':
-        return <Tag size={14} color="#a78bfa" />;
-      case 'Driving licence':
-        return <IdCard size={14} color="#39ff6e" />;
-      case 'Police verification':
-        return <UserCheck size={14} color="#38bdf8" />;
-      case 'Medical record':
-        return <HeartPulse size={14} color="#f87171" />;
-      default:
-        return <FileText size={14} color="var(--accent)" />;
-    }
+    const n = (name || '').toLowerCase();
+    if (n.includes('insurance')) return <Shield size={14} color="#38bdf8" />;
+    if (n.includes('auth')) return <FileCheck size={14} color="#ffcc4d" />;
+    if (n.includes('permit')) return <FileCheck size={14} color="#ffcc4d" />;
+    if (n.includes('puc') || n.includes('pollution')) return <Wind size={14} color="#39ff6e" />;
+    if (n.includes('rc') || n.includes('registration')) return <FileText size={14} color="#38bdf8" />;
+    if (n.includes('fitness')) return <Settings size={14} color="#ffcc4d" />;
+    if (n.includes('tax')) return <Tag size={14} color="#a78bfa" />;
+    if (n.includes('licence') || n.includes('license') || n.includes('dl')) return <IdCard size={14} color="#39ff6e" />;
+    if (n.includes('police')) return <UserCheck size={14} color="#38bdf8" />;
+    if (n.includes('medical')) return <HeartPulse size={14} color="#f87171" />;
+    return <FileText size={14} color="var(--accent)" />;
   };
 
   if (isLoading) {
@@ -108,7 +96,7 @@ export const ComplianceView: React.FC = () => {
             {complianceStats.alerts.length} active
           </span>
         </div>
-        <div>
+        <div style={{ maxHeight: '180px', overflowY: 'auto' }}>
           {complianceStats.alerts.length === 0 ? (
             <div className="alert-empty">No documents expiring soon. All fleet compliances valid!</div>
           ) : (
@@ -148,7 +136,7 @@ export const ComplianceView: React.FC = () => {
               <Plus size={13} /> Add Document
             </button>
           </div>
-          <div className="table-responsive">
+          <div className="table-responsive compliance-table-scroll">
             <table>
               <thead>
                 <tr>
@@ -228,7 +216,7 @@ export const ComplianceView: React.FC = () => {
               <Plus size={13} /> Add Document
             </button>
           </div>
-          <div className="table-responsive">
+          <div className="table-responsive compliance-table-scroll">
             <table>
               <thead>
                 <tr>
@@ -259,9 +247,11 @@ export const ComplianceView: React.FC = () => {
                         <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
                           <span>{getDocIcon(doc.documentName)}</span>
                           <span style={{ fontWeight: 500 }}>
-                            {doc.documentName === 'Driving licence' ? 'Driving Licence (DL)' : doc.documentName}
+                            {(doc.documentName === 'Driving licence' || doc.documentName === 'Driving Licence (DL)' || doc.documentName.toLowerCase().includes('licence'))
+                              ? 'Driving Licence (DL)'
+                              : doc.documentName}
                           </span>
-                          {doc.documentName === 'Driving licence' && (
+                          {(doc.documentName === 'Driving licence' || doc.documentName === 'Driving Licence (DL)' || doc.documentName.toLowerCase().includes('licence')) && (
                             <span
                               style={{
                                 fontSize: '9px',

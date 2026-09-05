@@ -3,10 +3,11 @@ import { useFleet } from '../../../context/FleetContext';
 import { StatusChip } from '../../common/StatusChip';
 import { StatCard } from '../../common/StatCard';
 import { AddDriverModal } from './AddDriverModal';
+import { EditDriverModal } from './EditDriverModal';
 import { DriverAttendanceView } from './DriverAttendanceView';
 import { DriverExpensesView } from './DriverExpensesView';
-import { DriverType } from '../../../types/fleet';
-import { Users, CalendarCheck, Receipt, MapPin, Trash2, Power } from 'lucide-react';
+import { Driver, DriverType } from '../../../types/fleet';
+import { Users, CalendarCheck, Receipt, MapPin, Trash2, Power, Edit2, ChevronDown } from 'lucide-react';
 import { SkeletonCard, SkeletonTable } from '../../common/Skeleton';
 
 export const DriversView: React.FC = () => {
@@ -23,6 +24,7 @@ export const DriversView: React.FC = () => {
   } = useFleet();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingDriver, setEditingDriver] = useState<Driver | null>(null);
   const [selectedTypeFilter, setSelectedTypeFilter] = useState<string>('All');
   const [selectedStatusFilter, setSelectedStatusFilter] = useState<string>('All');
 
@@ -234,17 +236,53 @@ export const DriversView: React.FC = () => {
                         </td>
                         <td>{d.joiningDate}</td>
                         <td>
-                          <button
-                            type="button"
-                            onClick={() => updateDriverStatus(d.id, d.status === 'On duty' ? 'Off duty' : 'On duty')}
-                            style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
-                            title={`Click to switch to ${d.status === 'On duty' ? 'Off duty' : 'On duty'}`}
-                          >
-                            <StatusChip status={d.status} />
-                          </button>
+                          <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
+                            <select
+                              value={d.status}
+                              onChange={e => updateDriverStatus(d.id, e.target.value as 'On duty' | 'Off duty')}
+                              style={{
+                                background: d.status === 'On duty' ? 'rgba(34, 197, 94, 0.12)' : 'var(--surface-3)',
+                                color: d.status === 'On duty' ? '#22c55e' : 'var(--text-dim)',
+                                border: `1px solid ${d.status === 'On duty' ? 'rgba(34, 197, 94, 0.35)' : 'var(--border)'}`,
+                                padding: '4px 24px 4px 10px',
+                                borderRadius: '20px',
+                                fontSize: '11.5px',
+                                fontWeight: 600,
+                                cursor: 'pointer',
+                                outline: 'none',
+                                appearance: 'none',
+                                WebkitAppearance: 'none',
+                                lineHeight: 1.4
+                              }}
+                              title="Select driver duty status"
+                            >
+                              <option value="On duty" style={{ background: 'var(--surface-1)', color: 'var(--text)' }}>● On duty</option>
+                              <option value="Off duty" style={{ background: 'var(--surface-1)', color: 'var(--text)' }}>● Off duty</option>
+                            </select>
+                            <ChevronDown
+                              size={11}
+                              style={{
+                                position: 'absolute',
+                                right: '8px',
+                                pointerEvents: 'none',
+                                color: d.status === 'On duty' ? '#22c55e' : 'var(--text-dim)',
+                                opacity: 0.8
+                              }}
+                            />
+                          </div>
                         </td>
                         <td style={{ textAlign: 'right' }}>
                           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '6px' }}>
+                            <button
+                              type="button"
+                              className="btn-secondary"
+                              style={{ padding: '4px 8px', fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                              onClick={() => setEditingDriver(d)}
+                              title="Edit driver details"
+                            >
+                              <Edit2 size={11} color="var(--accent)" />
+                              <span>Edit</span>
+                            </button>
                             <button
                               type="button"
                               className="btn-secondary"
@@ -278,10 +316,16 @@ export const DriversView: React.FC = () => {
             </div>
           </div>
 
-          {/* Slide-from-bottom Animated Modal */}
+          {/* Slide-from-bottom Animated Modals */}
           <AddDriverModal
             isOpen={isModalOpen}
             onClose={() => setIsModalOpen(false)}
+          />
+
+          <EditDriverModal
+            isOpen={!!editingDriver}
+            driver={editingDriver}
+            onClose={() => setEditingDriver(null)}
           />
         </div>
       )}
