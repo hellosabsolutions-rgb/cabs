@@ -3,16 +3,26 @@ import { useFleet } from '../../../context/FleetContext';
 import { StatCard } from '../../common/StatCard';
 import { AddContractModal } from './AddContractModal';
 import { DepartmentContract } from '../../../types/fleet';
-import { FileText, Folder } from 'lucide-react';
+import { FileText, Folder, Trash2, ChevronDown, RefreshCw, Radio } from 'lucide-react';
 
 export const ContractsListView: React.FC = () => {
-  const { departmentContracts, updateContractStatus, searchQuery } = useFleet();
+  const { departmentContracts, fetchLiveContracts, updateContractStatus, deleteDepartmentContract, searchQuery } = useFleet();
 
   const [statusFilter, setStatusFilter] = useState<string>('All');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [viewDoc, setViewDoc] = useState<string | null>(null);
+  const [isSyncing, setIsSyncing] = useState(false);
 
   const formatINR = (val: number) => '₹' + Math.round(val).toLocaleString('en-IN');
+
+  const handleSyncFromApi = async () => {
+    setIsSyncing(true);
+    try {
+      await fetchLiveContracts();
+    } finally {
+      setTimeout(() => setIsSyncing(false), 600);
+    }
+  };
 
   const filteredContracts = useMemo(() => {
     return departmentContracts.filter(c => {
@@ -51,54 +61,153 @@ export const ContractsListView: React.FC = () => {
     };
   }, [departmentContracts]);
 
-  const getStatusBadge = (status: DepartmentContract['status'], id: string) => {
-    const handleToggle = () => {
-      if (status === 'Active') updateContractStatus(id, 'Pending Renewal');
-      else if (status === 'Pending Renewal') updateContractStatus(id, 'Expired');
-      else updateContractStatus(id, 'Active');
+  const renderStatusDropdown = (status: DepartmentContract['status'], id: string) => {
+    const getStatusStyle = (s: DepartmentContract['status']) => {
+      switch (s) {
+        case 'Active':
+          return {
+            background: 'rgba(57, 255, 110, 0.12)',
+            color: '#39ff6e',
+            borderColor: 'rgba(57, 255, 110, 0.35)'
+          };
+        case 'Pending Renewal':
+          return {
+            background: 'rgba(255, 193, 7, 0.12)',
+            color: '#ffc107',
+            borderColor: 'rgba(255, 193, 7, 0.35)'
+          };
+        case 'Expired':
+          return {
+            background: 'rgba(255, 92, 92, 0.12)',
+            color: 'var(--danger, #ff5c5c)',
+            borderColor: 'rgba(255, 92, 92, 0.35)'
+          };
+        default:
+          return {
+            background: 'var(--surface-3)',
+            color: 'var(--text)',
+            borderColor: 'var(--border)'
+          };
+      }
     };
 
-    switch (status) {
-      case 'Active':
-        return (
-          <span
-            className="status-chip running"
-            style={{ cursor: 'pointer' }}
-            title="Click to change status"
-            onClick={handleToggle}
-          >
-            ● Active
-          </span>
-        );
-      case 'Pending Renewal':
-        return (
-          <span
-            className="status-chip idle"
-            style={{ cursor: 'pointer' }}
-            title="Click to change status"
-            onClick={handleToggle}
-          >
-            ● Renewal Due
-          </span>
-        );
-      case 'Expired':
-        return (
-          <span
-            className="status-chip maintenance"
-            style={{ cursor: 'pointer' }}
-            title="Click to change status"
-            onClick={handleToggle}
-          >
-            ● Expired
-          </span>
-        );
-      default:
-        return <span className="status-chip">{status}</span>;
-    }
+    const style = getStatusStyle(status);
+
+    return (
+      <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
+        <select
+          value={status}
+          onChange={e => updateContractStatus(id, e.target.value as DepartmentContract['status'])}
+          style={{
+            background: style.background,
+            color: style.color,
+            border: `1px solid ${style.borderColor}`,
+            padding: '4px 22px 4px 10px',
+            borderRadius: '20px',
+            fontSize: '11.5px',
+            fontWeight: 700,
+            cursor: 'pointer',
+            outline: 'none',
+            appearance: 'none',
+            WebkitAppearance: 'none',
+            lineHeight: 1.4
+          }}
+          title="Change contract status"
+        >
+          <option value="Active" style={{ background: 'var(--surface-1, #1e293b)', color: '#39ff6e' }}>● Active</option>
+          <option value="Pending Renewal" style={{ background: 'var(--surface-1, #1e293b)', color: '#ffc107' }}>● Renewal Due</option>
+          <option value="Expired" style={{ background: 'var(--surface-1, #1e293b)', color: '#ff5c5c' }}>● Expired</option>
+        </select>
+        <ChevronDown
+          size={11}
+          style={{
+            position: 'absolute',
+            right: '7px',
+            pointerEvents: 'none',
+            color: style.color,
+            opacity: 0.85
+          }}
+        />
+      </div>
+    );
   };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      {/* Live Contracts Backend API Banner */}
+      <div
+        style={{
+          background: 'rgba(56, 189, 248, 0.08)',
+          border: '1px solid rgba(56, 189, 248, 0.25)',
+          padding: '12px 18px',
+          borderRadius: '10px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: '12px',
+          fontSize: '12.5px',
+          color: 'var(--text)'
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div
+            style={{
+              width: '32px',
+              height: '32px',
+              borderRadius: '8px',
+              background: 'rgba(56, 189, 248, 0.15)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#38bdf8'
+            }}
+          >
+            <Radio size={18} />
+          </div>
+          <div>
+            <div style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span>Live Contracts API Integrated</span>
+              <span
+                style={{
+                  fontSize: '10px',
+                  fontWeight: 700,
+                  background: 'rgba(57, 255, 110, 0.15)',
+                  color: 'var(--accent)',
+                  border: '1px solid rgba(57, 255, 110, 0.3)',
+                  padding: '1px 7px',
+                  borderRadius: '12px'
+                }}
+              >
+                ● Live Sync Active
+              </span>
+            </div>
+            <div style={{ fontSize: '11.5px', color: 'var(--text-dim)', marginTop: '2px' }}>
+              Government fleet tenders, department vehicle attachments, monthly rate limits, and SLA validity synchronized with database.
+            </div>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          className="btn-secondary"
+          style={{
+            fontSize: '12px',
+            padding: '6px 14px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            cursor: 'pointer'
+          }}
+          onClick={handleSyncFromApi}
+          disabled={isSyncing}
+          title="Sync latest contracts from backend server"
+        >
+          <RefreshCw size={13} className={isSyncing ? 'spin-icon' : ''} />
+          {isSyncing ? 'Syncing...' : 'Sync from Server'}
+        </button>
+      </div>
+
       {/* Stats Cards */}
       <div className="stats-grid">
         <StatCard label="Active Contracts" value={stats.active} customColor="var(--accent)" />
@@ -150,14 +259,15 @@ export const ContractsListView: React.FC = () => {
                 <th>Included limits</th>
                 <th>Extra rates</th>
                 <th>Validity</th>
-                <th>Status (Toggle)</th>
+                <th>Status</th>
                 <th>Agreement</th>
+                <th style={{ textAlign: 'center', width: '60px' }}>Action</th>
               </tr>
             </thead>
             <tbody>
               {filteredContracts.length === 0 ? (
                 <tr>
-                  <td colSpan={8} style={{ textAlign: 'center', color: 'var(--text-faint)', padding: '30px 0' }}>
+                  <td colSpan={9} style={{ textAlign: 'center', color: 'var(--text-faint)', padding: '30px 0' }}>
                     No department contracts found. Click "+ New Contract" to create one.
                   </td>
                 </tr>
@@ -205,7 +315,7 @@ export const ContractsListView: React.FC = () => {
                         {c.startDate} → {c.endDate}
                       </div>
                     </td>
-                    <td>{getStatusBadge(c.status, c.id)}</td>
+                    <td>{renderStatusDropdown(c.status, c.id)}</td>
                     <td>
                       {c.documentFile ? (
                         <span
@@ -218,6 +328,40 @@ export const ContractsListView: React.FC = () => {
                       ) : (
                         <span style={{ color: 'var(--text-faint)', fontSize: '12px' }}>—</span>
                       )}
+                    </td>
+                    <td style={{ textAlign: 'center' }}>
+                      <button
+                        type="button"
+                        style={{
+                          width: '28px',
+                          height: '28px',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          borderRadius: '6px',
+                          border: '1px solid var(--border)',
+                          background: 'transparent',
+                          color: 'var(--text-faint)',
+                          cursor: 'pointer',
+                          transition: 'all 0.15s ease'
+                        }}
+                        title={`Delete contract ${c.contractNumber}`}
+                        onClick={() => {
+                          if (window.confirm(`Are you sure you want to delete contract "${c.contractNumber}" (${c.departmentName})?`)) {
+                            deleteDepartmentContract(c.id);
+                          }
+                        }}
+                        onMouseEnter={e => {
+                          e.currentTarget.style.color = 'var(--danger)';
+                          e.currentTarget.style.borderColor = 'var(--danger)';
+                        }}
+                        onMouseLeave={e => {
+                          e.currentTarget.style.color = 'var(--text-faint)';
+                          e.currentTarget.style.borderColor = 'var(--border)';
+                        }}
+                      >
+                        <Trash2 size={13} />
+                      </button>
                     </td>
                   </tr>
                 ))

@@ -15,6 +15,8 @@ export interface AuthContextType {
   token: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  isDashboardOpening: boolean;
+  triggerDashboardOpening: (durationMs?: number) => void;
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   register: (name: string, email: string, password: string, phone?: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
@@ -26,6 +28,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<AuthUser | null>(null);
   const [token, setToken] = useState<string | null>(() => localStorage.getItem('fleetos_auth_token'));
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isDashboardOpening, setIsDashboardOpening] = useState<boolean>(false);
 
   // Initialize and verify session on load
   useEffect(() => {
@@ -59,13 +62,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     verifyToken();
   }, []);
 
+  const triggerDashboardOpening = (durationMs = 2800) => {
+    setIsDashboardOpening(true);
+    setTimeout(() => {
+      setIsDashboardOpening(false);
+    }, durationMs);
+  };
+
   const login = async (email: string, password: string) => {
     try {
       const response = await api.post('/auth/login', { email, password });
       if (response.success && response.token) {
         localStorage.setItem('fleetos_auth_token', response.token);
+        setIsDashboardOpening(true);
         setToken(response.token);
         setUser(response.user);
+        setTimeout(() => {
+          setIsDashboardOpening(false);
+        }, 2800);
         return { success: true };
       }
       return { success: false, error: response.error || 'Login failed' };
@@ -79,8 +93,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const response = await api.post('/auth/register', { name, email, password, phone, role: 'admin' });
       if (response.success && response.token) {
         localStorage.setItem('fleetos_auth_token', response.token);
+        setIsDashboardOpening(true);
         setToken(response.token);
         setUser(response.user);
+        setTimeout(() => {
+          setIsDashboardOpening(false);
+        }, 2800);
         return { success: true };
       }
       return { success: false, error: response.error || 'Registration failed' };
@@ -91,6 +109,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = () => {
     localStorage.removeItem('fleetos_auth_token');
+    setIsDashboardOpening(false);
     setToken(null);
     setUser(null);
   };
@@ -102,6 +121,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         token,
         isAuthenticated: Boolean(user && token),
         isLoading,
+        isDashboardOpening,
+        triggerDashboardOpening,
         login,
         register,
         logout

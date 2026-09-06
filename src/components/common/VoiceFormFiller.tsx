@@ -132,7 +132,7 @@ export const VoiceFormFiller: React.FC<VoiceFormFillerProps> = ({
 
           <div>
             <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span>Voice Form Fill / बोलकर भरें</span>
+              <span>Voice Form Fill</span>
               <span
                 style={{
                   background: 'var(--accent-dim)',
@@ -220,7 +220,7 @@ export const VoiceFormFiller: React.FC<VoiceFormFillerProps> = ({
               <div style={{ width: 4, height: 12, background: 'var(--accent)', borderRadius: 2, animation: 'pulse 0.9s infinite alternate 0.4s' }} />
               <div style={{ width: 4, height: 18, background: 'var(--accent)', borderRadius: 2, animation: 'pulse 0.7s infinite alternate 0.1s' }} />
               <span style={{ fontSize: '11px', color: 'var(--accent)', fontWeight: 600, marginLeft: '6px' }}>
-                Listening to your voice... (बोलते रहिए)
+                Listening to your voice...
               </span>
             </div>
           )}
@@ -228,26 +228,27 @@ export const VoiceFormFiller: React.FC<VoiceFormFillerProps> = ({
           {/* Transcript box */}
           <div
             style={{
-              background: 'var(--surface-3)',
-              border: '1px solid var(--border-soft)',
-              borderRadius: '8px',
               padding: '10px 12px',
-              fontSize: '12px',
+              background: 'var(--surface)',
+              borderRadius: '8px',
+              border: isListening ? '1.5px solid var(--accent)' : '1px solid var(--border)',
+              minHeight: '44px',
+              fontSize: '12.5px',
               color: 'var(--text)',
-              maxHeight: '75px',
-              overflowY: 'auto',
-              lineHeight: 1.45
+              lineHeight: 1.5,
+              transition: 'border-color 0.2s',
+              position: 'relative'
             }}
           >
-            <span style={{ color: 'var(--text)' }}>{transcript}</span>
+            {transcript && <span>{transcript}</span>}
             {interimTranscript && (
-              <span style={{ color: 'var(--accent)', fontStyle: 'italic', marginLeft: '4px' }}>
+              <span style={{ color: 'var(--accent)', opacity: 0.8, fontStyle: 'italic', marginLeft: '4px' }}>
                 {interimTranscript}
               </span>
             )}
             {!transcript && !interimTranscript && isListening && (
               <span style={{ color: 'var(--text-faint)' }}>
-                Speak now... e.g. "Gadi number DL01AB1234, Model Innova, Fuel Diesel, Driver Rahul Sharma, 7 seater"
+                Speak now... e.g. "Vehicle number DL01AB1234, Model Innova, Fuel Diesel, Driver Rahul Sharma, 7 seater"
               </span>
             )}
           </div>
@@ -358,7 +359,7 @@ export const VoiceFormFiller: React.FC<VoiceFormFillerProps> = ({
       {/* Helpful Hint when idle */}
       {!isListening && !transcript && (
         <div style={{ fontSize: '11px', color: 'var(--text-faint)', lineHeight: 1.35 }}>
-          💡 <em>Example bolen: "Gaadi number DL 01 AB 1234, Model Innova Crysta, Fuel Diesel, Driver Rahul Sharma, 7 seater"</em>
+          💡 <em>Example: "Vehicle number DL 01 AB 1234, Model Innova Crysta, Fuel Diesel, Driver Rahul Sharma, 7 seater"</em>
         </div>
       )}
     </div>

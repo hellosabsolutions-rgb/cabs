@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Building2, FileText } from 'lucide-react';
 import { useFleet } from '../../../context/FleetContext';
 import { MinimalVoiceFiller } from '../../common/MinimalVoiceFiller';
+import { DatePicker } from '../../common/DatePicker';
 
 interface AddContractModalProps {
   isOpen: boolean;
@@ -34,6 +35,7 @@ export const AddContractModal: React.FC<AddContractModalProps> = ({ isOpen, onCl
   const [docName, setDocName] = useState('');
   const [docPreview, setDocPreview] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const docInputRef = useRef<HTMLInputElement>(null);
 
@@ -65,7 +67,7 @@ export const AddContractModal: React.FC<AddContractModalProps> = ({ isOpen, onCl
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!departmentName.trim()) {
       setErrorMsg('Department name is required.');
@@ -76,32 +78,47 @@ export const AddContractModal: React.FC<AddContractModalProps> = ({ isOpen, onCl
       return;
     }
 
-    addDepartmentContract({
-      contractNumber: contractNumber.trim(),
-      departmentName: departmentName.trim(),
-      contactPerson: contactPerson.trim() || 'Officer in Charge',
-      phone: phone.trim() || '—',
-      vehicle,
-      driverName: driverName || '—',
-      monthlyBaseAmount: Number(monthlyBaseAmount),
-      includedKmPerMonth: Number(includedKmPerMonth) || 2500,
-      includedHoursPerMonth: Number(includedHoursPerMonth) || 300,
-      extraKmRate: Number(extraKmRate) || 14,
-      extraHourRate: Number(extraHourRate) || 120,
-      startDate,
-      endDate,
-      status,
-      documentFile: docName || docPreview || null
-    });
-
-    setDepartmentName('');
-    setContactPerson('');
-    setPhone('');
-    setMonthlyBaseAmount('');
-    setDocName('');
-    setDocPreview(null);
+    setIsSubmitting(true);
     setErrorMsg('');
-    onClose();
+
+    try {
+      const res = await addDepartmentContract({
+        contractNumber: contractNumber.trim(),
+        departmentName: departmentName.trim(),
+        contactPerson: contactPerson.trim() || 'Officer in Charge',
+        phone: phone.trim() || '—',
+        vehicle,
+        driverName: driverName || '—',
+        monthlyBaseAmount: Number(monthlyBaseAmount),
+        includedKmPerMonth: Number(includedKmPerMonth) || 2500,
+        includedHoursPerMonth: Number(includedHoursPerMonth) || 300,
+        extraKmRate: Number(extraKmRate) || 14,
+        extraHourRate: Number(extraHourRate) || 120,
+        startDate,
+        endDate,
+        status,
+        documentFile: docName || docPreview || null
+      });
+
+      if (res && !res.success && res.error) {
+        setErrorMsg(res.error);
+        setIsSubmitting(false);
+        return;
+      }
+
+      setDepartmentName('');
+      setContactPerson('');
+      setPhone('');
+      setMonthlyBaseAmount('');
+      setDocName('');
+      setDocPreview(null);
+      setErrorMsg('');
+      onClose();
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Failed to register contract.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -296,21 +313,17 @@ export const AddContractModal: React.FC<AddContractModalProps> = ({ isOpen, onCl
             <div className="form-row-2">
               <div className="form-group" style={{ marginBottom: 0 }}>
                 <label className="form-label">Contract Start Date</label>
-                <input
-                  type="date"
-                  className="form-input"
+                <DatePicker
                   value={startDate}
-                  onChange={e => setStartDate(e.target.value)}
+                  onChange={d => setStartDate(d)}
                 />
               </div>
 
               <div className="form-group" style={{ marginBottom: 0 }}>
                 <label className="form-label">Contract End Date</label>
-                <input
-                  type="date"
-                  className="form-input"
+                <DatePicker
                   value={endDate}
-                  onChange={e => setEndDate(e.target.value)}
+                  onChange={d => setEndDate(d)}
                 />
               </div>
             </div>
@@ -357,8 +370,8 @@ export const AddContractModal: React.FC<AddContractModalProps> = ({ isOpen, onCl
             <button type="button" className="btn-secondary" onClick={onClose}>
               Cancel
             </button>
-            <button type="submit" className="btn-primary-action">
-              <span>+</span> Save Contract
+            <button type="submit" className="btn-primary-action" disabled={isSubmitting}>
+              <span>+</span> {isSubmitting ? 'Saving Contract...' : 'Save Contract'}
             </button>
           </div>
         </form>

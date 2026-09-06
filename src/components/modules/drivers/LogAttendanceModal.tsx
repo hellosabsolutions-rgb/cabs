@@ -3,6 +3,7 @@ import { useFleet } from '../../../context/FleetContext';
 import { AttendanceStatus } from '../../../types/fleet';
 import { Calendar, CheckCircle2, Loader2 } from 'lucide-react';
 import { MinimalVoiceFiller } from '../../common/MinimalVoiceFiller';
+import { DatePicker } from '../../common/DatePicker';
 
 interface LogAttendanceModalProps {
   isOpen: boolean;
@@ -77,7 +78,7 @@ export const LogAttendanceModal: React.FC<LogAttendanceModalProps> = ({
 
     setIsSubmitting(true);
     try {
-      markAttendance({
+      const res = await markAttendance({
         driverId: d.id,
         driverName: d.name,
         date,
@@ -90,9 +91,16 @@ export const LogAttendanceModal: React.FC<LogAttendanceModalProps> = ({
         notes: notes.trim() || undefined
       });
 
+      if (res && !res.success && res.error) {
+        setErrorMsg(res.error);
+        return;
+      }
+
       setNotes('');
       setErrorMsg('');
       onClose();
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Failed to log attendance');
     } finally {
       setIsSubmitting(false);
     }
@@ -171,11 +179,9 @@ export const LogAttendanceModal: React.FC<LogAttendanceModalProps> = ({
 
               <div className="form-group" style={{ marginBottom: 0 }}>
                 <label className="form-label">Attendance Date *</label>
-                <input
-                  type="date"
-                  className="form-input"
+                <DatePicker
                   value={date}
-                  onChange={e => setDate(e.target.value)}
+                  onChange={d => setDate(d)}
                   required
                 />
               </div>

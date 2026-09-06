@@ -32,6 +32,9 @@ const driverSchema = new mongoose.Schema(
       type: String,
       default: null
     },
+    licenseExpiry: {
+      type: String
+    },
     driverType: {
       type: String,
       enum: ['Full Time', 'Part Time', 'Contract', 'Owner Driver'],

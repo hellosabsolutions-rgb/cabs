@@ -3,6 +3,7 @@ export type PageId =
   | 'vehicles'
   | 'drivers'
   | 'departments'
+  | 'bookings'
   | 'trips'
   | 'expenses'
   | 'profitability'
@@ -78,6 +79,7 @@ export interface Driver {
   emergencyContact?: string;
   licenseNumber?: string;
   licensePhoto?: string;
+  licenseExpiry?: string;
   driverType?: DriverType;
   assignedVehicle: string;
   joiningDate: string;
@@ -143,6 +145,8 @@ export interface DepartmentContract {
 export interface DailyDutyLog {
   id: string;
   dutySlipNumber: string;
+  logBookPageNo?: string;
+  month?: string;
   date: string;
   departmentName: string;
   vehicle: string;
@@ -162,7 +166,16 @@ export interface DailyDutyLog {
   tollParkingAmount: number;
   fuelAmount?: number;
   fuelLitres?: number;
+  motorOilUsed?: string;
+  mOilLitres?: string;
   officerName?: string;
+  officerDesignation?: string;
+  journeyFrom?: string;
+  journeyTo?: string;
+  purposeOfJourney?: string;
+  headOfAccount?: string;
+  officerSignatureStatus?: 'Signed' | 'Pending' | 'Exempt';
+  driverSignatureStatus?: 'Signed' | 'Pending';
   dutySlipPhoto?: string | null;
   fuelBillPhoto?: string | null;
   status: 'Approved' | 'Pending' | 'Rejected';
@@ -252,11 +265,17 @@ export interface ContractDepartment {
 }
 
 export type TripType = 'One-way (Single)' | 'Round Trip';
-export type TripStatus = 'Ongoing' | 'Completed' | 'Scheduled';
+export type TripStatus = 'Ongoing' | 'Completed' | 'Scheduled' | 'Cancelled';
+export type BookingStatus = TripStatus;
+export type PaymentStatus = 'Paid' | 'Partial' | 'Unpaid';
+export type PaymentMode = 'Cash' | 'UPI' | 'Bank Transfer' | 'Cheque' | 'Pending';
 
 export interface TripFinancial {
   id: string;
+  _id?: string;
   tripNumber?: string;
+  bookingNumber?: string;
+  bookingDate?: string;
   tripType: TripType;
   vehicle: string;
   vehicleModel?: string;
@@ -270,6 +289,7 @@ export interface TripFinancial {
   startDate: string;
   startTime?: string;
   endDate?: string;
+  endTime?: string;
   startOdometer: number;
   endOdometer?: number;
   totalKmRun?: number;
@@ -279,6 +299,16 @@ export interface TripFinancial {
   driverBata: number;
   otherExpenses?: number;
   revenue: number;
+  totalAmount?: number;
+  advanceAmount?: number;
+  advancePaymentMode?: PaymentMode;
+  advanceDate?: string;
+  balancePaid?: number;
+  balancePaymentMode?: PaymentMode;
+  balancePaymentDate?: string;
+  pendingAmount?: number;
+  paymentStatus?: PaymentStatus;
+  paymentNotes?: string;
   expenses: number;
   profit: number;
   margin: string;
@@ -286,6 +316,32 @@ export interface TripFinancial {
   customerName?: string;
   customerPhone?: string;
   notes?: string;
+}
+
+export type Booking = TripFinancial;
+
+export interface VehicleAvailabilityItem {
+  vehicle: string;
+  model: string;
+  type: string;
+  currentStatus?: string;
+  assignedDriver?: string;
+  bookingId?: string;
+  bookingNumber?: string;
+  customerName?: string;
+  driverName?: string;
+  route?: string;
+  status?: string;
+  fare?: number;
+}
+
+export interface VehicleAvailabilityResult {
+  date: string;
+  totalVehicles: number;
+  availableCount: number;
+  bookedCount: number;
+  availableVehicles: VehicleAvailabilityItem[];
+  bookedVehicles: VehicleAvailabilityItem[];
 }
 
 export interface ExpenseRecord {

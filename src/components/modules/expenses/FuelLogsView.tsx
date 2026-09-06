@@ -188,7 +188,7 @@ export const FuelLogsView: React.FC = () => {
               onClick={() => setViewMode('by-vehicle')}
               style={{ padding: '4px 12px', fontSize: '12px', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}
             >
-              <Truck size={13} /> According to Vehicle (Gaadi-wise History)
+              <Truck size={13} /> By Vehicle
             </button>
             <button
               className={`subtab-btn ${viewMode === 'table' ? 'active' : ''}`}
@@ -322,14 +322,14 @@ export const FuelLogsView: React.FC = () => {
                   <table>
                     <thead>
                       <tr>
-                        <th>Kab Dala (Date & Time)</th>
-                        <th>Kisne Dalaya (Driver Who Refilled)</th>
+                        <th>Date & Time</th>
+                        <th>Driver</th>
                         <th>Odometer KM</th>
-                        <th>Kitna Dala (Quantity & Fuel)</th>
-                        <th>Kitne Ka Dala (Cost & Rate)</th>
+                        <th>Quantity & Fuel</th>
+                        <th>Cost & Rate</th>
                         <th>Petrol Pump & Payment</th>
-                        <th>Fuel Meter Ki Photo</th>
-                        <th>Photo Slip Ki (Receipt)</th>
+                        <th>Fuel Meter Photo</th>
+                        <th>Receipt Photo</th>
                         <th>Notes</th>
                       </tr>
                     </thead>
@@ -507,14 +507,14 @@ export const FuelLogsView: React.FC = () => {
             <table>
               <thead>
                 <tr>
-                  <th>Vehicle (Kis Gaadi Mai)</th>
-                  <th>Kab Dala (Date & Time)</th>
-                  <th>Kisne Dalaya (Driver)</th>
+                  <th>Vehicle</th>
+                  <th>Date & Time</th>
+                  <th>Driver</th>
                   <th>Odometer KM</th>
-                  <th>Kitna Dala (Quantity)</th>
-                  <th>Kitne Ka Dala (Cost & Rate)</th>
+                  <th>Quantity</th>
+                  <th>Cost & Rate</th>
                   <th>Pump & Payment</th>
-                  <th>Photo Slip & Meter</th>
+                  <th>Receipt & Meter Photo</th>
                   <th>Notes</th>
                 </tr>
               </thead>
@@ -688,24 +688,24 @@ export const FuelLogsView: React.FC = () => {
                 }}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: 'var(--text-dim)' }}>Vehicle Refueled (Kis Gaadi Mai):</span>
+                  <span style={{ color: 'var(--text-dim)' }}>Vehicle Refueled:</span>
                   <b>{selectedProof.vehicle}</b>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: 'var(--text-dim)' }}>Driver Who Refilled (Kisne Dalaya):</span>
+                  <span style={{ color: 'var(--text-dim)' }}>Driver Who Refilled:</span>
                   <b style={{ color: 'var(--accent)' }}>{selectedProof.driverName}</b>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: 'var(--text-dim)' }}>Date & Time (Kab Dala):</span>
+                  <span style={{ color: 'var(--text-dim)' }}>Date & Time:</span>
                   <b>{selectedProof.date}</b>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: 'var(--text-dim)' }}>Quantity (Kitna Dala):</span>
+                  <span style={{ color: 'var(--text-dim)' }}>Quantity:</span>
                   <b style={{ color: '#ffcc4d' }}>{selectedProof.litres} Litres</b>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: 'var(--text-dim)' }}>Total Amount (Kitne Ka Dala):</span>
-                  <b style={{ color: 'var(--accent)' }}>{formatINR(selectedProof.amount)}</b>
+                  <span style={{ color: 'var(--text-dim)' }}>Total Amount:</span>
+                  <b>{formatINR(selectedProof.amount)}</b>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <span style={{ color: 'var(--text-dim)' }}>Station / Pump Location:</span>

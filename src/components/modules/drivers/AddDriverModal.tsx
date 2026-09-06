@@ -3,6 +3,7 @@ import { useFleet } from '../../../context/FleetContext';
 import { DriverType } from '../../../types/fleet';
 import { UserPlus, Camera, IdCard } from 'lucide-react';
 import { MinimalVoiceFiller } from '../../common/MinimalVoiceFiller';
+import { DatePicker } from '../../common/DatePicker';
 
 interface AddDriverModalProps {
   isOpen: boolean;
@@ -19,6 +20,7 @@ export const AddDriverModal: React.FC<AddDriverModalProps> = ({ isOpen, onClose 
   const [address, setAddress] = useState('');
   const [emergencyContact, setEmergencyContact] = useState('');
   const [licenseNumber, setLicenseNumber] = useState('');
+  const [licenseExpiry, setLicenseExpiry] = useState('');
   const [driverType, setDriverType] = useState<DriverType>('Full Time');
   const [assignedVehicle, setAssignedVehicle] = useState(vehicles[0]?.registrationNumber || 'DL01AB1234');
   const [status, setStatus] = useState<'On duty' | 'Off duty'>('On duty');
@@ -112,6 +114,7 @@ export const AddDriverModal: React.FC<AddDriverModalProps> = ({ isOpen, onClose 
         emergencyContact: emergencyContact.trim() || undefined,
         licenseNumber: licenseNumber.trim() || undefined,
         licensePhoto: licensePhotoPreview || licenseFileName || undefined,
+        licenseExpiry: licenseExpiry || undefined,
         driverType,
         assignedVehicle: assignedVehicle || '—',
         joiningDate: formattedDate,
@@ -288,18 +291,20 @@ export const AddDriverModal: React.FC<AddDriverModalProps> = ({ isOpen, onClose 
               />
             </div>
 
-            {/* Emergency Contact & License Number */}
+            {/* Emergency Contact */}
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label className="form-label">Emergency Contact Number</label>
+              <input
+                type="tel"
+                className="form-input"
+                placeholder="e.g. +91 98111 22334"
+                value={emergencyContact}
+                onChange={e => setEmergencyContact(e.target.value)}
+              />
+            </div>
+
+            {/* Driving License Number & Expiry Date */}
             <div className="form-row-2">
-              <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label">Emergency Contact Number</label>
-                <input
-                  type="tel"
-                  className="form-input"
-                  placeholder="e.g. +91 98111 22334"
-                  value={emergencyContact}
-                  onChange={e => setEmergencyContact(e.target.value)}
-                />
-              </div>
               <div className="form-group" style={{ marginBottom: 0 }}>
                 <label className="form-label">Driving License Number</label>
                 <input
@@ -308,6 +313,13 @@ export const AddDriverModal: React.FC<AddDriverModalProps> = ({ isOpen, onClose 
                   placeholder="e.g. DL-0420180092341"
                   value={licenseNumber}
                   onChange={e => setLicenseNumber(e.target.value)}
+                />
+              </div>
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label">DL Expiry Date</label>
+                <DatePicker
+                  value={licenseExpiry}
+                  onChange={d => setLicenseExpiry(d)}
                 />
               </div>
             </div>
@@ -391,11 +403,9 @@ export const AddDriverModal: React.FC<AddDriverModalProps> = ({ isOpen, onClose 
 
             <div className="form-group" style={{ marginBottom: 0 }}>
               <label className="form-label">Joining Date</label>
-              <input
-                type="date"
-                className="form-input"
+              <DatePicker
                 value={joiningDate}
-                onChange={e => setJoiningDate(e.target.value)}
+                onChange={d => setJoiningDate(d)}
               />
             </div>
           </div>

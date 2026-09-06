@@ -140,7 +140,7 @@ export const EditFastagModal: React.FC<EditFastagModalProps> = ({
             {/* Current Balance (Manual Edit) */}
             <div className="form-group" style={{ marginBottom: 0 }}>
               <label className="form-label" style={{ fontWeight: 600, color: 'var(--accent)' }}>
-                Current FASTag Wallet Balance (Kitne Paise Hai) (₹) *
+                Current FASTag Wallet Balance (₹) *
               </label>
               <div style={{ position: 'relative' }}>
                 <span

@@ -4,11 +4,11 @@ import { StatCard } from '../../common/StatCard';
 import { AddTripModal } from './AddTripModal';
 import { CompleteTripModal } from './CompleteTripModal';
 import { TripFinancial, TripStatus } from '../../../types/fleet';
-import { Navigation, Plus, CheckCircle2, Clock, MapPin, Gauge, Fuel, CreditCard, User, TrendingUp, RotateCcw, ArrowRight, Building2 } from 'lucide-react';
+import { Navigation, Plus, CheckCircle2, Clock, MapPin, Gauge, Fuel, CreditCard, User, TrendingUp, RotateCcw, ArrowRight, Building2, ChevronDown } from 'lucide-react';
 import { SkeletonCard, SkeletonTable } from '../../common/Skeleton';
 
 export const TripsView: React.FC = () => {
-  const { trips, searchQuery, isLoading } = useFleet();
+  const { trips, updateTripStatus, searchQuery, isLoading } = useFleet();
 
   const [statusFilter, setStatusFilter] = useState<'All' | 'Ongoing' | 'Completed' | 'Dept-Weekend'>('All');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -79,6 +79,101 @@ export const TripsView: React.FC = () => {
     );
   }
 
+  const renderStatusDropdown = (trip: TripFinancial) => {
+    const getStatusStyle = (s: TripFinancial['status']) => {
+      switch (s) {
+        case 'Completed':
+          return {
+            background: 'rgba(57, 255, 110, 0.12)',
+            color: '#39ff6e',
+            borderColor: 'rgba(57, 255, 110, 0.35)'
+          };
+        case 'Ongoing':
+          return {
+            background: 'rgba(56, 189, 248, 0.12)',
+            color: '#38bdf8',
+            borderColor: 'rgba(56, 189, 248, 0.35)'
+          };
+        case 'Upcoming':
+          return {
+            background: 'rgba(255, 193, 7, 0.12)',
+            color: '#ffc107',
+            borderColor: 'rgba(255, 193, 7, 0.35)'
+          };
+        case 'Cancelled':
+          return {
+            background: 'rgba(255, 92, 92, 0.12)',
+            color: 'var(--danger, #ff5c5c)',
+            borderColor: 'rgba(255, 92, 92, 0.35)'
+          };
+        default:
+          return {
+            background: 'var(--surface-3)',
+            color: 'var(--text)',
+            borderColor: 'var(--border)'
+          };
+      }
+    };
+
+    const style = getStatusStyle(trip.status);
+
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', alignItems: 'flex-start' }}>
+        <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
+          <select
+            value={trip.status}
+            onChange={e => {
+              const newStatus = e.target.value as TripFinancial['status'];
+              if (newStatus === 'Completed' && trip.status === 'Ongoing') {
+                setCompletingTrip(trip);
+              } else {
+                updateTripStatus(trip.id, newStatus);
+              }
+            }}
+            style={{
+              background: style.background,
+              color: style.color,
+              border: `1px solid ${style.borderColor}`,
+              padding: '4px 22px 4px 10px',
+              borderRadius: '20px',
+              fontSize: '11.5px',
+              fontWeight: 700,
+              cursor: 'pointer',
+              outline: 'none',
+              appearance: 'none',
+              WebkitAppearance: 'none',
+              lineHeight: 1.4
+            }}
+            title="Change trip status"
+          >
+            <option value="Ongoing" style={{ background: 'var(--surface-1, #1e293b)', color: '#38bdf8' }}>● Ongoing</option>
+            <option value="Completed" style={{ background: 'var(--surface-1, #1e293b)', color: '#39ff6e' }}>● Completed</option>
+            <option value="Cancelled" style={{ background: 'var(--surface-1, #1e293b)', color: '#ff5c5c' }}>● Cancelled</option>
+          </select>
+          <ChevronDown
+            size={11}
+            style={{
+              position: 'absolute',
+              right: '7px',
+              pointerEvents: 'none',
+              color: style.color,
+              opacity: 0.85
+            }}
+          />
+        </div>
+        {trip.status === 'Ongoing' && (
+          <button
+            className="btn-primary-action"
+            style={{ fontSize: '10.5px', padding: '4px 8px', width: '100%', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}
+            onClick={() => setCompletingTrip(trip)}
+          >
+            <CheckCircle2 size={11} /> Complete & Settle
+          </button>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div className="section active" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       {/* Overview Stat Cards */}
@@ -86,7 +181,7 @@ export const TripsView: React.FC = () => {
         <StatCard label="Total Trips Revenue" value={formatINR(stats.totalRevenue)} customColor="var(--accent)" />
         <StatCard label="Total Trip Expenses" value={formatINR(stats.totalExpenses)} customColor="#ff5c5c" />
         <StatCard
-          label="Total Net Profit (Munafa)"
+          label="Total Net Profit"
           value={formatINR(stats.totalProfit)}
           customColor="var(--accent)"
         />
@@ -165,11 +260,11 @@ export const TripsView: React.FC = () => {
               <tr>
                 <th>Trip & Type</th>
                 <th>Vehicle & Driver</th>
-                <th>Route (Khn Se Khn)</th>
+                <th>Route</th>
                 <th>Odometer (KM)</th>
-                <th>Fare (Trip Kitne Ki Hai)</th>
+                <th>Agreed Fare</th>
                 <th>Expenses (Fuel + FASTag + Driver)</th>
-                <th>Count Profit (Munafa)</th>
+                <th>Net Profit</th>
                 <th>Status & Action</th>
               </tr>
             </thead>
@@ -329,7 +424,7 @@ export const TripsView: React.FC = () => {
                       </div>
                     </td>
 
-                    {/* 7. COUNT PROFIT (Munafa) */}
+                    {/* 7. COUNT NET PROFIT */}
                     <td className="num">
                       <div>
                         <div
@@ -354,47 +449,8 @@ export const TripsView: React.FC = () => {
                       </div>
                     </td>
 
-                    {/* 8. Status & Action Button */}
-                    <td>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', alignItems: 'flex-start' }}>
-                        {trip.status === 'Ongoing' ? (
-                          <>
-                            <span
-                              className="driver-type-badge"
-                              style={{
-                                background: 'rgba(57, 255, 110, 0.15)',
-                                color: '#39ff6e',
-                                borderColor: 'rgba(57, 255, 110, 0.3)',
-                                fontSize: '11px'
-                              }}
-                            >
-                              ● Ongoing
-                            </span>
-                            <button
-                              className="btn-primary-action"
-                              style={{ fontSize: '11px', padding: '5px 10px', width: '100%', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}
-                              onClick={() => setCompletingTrip(trip)}
-                            >
-                              <CheckCircle2 size={12} /> Complete
-                            </button>
-                          </>
-                        ) : (
-                          <span
-                            className="driver-type-badge"
-                            style={{
-                              background: 'var(--surface-3)',
-                              color: 'var(--text)',
-                              fontSize: '11px',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '4px'
-                            }}
-                          >
-                            <CheckCircle2 size={11} color="var(--accent)" /> Completed
-                          </span>
-                        )}
-                      </div>
-                    </td>
+                    {/* 8. Status Dropdown & Action Button */}
+                    <td>{renderStatusDropdown(trip)}</td>
                   </tr>
                 ))
               )}

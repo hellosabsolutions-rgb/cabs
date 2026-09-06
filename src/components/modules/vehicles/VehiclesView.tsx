@@ -3,8 +3,9 @@ import { useFleet } from '../../../context/FleetContext';
 import { StatCard } from '../../common/StatCard';
 import { StatusChip } from '../../common/StatusChip';
 import { AddVehicleModal } from './AddVehicleModal';
+import { VehicleAvailabilityModal } from '../bookings/VehicleAvailabilityModal';
 import { Vehicle, VehicleStatus, VehicleType } from '../../../types/fleet';
-import { Truck, Briefcase, Building2, Plus, FileText, RotateCcw, MapPin, Fuel, AlertTriangle, Shield, Wind, FileCheck, Award, Eye } from 'lucide-react';
+import { Truck, Briefcase, Building2, Plus, FileText, RotateCcw, MapPin, Fuel, AlertTriangle, Shield, Wind, FileCheck, Award, Eye, Calendar } from 'lucide-react';
 import { SkeletonCard, SkeletonTable } from '../../common/Skeleton';
 
 export const VehiclesView: React.FC = () => {
@@ -13,6 +14,7 @@ export const VehiclesView: React.FC = () => {
   const [typeFilter, setTypeFilter] = useState<'All' | VehicleType>('All');
   const [statusFilter, setStatusFilter] = useState<string>('All');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isAvailabilityModalOpen, setIsAvailabilityModalOpen] = useState(false);
   const [viewRc, setViewRc] = useState<string | null>(null);
   const [selectedVehicleDocs, setSelectedVehicleDocs] = useState<Vehicle | null>(null);
 
@@ -83,7 +85,7 @@ export const VehiclesView: React.FC = () => {
       {/* Overview Stat Cards */}
       <div className="stats-grid">
         <StatCard label="Total Fleet Size" value={stats.total} customColor="var(--accent)" />
-        <StatCard label="Trip Fleet (Rental / Taxi)" value={stats.tripCount} customColor="#38bdf8" />
+        <StatCard label="Booking Fleet (Rental / Taxi)" value={stats.tripCount} customColor="#38bdf8" />
         <StatCard label="Department Contract Fleet" value={stats.deptCount} customColor="#ffcc4d" />
         <StatCard label="Running / On Duty" value={stats.running} customColor="#39ff6e" />
       </div>
@@ -99,7 +101,7 @@ export const VehiclesView: React.FC = () => {
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-            {/* Vehicle Type Filter (All, Trip, Department) */}
+            {/* Vehicle Type Filter (All, Booking, Department) */}
             <button
               className={`subtab-btn ${typeFilter === 'All' ? 'active' : ''}`}
               onClick={() => setTypeFilter('All')}
@@ -119,7 +121,7 @@ export const VehiclesView: React.FC = () => {
               }}
             >
               <Briefcase size={13} />
-              Trip Vehicles ({tripCount})
+              Booking Vehicles ({tripCount})
             </button>
 
             <button
@@ -148,6 +150,24 @@ export const VehiclesView: React.FC = () => {
               <option value="Maintenance">Maintenance</option>
             </select>
 
+            {/* Check Date Availability Button */}
+            <button
+              className="btn-secondary"
+              style={{
+                fontSize: '12px',
+                padding: '6px 14px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                borderColor: 'rgba(56, 189, 248, 0.4)',
+                color: '#38bdf8'
+              }}
+              onClick={() => setIsAvailabilityModalOpen(true)}
+              title="Check which vehicles are free/booked on any selected date"
+            >
+              <Calendar size={13} /> Vehicle Availability
+            </button>
+
             {/* Add Vehicle Button */}
             <button
               className="btn-primary-action"
@@ -166,7 +186,7 @@ export const VehiclesView: React.FC = () => {
               <tr>
                 <th>Registration & Model</th>
                 <th>Vehicle Type</th>
-                <th>Department / Client (Konse Dept Mai Lagi Hai)</th>
+                <th>Department / Client</th>
                 <th>Designated Driver</th>
                 <th>Odometer & Fuel</th>
                 <th>FASTag Balance</th>
@@ -211,7 +231,7 @@ export const VehiclesView: React.FC = () => {
                         >
                           {v.currentOperationMode === 'Trip-based' && v.type === 'Department' ? (
                             <>
-                              <Briefcase size={10} /> Weekend Trip Active
+                              <Briefcase size={10} /> Weekend Booking Active
                             </>
                           ) : v.type === 'Department' ? (
                             <>
@@ -219,7 +239,7 @@ export const VehiclesView: React.FC = () => {
                             </>
                           ) : (
                             <>
-                              <Briefcase size={10} /> Trip-based
+                              <Briefcase size={10} /> Booking-based
                             </>
                           )}
                         </span>
@@ -244,7 +264,7 @@ export const VehiclesView: React.FC = () => {
                                   : 'Trip-based'
                               )
                             }
-                            title="Click to switch vehicle between Department duty and Weekend commercial trip"
+                            title="Click to switch vehicle between Department duty and Weekend commercial booking"
                           >
                             {v.currentOperationMode === 'Trip-based' ? (
                               <>
@@ -252,7 +272,7 @@ export const VehiclesView: React.FC = () => {
                               </>
                             ) : (
                               <>
-                                <RotateCcw size={10} /> Sat/Sun Trip Mode
+                                <RotateCcw size={10} /> Sat/Sun Booking Mode
                               </>
                             )}
                           </button>
@@ -553,6 +573,12 @@ export const VehiclesView: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Vehicle Availability Modal */}
+      <VehicleAvailabilityModal
+        isOpen={isAvailabilityModalOpen}
+        onClose={() => setIsAvailabilityModalOpen(false)}
+      />
     </div>
   );
 };

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useFleet } from '../../../context/FleetContext';
 import { CreditCard } from 'lucide-react';
+import { DatePicker } from '../../common/DatePicker';
 
 interface AddTollDeductionModalProps {
   isOpen: boolean;
@@ -169,11 +170,9 @@ export const AddTollDeductionModal: React.FC<AddTollDeductionModalProps> = ({
             <div className="form-row-2">
               <div className="form-group" style={{ marginBottom: 0 }}>
                 <label className="form-label">Date *</label>
-                <input
-                  type="date"
-                  className="form-input"
+                <DatePicker
                   value={date}
-                  onChange={e => setDate(e.target.value)}
+                  onChange={d => setDate(d)}
                   required
                 />
               </div>

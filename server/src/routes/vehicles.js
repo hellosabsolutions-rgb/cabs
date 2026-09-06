@@ -1,7 +1,10 @@
 import express from 'express';
 import { vehicleController } from '../controllers/vehicleController.js';
+import { checkAvailability } from '../controllers/bookingController.js';
 
 const router = express.Router();
+
+router.get('/availability', checkAvailability);
 
 router
   .route('/')

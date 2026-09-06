@@ -8,6 +8,18 @@ const dailyDutyLogSchema = new mongoose.Schema(
       trim: true,
       index: true
     },
+    logBookPageNo: {
+      type: String,
+      trim: true,
+      default: '122',
+      index: true
+    },
+    month: {
+      type: String,
+      trim: true,
+      default: 'August',
+      index: true
+    },
     date: {
       type: String,
       required: true,
@@ -95,6 +107,51 @@ const dailyDutyLogSchema = new mongoose.Schema(
     officerName: {
       type: String,
       trim: true
+    },
+    officerDesignation: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    journeyFrom: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    journeyTo: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    purposeOfJourney: {
+      type: String,
+      trim: true,
+      default: 'Official Office Duty'
+    },
+    headOfAccount: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    motorOilUsed: {
+      type: String,
+      trim: true,
+      default: 'None'
+    },
+    mOilLitres: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    officerSignatureStatus: {
+      type: String,
+      enum: ['Signed', 'Pending', 'Exempt'],
+      default: 'Signed'
+    },
+    driverSignatureStatus: {
+      type: String,
+      enum: ['Signed', 'Pending'],
+      default: 'Signed'
     },
     dutySlipPhoto: {
       type: String,

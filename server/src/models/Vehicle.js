@@ -34,7 +34,7 @@ const vehicleSchema = new mongoose.Schema(
       type: String,
       enum: ['Department', 'Trip-based'],
       default: function () {
-        return this.type;
+        return this?.type || 'Department';
       }
     },
     status: {

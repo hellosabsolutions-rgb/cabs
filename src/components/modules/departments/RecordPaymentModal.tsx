@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useFleet } from '../../../context/FleetContext';
 import { CreditCard, FileText } from 'lucide-react';
 import { MinimalVoiceFiller } from '../../common/MinimalVoiceFiller';
+import { DatePicker } from '../../common/DatePicker';
 
 interface RecordPaymentModalProps {
   isOpen: boolean;
@@ -191,11 +192,9 @@ export const RecordPaymentModal: React.FC<RecordPaymentModalProps> = ({ isOpen, 
 
               <div className="form-group" style={{ marginBottom: 0 }}>
                 <label className="form-label">Payment Date *</label>
-                <input
-                  type="date"
-                  className="form-input"
+                <DatePicker
                   value={paymentDate}
-                  onChange={e => setPaymentDate(e.target.value)}
+                  onChange={d => setPaymentDate(d)}
                   required
                 />
               </div>

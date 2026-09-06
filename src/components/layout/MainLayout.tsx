@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useFleet } from '../../context/FleetContext';
 import { Sidebar } from './Sidebar';
 import { Topbar } from './Topbar';
@@ -6,6 +7,7 @@ import { DashboardView } from '../modules/dashboard/DashboardView';
 import { VehiclesView } from '../modules/vehicles/VehiclesView';
 import { DriversView } from '../modules/drivers/DriversView';
 import { DepartmentsView } from '../modules/departments/DepartmentsView';
+import { BookingsView } from '../modules/bookings/BookingsView';
 import { TripsView } from '../modules/trips/TripsView';
 import { ExpensesView } from '../modules/expenses/ExpensesView';
 import { ProfitabilityView } from '../modules/profitability/ProfitabilityView';
@@ -17,34 +19,22 @@ import { useAuth } from '../../context/AuthContext';
 import { useAgency } from '../../context/AgencyContext';
 import { LoginView } from '../modules/auth/LoginView';
 import { AgencyOnboardingView } from '../modules/agency/AgencyOnboardingView';
-import { Loader2 } from 'lucide-react';
+import { CabLoadingScreen } from '../common/CabLoadingScreen';
 
 export const MainLayout: React.FC = () => {
   const { activePage } = useFleet();
-  const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const location = useLocation();
+  const { isAuthenticated, isLoading: authLoading, isDashboardOpening } = useAuth();
   const { currentAgency, agencies, isLoading: agencyLoading } = useAgency();
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
-  // If verifying authentication session or agency on boot
-  if (authLoading || (isAuthenticated && agencyLoading)) {
+  // If verifying authentication session, agency loading on boot, or user just logged in opening the dashboard
+  if (authLoading || (isAuthenticated && agencyLoading) || isDashboardOpening) {
     return (
-      <div
-        style={{
-          minHeight: '100vh',
-          width: '100%',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          background: 'var(--bg)',
-          gap: '12px'
-        }}
-      >
-        <Loader2 size={32} className="spin-loader" color="var(--accent)" />
-        <div style={{ fontSize: '13px', color: 'var(--text-faint)', fontWeight: 500 }}>
-          Initializing KABPRO Session...
-        </div>
-      </div>
+      <>
+        <CabLoadingScreen subtitle="Loading your dashboard…" />
+        <ToastContainer />
+      </>
     );
   }
 
@@ -68,31 +58,6 @@ export const MainLayout: React.FC = () => {
     );
   }
 
-  const renderActiveView = () => {
-    switch (activePage) {
-      case 'dashboard':
-        return <DashboardView />;
-      case 'vehicles':
-        return <VehiclesView />;
-      case 'drivers':
-        return <DriversView />;
-      case 'departments':
-        return <DepartmentsView />;
-      case 'trips':
-        return <TripsView />;
-      case 'expenses':
-        return <ExpensesView />;
-      case 'profitability':
-        return <ProfitabilityView />;
-      case 'compliance':
-        return <ComplianceView />;
-      case 'maintenance':
-        return <MaintenanceView />;
-      default:
-        return <DashboardView />;
-    }
-  };
-
   return (
     <div className="app-container">
       {/* Mobile sidebar backdrop */}
@@ -107,8 +72,49 @@ export const MainLayout: React.FC = () => {
       <div className="main">
         <Topbar onToggleMobileSidebar={() => setMobileSidebarOpen(prev => !prev)} />
         <main className="content">
-          <ErrorBoundary key={activePage}>
-            {renderActiveView()}
+          <ErrorBoundary key={location.pathname}>
+            <Routes>
+              {/* Dashboard */}
+              <Route path="/" element={<Navigate to="/dashboard" replace />} />
+              <Route path="/dashboard" element={<DashboardView />} />
+
+              {/* Vehicles */}
+              <Route path="/vehicles" element={<VehiclesView />} />
+
+              {/* Drivers & Subtabs */}
+              <Route path="/drivers" element={<Navigate to="/drivers/list" replace />} />
+              <Route path="/drivers/list" element={<DriversView />} />
+              <Route path="/drivers/attendance" element={<DriversView />} />
+              <Route path="/drivers/expenses" element={<DriversView />} />
+
+              {/* Departments & Subtabs */}
+              <Route path="/departments" element={<Navigate to="/departments/contracts" replace />} />
+              <Route path="/departments/contracts" element={<DepartmentsView />} />
+              <Route path="/departments/duty-logs" element={<DepartmentsView />} />
+              <Route path="/departments/billing" element={<DepartmentsView />} />
+              <Route path="/departments/payments" element={<DepartmentsView />} />
+
+              {/* Booking */}
+              <Route path="/booking" element={<BookingsView />} />
+              <Route path="/bookings" element={<BookingsView />} />
+              <Route path="/trips" element={<Navigate to="/booking" replace />} />
+
+              {/* Money & Expenses */}
+              <Route path="/expenses" element={<Navigate to="/expenses/fastag" replace />} />
+              <Route path="/expenses/fastag" element={<ExpensesView />} />
+              <Route path="/expenses/fuel" element={<ExpensesView />} />
+              <Route path="/expenses/all" element={<ExpensesView />} />
+
+              {/* Profitability */}
+              <Route path="/profitability" element={<ProfitabilityView />} />
+
+              {/* Compliance & Maintenance */}
+              <Route path="/compliance" element={<ComplianceView />} />
+              <Route path="/maintenance" element={<MaintenanceView />} />
+
+              {/* Fallback */}
+              <Route path="*" element={<Navigate to="/dashboard" replace />} />
+            </Routes>
           </ErrorBoundary>
         </main>
       </div>

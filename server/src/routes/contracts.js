@@ -1,25 +1,33 @@
 import express from 'express';
-import { DepartmentContract } from '../models/DepartmentContract.js';
-import { createCrudController } from '../controllers/crudFactory.js';
+import {
+  getContracts,
+  getContractStats,
+  getContractById,
+  createContract,
+  updateContract,
+  updateContractStatus,
+  deleteContract
+} from '../controllers/contractController.js';
 
 const router = express.Router();
-const contractController = createCrudController(DepartmentContract, [
-  'contractNumber',
-  'departmentName',
-  'contactPerson',
-  'vehicle',
-  'driverName'
-]);
 
+// Contract summary stats
+router.get('/stats', getContractStats);
+
+// Base CRUD routes
 router
   .route('/')
-  .get(contractController.getAll)
-  .post(contractController.create);
+  .get(getContracts)
+  .post(createContract);
 
+// Status update quick endpoint
+router.patch('/:id/status', updateContractStatus);
+
+// Single contract routes
 router
   .route('/:id')
-  .get(contractController.getById)
-  .put(contractController.update)
-  .delete(contractController.delete);
+  .get(getContractById)
+  .put(updateContract)
+  .delete(deleteContract);
 
 export default router;

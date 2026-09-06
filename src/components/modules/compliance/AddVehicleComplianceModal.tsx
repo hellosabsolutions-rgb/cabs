@@ -12,6 +12,7 @@ import {
   Upload
 } from 'lucide-react';
 import { MinimalVoiceFiller } from '../../common/MinimalVoiceFiller';
+import { DatePicker } from '../../common/DatePicker';
 
 interface AddVehicleComplianceModalProps {
   isOpen: boolean;
@@ -240,7 +241,7 @@ export const AddVehicleComplianceModal: React.FC<AddVehicleComplianceModalProps>
 
             {/* 1. Vehicle Selector */}
             <div className="form-group" style={{ marginBottom: 0 }}>
-              <label className="form-label">Select Vehicle (Konsi Gaadi Ka Document Hai) *</label>
+              <label className="form-label">Select Vehicle *</label>
               <select
                 className="form-input"
                 value={vehicleReg}
@@ -255,9 +256,9 @@ export const AddVehicleComplianceModal: React.FC<AddVehicleComplianceModalProps>
               </select>
             </div>
 
-            {/* 2. Document Type (Insurance, Permit, PUC, RC, Fitness, Road tax) */}
+            {/* 2. Document Type */}
             <div className="form-group" style={{ marginBottom: 0 }}>
-              <label className="form-label">Document Type (Kon sa Document Hai) *</label>
+              <label className="form-label">Document Type *</label>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
                 {vehicleDocOptions.map(opt => (
                   <div
@@ -309,11 +310,9 @@ export const AddVehicleComplianceModal: React.FC<AddVehicleComplianceModalProps>
             <div className="form-row-2">
               <div className="form-group" style={{ marginBottom: 0 }}>
                 <label className="form-label">Issue Date (Optional)</label>
-                <input
-                  type="date"
-                  className="form-input"
+                <DatePicker
                   value={issueDate}
-                  onChange={e => setIssueDate(e.target.value)}
+                  onChange={d => setIssueDate(d)}
                 />
               </div>
 
@@ -321,12 +320,9 @@ export const AddVehicleComplianceModal: React.FC<AddVehicleComplianceModalProps>
                 <label className="form-label" style={{ color: 'var(--accent)', fontWeight: 600 }}>
                   Expiry Date / Valid Till *
                 </label>
-                <input
-                  type="date"
-                  className="form-input"
-                  style={{ fontWeight: 700 }}
+                <DatePicker
                   value={expiryDate}
-                  onChange={e => setExpiryDate(e.target.value)}
+                  onChange={d => setExpiryDate(d)}
                   required
                 />
               </div>

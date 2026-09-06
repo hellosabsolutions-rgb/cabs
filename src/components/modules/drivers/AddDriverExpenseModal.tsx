@@ -3,6 +3,7 @@ import { useFleet } from '../../../context/FleetContext';
 import { DriverExpenseCategory } from '../../../types/fleet';
 import { IndianRupee, FileText, Loader2 } from 'lucide-react';
 import { MinimalVoiceFiller } from '../../common/MinimalVoiceFiller';
+import { DatePicker } from '../../common/DatePicker';
 
 interface AddDriverExpenseModalProps {
   isOpen: boolean;
@@ -99,8 +100,9 @@ export const AddDriverExpenseModal: React.FC<AddDriverExpenseModalProps> = ({
     }
 
     setIsSubmitting(true);
+    setErrorMsg('');
     try {
-      addDriverExpense({
+      const res = await addDriverExpense({
         driverId: d.id,
         driverName: d.name,
         vehicle,
@@ -112,12 +114,19 @@ export const AddDriverExpenseModal: React.FC<AddDriverExpenseModalProps> = ({
         receipt: receiptPreview || receiptName || null
       });
 
+      if (res && !res.success && res.error) {
+        setErrorMsg(res.error);
+        return;
+      }
+
       setAmount('');
       setRemarks('');
       setReceiptName('');
       setReceiptPreview(null);
       setErrorMsg('');
       onClose();
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Failed to record expense');
     } finally {
       setIsSubmitting(false);
     }
@@ -199,11 +208,9 @@ export const AddDriverExpenseModal: React.FC<AddDriverExpenseModalProps> = ({
 
               <div className="form-group" style={{ marginBottom: 0 }}>
                 <label className="form-label">Expense Date *</label>
-                <input
-                  type="date"
-                  className="form-input"
+                <DatePicker
                   value={date}
-                  onChange={e => setDate(e.target.value)}
+                  onChange={d => setDate(d)}
                   required
                 />
               </div>

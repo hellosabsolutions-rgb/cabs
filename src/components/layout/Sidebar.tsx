@@ -1,7 +1,7 @@
 import React from 'react';
+import { NavLink, useLocation } from 'react-router-dom';
 import { useFleet } from '../../context/FleetContext';
 import { useTheme } from '../../context/ThemeContext';
-import { PageId } from '../../types/fleet';
 import { AgencySwitcher } from './AgencySwitcher';
 import {
   LayoutDashboard,
@@ -32,26 +32,25 @@ interface SidebarProps {
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onCloseMobile }) => {
-  const {
-    activePage,
-    setActivePage,
-    complianceStats,
-    vehicleSubTab,
-    setVehicleSubTab,
-    driverSubTab,
-    setDriverSubTab,
-    departmentSubTab,
-    setDepartmentSubTab,
-    expenseSubTab,
-    setExpenseSubTab
-  } = useFleet();
+  const { complianceStats } = useFleet();
   const { theme, setTheme } = useTheme();
+  const location = useLocation();
 
   const totalAlerts = complianceStats.expiringSoonCount + complianceStats.expiredCount;
+  const currentPath = location.pathname.toLowerCase();
 
-  const handleNavClick = (page: PageId) => {
-    setActivePage(page);
-    if (onCloseMobile) onCloseMobile();
+  const isItemActive = (path: string, exact = false) => {
+    if (exact) return currentPath === path;
+    if (path === '/dashboard') return currentPath === '/' || currentPath.startsWith('/dashboard');
+    if (path === '/booking' || path === '/bookings') return currentPath.startsWith('/booking') || currentPath.startsWith('/bookings') || currentPath.startsWith('/trips');
+    if (path === '/drivers/list') return currentPath === '/drivers' || currentPath.startsWith('/drivers/list');
+    if (path === '/departments/contracts') return currentPath === '/departments' || currentPath.startsWith('/departments/contracts');
+    if (path === '/expenses/fastag') return currentPath === '/expenses' || currentPath.startsWith('/expenses/fastag');
+    return currentPath.startsWith(path);
+  };
+
+  const navClass = (path: string, exact = false) => {
+    return `nav-item ${isItemActive(path, exact) ? 'active' : ''}`;
   };
 
   return (
@@ -102,193 +101,192 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onCloseMobile }) => {
       </div>
 
       <div className="nav" id="nav">
+        {/* Dashboard */}
         <div className="nav-group">
-          <div
-            className={`nav-item ${activePage === 'dashboard' ? 'active' : ''}`}
-            onClick={() => handleNavClick('dashboard')}
+          <NavLink
+            to="/dashboard"
+            className={navClass('/dashboard')}
+            onClick={onCloseMobile}
           >
             <LayoutDashboard />
             Dashboard
-          </div>
+          </NavLink>
         </div>
 
+        {/* Vehicles */}
         <div className="nav-group">
           <div className="nav-label">Vehicles</div>
-          <div
-            className={`nav-item ${activePage === 'vehicles' ? 'active' : ''}`}
-            onClick={() => handleNavClick('vehicles')}
+          <NavLink
+            to="/vehicles"
+            className={navClass('/vehicles')}
+            onClick={onCloseMobile}
           >
             <Truck />
             Vehicles
-          </div>
+          </NavLink>
         </div>
 
+        {/* Drivers */}
         <div className="nav-group">
           <div className="nav-label">Drivers</div>
-          <div
-            className={`nav-item ${activePage === 'drivers' && driverSubTab === 'list' ? 'active' : ''}`}
-            onClick={() => {
-              setDriverSubTab('list');
-              handleNavClick('drivers');
-            }}
+          <NavLink
+            to="/drivers/list"
+            className={navClass('/drivers/list')}
+            onClick={onCloseMobile}
           >
             <Users />
             Driver list
-          </div>
-          <div
-            className={`nav-item ${activePage === 'drivers' && driverSubTab === 'attendance' ? 'active' : ''}`}
-            onClick={() => {
-              setDriverSubTab('attendance');
-              handleNavClick('drivers');
-            }}
+          </NavLink>
+          <NavLink
+            to="/drivers/attendance"
+            className={navClass('/drivers/attendance')}
+            onClick={onCloseMobile}
           >
             <CalendarCheck />
             Attendance
-          </div>
-          <div
-            className={`nav-item ${activePage === 'drivers' && driverSubTab === 'expenses' ? 'active' : ''}`}
-            onClick={() => {
-              setDriverSubTab('expenses');
-              handleNavClick('drivers');
-            }}
+          </NavLink>
+          <NavLink
+            to="/drivers/expenses"
+            className={navClass('/drivers/expenses')}
+            onClick={onCloseMobile}
           >
             <Receipt />
             Driver expenses
-          </div>
+          </NavLink>
         </div>
 
+        {/* Departments & Contracts */}
         <div className="nav-group">
           <div className="nav-label">Departments & contracts</div>
-          <div
-            className={`nav-item ${activePage === 'departments' && departmentSubTab === 'contracts' ? 'active' : ''}`}
-            onClick={() => {
-              setDepartmentSubTab('contracts');
-              handleNavClick('departments');
-            }}
+          <NavLink
+            to="/departments/contracts"
+            className={navClass('/departments/contracts')}
+            onClick={onCloseMobile}
           >
             <FileText />
             Contracts
-          </div>
-          <div
-            className={`nav-item ${activePage === 'departments' && departmentSubTab === 'duty-logs' ? 'active' : ''}`}
-            onClick={() => {
-              setDepartmentSubTab('duty-logs');
-              handleNavClick('departments');
-            }}
+          </NavLink>
+          <NavLink
+            to="/departments/duty-logs"
+            className={navClass('/departments/duty-logs')}
+            onClick={onCloseMobile}
           >
             <ClipboardList />
             Daily duty logs
-          </div>
-          <div
-            className={`nav-item ${activePage === 'departments' && departmentSubTab === 'billing' ? 'active' : ''}`}
-            onClick={() => {
-              setDepartmentSubTab('billing');
-              handleNavClick('departments');
-            }}
+          </NavLink>
+          <NavLink
+            to="/departments/billing"
+            className={navClass('/departments/billing')}
+            onClick={onCloseMobile}
           >
             <ReceiptText />
             Monthly billing
-          </div>
-          <div
-            className={`nav-item ${activePage === 'departments' && departmentSubTab === 'payments' ? 'active' : ''}`}
-            onClick={() => {
-              setDepartmentSubTab('payments');
-              handleNavClick('departments');
-            }}
+          </NavLink>
+          <NavLink
+            to="/departments/payments"
+            className={navClass('/departments/payments')}
+            onClick={onCloseMobile}
           >
             <CreditCard />
             Payments
-          </div>
+          </NavLink>
         </div>
 
+        {/* Booking */}
         <div className="nav-group">
-          <div className="nav-label">Trips</div>
-          <div
-            className={`nav-item ${activePage === 'trips' ? 'active' : ''}`}
-            onClick={() => handleNavClick('trips')}
+          <div className="nav-label">Booking</div>
+          <NavLink
+            to="/booking"
+            className={navClass('/booking')}
+            onClick={onCloseMobile}
           >
             <Navigation />
-            Trips
-          </div>
+            Booking
+          </NavLink>
         </div>
 
+        {/* Money */}
         <div className="nav-group">
           <div className="nav-label">Money</div>
-          <div
-            className={`nav-item ${activePage === 'expenses' && expenseSubTab === 'fastag' ? 'active' : ''}`}
-            onClick={() => {
-              setExpenseSubTab('fastag');
-              handleNavClick('expenses');
-            }}
+          <NavLink
+            to="/expenses/fastag"
+            className={navClass('/expenses/fastag')}
+            onClick={onCloseMobile}
           >
             <CreditCard />
             FASTag per vehicle
-          </div>
-          <div
-            className={`nav-item ${activePage === 'expenses' && expenseSubTab === 'fuel' ? 'active' : ''}`}
-            onClick={() => {
-              setExpenseSubTab('fuel');
-              handleNavClick('expenses');
-            }}
+          </NavLink>
+          <NavLink
+            to="/expenses/fuel"
+            className={navClass('/expenses/fuel')}
+            onClick={onCloseMobile}
           >
             <Fuel />
             Fuel tracking & logs
-          </div>
-          <div
-            className={`nav-item ${activePage === 'expenses' && expenseSubTab === 'all' ? 'active' : ''}`}
-            onClick={() => {
-              setExpenseSubTab('all');
-              handleNavClick('expenses');
-            }}
+          </NavLink>
+          <NavLink
+            to="/expenses/all"
+            className={navClass('/expenses/all')}
+            onClick={onCloseMobile}
           >
             <IndianRupee />
             All expenses
-          </div>
-          <div
-            className={`nav-item ${activePage === 'profitability' ? 'active' : ''}`}
-            onClick={() => handleNavClick('profitability')}
+          </NavLink>
+          <NavLink
+            to="/profitability"
+            className={navClass('/profitability')}
+            onClick={onCloseMobile}
           >
             <TrendingUp />
             Profitability
-          </div>
-          <div className="nav-item" onClick={() => handleNavClick('dashboard')}>
+          </NavLink>
+          <NavLink
+            to="/profitability"
+            className={navClass('/profitability', true)}
+            onClick={onCloseMobile}
+          >
+            <IndianRupee />
             Revenue
-          </div>
+          </NavLink>
         </div>
 
+        {/* Compliance */}
         <div className="nav-group">
           <div className="nav-label">Compliance</div>
-          <div
-            className={`nav-item ${activePage === 'compliance' ? 'active' : ''}`}
-            onClick={() => handleNavClick('compliance')}
+          <NavLink
+            to="/compliance"
+            className={navClass('/compliance')}
+            onClick={onCloseMobile}
           >
             <ShieldAlert />
             Vehicle & driver docs
             {totalAlerts > 0 && <span className="badge">{totalAlerts}</span>}
-          </div>
-          <div
-            className={`nav-item ${activePage === 'maintenance' ? 'active' : ''}`}
-            onClick={() => handleNavClick('maintenance')}
+          </NavLink>
+          <NavLink
+            to="/maintenance"
+            className={navClass('/maintenance')}
+            onClick={onCloseMobile}
           >
             <Wrench />
             Maintenance
-          </div>
+          </NavLink>
         </div>
 
+        {/* System */}
         <div className="nav-group">
           <div className="nav-label">System</div>
-          <div className="nav-item" onClick={() => handleNavClick('dashboard')}>
+          <NavLink to="/dashboard" className="nav-item" onClick={onCloseMobile}>
             <BarChart2 />
             Reports
-          </div>
-          <div className="nav-item" onClick={() => handleNavClick('dashboard')}>
+          </NavLink>
+          <NavLink to="/dashboard" className="nav-item" onClick={onCloseMobile}>
             <Bell />
             Notifications
-          </div>
-          <div className="nav-item" onClick={() => handleNavClick('dashboard')}>
+          </NavLink>
+          <NavLink to="/dashboard" className="nav-item" onClick={onCloseMobile}>
             <Settings />
             Settings
-          </div>
+          </NavLink>
         </div>
       </div>
 

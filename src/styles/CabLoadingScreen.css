@@ -1,0 +1,145 @@
+.cab-loading-stage {
+  --bg-top: #ffffff;
+  --bg-bottom: #e8f1fc;
+  --blue: #1d6fd8;
+  --blue-soft: #1d6fd855;
+  --text: #12233d;
+  --text-dim: #5b7290;
+  --progress-track: #d7e6fb;
+
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(180deg, var(--bg-top), var(--bg-bottom));
+  overflow: hidden;
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  z-index: 999999;
+  transition: opacity 0.35s ease, visibility 0.35s ease;
+  pointer-events: all;
+}
+
+[data-theme="dark"] .cab-loading-stage {
+  --bg-top: #080d16;
+  --bg-bottom: #0f1c2d;
+  --blue: #2d7eeb;
+  --blue-soft: #2d7eeb66;
+  --text: #ffffff;
+  --text-dim: #8fa0b5;
+  --progress-track: #1c2b42;
+}
+
+.cab-loading-stage.fade-out {
+  opacity: 0;
+  visibility: hidden;
+}
+
+/* car wrap: fixed centered width so the drive-in and the text below share
+   the same horizontal center */
+.cab-loading-stage .car-wrap {
+  position: relative;
+  width: 320px;
+  height: 210px;
+  overflow: visible;
+}
+
+.cab-loading-stage .car-anim {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  animation: cabDriveIn 3.2s cubic-bezier(0.25, 0.8, 0.3, 1) infinite;
+}
+
+@keyframes cabDriveIn {
+  0%   { transform: translate(120%, 0); }
+  45%  { transform: translate(-50%, 0); }
+  54%  { transform: translate(-50%, -6px); }
+  62%  { transform: translate(-50%, 0); }
+  78%  { transform: translate(-50%, -2px); }
+  100% { transform: translate(-50%, 0); }
+}
+
+.cab-loading-stage .car {
+  width: 320px;
+  height: auto;
+  display: block;
+  filter: drop-shadow(-6px 14px 10px rgba(29, 111, 216, 0.28));
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+[data-theme="dark"] .cab-loading-stage .car {
+  filter: drop-shadow(-6px 14px 14px rgba(45, 126, 235, 0.45));
+}
+
+/* soft ground light pooling under the car, brightens on arrival */
+.cab-loading-stage .glow {
+  position: absolute;
+  bottom: -6px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 230px;
+  height: 34px;
+  background: radial-gradient(ellipse at center, var(--blue-soft), transparent 70%);
+  opacity: 0;
+  animation: cabGlowShow 3.2s ease infinite;
+  pointer-events: none;
+}
+
+@keyframes cabGlowShow {
+  0%, 50% { opacity: 0; }
+  64%, 88% { opacity: 1; }
+  100% { opacity: 0.35; }
+}
+
+/* branding + progress, centered under the car */
+.cab-loading-stage .brand {
+  margin-top: 18px;
+  text-align: center;
+  z-index: 2;
+}
+
+.cab-loading-stage .brand h1 {
+  margin: 0;
+  font-size: 26px;
+  letter-spacing: 0.3px;
+  color: var(--text);
+  font-weight: 600;
+}
+
+.cab-loading-stage .brand h1 span {
+  color: var(--blue);
+}
+
+.cab-loading-stage .brand p {
+  margin: 8px 0 0;
+  font-size: 14px;
+  color: var(--text-dim);
+  font-weight: 400;
+}
+
+.cab-loading-stage .progress {
+  margin: 22px auto 0;
+  width: 220px;
+  height: 4px;
+  border-radius: 4px;
+  background: var(--progress-track);
+  overflow: hidden;
+}
+
+.cab-loading-stage .progress-bar {
+  height: 100%;
+  width: 40%;
+  border-radius: 4px;
+  background: linear-gradient(90deg, var(--blue), #5aa4ef);
+  animation: cabLoad 1.6s ease-in-out infinite;
+}
+
+@keyframes cabLoad {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(280%); }
+}

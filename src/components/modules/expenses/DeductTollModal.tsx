@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useFleet } from '../../../context/FleetContext';
 import { MinusCircle, ShieldCheck, ArrowRight } from 'lucide-react';
 import { MinimalVoiceFiller } from '../../common/MinimalVoiceFiller';
+import { DatePicker } from '../../common/DatePicker';
 
 interface DeductTollModalProps {
   isOpen: boolean;
@@ -99,7 +100,7 @@ export const DeductTollModal: React.FC<DeductTollModalProps> = ({
         <div className="modal-header">
           <div className="modal-title-group">
             <h3 className="modal-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <MinusCircle size={18} color="var(--danger)" /> Record Toll Deduction (Kitna Kata / Kam Hua)
+              <MinusCircle size={18} color="var(--danger)" /> Record Toll Deduction
             </h3>
             <span className="modal-subtitle">
               Manually record toll expense & deduct from vehicle FASTag balance
@@ -140,7 +141,7 @@ export const DeductTollModal: React.FC<DeductTollModalProps> = ({
 
             {/* Vehicle Selection */}
             <div className="form-group" style={{ marginBottom: 0 }}>
-              <label className="form-label">Select Vehicle (Konsi Gaadi Ka FASTag Kata) *</label>
+              <label className="form-label">Select Vehicle *</label>
               <select
                 className="form-input"
                 value={vehicleReg}
@@ -189,7 +190,7 @@ export const DeductTollModal: React.FC<DeductTollModalProps> = ({
             {/* Toll Amount Deducted (₹) */}
             <div className="form-row-2">
               <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label">Toll Amount Deducted (Kitna Paisa Kata) (₹) *</label>
+                <label className="form-label">Toll Amount Deducted (₹) *</label>
                 <div style={{ position: 'relative' }}>
                   <span
                     style={{
@@ -218,11 +219,9 @@ export const DeductTollModal: React.FC<DeductTollModalProps> = ({
 
               <div className="form-group" style={{ marginBottom: 0 }}>
                 <label className="form-label">Date of Toll Cross</label>
-                <input
-                  type="date"
-                  className="form-input"
+                <DatePicker
                   value={date}
-                  onChange={e => setDate(e.target.value)}
+                  onChange={d => setDate(d)}
                   required
                 />
               </div>
@@ -252,7 +251,7 @@ export const DeductTollModal: React.FC<DeductTollModalProps> = ({
                     ₹{estNewBal.toLocaleString('en-IN')}
                   </b>
                   <span style={{ fontSize: '11px', color: 'var(--danger)', fontWeight: 600 }}>
-                    (-₹{numAmount} kata)
+                    (-₹{numAmount} deducted)
                   </span>
                 </div>
               </div>

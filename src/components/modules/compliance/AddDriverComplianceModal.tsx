@@ -10,6 +10,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { MinimalVoiceFiller } from '../../common/MinimalVoiceFiller';
+import { DatePicker } from '../../common/DatePicker';
 
 interface AddDriverComplianceModalProps {
   isOpen: boolean;
@@ -238,7 +239,7 @@ export const AddDriverComplianceModal: React.FC<AddDriverComplianceModalProps> =
 
             {/* 1. Select Driver */}
             <div className="form-group" style={{ marginBottom: 0 }}>
-              <label className="form-label">Select Driver (Konse Driver Ka Document Hai) *</label>
+              <label className="form-label">Select Driver *</label>
               <select
                 className="form-input"
                 value={driverName}
@@ -315,7 +316,7 @@ export const AddDriverComplianceModal: React.FC<AddDriverComplianceModalProps> =
               >
                 <CheckCircle2 size={16} color="var(--accent)" />
                 <span>
-                  <b>Mandatory Compliance:</b> Commercial fleet me chalane ke liye driver ka <b>Driving Licence (DL Number & Expiry)</b> daalna anivarya (mandatory) hai.
+                  <b>Mandatory Compliance:</b> A valid <b>Driving Licence (DL Number & Expiry)</b> is mandatory for operating commercial fleet vehicles.
                 </span>
               </div>
             ) : (
@@ -332,7 +333,7 @@ export const AddDriverComplianceModal: React.FC<AddDriverComplianceModalProps> =
                 }}
               >
                 <AlertCircle size={14} color="var(--accent)" />
-                <span>Ye optional compliance record hai (Driving Licence pehle se mandatory hai).</span>
+                <span>This is an optional compliance record (Driving Licence is already mandatory).</span>
               </div>
             )}
 
@@ -374,11 +375,9 @@ export const AddDriverComplianceModal: React.FC<AddDriverComplianceModalProps> =
             <div className="form-row-2">
               <div className="form-group" style={{ marginBottom: 0 }}>
                 <label className="form-label">Issue Date (Optional)</label>
-                <input
-                  type="date"
-                  className="form-input"
+                <DatePicker
                   value={issueDate}
-                  onChange={e => setIssueDate(e.target.value)}
+                  onChange={d => setIssueDate(d)}
                 />
               </div>
 
@@ -386,12 +385,9 @@ export const AddDriverComplianceModal: React.FC<AddDriverComplianceModalProps> =
                 <label className="form-label" style={{ color: 'var(--accent)', fontWeight: 600 }}>
                   Licence Valid Till / Expiry Date * (Mandatory)
                 </label>
-                <input
-                  type="date"
-                  className="form-input"
-                  style={{ fontWeight: 700 }}
+                <DatePicker
                   value={expiryDate}
-                  onChange={e => setExpiryDate(e.target.value)}
+                  onChange={d => setExpiryDate(d)}
                   required
                 />
               </div>

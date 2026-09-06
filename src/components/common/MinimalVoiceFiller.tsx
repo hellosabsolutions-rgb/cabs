@@ -16,7 +16,7 @@ export const MinimalVoiceFiller: React.FC<MinimalVoiceFillerProps> = ({
   context = {},
   onApplyParsedData,
   customParser,
-  placeholder = 'Speak to auto-fill form (बोलकर भरें)...'
+  placeholder = 'Speak to auto-fill form...'
 }) => {
   const [lang, setLang] = useState<'en-IN' | 'hi-IN'>('en-IN');
   const [detectedCount, setDetectedCount] = useState(0);

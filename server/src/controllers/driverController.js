@@ -3,6 +3,7 @@ import { Vehicle } from '../models/Vehicle.js';
 import { Compliance } from '../models/Compliance.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import { createCrudController } from './crudFactory.js';
+import { calculateExpiryMeta } from './complianceController.js';
 import mongoose from 'mongoose';
 
 // Base CRUD controller for drivers
@@ -43,6 +44,7 @@ export const createDriver = asyncHandler(async (req, res) => {
     emergencyContact,
     licenseNumber,
     licensePhoto,
+    licenseExpiry,
     driverType,
     assignedVehicle,
     joiningDate,
@@ -97,6 +99,7 @@ export const createDriver = asyncHandler(async (req, res) => {
     emergencyContact: emergencyContact ? emergencyContact.trim() : undefined,
     licenseNumber: licenseNumber ? licenseNumber.trim().toUpperCase() : undefined,
     licensePhoto: licensePhoto || null,
+    licenseExpiry: licenseExpiry || undefined,
     driverType: driverType || 'Full Time',
     assignedVehicle: cleanVehicle,
     joiningDate: cleanJoiningDate,
@@ -119,20 +122,25 @@ export const createDriver = asyncHandler(async (req, res) => {
   // 5. Auto-create compliance document for driver license if license number is provided
   if (licenseNumber && licenseNumber.trim()) {
     try {
-      const expDate = new Date();
-      expDate.setFullYear(expDate.getFullYear() + 3);
+      const expDateStr = licenseExpiry || (() => {
+        const d = new Date();
+        d.setFullYear(d.getFullYear() + 3);
+        return d.toISOString().split('T')[0];
+      })();
+      const meta = calculateExpiryMeta(expDateStr);
+
       await Compliance.create({
         entityName: cleanName,
         entityType: 'Driver',
         documentName: 'Driving licence',
         documentNumber: licenseNumber.trim().toUpperCase(),
         issueDate: cleanJoiningDate,
-        expiryDate: expDate.toISOString().split('T')[0],
+        expiryDate: expDateStr,
         issuingAuthority: 'Regional Transport Office (RTO)',
         documentPhoto: licensePhoto || null,
-        expiryLabel: 'Valid · 3 years',
-        statusType: 'ok',
-        daysLeft: 1095,
+        expiryLabel: meta.expiryLabel,
+        statusType: meta.statusType,
+        daysLeft: meta.daysLeft,
         notes: `Registered during driver onboarding on ${cleanJoiningDate}`
       });
     } catch (cErr) {
@@ -172,7 +180,7 @@ export const updateDriver = asyncHandler(async (req, res) => {
     runValidators: true
   });
 
-  // Sync vehicle if assignment changed
+  // Sync vehicle if assignment changed or driver name changed
   if (newVehicle && newVehicle !== prevVehicle) {
     if (prevVehicle && prevVehicle !== '—') {
       await Vehicle.findOneAndUpdate(
@@ -186,12 +194,62 @@ export const updateDriver = asyncHandler(async (req, res) => {
         { assignedDriver: updatedDriver.name }
       );
     }
+  } else if (req.body.name && req.body.name !== existing.name && updatedDriver.assignedVehicle && updatedDriver.assignedVehicle !== '—') {
+    await Vehicle.findOneAndUpdate(
+      { registrationNumber: updatedDriver.assignedVehicle },
+      { assignedDriver: updatedDriver.name }
+    );
   }
+
+  // Sync Driving licence compliance document if license details or name changed
+  if (req.body.licenseNumber !== undefined || req.body.licenseExpiry !== undefined || req.body.licensePhoto !== undefined || req.body.name !== undefined) {
+    try {
+      const expDate = req.body.licenseExpiry || updatedDriver.licenseExpiry;
+      const meta = expDate ? calculateExpiryMeta(expDate) : null;
+
+      const compUpdate = {
+        entityName: updatedDriver.name,
+        entityType: 'Driver',
+        documentName: 'Driving licence',
+        ...(req.body.licenseNumber !== undefined && { documentNumber: (req.body.licenseNumber || '').trim().toUpperCase() }),
+        ...(req.body.licenseExpiry !== undefined && { expiryDate: req.body.licenseExpiry }),
+        ...(req.body.licensePhoto !== undefined && { documentPhoto: req.body.licensePhoto }),
+        ...(meta && {
+          expiryLabel: meta.expiryLabel,
+          statusType: meta.statusType,
+          daysLeft: meta.daysLeft
+        })
+      };
+
+      const existingComp = await Compliance.findOne({
+        entityName: { $in: [existing.name, updatedDriver.name] },
+        entityType: 'Driver',
+        documentName: { $regex: /licen[cs]e/i }
+      });
+
+      if (existingComp) {
+        await Compliance.findByIdAndUpdate(existingComp._id, { $set: compUpdate });
+      } else if (updatedDriver.licenseNumber) {
+        await Compliance.create({
+          ...compUpdate,
+          documentNumber: updatedDriver.licenseNumber,
+          issueDate: updatedDriver.joiningDate || new Date().toISOString().split('T')[0],
+          expiryDate: expDate || new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+          issuingAuthority: 'Regional Transport Office (RTO)'
+        });
+      }
+    } catch (cErr) {
+      console.warn('Could not sync driver compliance document on update:', cErr.message);
+    }
+  }
+
+  const driverObj = updatedDriver.toObject ? updatedDriver.toObject() : updatedDriver;
+  driverObj.id = updatedDriver._id ? updatedDriver._id.toString() : updatedDriver.id;
 
   res.status(200).json({
     success: true,
     message: `Driver ${updatedDriver.name} updated successfully`,
-    data: updatedDriver
+    data: driverObj
   });
 });
 
