@@ -1,0 +1,104 @@
+@import "tailwindcss";
+
+/* ─── Single light theme — no dark mode ─── */
+:root {
+  --theme-bg: #F7F7F7;
+  --theme-surface: #FFFFFF;
+  --theme-surface-elevated: #FFFFFF;
+  --theme-surface-bright: #F0F0F0;
+  --theme-accent: #1687F5;
+  --theme-accent-hover: #1270D6;
+  --theme-accent-muted: #E8F4FE;
+  --theme-accent-text: #FFFFFF;
+  --theme-foreground: #0B0B0B;
+  --theme-muted: #A5A5A5;
+  --theme-faint: #C5C5C5;
+  --theme-border: #E7E7E7;
+  --theme-glow: rgba(22, 135, 245, 0.06);
+  --theme-card-shadow: 0 2px 16px rgba(0, 0, 0, 0.06);
+  --theme-accent-rgb: 22, 135, 245;
+  --theme-body: #333333;
+
+  --color-coral: #F15B4A;
+  --color-gold: #FFF36A;
+  --color-teal: #26B8D8;
+}
+
+/* ─── Tailwind theme tokens ─── */
+@theme {
+  --color-bg: var(--theme-bg);
+  --color-surface: var(--theme-surface);
+  --color-surface-elevated: var(--theme-surface-elevated);
+  --color-surface-bright: var(--theme-surface-bright);
+  --color-accent: var(--theme-accent);
+  --color-accent-hover: var(--theme-accent-hover);
+  --color-accent-muted: var(--theme-accent-muted);
+  --color-accent-text: var(--theme-accent-text);
+  --color-foreground: var(--theme-foreground);
+  --color-muted: var(--theme-muted);
+  --color-faint: var(--theme-faint);
+  --color-border: var(--theme-border);
+  --color-glow: var(--theme-glow);
+  --color-coral: var(--color-coral);
+  --color-gold: var(--color-gold);
+  --color-teal: var(--color-teal);
+  --color-body: var(--theme-body);
+
+  --font-sans: var(--font-geist-sans), system-ui, -apple-system, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+
+  --shadow-card: var(--theme-card-shadow);
+}
+
+html { scroll-behavior: smooth; }
+
+::selection {
+  background-color: var(--theme-accent);
+  color: var(--theme-accent-text);
+}
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--theme-border); border-radius: 4px; }
+
+/* ─── Animations ─── */
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes float-slow {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  50% { transform: translateY(-14px) rotate(1.5deg); }
+}
+
+@keyframes float-reverse {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(10px); }
+}
+
+/* ─── Hero mesh gradient ─── */
+.hero-mesh {
+  background-color: #ffffff;
+  background-image:
+    radial-gradient(ellipse 55% 50% at 12% 18%, rgba(22, 135, 245, 0.14), transparent 70%),
+    radial-gradient(ellipse 45% 45% at 88% 12%, rgba(38, 184, 216, 0.12), transparent 68%),
+    radial-gradient(ellipse 50% 40% at 78% 88%, rgba(241, 91, 74, 0.07), transparent 70%),
+    radial-gradient(ellipse 60% 50% at 30% 92%, rgba(255, 243, 106, 0.16), transparent 72%),
+    radial-gradient(ellipse 40% 35% at 50% 45%, rgba(22, 135, 245, 0.05), transparent 65%);
+}
+
+/* ─── GSAP helpers ─── */
+.split-word { display: inline-block; overflow: hidden; }
+.split-char { display: inline-block; transform: translateY(100%); opacity: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .animate-marquee { animation: none !important; }
+  .split-char { transform: none !important; opacity: 1 !important; }
+}
