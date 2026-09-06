@@ -1,25 +1,32 @@
 import express from 'express';
-import { FastagTransaction } from '../models/FastagTransaction.js';
-import { createCrudController } from '../controllers/crudFactory.js';
+import {
+  getTransactions,
+  getPerVehicleSummary,
+  rechargeWallet,
+  deductToll,
+  updateVehicleFastagDetails,
+  deleteTransaction
+} from '../controllers/fastagController.js';
 
 const router = express.Router();
-const fastagController = createCrudController(FastagTransaction, [
-  'vehicle',
-  'tagId',
-  'tollPlaza',
-  'transactionRef',
-  'linkedDutyOrTrip'
-]);
 
+// 1. Per-Vehicle summary & KPI aggregates
+router.get('/per-vehicle', getPerVehicleSummary);
+
+// 2. Specialized action endpoints
+router.post('/recharge', rechargeWallet);
+router.post('/deduct', deductToll);
+router.put('/vehicle/:regNumber', updateVehicleFastagDetails);
+
+// 3. Transactions listing & generic creation
 router
   .route('/')
-  .get(fastagController.getAll)
-  .post(fastagController.create);
+  .get(getTransactions)
+  .post(deductToll);
 
+// 4. Single transaction routes
 router
   .route('/:id')
-  .get(fastagController.getById)
-  .put(fastagController.update)
-  .delete(fastagController.delete);
+  .delete(deleteTransaction);
 
 export default router;

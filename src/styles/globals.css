@@ -2067,3 +2067,7 @@ textarea.form-input {
   100% { transform: rotate(360deg); }
 }
 
+.spin-icon {
+  animation: spin 0.8s linear infinite;
+}
+

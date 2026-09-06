@@ -5,6 +5,8 @@ import { createCrudController } from '../controllers/crudFactory.js';
 const router = express.Router();
 const dutyLogController = createCrudController(DailyDutyLog, [
   'dutySlipNumber',
+  'logBookPageNo',
+  'month',
   'departmentName',
   'vehicle',
   'driverName',
@@ -14,6 +16,7 @@ const dutyLogController = createCrudController(DailyDutyLog, [
   'journeyTo',
   'purposeOfJourney',
   'headOfAccount',
+  'motorOilUsed',
   'tripDestination'
 ]);
 

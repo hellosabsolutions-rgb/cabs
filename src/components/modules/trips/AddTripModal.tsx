@@ -373,7 +373,7 @@ export const AddTripModal: React.FC<AddTripModalProps> = ({ isOpen, onClose }) =
               </div>
 
               <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label">Driver Bata / Allowance (₹)</label>
+                <label className="form-label">Driver Allowance (₹)</label>
                 <input
                   type="number"
                   min="0"

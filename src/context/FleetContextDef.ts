@@ -77,6 +77,7 @@ export interface FleetContextType {
   departmentSubTab: DepartmentSubTab;
   setDepartmentSubTab: (tab: DepartmentSubTab) => void;
   departmentContracts: DepartmentContract[];
+  fetchLiveContracts: (queryParam?: { search?: string; status?: string; vehicle?: string; department?: string }) => Promise<void>;
   addDepartmentContract: (contract: Omit<DepartmentContract, 'id'>) => Promise<{ success: boolean; contract?: DepartmentContract; error?: string }>;
   updateContractStatus: (id: string, status: DepartmentContract['status']) => Promise<void>;
   updateDepartmentContract: (id: string, data: Partial<DepartmentContract>) => Promise<{ success: boolean; contract?: DepartmentContract; error?: string }>;
@@ -91,6 +92,7 @@ export interface FleetContextType {
   updateBillStatus: (id: string, status: MonthlyDepartmentBill['status']) => void;
   departmentPayments: DepartmentPayment[];
   addDepartmentPayment: (payment: Omit<DepartmentPayment, 'id'>) => void;
+  updateDepartmentPaymentStatus: (id: string, status: DepartmentPayment['status']) => void;
 
   // Fuel, FASTag & Expenses
   expenseSubTab: 'fuel' | 'fastag' | 'all';
@@ -98,9 +100,10 @@ export interface FleetContextType {
   fuelLogs: FuelLogEntry[];
   addFuelLog: (entry: Omit<FuelLogEntry, 'id'>) => void;
   fastagTransactions: FastagTransaction[];
-  addFastagTransaction: (tx: Omit<FastagTransaction, 'id'>) => void;
-  rechargeFastag: (vehicleReg: string, amount: number, paymentMode: string, proof?: string | null) => void;
-  updateFastagDetails: (vehicleReg: string, balance: number, bank?: string, tagId?: string) => void;
+  addFastagTransaction: (tx: Omit<FastagTransaction, 'id'>) => Promise<void> | void;
+  rechargeFastag: (vehicleReg: string, amount: number, paymentMode: string, proof?: string | null) => Promise<void> | void;
+  updateFastagDetails: (vehicleReg: string, balance: number, bank?: string, tagId?: string) => Promise<void> | void;
+  fetchLiveFastagTransactions: (queryParam?: { vehicle?: string; type?: string; month?: string; search?: string }) => Promise<void>;
 
   // Vehicles Subtabs & Actions
   vehicleSubTab: VehicleSubTab;
@@ -115,6 +118,7 @@ export interface FleetContextType {
   bookings: TripFinancial[];
   fetchLiveBookings: () => Promise<void>;
   addTrip: (trip: Omit<TripFinancial, 'id'>) => Promise<{ success: boolean; data?: TripFinancial; error?: string } | void> | void;
+  updateTripStatus: (id: string, status: TripFinancial['status']) => void;
   addBooking: (booking: Partial<TripFinancial>) => Promise<{ success: boolean; data?: TripFinancial; error?: string }>;
   completeTrip: (
     id: string,

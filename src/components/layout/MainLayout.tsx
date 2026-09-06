@@ -19,35 +19,22 @@ import { useAuth } from '../../context/AuthContext';
 import { useAgency } from '../../context/AgencyContext';
 import { LoginView } from '../modules/auth/LoginView';
 import { AgencyOnboardingView } from '../modules/agency/AgencyOnboardingView';
-import { Loader2 } from 'lucide-react';
+import { CabLoadingScreen } from '../common/CabLoadingScreen';
 
 export const MainLayout: React.FC = () => {
   const { activePage } = useFleet();
   const location = useLocation();
-  const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const { isAuthenticated, isLoading: authLoading, isDashboardOpening } = useAuth();
   const { currentAgency, agencies, isLoading: agencyLoading } = useAgency();
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
-  // If verifying authentication session or agency on boot
-  if (authLoading || (isAuthenticated && agencyLoading)) {
+  // If verifying authentication session, agency loading on boot, or user just logged in opening the dashboard
+  if (authLoading || (isAuthenticated && agencyLoading) || isDashboardOpening) {
     return (
-      <div
-        style={{
-          minHeight: '100vh',
-          width: '100%',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          background: 'var(--bg)',
-          gap: '12px'
-        }}
-      >
-        <Loader2 size={32} className="spin-loader" color="var(--accent)" />
-        <div style={{ fontSize: '13px', color: 'var(--text-faint)', fontWeight: 500 }}>
-          Initializing KABPRO Session...
-        </div>
-      </div>
+      <>
+        <CabLoadingScreen subtitle="Loading your dashboard…" />
+        <ToastContainer />
+      </>
     );
   }
 

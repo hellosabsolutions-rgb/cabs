@@ -83,7 +83,7 @@ export const AddExpenseModal: React.FC<AddExpenseModalProps> = ({
             <h3 className="modal-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <IndianRupee size={18} color="var(--accent)" /> Add Fleet Expense
             </h3>
-            <span className="modal-subtitle">Log fuel refills, toll, driver bata, or repairs</span>
+            <span className="modal-subtitle">Log fuel refills, toll, driver allowance, or repairs</span>
           </div>
           <button className="modal-close-btn" onClick={onClose} type="button">
             ✕
@@ -99,12 +99,12 @@ export const AddExpenseModal: React.FC<AddExpenseModalProps> = ({
                 vehicles: vehicles.map(v => v.registrationNumber),
                 drivers: drivers.map(d => d.name)
               }}
-              placeholder="Speak expense details (e.g. 'Driver Rahul Sharma 1200 DL01AB1234 Bata')"
+              placeholder="Speak expense details (e.g. 'Driver Rahul Sharma 1200 DL01AB1234 Allowance')"
               onApplyParsedData={(data) => {
                 if (data.category) setCategory(data.category as any);
                 if (data.vehicle) setVehicle(data.vehicle);
                 if (data.amount) setAmount(data.amount);
-                if (data.driverName) setLinkedTo(`${data.driverName} - Bata / Outstation`);
+                if (data.driverName) setLinkedTo(`${data.driverName} - Allowance / Outstation`);
               }}
             />
 
@@ -230,7 +230,7 @@ export const AddExpenseModal: React.FC<AddExpenseModalProps> = ({
                     value={drivers.some(d => linkedTo.startsWith(d.name)) ? drivers.find(d => linkedTo.startsWith(d.name))?.name : ''}
                     onChange={e => {
                       if (e.target.value) {
-                        setLinkedTo(`${e.target.value} - Outstation Bata / Allowance`);
+                        setLinkedTo(`${e.target.value} - Outstation Allowance`);
                       }
                     }}
                   >
@@ -244,7 +244,7 @@ export const AddExpenseModal: React.FC<AddExpenseModalProps> = ({
                   <input
                     type="text"
                     className="form-input"
-                    placeholder="e.g. Ramesh Kumar - Outstation Bata / Allowance"
+                    placeholder="e.g. Ramesh Kumar - Outstation Allowance"
                     value={linkedTo}
                     onChange={e => setLinkedTo(e.target.value)}
                   />
@@ -255,7 +255,7 @@ export const AddExpenseModal: React.FC<AddExpenseModalProps> = ({
                   className="form-input"
                   placeholder={
                     category === 'Driver'
-                      ? 'e.g. Ramesh Kumar - Outstation Bata / Allowance'
+                      ? 'e.g. Ramesh Kumar - Outstation Allowance'
                       : 'e.g. Indian Oil Pump Delhi, Department Duty'
                   }
                   value={linkedTo}

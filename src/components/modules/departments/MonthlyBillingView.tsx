@@ -3,7 +3,7 @@ import { useFleet } from '../../../context/FleetContext';
 import { StatCard } from '../../common/StatCard';
 import { GenerateBillModal } from './GenerateBillModal';
 import { MonthlyDepartmentBill } from '../../../types/fleet';
-import { Building2, Layers, ListFilter, FileText } from 'lucide-react';
+import { Building2, Layers, ListFilter, FileText, ChevronDown } from 'lucide-react';
 import { MonthPicker } from '../../common/MonthPicker';
 
 export const MonthlyBillingView: React.FC = () => {
@@ -132,63 +132,84 @@ export const MonthlyBillingView: React.FC = () => {
     };
   }, [monthlyBills, allDepartmentNames]);
 
-  const getStatusBadge = (status: MonthlyDepartmentBill['status'], id: string) => {
-    const handleToggle = () => {
-      if (status === 'Sent') updateBillStatus(id, 'Paid');
-      else if (status === 'Paid') updateBillStatus(id, 'Overdue');
-      else if (status === 'Overdue') updateBillStatus(id, 'Pending');
-      else updateBillStatus(id, 'Sent');
+  const renderStatusDropdown = (status: MonthlyDepartmentBill['status'], id: string) => {
+    const getStatusStyle = (s: MonthlyDepartmentBill['status']) => {
+      switch (s) {
+        case 'Paid':
+          return {
+            background: 'rgba(57, 255, 110, 0.12)',
+            color: '#39ff6e',
+            borderColor: 'rgba(57, 255, 110, 0.35)'
+          };
+        case 'Sent':
+          return {
+            background: 'rgba(56, 189, 248, 0.12)',
+            color: '#38bdf8',
+            borderColor: 'rgba(56, 189, 248, 0.35)'
+          };
+        case 'Overdue':
+          return {
+            background: 'rgba(255, 92, 92, 0.12)',
+            color: 'var(--danger, #ff5c5c)',
+            borderColor: 'rgba(255, 92, 92, 0.35)'
+          };
+        case 'Pending':
+        case 'Draft':
+          return {
+            background: 'rgba(255, 193, 7, 0.12)',
+            color: '#ffc107',
+            borderColor: 'rgba(255, 193, 7, 0.35)'
+          };
+        default:
+          return {
+            background: 'var(--surface-3)',
+            color: 'var(--text)',
+            borderColor: 'var(--border)'
+          };
+      }
     };
 
-    switch (status) {
-      case 'Paid':
-        return (
-          <span
-            className="status-chip running"
-            style={{ cursor: 'pointer' }}
-            title="Click to toggle status"
-            onClick={handleToggle}
-          >
-            ● Paid
-          </span>
-        );
-      case 'Sent':
-        return (
-          <span
-            className="status-chip active"
-            style={{ cursor: 'pointer', background: 'rgba(56, 189, 248, 0.12)', color: '#38bdf8' }}
-            title="Click to toggle status"
-            onClick={handleToggle}
-          >
-            ● Sent (Pending)
-          </span>
-        );
-      case 'Overdue':
-        return (
-          <span
-            className="status-chip maintenance"
-            style={{ cursor: 'pointer' }}
-            title="Click to toggle status"
-            onClick={handleToggle}
-          >
-            ● Overdue
-          </span>
-        );
-      case 'Pending':
-      case 'Draft':
-        return (
-          <span
-            className="status-chip idle"
-            style={{ cursor: 'pointer' }}
-            title="Click to toggle status"
-            onClick={handleToggle}
-          >
-            ● {status}
-          </span>
-        );
-      default:
-        return <span className="status-chip">{status}</span>;
-    }
+    const style = getStatusStyle(status);
+
+    return (
+      <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
+        <select
+          value={status}
+          onChange={e => updateBillStatus(id, e.target.value as MonthlyDepartmentBill['status'])}
+          style={{
+            background: style.background,
+            color: style.color,
+            border: `1px solid ${style.borderColor}`,
+            padding: '4px 22px 4px 10px',
+            borderRadius: '20px',
+            fontSize: '11.5px',
+            fontWeight: 700,
+            cursor: 'pointer',
+            outline: 'none',
+            appearance: 'none',
+            WebkitAppearance: 'none',
+            lineHeight: 1.4
+          }}
+          title="Change invoice status"
+        >
+          <option value="Paid" style={{ background: 'var(--surface-1, #1e293b)', color: '#39ff6e' }}>● Paid</option>
+          <option value="Sent" style={{ background: 'var(--surface-1, #1e293b)', color: '#38bdf8' }}>● Sent</option>
+          <option value="Pending" style={{ background: 'var(--surface-1, #1e293b)', color: '#ffc107' }}>● Pending</option>
+          <option value="Overdue" style={{ background: 'var(--surface-1, #1e293b)', color: '#ff5c5c' }}>● Overdue</option>
+          <option value="Draft" style={{ background: 'var(--surface-1, #1e293b)', color: 'var(--text-dim)' }}>● Draft</option>
+        </select>
+        <ChevronDown
+          size={11}
+          style={{
+            position: 'absolute',
+            right: '7px',
+            pointerEvents: 'none',
+            color: style.color,
+            opacity: 0.85
+          }}
+        />
+      </div>
+    );
   };
 
   return (
@@ -407,7 +428,7 @@ export const MonthlyBillingView: React.FC = () => {
                         <th>Extra KM + Hrs</th>
                         <th>Toll & parking</th>
                         <th>Total bill</th>
-                        <th>Status (Toggle)</th>
+                        <th>Status</th>
                         <th>Due date</th>
                         <th>Action</th>
                       </tr>
@@ -444,7 +465,7 @@ export const MonthlyBillingView: React.FC = () => {
                                 </div>
                               )}
                             </td>
-                            <td>{getStatusBadge(b.status, b.id)}</td>
+                            <td>{renderStatusDropdown(b.status, b.id)}</td>
                             <td style={{ fontSize: '12px', color: 'var(--text-dim)' }}>{b.dueDate}</td>
                             <td>
                               <span
@@ -488,7 +509,7 @@ export const MonthlyBillingView: React.FC = () => {
                   <th>Extra KM + Hrs</th>
                   <th>Toll & misc</th>
                   <th>Total bill</th>
-                  <th>Status (Toggle)</th>
+                  <th>Status</th>
                   <th>Due date</th>
                   <th>Invoice</th>
                 </tr>
@@ -526,7 +547,7 @@ export const MonthlyBillingView: React.FC = () => {
                           </div>
                         )}
                       </td>
-                      <td>{getStatusBadge(b.status, b.id)}</td>
+                      <td>{renderStatusDropdown(b.status, b.id)}</td>
                       <td style={{ fontSize: '12px', color: 'var(--text-dim)' }}>{b.dueDate}</td>
                       <td>
                         <span

@@ -375,7 +375,7 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
               </div>
             </div>
 
-            {/* 3. PROMINENT DEPARTMENT NAME: Gaadi Konse Department Mai Lagi Hai */}
+            {/* 3. PROMINENT DEPARTMENT NAME: Department Allocation */}
             {type === 'Department' ? (
               <div
                 style={{

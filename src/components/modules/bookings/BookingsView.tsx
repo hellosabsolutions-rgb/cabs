@@ -24,12 +24,13 @@ import {
   CreditCard,
   User,
   Fuel,
-  RefreshCw
+  RefreshCw,
+  ChevronDown
 } from 'lucide-react';
 import { SkeletonCard, SkeletonTable } from '../../common/Skeleton';
 
 export const BookingsView: React.FC = () => {
-  const { bookings, trips, searchQuery, isLoading, fetchLiveBookings, completeTrip } = useFleet();
+  const { bookings, trips, updateTripStatus, searchQuery, isLoading, fetchLiveBookings, completeTrip } = useFleet();
 
   // All bookings list
   const bookingList: TripFinancial[] = bookings || trips || [];
@@ -163,10 +164,89 @@ export const BookingsView: React.FC = () => {
     );
   }
 
-  const handleBookSelectedVehicle = (vehicleReg: string, date: string) => {
-    setPrefillVehicle(vehicleReg);
-    setPrefillDate(date);
-    setIsAddModalOpen(true);
+  const renderBookingStatusDropdown = (b: TripFinancial) => {
+    const getStatusStyle = (s: TripFinancial['status']) => {
+      switch (s) {
+        case 'Completed':
+          return {
+            background: 'rgba(57, 255, 110, 0.12)',
+            color: '#39ff6e',
+            borderColor: 'rgba(57, 255, 110, 0.35)'
+          };
+        case 'Ongoing':
+          return {
+            background: 'rgba(56, 189, 248, 0.12)',
+            color: '#38bdf8',
+            borderColor: 'rgba(56, 189, 248, 0.35)'
+          };
+        case 'Upcoming':
+          return {
+            background: 'rgba(255, 193, 7, 0.12)',
+            color: '#ffc107',
+            borderColor: 'rgba(255, 193, 7, 0.35)'
+          };
+        case 'Cancelled':
+          return {
+            background: 'rgba(255, 92, 92, 0.12)',
+            color: 'var(--danger, #ff5c5c)',
+            borderColor: 'rgba(255, 92, 92, 0.35)'
+          };
+        default:
+          return {
+            background: 'var(--surface-3)',
+            color: 'var(--text)',
+            borderColor: 'var(--border)'
+          };
+      }
+    };
+
+    const style = getStatusStyle(b.status);
+
+    return (
+      <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
+        <select
+          value={b.status}
+          onChange={e => {
+            const newStatus = e.target.value as TripFinancial['status'];
+            if (newStatus === 'Completed' && b.status === 'Ongoing') {
+              setCompletingBooking(b);
+            } else {
+              updateTripStatus(b.id, newStatus);
+            }
+          }}
+          style={{
+            background: style.background,
+            color: style.color,
+            border: `1px solid ${style.borderColor}`,
+            padding: '4px 22px 4px 10px',
+            borderRadius: '20px',
+            fontSize: '11px',
+            fontWeight: 700,
+            cursor: 'pointer',
+            outline: 'none',
+            appearance: 'none',
+            WebkitAppearance: 'none',
+            lineHeight: 1.4
+          }}
+          title="Change booking status"
+        >
+          <option value="Upcoming" style={{ background: 'var(--surface-1, #1e293b)', color: '#ffc107' }}>● Upcoming</option>
+          <option value="Ongoing" style={{ background: 'var(--surface-1, #1e293b)', color: '#38bdf8' }}>● Ongoing</option>
+          <option value="Completed" style={{ background: 'var(--surface-1, #1e293b)', color: '#39ff6e' }}>● Completed</option>
+          <option value="Cancelled" style={{ background: 'var(--surface-1, #1e293b)', color: '#ff5c5c' }}>● Cancelled</option>
+        </select>
+        <ChevronDown
+          size={11}
+          style={{
+            position: 'absolute',
+            right: '7px',
+            pointerEvents: 'none',
+            color: style.color,
+            opacity: 0.85
+          }}
+        />
+      </div>
+    );
   };
 
   return (
@@ -521,7 +601,7 @@ export const BookingsView: React.FC = () => {
                         </div>
                       </td>
 
-                      {/* 7. Munafa / Profit */}
+                      {/* 7. Net Profit */}
                       <td className="num">
                         <div>
                           <div
@@ -539,88 +619,36 @@ export const BookingsView: React.FC = () => {
                         </div>
                       </td>
 
-                      {/* 8. Status & Action Button */}
+                      {/* 8. Status Dropdown & Action Button */}
                       <td>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', alignItems: 'flex-start' }}>
-                          {b.status === 'Scheduled' && (
-                            <>
-                              <span
-                                className="driver-type-badge"
-                                style={{
-                                  background: 'rgba(56, 189, 248, 0.15)',
-                                  color: '#38bdf8',
-                                  borderColor: 'rgba(56, 189, 248, 0.3)',
-                                  fontSize: '10.5px'
-                                }}
-                              >
-                                📅 Advance Booking
-                              </span>
-                              <button
-                                className="btn-primary-action"
-                                style={{ fontSize: '11px', padding: '4px 8px', width: '100%', textAlign: 'center' }}
-                                onClick={() => setCompletingBooking(b)}
-                              >
-                                Start / Complete
-                              </button>
-                            </>
-                          )}
+                          {renderBookingStatusDropdown(b)}
 
                           {b.status === 'Ongoing' && (
-                            <>
-                              <span
-                                className="driver-type-badge"
-                                style={{
-                                  background: 'rgba(57, 255, 110, 0.15)',
-                                  color: '#39ff6e',
-                                  borderColor: 'rgba(57, 255, 110, 0.3)',
-                                  fontSize: '10.5px'
-                                }}
-                              >
-                                ● Ongoing
-                              </span>
-                              <button
-                                className="btn-primary-action"
-                                style={{ fontSize: '11px', padding: '5px 8px', width: '100%', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}
-                                onClick={() => setCompletingBooking(b)}
-                              >
-                                <CheckCircle2 size={12} /> Complete & Settle
-                              </button>
-                            </>
+                            <button
+                              className="btn-primary-action"
+                              style={{ fontSize: '11px', padding: '5px 8px', width: '100%', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}
+                              onClick={() => setCompletingBooking(b)}
+                            >
+                              <CheckCircle2 size={12} /> Complete & Settle
+                            </button>
                           )}
 
-                          {b.status === 'Completed' && (
-                            <>
-                              <span
-                                className="driver-type-badge"
-                                style={{
-                                  background: 'var(--surface-3)',
-                                  color: 'var(--text)',
-                                  fontSize: '10.5px',
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: '3px'
-                                }}
-                              >
-                                <CheckCircle2 size={11} color="var(--accent)" /> Completed
-                              </span>
-
-                              {pendingDue > 0 && (
-                                <button
-                                  type="button"
-                                  className="subtab-btn"
-                                  style={{
-                                    fontSize: '10.5px',
-                                    padding: '3px 8px',
-                                    width: '100%',
-                                    color: '#ffb400',
-                                    borderColor: 'rgba(255, 180, 0, 0.4)'
-                                  }}
-                                  onClick={() => setCollectingPaymentBooking(b)}
-                                >
-                                  Collect ₹{pendingDue.toLocaleString('en-IN')}
-                                </button>
-                              )}
-                            </>
+                          {b.status === 'Completed' && pendingDue > 0 && (
+                            <button
+                              type="button"
+                              className="subtab-btn"
+                              style={{
+                                fontSize: '10.5px',
+                                padding: '3px 8px',
+                                width: '100%',
+                                color: '#ffb400',
+                                borderColor: 'rgba(255, 180, 0, 0.4)'
+                              }}
+                              onClick={() => setCollectingPaymentBooking(b)}
+                            >
+                              Collect ₹{pendingDue.toLocaleString('en-IN')}
+                            </button>
                           )}
                         </div>
                       </td>

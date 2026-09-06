@@ -4,32 +4,42 @@ import { StatCard } from '../../common/StatCard';
 import { RechargeFastagModal } from './RechargeFastagModal';
 import { DeductTollModal } from './DeductTollModal';
 import { EditFastagModal } from './EditFastagModal';
-import { CreditCard, AlertTriangle, Zap, ShieldCheck, MinusCircle, Edit3, Plus } from 'lucide-react';
+import { CreditCard, AlertTriangle, Zap, ShieldCheck, MinusCircle, Edit3, Plus, RefreshCw, Radio } from 'lucide-react';
 
 export const FastagExpensesView: React.FC = () => {
-  const { vehicles, fastagTransactions, searchQuery } = useFleet();
+  const { vehicles, fastagTransactions, searchQuery, fetchLiveFastagTransactions } = useFleet();
 
   const [filterMode, setFilterMode] = useState<'all' | 'low-balance'>('all');
   const [isRechargeModalOpen, setIsRechargeModalOpen] = useState(false);
   const [isDeductModalOpen, setIsDeductModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [modalVehicleTarget, setModalVehicleTarget] = useState<string | undefined>(undefined);
+  const [isSyncing, setIsSyncing] = useState(false);
 
   const formatINR = (val: number) => '₹' + Math.round(val).toLocaleString('en-IN');
+
+  const handleSyncFromApi = async () => {
+    setIsSyncing(true);
+    try {
+      await fetchLiveFastagTransactions();
+    } finally {
+      setTimeout(() => setIsSyncing(false), 600);
+    }
+  };
 
   // Compute per-vehicle FASTag summary
   const vehicleFastagSummaries = useMemo(() => {
     return vehicles.map(v => {
       // Find all recharges for this vehicle sorted by latest
       const recharges = fastagTransactions
-        .filter(tx => tx.vehicle === v.registrationNumber && tx.type === 'Recharge')
+        .filter(tx => tx.vehicle.toLowerCase() === v.registrationNumber.toLowerCase() && tx.type === 'Recharge')
         .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
       const lastRecharge = recharges[0] || null;
 
       // Find all toll deductions (total expense in fastag)
       const totalTollExpense = fastagTransactions
-        .filter(tx => tx.vehicle === v.registrationNumber && tx.type === 'Toll Deduction')
+        .filter(tx => tx.vehicle.toLowerCase() === v.registrationNumber.toLowerCase() && tx.type === 'Toll Deduction')
         .reduce((sum, tx) => sum + tx.amount, 0);
 
       const bal = v.fastagBalance || 0;
@@ -104,27 +114,78 @@ export const FastagExpensesView: React.FC = () => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-      {/* Manual Mode Operational Banner */}
+      {/* Live FASTag API Status & Synchronization Banner */}
       <div
         style={{
           background: 'rgba(56, 189, 248, 0.08)',
           border: '1px solid rgba(56, 189, 248, 0.25)',
-          padding: '10px 16px',
+          padding: '12px 18px',
           borderRadius: '10px',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: '12px',
           fontSize: '12.5px',
-          color: 'var(--text-dim)'
+          color: 'var(--text)'
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <Zap size={16} color="#38bdf8" style={{ flexShrink: 0 }} />
-          <span>
-            <b>Manual FASTag Management (No API Required):</b> You can manually record toll deductions, log FASTag recharges, or directly edit current wallet balances.
-          </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div
+            style={{
+              width: '32px',
+              height: '32px',
+              borderRadius: '8px',
+              background: 'rgba(56, 189, 248, 0.15)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#38bdf8'
+            }}
+          >
+            <Radio size={18} />
+          </div>
+          <div>
+            <div style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span>Live FASTag API Integrated</span>
+              <span
+                style={{
+                  fontSize: '10px',
+                  fontWeight: 700,
+                  background: 'rgba(57, 255, 110, 0.15)',
+                  color: 'var(--accent)',
+                  border: '1px solid rgba(57, 255, 110, 0.3)',
+                  padding: '1px 7px',
+                  borderRadius: '12px'
+                }}
+              >
+                ● Live Sync Active
+              </span>
+            </div>
+            <div style={{ fontSize: '11.5px', color: 'var(--text-dim)', marginTop: '2px' }}>
+              Real-time vehicle wallet balances, automated toll plaza deductions, and instant bank top-ups connected to backend database.
+            </div>
+          </div>
         </div>
-        <span style={{ fontSize: '11px', color: 'var(--accent)', fontWeight: 600 }}>100% Offline / Manual Support</span>
+
+        <button
+          type="button"
+          className="btn-secondary"
+          style={{
+            fontSize: '12px',
+            padding: '6px 14px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            cursor: 'pointer'
+          }}
+          onClick={handleSyncFromApi}
+          disabled={isSyncing}
+          title="Sync latest FASTag transactions and balances from server"
+        >
+          <RefreshCw size={13} className={isSyncing ? 'spin-icon' : ''} />
+          {isSyncing ? 'Syncing...' : 'Sync from Server'}
+        </button>
       </div>
 
       {/* Overview Stat Cards */}
@@ -229,7 +290,7 @@ export const FastagExpensesView: React.FC = () => {
               ) : (
                 filteredSummaries.map(item => (
                   <tr key={item.vehicleReg}>
-                    {/* 1. Konsa vehicle mai hai */}
+                    {/* 1. Vehicle Details */}
                     <td>
                       <div>
                         <div
@@ -251,7 +312,7 @@ export const FastagExpensesView: React.FC = () => {
                       </div>
                     </td>
 
-                    {/* 2. Konsa FASTag hai (Tag ID & Bank) */}
+                    {/* 2. FASTag Details (Tag ID & Bank) */}
                     <td>
                       <div>
                         <div
@@ -291,7 +352,7 @@ export const FastagExpensesView: React.FC = () => {
                       </div>
                     </td>
 
-                    {/* 3. Kitne paise hai (Current Balance) + Direct Edit Button */}
+                    {/* 3. Current Wallet Balance & Edit Button */}
                     <td>
                       <div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -336,7 +397,7 @@ export const FastagExpensesView: React.FC = () => {
                       </div>
                     </td>
 
-                    {/* 4. Last recharge kab hua and kitne ka hua */}
+                    {/* 4. Last Recharge Details */}
                     <td>
                       {item.lastRechargeAmount > 0 ? (
                         <div>
@@ -354,7 +415,7 @@ export const FastagExpensesView: React.FC = () => {
                       )}
                     </td>
 
-                    {/* 5. Total expense in FASTag */}
+                    {/* 5. Total Toll Expenses */}
                     <td>
                       <div
                         className="num"

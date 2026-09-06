@@ -3,10 +3,10 @@ import { useFleet } from '../../../context/FleetContext';
 import { StatCard } from '../../common/StatCard';
 import { RecordPaymentModal } from './RecordPaymentModal';
 import { DepartmentPayment } from '../../../types/fleet';
-import { FileText, Building2, Receipt } from 'lucide-react';
+import { FileText, Building2, Receipt, ChevronDown } from 'lucide-react';
 
 export const DepartmentPaymentsView: React.FC = () => {
-  const { departmentPayments, searchQuery } = useFleet();
+  const { departmentPayments, updateDepartmentPaymentStatus, searchQuery } = useFleet();
 
   const [modeFilter, setModeFilter] = useState<string>('All');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -49,17 +49,75 @@ export const DepartmentPaymentsView: React.FC = () => {
     };
   }, [departmentPayments]);
 
-  const getStatusBadge = (status: DepartmentPayment['status']) => {
-    switch (status) {
-      case 'Reconciled':
-        return <span className="status-chip running">● Reconciled</span>;
-      case 'Received':
-        return <span className="status-chip active" style={{ background: 'rgba(56, 189, 248, 0.12)', color: '#38bdf8' }}>● Received</span>;
-      case 'Processing':
-        return <span className="status-chip idle">● Processing</span>;
-      default:
-        return <span className="status-chip">{status}</span>;
-    }
+  const renderStatusDropdown = (status: DepartmentPayment['status'], id: string) => {
+    const getStatusStyle = (s: DepartmentPayment['status']) => {
+      switch (s) {
+        case 'Reconciled':
+          return {
+            background: 'rgba(57, 255, 110, 0.12)',
+            color: '#39ff6e',
+            borderColor: 'rgba(57, 255, 110, 0.35)'
+          };
+        case 'Received':
+          return {
+            background: 'rgba(56, 189, 248, 0.12)',
+            color: '#38bdf8',
+            borderColor: 'rgba(56, 189, 248, 0.35)'
+          };
+        case 'Processing':
+          return {
+            background: 'rgba(255, 193, 7, 0.12)',
+            color: '#ffc107',
+            borderColor: 'rgba(255, 193, 7, 0.35)'
+          };
+        default:
+          return {
+            background: 'var(--surface-3)',
+            color: 'var(--text)',
+            borderColor: 'var(--border)'
+          };
+      }
+    };
+
+    const style = getStatusStyle(status);
+
+    return (
+      <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
+        <select
+          value={status}
+          onChange={e => updateDepartmentPaymentStatus(id, e.target.value as DepartmentPayment['status'])}
+          style={{
+            background: style.background,
+            color: style.color,
+            border: `1px solid ${style.borderColor}`,
+            padding: '4px 22px 4px 10px',
+            borderRadius: '20px',
+            fontSize: '11.5px',
+            fontWeight: 700,
+            cursor: 'pointer',
+            outline: 'none',
+            appearance: 'none',
+            WebkitAppearance: 'none',
+            lineHeight: 1.4
+          }}
+          title="Change payment status"
+        >
+          <option value="Reconciled" style={{ background: 'var(--surface-1, #1e293b)', color: '#39ff6e' }}>● Reconciled</option>
+          <option value="Received" style={{ background: 'var(--surface-1, #1e293b)', color: '#38bdf8' }}>● Received</option>
+          <option value="Processing" style={{ background: 'var(--surface-1, #1e293b)', color: '#ffc107' }}>● Processing</option>
+        </select>
+        <ChevronDown
+          size={11}
+          style={{
+            position: 'absolute',
+            right: '7px',
+            pointerEvents: 'none',
+            color: style.color,
+            opacity: 0.85
+          }}
+        />
+      </div>
+    );
   };
 
   const getModeBadgeClass = (mode: DepartmentPayment['paymentMode']) => {
@@ -171,7 +229,7 @@ export const DepartmentPaymentsView: React.FC = () => {
                     <td style={{ fontFamily: 'monospace', fontSize: '12px' }}>
                       {p.referenceNo}
                     </td>
-                    <td>{getStatusBadge(p.status)}</td>
+                    <td>{renderStatusDropdown(p.status, p.id)}</td>
                     <td style={{ fontSize: '12px', color: 'var(--text-dim)' }}>
                       {p.remarks || '—'}
                     </td>

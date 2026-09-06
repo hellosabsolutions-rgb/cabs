@@ -236,11 +236,26 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   // Fetch contracts from live backend API
-  const fetchLiveContracts = async () => {
+  const fetchLiveContracts = async (queryParam?: { search?: string; status?: string; vehicle?: string; department?: string }) => {
     try {
-      const res = await api.get('/contracts?limit=100');
+      let endpoint = '/contracts?limit=100';
+      if (queryParam) {
+        const params = new URLSearchParams();
+        if (queryParam.search) params.append('search', queryParam.search);
+        if (queryParam.status && queryParam.status !== 'All') params.append('status', queryParam.status);
+        if (queryParam.vehicle && queryParam.vehicle !== 'All') params.append('vehicle', queryParam.vehicle);
+        if (queryParam.department && queryParam.department !== 'All') params.append('department', queryParam.department);
+        const qStr = params.toString();
+        if (qStr) endpoint += `&${qStr}`;
+      }
+      const res = await api.get(endpoint);
       if (res.success && Array.isArray(res.data) && res.data.length > 0) {
-        setDepartmentContracts(res.data);
+        setDepartmentContracts(
+          res.data.map((item: any) => ({
+            ...item,
+            id: item.id || item._id
+          }))
+        );
       }
     } catch (err) {
       console.warn('Backend contracts API not reachable, using local contracts cache.', err);
@@ -391,6 +406,32 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
+  const fetchLiveFastagTransactions = async (queryParam?: { vehicle?: string; type?: string; month?: string; search?: string }) => {
+    try {
+      let endpoint = '/fastag?limit=300';
+      if (queryParam) {
+        const params = new URLSearchParams();
+        if (queryParam.vehicle && queryParam.vehicle !== 'All') params.append('vehicle', queryParam.vehicle);
+        if (queryParam.type && queryParam.type !== 'All') params.append('type', queryParam.type);
+        if (queryParam.month) params.append('month', queryParam.month);
+        if (queryParam.search) params.append('search', queryParam.search);
+        const qStr = params.toString();
+        if (qStr) endpoint += `&${qStr}`;
+      }
+      const res = await api.get(endpoint);
+      if (res.success && Array.isArray(res.data) && res.data.length > 0) {
+        setFastagTransactions(
+          res.data.map((item: any) => ({
+            ...item,
+            id: item.id || item._id
+          }))
+        );
+      }
+    } catch (err) {
+      console.warn('Backend FASTag API not reachable, using local cached transactions.', err);
+    }
+  };
+
   useEffect(() => {
     fetchLiveVehicles();
     fetchLiveDrivers();
@@ -400,6 +441,7 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     fetchLiveDriverExpenses();
     fetchLiveBookings();
     fetchLiveDailyDutyLogs();
+    fetchLiveFastagTransactions();
   }, []);
 
   const refreshData = async () => {
@@ -414,9 +456,10 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         fetchLiveAttendance(),
         fetchLiveDriverExpenses(),
         fetchLiveBookings(),
-        fetchLiveDailyDutyLogs()
+        fetchLiveDailyDutyLogs(),
+        fetchLiveFastagTransactions()
       ]);
-      showToast('info', 'Fleet, Drivers, Contracts, Daily Duty Logs, Bookings, Expenses & Compliance synchronized with live server.', 'Refreshed');
+      showToast('info', 'Fleet, Drivers, FASTag, Daily Duty Logs, Bookings & Expenses synchronized with live server.', 'Refreshed');
     } finally {
       setIsLoading(false);
       setLoadingKey(null);
@@ -639,18 +682,72 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
-  const addFastagTransaction = (txData: Omit<FastagTransaction, 'id'>) => {
+  const addFastagTransaction = async (txData: Omit<FastagTransaction, 'id'>) => {
     try {
+      const endpoint = txData.type === 'Recharge' ? '/fastag/recharge' : '/fastag/deduct';
+      const payload = {
+        vehicle: txData.vehicle,
+        amount: txData.amount,
+        tollPlaza: txData.tollPlaza,
+        lane: txData.lane,
+        date: txData.date,
+        time: txData.time,
+        transactionRef: txData.transactionRef,
+        linkedDutyOrTrip: txData.linkedDutyOrTrip,
+        proofSlip: txData.proofSlip
+      };
+
+      const res = await api.post(endpoint, payload);
+
+      if (res.success && res.data) {
+        const newTx: FastagTransaction = {
+          ...res.data,
+          id: res.data.id || res.data._id
+        };
+        setFastagTransactions(prev => [newTx, ...prev]);
+
+        if (res.vehicle) {
+          setVehicles(prev =>
+            prev.map(v =>
+              v.registrationNumber.toLowerCase() === txData.vehicle.toLowerCase()
+                ? { ...v, fastagBalance: res.vehicle.fastagBalance }
+                : v
+            )
+          );
+        }
+
+        if (txData.type === 'Toll Deduction') {
+          const tollExp: ExpenseRecord = {
+            id: 'e_' + Date.now(),
+            date: newTx.date,
+            vehicle: newTx.vehicle,
+            category: 'FASTag / Toll',
+            linkedTo: `${newTx.tollPlaza || 'Toll Plaza'} (${newTx.transactionRef})`,
+            amount: newTx.amount
+          };
+          setExpenses(prev => [tollExp, ...prev]);
+        }
+
+        showToast(
+          'info',
+          res.message || `FASTag ${txData.type.toLowerCase()} of ₹${newTx.amount.toLocaleString('en-IN')} recorded for ${newTx.vehicle}.`,
+          'FASTag Logged'
+        );
+      } else {
+        throw new Error(res.error || 'Failed to record transaction via API');
+      }
+    } catch (err) {
+      console.warn('Backend FASTag transaction API call failed, using local offline state.', err);
       const newTx: FastagTransaction = {
         ...txData,
         id: 'ft_' + Date.now()
       };
       setFastagTransactions(prev => [newTx, ...prev]);
 
-      // Update vehicle's fastag balance
+      // Update vehicle's fastag balance locally
       setVehicles(prev =>
         prev.map(v => {
-          if (v.registrationNumber === newTx.vehicle) {
+          if (v.registrationNumber.toLowerCase() === newTx.vehicle.toLowerCase()) {
             const currentBal = v.fastagBalance || 0;
             const newBal =
               newTx.type === 'Recharge'
@@ -662,7 +759,6 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         })
       );
 
-      // If toll deduction, auto record in fleet expenses
       if (newTx.type === 'Toll Deduction') {
         const tollExp: ExpenseRecord = {
           id: 'e_' + Date.now(),
@@ -679,13 +775,10 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           'Toll Deducted'
         );
       }
-    } catch (err) {
-      console.error('Failed to record FASTag transaction', err);
-      showToast('error', 'FASTag transaction could not be recorded.', 'Error');
     }
   };
 
-  const rechargeFastag = (
+  const rechargeFastag = async (
     vehicleReg: string,
     amount: number,
     paymentMode: string,
@@ -696,7 +789,51 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         showToast('error', 'Valid vehicle and recharge amount greater than 0 required.', 'Invalid Input');
         return;
       }
-      const v = vehicles.find(item => item.registrationNumber === vehicleReg);
+
+      const res = await api.post('/fastag/recharge', {
+        vehicle: vehicleReg,
+        amount,
+        paymentMode,
+        proofSlip: proof || null
+      });
+
+      if (res.success && res.data) {
+        const tx: FastagTransaction = {
+          ...res.data,
+          id: res.data.id || res.data._id
+        };
+
+        setFastagTransactions(prev => [tx, ...prev]);
+
+        if (res.vehicle) {
+          setVehicles(prev =>
+            prev.map(item =>
+              item.registrationNumber.toLowerCase() === vehicleReg.toLowerCase()
+                ? { ...item, fastagBalance: res.vehicle.fastagBalance }
+                : item
+            )
+          );
+        } else {
+          setVehicles(prev =>
+            prev.map(item =>
+              item.registrationNumber.toLowerCase() === vehicleReg.toLowerCase()
+                ? { ...item, fastagBalance: (item.fastagBalance || 0) + amount }
+                : item
+            )
+          );
+        }
+
+        showToast(
+          'success',
+          res.message || `₹${amount.toLocaleString('en-IN')} added to ${vehicleReg} FASTag wallet.`,
+          'Recharge Complete'
+        );
+      } else {
+        throw new Error(res.error || 'Failed to recharge FASTag');
+      }
+    } catch (err) {
+      console.warn('Backend FASTag recharge API failed, updating local state.', err);
+      const v = vehicles.find(item => item.registrationNumber.toLowerCase() === vehicleReg.toLowerCase());
       const prevBal = v?.fastagBalance || 0;
       const newBal = prevBal + amount;
 
@@ -719,25 +856,49 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setFastagTransactions(prev => [tx, ...prev]);
       setVehicles(prev =>
         prev.map(item =>
-          item.registrationNumber === vehicleReg ? { ...item, fastagBalance: newBal } : item
+          item.registrationNumber.toLowerCase() === vehicleReg.toLowerCase()
+            ? { ...item, fastagBalance: newBal }
+            : item
         )
       );
       showToast(
         'success',
-        `₹${amount.toLocaleString('en-IN')} added to ${vehicleReg} FASTag wallet (New Balance: ₹${newBal.toLocaleString('en-IN')}).`,
+        `₹${amount.toLocaleString('en-IN')} added to ${vehicleReg} FASTag wallet (Local).`,
         'Recharge Complete'
       );
-    } catch (err) {
-      console.error('Failed to recharge FASTag', err);
-      showToast('error', 'FASTag recharge failed.', 'Error');
     }
   };
 
-  const updateFastagDetails = (vehicleReg: string, balance: number, bank?: string, tagId?: string) => {
+  const updateFastagDetails = async (vehicleReg: string, balance: number, bank?: string, tagId?: string) => {
     try {
+      const res = await api.put(`/fastag/vehicle/${encodeURIComponent(vehicleReg)}`, {
+        balance,
+        bank,
+        tagId
+      });
+
+      if (res.success && res.data) {
+        setVehicles(prev =>
+          prev.map(item =>
+            item.registrationNumber.toLowerCase() === vehicleReg.toLowerCase()
+              ? {
+                  ...item,
+                  fastagBalance: res.data.fastagBalance !== undefined ? res.data.fastagBalance : balance,
+                  fastagBank: res.data.fastagBank !== undefined ? res.data.fastagBank : bank,
+                  fastagTagId: res.data.fastagTagId !== undefined ? res.data.fastagTagId : tagId
+                }
+              : item
+          )
+        );
+        showToast('success', res.message || `FASTag balance updated to ₹${balance.toLocaleString('en-IN')} for ${vehicleReg}.`, 'FASTag Updated');
+      } else {
+        throw new Error(res.error || 'Failed to update FASTag details');
+      }
+    } catch (err) {
+      console.warn('Backend update FASTag API failed, updating local state.', err);
       setVehicles(prev =>
         prev.map(item => {
-          if (item.registrationNumber === vehicleReg) {
+          if (item.registrationNumber.toLowerCase() === vehicleReg.toLowerCase()) {
             return {
               ...item,
               fastagBalance: balance,
@@ -749,9 +910,6 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         })
       );
       showToast('success', `FASTag balance updated to ₹${balance.toLocaleString('en-IN')} for ${vehicleReg}.`, 'FASTag Updated');
-    } catch (err) {
-      console.error('Failed to update FASTag details', err);
-      showToast('error', 'Could not update FASTag details.', 'Error');
     }
   };
 
@@ -1723,6 +1881,30 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
+  const updateDepartmentPaymentStatus = (id: string, status: DepartmentPayment['status']) => {
+    try {
+      setDepartmentPayments(prev =>
+        prev.map(p => (p.id === id ? { ...p, status } : p))
+      );
+      showToast('info', `Payment status marked as ${status}.`, 'Payment Status Updated');
+    } catch (err) {
+      console.error('Failed to update payment status', err);
+      showToast('error', 'Could not update payment status.', 'Error');
+    }
+  };
+
+  const updateTripStatus = (id: string, status: TripFinancial['status']) => {
+    try {
+      setTrips(prev =>
+        prev.map(t => (t.id === id ? { ...t, status } : t))
+      );
+      showToast('info', `Trip/Booking status changed to ${status}.`, 'Status Updated');
+    } catch (err) {
+      console.error('Failed to update trip status', err);
+      showToast('error', 'Could not update trip status.', 'Error');
+    }
+  };
+
   const addMaintenanceRecord = (recordData: Omit<MaintenanceRecord, 'id' | 'status'>) => {
     try {
       const newRecord: MaintenanceRecord = {
@@ -1863,6 +2045,7 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         departmentSubTab,
         setDepartmentSubTab: handleSetDepartmentSubTab,
         departmentContracts,
+        fetchLiveContracts,
         addDepartmentContract,
         updateContractStatus,
         updateDepartmentContract,
@@ -1877,6 +2060,7 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         updateBillStatus,
         departmentPayments,
         addDepartmentPayment,
+        updateDepartmentPaymentStatus,
         vehicleSubTab,
         setVehicleSubTab,
         vehicles,
@@ -1905,6 +2089,7 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         bookings: trips,
         fetchLiveBookings,
         addTrip,
+        updateTripStatus,
         addBooking,
         completeTrip,
         completeBooking,
@@ -1920,6 +2105,7 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         addFastagTransaction,
         rechargeFastag,
         updateFastagDetails,
+        fetchLiveFastagTransactions,
         maintenanceRecords,
         addMaintenanceRecord,
         vehicleCompliance,

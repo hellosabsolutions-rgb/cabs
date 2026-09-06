@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useFleet } from '../../../context/FleetContext';
-import { Building2, Briefcase, Calendar, MapPin, IndianRupee, TrendingUp, AlertCircle, CheckCircle2, Navigation, PenTool } from 'lucide-react';
+import { Building2, Briefcase, Calendar, MapPin, IndianRupee, TrendingUp, AlertCircle, CheckCircle2, Navigation, PenTool, BookOpen } from 'lucide-react';
 import { MinimalVoiceFiller } from '../../common/MinimalVoiceFiller';
 import { DatePicker } from '../../common/DatePicker';
 
@@ -37,12 +37,15 @@ export const AddDutyLogModal: React.FC<AddDutyLogModalProps> = ({
   const [fuelBillName, setFuelBillName] = useState('');
   const [fuelBillPreview, setFuelBillPreview] = useState<string | null>(null);
 
-  // Missing Log Book Fields
-  const [journeyFrom, setJourneyFrom] = useState('GSON Base');
-  const [journeyTo, setJourneyTo] = useState('Jogiwala & Site');
-  const [purposeOfJourney, setPurposeOfJourney] = useState('Official Office Duty');
-  const [headOfAccount, setHeadOfAccount] = useState('PWD-M&E-2026');
+  // Missing Log Book Fields (Image 1 fields)
+  const [logBookPageNo, setLogBookPageNo] = useState('122');
+  const [month, setMonth] = useState('August 2026');
+  const [journeyFrom, setJourneyFrom] = useState('GSON');
+  const [journeyTo, setJourneyTo] = useState('Jogiwala to GSON');
+  const [purposeOfJourney, setPurposeOfJourney] = useState('for office duty');
+  const [headOfAccount, setHeadOfAccount] = useState('PWD Office Duty');
   const [motorOilUsed, setMotorOilUsed] = useState('None');
+  const [mOilLitres, setMOilLitres] = useState('');
   const [officerName, setOfficerName] = useState('Er. R. K. Singhal');
   const [officerDesignation, setOfficerDesignation] = useState('Executive Engineer (Civil)');
   const [officerSignatureStatus, setOfficerSignatureStatus] = useState<'Signed' | 'Pending' | 'Exempt'>('Signed');
@@ -101,6 +104,17 @@ export const AddDutyLogModal: React.FC<AddDutyLogModalProps> = ({
     if (c && c.driverName) {
       setDriverName(c.driverName);
     }
+    if (c && c.vehicle.includes('UK 07')) {
+      setStartKm('114329');
+      setEndKm('114394');
+      setLogBookPageNo('122');
+      setMonth('August 2026');
+      setJourneyFrom('GSON');
+      setJourneyTo('Jogiwala to GSON');
+      setPurposeOfJourney('for office duty');
+      setHeadOfAccount('PWD Office Duty');
+      setDriverName('Ramesh Chand');
+    }
   };
 
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -155,6 +169,8 @@ export const AddDutyLogModal: React.FC<AddDutyLogModalProps> = ({
       // 1. Add Daily Duty Log marked as Weekend Trip
       addDailyDutyLog({
         dutySlipNumber: generatedTripSlip,
+        logBookPageNo: logBookPageNo.trim() || '122',
+        month: month.trim() || 'August 2026',
         date,
         departmentName: deptName,
         vehicle: vehicleReg,
@@ -175,6 +191,7 @@ export const AddDutyLogModal: React.FC<AddDutyLogModalProps> = ({
         fuelAmount: fuelNum > 0 ? fuelNum : undefined,
         fuelLitres: fuelLitres ? Number(fuelLitres) : undefined,
         motorOilUsed: motorOilUsed.trim() || 'None',
+        mOilLitres: mOilLitres.trim() || '—',
         journeyFrom: tripDestination.split(' to ')[0] || 'Delhi Base',
         journeyTo: tripDestination.split(' to ')[1] || tripDestination,
         purposeOfJourney: 'Weekend Outstation Booking',
@@ -191,7 +208,7 @@ export const AddDutyLogModal: React.FC<AddDutyLogModalProps> = ({
           : `Sat/Sun weekend trip: Fare ₹${fareNum.toLocaleString('en-IN')}, Profit ₹${netTripProfit.toLocaleString('en-IN')} (Excluded from ${deptName} monthly invoice).`
       });
 
-      // 2. Also register in Trips financial roster so Munafa is counted in Trips module!
+      // 2. Also register in Trips financial roster so net profit is counted in Trips module!
       addTrip({
         tripNumber: generatedTripSlip,
         tripType: 'Round Trip',
@@ -229,6 +246,8 @@ export const AddDutyLogModal: React.FC<AddDutyLogModalProps> = ({
       // Official Department Duty
       addDailyDutyLog({
         dutySlipNumber: dutySlipNumber.trim(),
+        logBookPageNo: logBookPageNo.trim() || '122',
+        month: month.trim() || 'August 2026',
         date,
         departmentName: deptName,
         vehicle: vehicleReg,
@@ -246,10 +265,11 @@ export const AddDutyLogModal: React.FC<AddDutyLogModalProps> = ({
         fuelAmount: fuelNum > 0 ? fuelNum : undefined,
         fuelLitres: fuelLitres ? Number(fuelLitres) : undefined,
         motorOilUsed: motorOilUsed.trim() || 'None',
-        journeyFrom: journeyFrom.trim() || 'GSON Base',
-        journeyTo: journeyTo.trim() || 'Site Office',
-        purposeOfJourney: purposeOfJourney.trim() || 'Official Office Duty',
-        headOfAccount: headOfAccount.trim() || 'General Duty / Fleet',
+        mOilLitres: mOilLitres.trim() || '—',
+        journeyFrom: journeyFrom.trim() || 'GSON',
+        journeyTo: journeyTo.trim() || 'Jogiwala to GSON',
+        purposeOfJourney: purposeOfJourney.trim() || 'for office duty',
+        headOfAccount: headOfAccount.trim() || 'PWD Office Duty',
         officerName: officerName.trim() || undefined,
         officerDesignation: officerDesignation.trim() || undefined,
         officerSignatureStatus,
@@ -358,6 +378,47 @@ export const AddDutyLogModal: React.FC<AddDutyLogModalProps> = ({
                   style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
                 >
                   <Briefcase size={15} /> Weekend Booking (Sat / Sun)
+                </div>
+              </div>
+            </div>
+
+            {/* Log Book Register Reference: Month & Page No (from physical register) */}
+            <div
+              style={{
+                background: 'rgba(56, 189, 248, 0.04)',
+                border: '1px solid rgba(56, 189, 248, 0.2)',
+                borderRadius: '8px',
+                padding: '10px 12px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '8px'
+              }}
+            >
+              <div style={{ fontSize: '11.5px', fontWeight: 700, color: 'var(--accent)', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                <BookOpen size={13} /> Log Book Register Details
+              </div>
+              <div className="form-row-2">
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label">Month *</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder="e.g. August 2026"
+                    value={month}
+                    onChange={e => setMonth(e.target.value)}
+                    required
+                  />
+                </div>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label">Log Book Page No. *</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder="e.g. 122 or 123"
+                    value={logBookPageNo}
+                    onChange={e => setLogBookPageNo(e.target.value)}
+                    required
+                  />
                 </div>
               </div>
             </div>
@@ -507,27 +568,6 @@ export const AddDutyLogModal: React.FC<AddDutyLogModalProps> = ({
                       onChange={e => setPurposeOfJourney(e.target.value)}
                       required
                     />
-                    {/* Quick preset chips */}
-                    <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', marginTop: '6px' }}>
-                      {['Office Duty', 'Site Inspection', 'Treasury', 'PHC / Health', 'Bank Visit'].map(p => (
-                        <button
-                          type="button"
-                          key={p}
-                          onClick={() => setPurposeOfJourney(p)}
-                          style={{
-                            background: purposeOfJourney === p ? 'var(--accent)' : 'var(--surface-3)',
-                            color: purposeOfJourney === p ? '#fff' : 'var(--text-dim)',
-                            border: '1px solid var(--border)',
-                            borderRadius: '4px',
-                            padding: '2px 7px',
-                            fontSize: '10.5px',
-                            cursor: 'pointer'
-                          }}
-                        >
-                          {p}
-                        </button>
-                      ))}
-                    </div>
                   </div>
 
                   <div className="form-group" style={{ marginBottom: 0 }}>
@@ -671,14 +711,23 @@ export const AddDutyLogModal: React.FC<AddDutyLogModalProps> = ({
               </div>
 
               <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label">M. Oil / Other Stores Used</label>
-                <input
-                  type="text"
-                  className="form-input"
-                  placeholder="e.g. 1 L Mobil Super / None"
-                  value={motorOilUsed}
-                  onChange={e => setMotorOilUsed(e.target.value)}
-                />
+                <label className="form-label">M. Oil Litres / Other Stores Used</label>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '8px' }}>
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder="Litres (e.g. 1 L)"
+                    value={mOilLitres}
+                    onChange={e => setMOilLitres(e.target.value)}
+                  />
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder="Stores / Brand (e.g. Mobil Super)"
+                    value={motorOilUsed}
+                    onChange={e => setMotorOilUsed(e.target.value)}
+                  />
+                </div>
               </div>
             </div>
 

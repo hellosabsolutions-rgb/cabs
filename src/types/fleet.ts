@@ -145,6 +145,8 @@ export interface DepartmentContract {
 export interface DailyDutyLog {
   id: string;
   dutySlipNumber: string;
+  logBookPageNo?: string;
+  month?: string;
   date: string;
   departmentName: string;
   vehicle: string;
@@ -164,13 +166,14 @@ export interface DailyDutyLog {
   tollParkingAmount: number;
   fuelAmount?: number;
   fuelLitres?: number;
+  motorOilUsed?: string;
+  mOilLitres?: string;
   officerName?: string;
   officerDesignation?: string;
   journeyFrom?: string;
   journeyTo?: string;
   purposeOfJourney?: string;
   headOfAccount?: string;
-  motorOilUsed?: string;
   officerSignatureStatus?: 'Signed' | 'Pending' | 'Exempt';
   driverSignatureStatus?: 'Signed' | 'Pending';
   dutySlipPhoto?: string | null;

@@ -8,6 +8,18 @@ const dailyDutyLogSchema = new mongoose.Schema(
       trim: true,
       index: true
     },
+    logBookPageNo: {
+      type: String,
+      trim: true,
+      default: '122',
+      index: true
+    },
+    month: {
+      type: String,
+      trim: true,
+      default: 'August',
+      index: true
+    },
     date: {
       type: String,
       required: true,
@@ -125,6 +137,11 @@ const dailyDutyLogSchema = new mongoose.Schema(
       type: String,
       trim: true,
       default: 'None'
+    },
+    mOilLitres: {
+      type: String,
+      trim: true,
+      default: ''
     },
     officerSignatureStatus: {
       type: String,

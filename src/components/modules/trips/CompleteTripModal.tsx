@@ -237,7 +237,7 @@ export const CompleteTripModal: React.FC<CompleteTripModalProps> = ({
               <div className="form-row-2">
                 <div className="form-group" style={{ marginBottom: 0 }}>
                   <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <User size={13} /> Driver Bata / Allowance (₹) *
+                    <User size={13} /> Driver Allowance (₹) *
                   </label>
                   <input
                     type="number"
