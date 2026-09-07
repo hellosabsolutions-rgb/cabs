@@ -31,7 +31,7 @@ export type VehicleDocType =
 const vehicleDocOptions: { label: string; value: VehicleDocType; icon: React.ReactNode; desc: string }[] = [
   { label: 'Insurance', value: 'Insurance', icon: <Shield size={20} color="#38bdf8" />, desc: 'Comprehensive or commercial vehicle policy' },
   { label: 'Permit', value: 'Permit', icon: <FileCheck size={20} color="#ffcc4d" />, desc: 'All India Tourist or State Contract Carriage permit' },
-  { label: 'Pollution (PUC)', value: 'Pollution (PUC)', icon: <Wind size={20} color="#39ff6e" />, desc: 'Pollution Under Control emission certificate' },
+  { label: 'Pollution (PUC)', value: 'Pollution (PUC)', icon: <Wind size={20} color="var(--success)" />, desc: 'Pollution Under Control emission certificate' },
   { label: 'RC (Registration)', value: 'RC', icon: <FileText size={20} color="#38bdf8" />, desc: 'Vehicle Registration Certificate from Transport Dept' },
   { label: 'Fitness Certificate', value: 'Fitness', icon: <Settings size={20} color="#ffcc4d" />, desc: 'RTO mandatory annual fitness test certificate' },
   { label: 'Road Tax', value: 'Road tax', icon: <Tag size={20} color="#a78bfa" />, desc: 'Motor Vehicle Tax token or annual road tax receipt' }

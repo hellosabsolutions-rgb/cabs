@@ -123,7 +123,7 @@ export const VoiceFormFiller: React.FC<VoiceFormFillerProps> = ({
               alignItems: 'center',
               justifyContent: 'center',
               flexShrink: 0,
-              boxShadow: isListening ? '0 0 14px rgba(57, 255, 110, 0.6)' : 'none',
+              boxShadow: isListening ? '0 0 14px rgba(38, 184, 216, 0.55)' : 'none',
               transition: 'all 0.2s ease'
             }}
           >

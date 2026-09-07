@@ -6,6 +6,7 @@ import morgan from 'morgan';
 import rateLimit from 'express-rate-limit';
 
 import { errorHandler, notFound } from './middleware/errorHandler.js';
+import { getDbStatus } from './config/db.js';
 
 // Route imports
 import vehicleRoutes from './routes/vehicles.js';
@@ -69,12 +70,21 @@ app.use('/api', apiLimiter);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
-  res.status(200).json({
-    success: true,
-    status: 'online',
+  const db = getDbStatus();
+  res.status(db.connected ? 200 : 503).json({
+    success: db.connected,
+    status: db.connected ? 'online' : 'degraded',
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
-    database: 'connected'
+    database: db.label
+  });
+});
+
+app.use('/api', (req, res, next) => {
+  if (getDbStatus().connected) return next();
+  return res.status(503).json({
+    success: false,
+    error: 'Database unavailable. MongoDB is not connected.'
   });
 });
 

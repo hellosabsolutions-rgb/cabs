@@ -375,8 +375,8 @@ export const AddBookingModal: React.FC<AddBookingModalProps> = ({
               {/* Live Availability Banner for Selected Date */}
               <div
                 style={{
-                  background: availability?.availableCount === 0 ? 'rgba(255, 92, 92, 0.12)' : 'rgba(0, 230, 153, 0.08)',
-                  border: `1px solid ${availability?.availableCount === 0 ? 'rgba(255, 92, 92, 0.3)' : 'rgba(0, 230, 153, 0.25)'}`,
+                  background: availability?.availableCount === 0 ? 'rgba(255, 92, 92, 0.12)' : 'rgba(22, 135, 245, 0.08)',
+                  border: `1px solid ${availability?.availableCount === 0 ? 'rgba(255, 92, 92, 0.3)' : 'rgba(22, 135, 245, 0.25)'}`,
                   borderRadius: '8px',
                   padding: '9px 12px',
                   display: 'flex',
@@ -702,8 +702,8 @@ export const AddBookingModal: React.FC<AddBookingModalProps> = ({
               {/* Pending Balance Banner */}
               <div
                 style={{
-                  background: pendingNum > 0 ? 'rgba(255, 180, 0, 0.12)' : 'rgba(0, 230, 153, 0.12)',
-                  border: `1px solid ${pendingNum > 0 ? 'rgba(255, 180, 0, 0.35)' : 'rgba(0, 230, 153, 0.3)'}`,
+                  background: pendingNum > 0 ? 'rgba(255, 180, 0, 0.12)' : 'rgba(22, 135, 245, 0.12)',
+                  border: `1px solid ${pendingNum > 0 ? 'rgba(255, 180, 0, 0.35)' : 'rgba(22, 135, 245, 0.3)'}`,
                   padding: '9px 12px',
                   borderRadius: '8px',
                   display: 'flex',

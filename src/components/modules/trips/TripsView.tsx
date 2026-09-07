@@ -85,7 +85,7 @@ export const TripsView: React.FC = () => {
         case 'Completed':
           return {
             background: 'rgba(57, 255, 110, 0.12)',
-            color: '#39ff6e',
+            color: 'var(--success)',
             borderColor: 'rgba(57, 255, 110, 0.35)'
           };
         case 'Ongoing':
@@ -147,7 +147,7 @@ export const TripsView: React.FC = () => {
             title="Change trip status"
           >
             <option value="Ongoing" style={{ background: 'var(--surface-1, #1e293b)', color: '#38bdf8' }}>● Ongoing</option>
-            <option value="Completed" style={{ background: 'var(--surface-1, #1e293b)', color: '#39ff6e' }}>● Completed</option>
+            <option value="Completed" style={{ background: 'var(--surface-1, #1e293b)', color: 'var(--success)' }}>● Completed</option>
             <option value="Cancelled" style={{ background: 'var(--surface-1, #1e293b)', color: '#ff5c5c' }}>● Cancelled</option>
           </select>
           <ChevronDown
@@ -185,7 +185,7 @@ export const TripsView: React.FC = () => {
           value={formatINR(stats.totalProfit)}
           customColor="var(--accent)"
         />
-        <StatCard label="Live Ongoing Trips" value={ongoingCount} customColor="#39ff6e" />
+        <StatCard label="Live Ongoing Trips" value={ongoingCount} customColor="var(--success)" />
       </div>
 
       {/* Main Trips Panel */}
@@ -214,7 +214,7 @@ export const TripsView: React.FC = () => {
               style={{
                 padding: '5px 12px',
                 fontSize: '12px',
-                color: ongoingCount > 0 ? '#39ff6e' : undefined
+                color: ongoingCount > 0 ? 'var(--success)' : undefined
               }}
             >
               ● Ongoing ({ongoingCount})

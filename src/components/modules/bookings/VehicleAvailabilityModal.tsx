@@ -170,7 +170,7 @@ export const VehicleAvailabilityModal: React.FC<VehicleAvailabilityModalProps> =
               {data ? data.totalVehicles : '...'}
             </div>
           </div>
-          <div style={{ background: 'rgba(0, 230, 153, 0.08)', padding: '12px', borderRadius: '8px', border: '1px solid rgba(0, 230, 153, 0.25)' }}>
+          <div style={{ background: 'rgba(22, 135, 245, 0.08)', padding: '12px', borderRadius: '8px', border: '1px solid rgba(22, 135, 245, 0.25)' }}>
             <div style={{ fontSize: '11px', color: 'var(--accent)' }}>🟢 Free / Available Vehicles</div>
             <div style={{ fontSize: '20px', fontWeight: 800, color: 'var(--accent)', marginTop: '2px' }}>
               {data ? data.availableCount : '...'}
@@ -228,7 +228,7 @@ export const VehicleAvailabilityModal: React.FC<VehicleAvailabilityModalProps> =
                       </span>
                       <span
                         className="driver-type-badge"
-                        style={{ background: 'rgba(0, 230, 153, 0.12)', color: 'var(--accent)', fontSize: '10.5px' }}
+                        style={{ background: 'rgba(22, 135, 245, 0.12)', color: 'var(--accent)', fontSize: '10.5px' }}
                       >
                         Free / Ready
                       </span>

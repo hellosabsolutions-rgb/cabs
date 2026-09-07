@@ -138,7 +138,7 @@ export const MonthlyBillingView: React.FC = () => {
         case 'Paid':
           return {
             background: 'rgba(57, 255, 110, 0.12)',
-            color: '#39ff6e',
+            color: 'var(--success)',
             borderColor: 'rgba(57, 255, 110, 0.35)'
           };
         case 'Sent':
@@ -192,7 +192,7 @@ export const MonthlyBillingView: React.FC = () => {
           }}
           title="Change invoice status"
         >
-          <option value="Paid" style={{ background: 'var(--surface-1, #1e293b)', color: '#39ff6e' }}>● Paid</option>
+          <option value="Paid" style={{ background: 'var(--surface-1, #1e293b)', color: 'var(--success)' }}>● Paid</option>
           <option value="Sent" style={{ background: 'var(--surface-1, #1e293b)', color: '#38bdf8' }}>● Sent</option>
           <option value="Pending" style={{ background: 'var(--surface-1, #1e293b)', color: '#ffc107' }}>● Pending</option>
           <option value="Overdue" style={{ background: 'var(--surface-1, #1e293b)', color: '#ff5c5c' }}>● Overdue</option>

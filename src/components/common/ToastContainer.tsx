@@ -11,14 +11,14 @@ export const ToastContainer: React.FC = () => {
   const renderIcon = (type: ToastType) => {
     switch (type) {
       case 'success':
-        return <CheckCircle2 size={18} color="var(--accent)" className="toast-icon" />;
+        return <CheckCircle2 size={16} color="var(--accent)" className="toast-icon" />;
       case 'error':
-        return <AlertCircle size={18} color="var(--danger)" className="toast-icon" />;
+        return <AlertCircle size={16} color="var(--danger)" className="toast-icon" />;
       case 'warning':
-        return <AlertTriangle size={18} color="var(--warning)" className="toast-icon" />;
+        return <AlertTriangle size={16} color="var(--warning)" className="toast-icon" />;
       case 'info':
       default:
-        return <Info size={18} color="#38bdf8" className="toast-icon" />;
+        return <Info size={16} color="var(--success)" className="toast-icon" />;
     }
   };
 
@@ -26,7 +26,7 @@ export const ToastContainer: React.FC = () => {
     <div className="toast-container" role="region" aria-label="Notifications">
       {toasts.map(toast => (
         <div key={toast.id} className={`toast-item ${toast.type}`}>
-          {renderIcon(toast.type)}
+          <div className="toast-icon-wrap">{renderIcon(toast.type)}</div>
           <div className="toast-content">
             {toast.title && <div className="toast-title">{toast.title}</div>}
             <div className="toast-message">{toast.message}</div>
@@ -36,6 +36,7 @@ export const ToastContainer: React.FC = () => {
             className="toast-close-btn"
             onClick={() => dismissToast(toast.id)}
             title="Dismiss notification"
+            aria-label="Dismiss notification"
           >
             <X size={14} />
           </button>

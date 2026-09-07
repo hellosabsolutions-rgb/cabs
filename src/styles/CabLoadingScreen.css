@@ -1,11 +1,11 @@
 .cab-loading-stage {
   --bg-top: #ffffff;
-  --bg-bottom: #e8f1fc;
-  --blue: #1d6fd8;
-  --blue-soft: #1d6fd855;
-  --text: #12233d;
-  --text-dim: #5b7290;
-  --progress-track: #d7e6fb;
+  --bg-bottom: #f7f7f7;
+  --blue: #1687f5;
+  --blue-soft: #1687f555;
+  --text: #0b0b0b;
+  --text-dim: #333333;
+  --progress-track: #e7e7e7;
 
   position: fixed;
   inset: 0;
@@ -24,13 +24,13 @@
 }
 
 [data-theme="dark"] .cab-loading-stage {
-  --bg-top: #080d16;
-  --bg-bottom: #0f1c2d;
-  --blue: #2d7eeb;
-  --blue-soft: #2d7eeb66;
+  --bg-top: #0b0b0b;
+  --bg-bottom: #161616;
+  --blue: #1687f5;
+  --blue-soft: #1687f566;
   --text: #ffffff;
-  --text-dim: #8fa0b5;
-  --progress-track: #1c2b42;
+  --text-dim: #a5a5a5;
+  --progress-track: #333333;
 }
 
 .cab-loading-stage.fade-out {

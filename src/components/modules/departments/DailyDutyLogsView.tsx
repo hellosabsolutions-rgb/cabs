@@ -143,7 +143,7 @@ export const DailyDutyLogsView: React.FC = () => {
         case 'Approved':
           return {
             background: 'rgba(57, 255, 110, 0.12)',
-            color: '#39ff6e',
+            color: 'var(--success)',
             borderColor: 'rgba(57, 255, 110, 0.35)'
           };
         case 'Pending':
@@ -190,7 +190,7 @@ export const DailyDutyLogsView: React.FC = () => {
           }}
           title="Select duty status"
         >
-          <option value="Approved" style={{ background: 'var(--surface-1, #1e293b)', color: '#39ff6e' }}>● Approved</option>
+          <option value="Approved" style={{ background: 'var(--surface-1, #1e293b)', color: 'var(--success)' }}>● Approved</option>
           <option value="Pending" style={{ background: 'var(--surface-1, #1e293b)', color: '#ffc107' }}>● Pending</option>
           <option value="Rejected" style={{ background: 'var(--surface-1, #1e293b)', color: '#ff5c5c' }}>● Rejected</option>
         </select>
@@ -312,7 +312,7 @@ export const DailyDutyLogsView: React.FC = () => {
         <StatCard
           label="Weekend Private Profit"
           value={`₹${stats.weekendTripProfit.toLocaleString('en-IN')}`}
-          customColor="#39ff6e"
+          customColor="var(--success)"
         />
       </div>
 
@@ -659,7 +659,7 @@ export const DailyDutyLogsView: React.FC = () => {
                                   padding: '1px 6px',
                                   borderRadius: '4px',
                                   background: isSignedOfficer ? 'rgba(57, 255, 110, 0.12)' : 'rgba(255, 193, 7, 0.12)',
-                                  color: isSignedOfficer ? '#39ff6e' : '#ffc107',
+                                  color: isSignedOfficer ? 'var(--success)' : '#ffc107',
                                   fontWeight: 700
                                 }}
                               >
@@ -687,7 +687,7 @@ export const DailyDutyLogsView: React.FC = () => {
                                 padding: '1px 6px',
                                 borderRadius: '4px',
                                 background: isSignedDriver ? 'rgba(57, 255, 110, 0.12)' : 'rgba(255, 193, 7, 0.12)',
-                                color: isSignedDriver ? '#39ff6e' : '#ffc107',
+                                color: isSignedDriver ? 'var(--success)' : '#ffc107',
                                 fontWeight: 700
                               }}
                             >
@@ -874,7 +874,7 @@ export const DailyDutyLogsView: React.FC = () => {
                         <td>
                           {isWeekend ? (
                             <div>
-                              <div style={{ fontSize: '12.5px', fontWeight: 800, color: '#39ff6e' }}>
+                              <div style={{ fontSize: '12.5px', fontWeight: 800, color: 'var(--success)' }}>
                                 +₹{(log.tripNetProfit || 0).toLocaleString('en-IN')} Profit
                               </div>
                               <div style={{ fontSize: '10.5px', color: 'var(--text-faint)', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>

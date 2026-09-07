@@ -170,7 +170,7 @@ export const BookingsView: React.FC = () => {
         case 'Completed':
           return {
             background: 'rgba(57, 255, 110, 0.12)',
-            color: '#39ff6e',
+            color: 'var(--success)',
             borderColor: 'rgba(57, 255, 110, 0.35)'
           };
         case 'Ongoing':
@@ -232,7 +232,7 @@ export const BookingsView: React.FC = () => {
         >
           <option value="Upcoming" style={{ background: 'var(--surface-1, #1e293b)', color: '#ffc107' }}>● Upcoming</option>
           <option value="Ongoing" style={{ background: 'var(--surface-1, #1e293b)', color: '#38bdf8' }}>● Ongoing</option>
-          <option value="Completed" style={{ background: 'var(--surface-1, #1e293b)', color: '#39ff6e' }}>● Completed</option>
+          <option value="Completed" style={{ background: 'var(--surface-1, #1e293b)', color: 'var(--success)' }}>● Completed</option>
           <option value="Cancelled" style={{ background: 'var(--surface-1, #1e293b)', color: '#ff5c5c' }}>● Cancelled</option>
         </select>
         <ChevronDown
@@ -271,7 +271,7 @@ export const BookingsView: React.FC = () => {
         <StatCard
           label="Active & Scheduled"
           value={`${stats.ongoingCount} Live • ${stats.scheduledCount} Advance`}
-          customColor="#39ff6e"
+          customColor="var(--success)"
         />
       </div>
 
@@ -372,7 +372,7 @@ export const BookingsView: React.FC = () => {
               style={{
                 padding: '5px 10px',
                 fontSize: '12px',
-                color: stats.ongoingCount > 0 ? '#39ff6e' : undefined
+                color: stats.ongoingCount > 0 ? 'var(--success)' : undefined
               }}
             >
               ● Ongoing ({stats.ongoingCount})

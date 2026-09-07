@@ -55,7 +55,7 @@ export const DepartmentPaymentsView: React.FC = () => {
         case 'Reconciled':
           return {
             background: 'rgba(57, 255, 110, 0.12)',
-            color: '#39ff6e',
+            color: 'var(--success)',
             borderColor: 'rgba(57, 255, 110, 0.35)'
           };
         case 'Received':
@@ -102,7 +102,7 @@ export const DepartmentPaymentsView: React.FC = () => {
           }}
           title="Change payment status"
         >
-          <option value="Reconciled" style={{ background: 'var(--surface-1, #1e293b)', color: '#39ff6e' }}>● Reconciled</option>
+          <option value="Reconciled" style={{ background: 'var(--surface-1, #1e293b)', color: 'var(--success)' }}>● Reconciled</option>
           <option value="Received" style={{ background: 'var(--surface-1, #1e293b)', color: '#38bdf8' }}>● Received</option>
           <option value="Processing" style={{ background: 'var(--surface-1, #1e293b)', color: '#ffc107' }}>● Processing</option>
         </select>

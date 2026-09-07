@@ -1,7 +1,6 @@
 'use client';
 
-import { useState } from 'react';
-import { useScroll, useMotionValueEvent } from 'motion/react';
+import { useEffect, useState } from 'react';
 import { List, X } from '@phosphor-icons/react';
 
 const links = [
@@ -14,11 +13,13 @@ const links = [
 export function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const { scrollY } = useScroll();
 
-  useMotionValueEvent(scrollY, 'change', (latest) => {
-    setScrolled(latest > 40);
-  });
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 40);
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
 
   return (
     <header

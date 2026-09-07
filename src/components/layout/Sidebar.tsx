@@ -67,8 +67,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onCloseMobile }) => {
             justifyContent: 'center',
             padding: '3px',
             boxShadow: theme === 'dark'
-              ? '0 2px 10px rgba(0, 230, 153, 0.15), 0 0 0 1px rgba(255,255,255,0.1)'
-              : '0 2px 10px rgba(37, 99, 235, 0.15), 0 0 0 1px rgba(0,0,0,0.06)',
+              ? '0 2px 10px rgba(22, 135, 245, 0.2), 0 0 0 1px rgba(255,255,255,0.08)'
+              : '0 2px 10px rgba(22, 135, 245, 0.15), 0 0 0 1px rgba(0,0,0,0.06)',
             flexShrink: 0,
             overflow: 'hidden',
             transition: 'all 0.3s ease'

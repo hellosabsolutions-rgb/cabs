@@ -896,7 +896,7 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <Wind size={15} color="#39ff6e" />
+                    <Wind size={15} color="var(--success)" />
                     <span style={{ fontWeight: 600, fontSize: '13px', color: 'var(--text)' }}>
                       3. Pollution Under Control (PUCC)
                     </span>

@@ -67,7 +67,7 @@ export const ContractsListView: React.FC = () => {
         case 'Active':
           return {
             background: 'rgba(57, 255, 110, 0.12)',
-            color: '#39ff6e',
+            color: 'var(--success)',
             borderColor: 'rgba(57, 255, 110, 0.35)'
           };
         case 'Pending Renewal':
@@ -114,7 +114,7 @@ export const ContractsListView: React.FC = () => {
           }}
           title="Change contract status"
         >
-          <option value="Active" style={{ background: 'var(--surface-1, #1e293b)', color: '#39ff6e' }}>● Active</option>
+          <option value="Active" style={{ background: 'var(--surface-1, #1e293b)', color: 'var(--success)' }}>● Active</option>
           <option value="Pending Renewal" style={{ background: 'var(--surface-1, #1e293b)', color: '#ffc107' }}>● Renewal Due</option>
           <option value="Expired" style={{ background: 'var(--surface-1, #1e293b)', color: '#ff5c5c' }}>● Expired</option>
         </select>

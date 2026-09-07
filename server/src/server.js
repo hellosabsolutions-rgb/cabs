@@ -7,37 +7,45 @@ import { connectDB } from './config/db.js';
 
 const PORT = process.env.PORT || 5000;
 
-// Connect to MongoDB database
-connectDB();
+const start = async () => {
+  await connectDB();
 
-// Start HTTP Server
-const server = app.listen(PORT, () => {
-  console.log(`🚀 KABPRO Server running in ${process.env.NODE_ENV || 'development'} mode on http://localhost:${PORT}`);
-  console.log(`📡 Health Check: http://localhost:${PORT}/api/health`);
-  console.log(`🚗 Vehicles API: http://localhost:${PORT}/api/vehicles`);
-});
-
-// Graceful Shutdown handling
-const handleGracefulShutdown = (signal) => {
-  console.log(`\n🛑 Received ${signal}. Starting graceful shutdown...`);
-  server.close(async () => {
-    console.log('🔒 HTTP server closed.');
-    try {
-      await mongoose.connection.close(false);
-      console.log('💾 MongoDB connection closed cleanly.');
-      process.exit(0);
-    } catch (err) {
-      console.error('Error during MongoDB disconnect:', err);
-      process.exit(1);
-    }
+  const server = app.listen(PORT, () => {
+    console.log(`🚀 KABPRO Server running in ${process.env.NODE_ENV || 'development'} mode on http://localhost:${PORT}`);
+    console.log(`📡 Health Check: http://localhost:${PORT}/api/health`);
+    console.log(`🚗 Vehicles API: http://localhost:${PORT}/api/vehicles`);
   });
 
-  // Force close if graceful takes too long
-  setTimeout(() => {
-    console.error('⚠️ Could not close connections in time, forcefully shutting down');
-    process.exit(1);
-  }, 10000);
+  const handleGracefulShutdown = (signal) => {
+    console.log(`\n🛑 Received ${signal}. Starting graceful shutdown...`);
+
+    if (typeof server.closeAllConnections === 'function') {
+      server.closeAllConnections();
+    }
+
+    server.close(async () => {
+      console.log('🔒 HTTP server closed.');
+      try {
+        await mongoose.connection.close(false);
+        console.log('💾 MongoDB connection closed cleanly.');
+        process.exit(0);
+      } catch (err) {
+        console.error('Error during MongoDB disconnect:', err);
+        process.exit(1);
+      }
+    });
+
+    setTimeout(() => {
+      console.error('⚠️ Could not close connections in time, forcefully shutting down');
+      process.exit(1);
+    }, 3000).unref();
+  };
+
+  process.on('SIGTERM', () => handleGracefulShutdown('SIGTERM'));
+  process.on('SIGINT', () => handleGracefulShutdown('SIGINT'));
 };
 
-process.on('SIGTERM', () => handleGracefulShutdown('SIGTERM'));
-process.on('SIGINT', () => handleGracefulShutdown('SIGINT'));
+start().catch((err) => {
+  console.error('❌ Failed to start server:', err.message);
+  process.exit(1);
+});

@@ -1,7 +1,7 @@
 /**
  * Centralized HTTP client for FleetOS API
  */
-const BASE_URL = 'http://localhost:5000/api';
+const BASE_URL = 'http://localhost:5001/api';
 
 interface RequestOptions extends RequestInit {
   data?: any;

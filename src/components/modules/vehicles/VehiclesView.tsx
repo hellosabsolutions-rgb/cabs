@@ -87,7 +87,7 @@ export const VehiclesView: React.FC = () => {
         <StatCard label="Total Fleet Size" value={stats.total} customColor="var(--accent)" />
         <StatCard label="Booking Fleet (Rental / Taxi)" value={stats.tripCount} customColor="#38bdf8" />
         <StatCard label="Department Contract Fleet" value={stats.deptCount} customColor="#ffcc4d" />
-        <StatCard label="Running / On Duty" value={stats.running} customColor="#39ff6e" />
+        <StatCard label="Running / On Duty" value={stats.running} customColor="var(--success)" />
       </div>
 
       {/* Main Vehicles Panel */}
@@ -442,7 +442,7 @@ export const VehiclesView: React.FC = () => {
                   name: '3. Pollution Under Control (PUCC)',
                   exp: selectedVehicleDocs.pollutionExpiry,
                   photo: selectedVehicleDocs.pollutionPhoto,
-                  icon: <Wind size={15} color="#39ff6e" />
+                  icon: <Wind size={15} color="var(--success)" />
                 },
                 {
                   id: 'permit',

@@ -757,9 +757,9 @@ export const AddDutyLogModal: React.FC<AddDutyLogModalProps> = ({
                       fontSize: '11px',
                       fontWeight: 600,
                       borderRadius: '6px',
-                      border: officerSignatureStatus === 'Signed' ? '1px solid #39ff6e' : '1px solid var(--border)',
+                      border: officerSignatureStatus === 'Signed' ? '1px solid var(--success)' : '1px solid var(--border)',
                       background: officerSignatureStatus === 'Signed' ? 'rgba(57, 255, 110, 0.12)' : 'var(--surface-2)',
-                      color: officerSignatureStatus === 'Signed' ? '#39ff6e' : 'var(--text-faint)',
+                      color: officerSignatureStatus === 'Signed' ? 'var(--success)' : 'var(--text-faint)',
                       cursor: 'pointer',
                       display: 'flex',
                       alignItems: 'center',
@@ -778,9 +778,9 @@ export const AddDutyLogModal: React.FC<AddDutyLogModalProps> = ({
                       fontSize: '11px',
                       fontWeight: 600,
                       borderRadius: '6px',
-                      border: driverSignatureStatus === 'Signed' ? '1px solid #39ff6e' : '1px solid var(--border)',
+                      border: driverSignatureStatus === 'Signed' ? '1px solid var(--success)' : '1px solid var(--border)',
                       background: driverSignatureStatus === 'Signed' ? 'rgba(57, 255, 110, 0.12)' : 'var(--surface-2)',
-                      color: driverSignatureStatus === 'Signed' ? '#39ff6e' : 'var(--text-faint)',
+                      color: driverSignatureStatus === 'Signed' ? 'var(--success)' : 'var(--text-faint)',
                       cursor: 'pointer',
                       display: 'flex',
                       alignItems: 'center',
@@ -811,7 +811,7 @@ export const AddDutyLogModal: React.FC<AddDutyLogModalProps> = ({
                   <div style={{ fontSize: '11px', color: 'var(--text-faint)' }}>
                     Total KM: <b>{calcTotalKm} km</b> · Total Expenses: <b>₹{totalTripExpenses.toLocaleString('en-IN')}</b>
                   </div>
-                  <div style={{ fontSize: '15px', fontWeight: 800, color: netTripProfit >= 0 ? '#39ff6e' : 'var(--danger)', marginTop: '2px' }}>
+                  <div style={{ fontSize: '15px', fontWeight: 800, color: netTripProfit >= 0 ? 'var(--success)' : 'var(--danger)', marginTop: '2px' }}>
                     Net Profit: ₹{netTripProfit.toLocaleString('en-IN')} ({tripMargin})
                   </div>
                 </div>

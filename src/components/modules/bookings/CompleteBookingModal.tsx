@@ -265,8 +265,8 @@ export const CompleteBookingModal: React.FC<CompleteBookingModalProps> = ({
             style={{
               background: pendingDue > 0
                 ? 'linear-gradient(135deg, rgba(255, 180, 0, 0.08), rgba(255, 92, 92, 0.05))'
-                : 'rgba(0, 230, 153, 0.08)',
-              border: pendingDue > 0 ? '1px solid rgba(255, 180, 0, 0.35)' : '1px solid rgba(0, 230, 153, 0.3)',
+                : 'rgba(22, 135, 245, 0.08)',
+              border: pendingDue > 0 ? '1px solid rgba(255, 180, 0, 0.35)' : '1px solid rgba(22, 135, 245, 0.3)',
               borderRadius: '10px',
               padding: '16px',
               display: 'flex',
@@ -285,7 +285,7 @@ export const CompleteBookingModal: React.FC<CompleteBookingModalProps> = ({
                   fontWeight: 600,
                   padding: '2px 8px',
                   borderRadius: '12px',
-                  background: pendingDue > 0 ? 'rgba(255, 180, 0, 0.2)' : 'rgba(0, 230, 153, 0.2)',
+                  background: pendingDue > 0 ? 'rgba(255, 180, 0, 0.2)' : 'rgba(22, 135, 245, 0.2)',
                   color: pendingDue > 0 ? '#ffb400' : 'var(--accent)'
                 }}
               >

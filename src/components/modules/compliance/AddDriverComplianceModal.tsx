@@ -26,7 +26,7 @@ export type DriverDocType =
   | 'Commercial badge';
 
 const driverDocOptions: { label: string; value: DriverDocType; icon: React.ReactNode; mandatoryNote?: string }[] = [
-  { label: 'Driving Licence (DL)', value: 'Driving licence', icon: <IdCard size={20} color="#39ff6e" />, mandatoryNote: 'Mandatory' },
+  { label: 'Driving Licence (DL)', value: 'Driving licence', icon: <IdCard size={20} color="var(--success)" />, mandatoryNote: 'Mandatory' },
   { label: 'Police Verification', value: 'Police verification', icon: <UserCheck size={20} color="#38bdf8" /> },
   { label: 'Medical Fitness', value: 'Medical record', icon: <HeartPulse size={20} color="#f87171" /> },
   { label: 'ID Proof (Aadhaar)', value: 'ID proof', icon: <IdCard size={20} color="#ffcc4d" /> },

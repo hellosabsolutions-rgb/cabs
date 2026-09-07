@@ -392,7 +392,7 @@ export const FuelLogsView: React.FC = () => {
                                       log.fuelType === 'Diesel'
                                         ? '#38bdf8'
                                         : log.fuelType === 'CNG'
-                                        ? '#39ff6e'
+                                        ? 'var(--success)'
                                         : '#ffcc4d'
                                   }}
                                 >

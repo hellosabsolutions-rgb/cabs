@@ -213,7 +213,7 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
         html: `
           <div style="position: relative; width: 38px; height: 44px; display: flex; align-items: center; justify-content: center;">
             <div style="position: absolute; bottom: 0; width: 14px; height: 6px; background: rgba(0,0,0,0.35); border-radius: 50%; filter: blur(2px);"></div>
-            <div style="width: 36px; height: 36px; background: #39ff6e; border: 3px solid #000; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(57, 255, 110, 0.6);">
+            <div style="width: 36px; height: 36px; background: var(--success); border: 3px solid #000; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(38, 184, 216, 0.55);">
               <div style="width: 12px; height: 12px; background: #000; border-radius: 50%;"></div>
             </div>
           </div>
@@ -384,8 +384,8 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
                 left: '50%',
                 transform: 'translateX(-50%)',
                 background: 'rgba(0, 0, 0, 0.85)',
-                color: '#39ff6e',
-                border: '1px solid #39ff6e',
+                color: 'var(--success)',
+                border: '1px solid var(--success)',
                 borderRadius: '20px',
                 padding: '6px 16px',
                 fontSize: '12px',

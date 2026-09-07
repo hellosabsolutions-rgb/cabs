@@ -57,7 +57,7 @@ export const AllVehiclesView: React.FC = () => {
         case 'Active':
           return {
             background: 'rgba(57, 255, 110, 0.12)',
-            color: '#39ff6e',
+            color: 'var(--success)',
             borderColor: 'rgba(57, 255, 110, 0.35)'
           };
         case 'Idle':
@@ -105,7 +105,7 @@ export const AllVehiclesView: React.FC = () => {
           }}
           title="Change vehicle status"
         >
-          <option value="Running" style={{ background: 'var(--surface-1, #1e293b)', color: '#39ff6e' }}>● Running</option>
+          <option value="Running" style={{ background: 'var(--surface-1, #1e293b)', color: 'var(--success)' }}>● Running</option>
           <option value="Idle" style={{ background: 'var(--surface-1, #1e293b)', color: '#ffc107' }}>● Idle</option>
           <option value="Maintenance" style={{ background: 'var(--surface-1, #1e293b)', color: '#ff5c5c' }}>● Maintenance</option>
         </select>
@@ -351,7 +351,7 @@ export const AllVehiclesView: React.FC = () => {
                   name: '3. Pollution Under Control (PUCC)',
                   exp: selectedVehicleDocs.pollutionExpiry,
                   photo: selectedVehicleDocs.pollutionPhoto,
-                  icon: <Wind size={15} color="#39ff6e" />
+                  icon: <Wind size={15} color="var(--success)" />
                 },
                 {
                   id: 'permit',

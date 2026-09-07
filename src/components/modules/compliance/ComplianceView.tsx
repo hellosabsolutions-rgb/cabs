@@ -43,11 +43,11 @@ export const ComplianceView: React.FC = () => {
     if (n.includes('insurance')) return <Shield size={14} color="#38bdf8" />;
     if (n.includes('auth')) return <FileCheck size={14} color="#ffcc4d" />;
     if (n.includes('permit')) return <FileCheck size={14} color="#ffcc4d" />;
-    if (n.includes('puc') || n.includes('pollution')) return <Wind size={14} color="#39ff6e" />;
+    if (n.includes('puc') || n.includes('pollution')) return <Wind size={14} color="var(--success)" />;
     if (n.includes('rc') || n.includes('registration')) return <FileText size={14} color="#38bdf8" />;
     if (n.includes('fitness')) return <Settings size={14} color="#ffcc4d" />;
     if (n.includes('tax')) return <Tag size={14} color="#a78bfa" />;
-    if (n.includes('licence') || n.includes('license') || n.includes('dl')) return <IdCard size={14} color="#39ff6e" />;
+    if (n.includes('licence') || n.includes('license') || n.includes('dl')) return <IdCard size={14} color="var(--success)" />;
     if (n.includes('police')) return <UserCheck size={14} color="#38bdf8" />;
     if (n.includes('medical')) return <HeartPulse size={14} color="#f87171" />;
     return <FileText size={14} color="var(--accent)" />;

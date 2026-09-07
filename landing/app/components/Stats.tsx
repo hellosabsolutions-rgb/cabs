@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { useInView } from 'motion/react';
+import { useInView } from 'framer-motion';
 import { GSAPReveal } from './GSAPReveal';
 import { TextReveal } from './TextReveal';
 

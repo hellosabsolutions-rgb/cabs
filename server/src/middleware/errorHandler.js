@@ -42,6 +42,11 @@ export const errorHandler = (err, req, res, next) => {
  * 404 Route Not Found middleware
  */
 export const notFound = (req, res, next) => {
+  // Chrome / Cursor DevTools probes this as if the port were a browser debug endpoint.
+  if (req.path === '/json/version' || req.path.startsWith('/json/')) {
+    return res.status(404).end();
+  }
+
   const error = new Error(`Route Not Found - ${req.originalUrl}`);
   res.status(404);
   next(error);

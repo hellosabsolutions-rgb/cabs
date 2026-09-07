@@ -127,7 +127,7 @@ export const LiveTrackingView: React.FC = () => {
   const getStatusColor = (status: VehicleTelemetry['status']) => {
     switch (status) {
       case 'Moving':
-        return '#39ff6e';
+        return 'var(--success)';
       case 'Idling':
         return '#ffcc4d';
       case 'Parked':
@@ -188,8 +188,8 @@ export const LiveTrackingView: React.FC = () => {
               width: 10,
               height: 10,
               borderRadius: '50%',
-              background: '#39ff6e',
-              boxShadow: '0 0 10px #39ff6e'
+              background: 'var(--success)',
+              boxShadow: '0 0 10px var(--success)'
             }}
           />
           <span style={{ fontWeight: 600, fontSize: '14px' }}>Real-time GPS Fleet Telematics</span>
@@ -209,7 +209,7 @@ export const LiveTrackingView: React.FC = () => {
           <button
             className={`subtab-btn ${activeTab === 'moving' ? 'active' : ''}`}
             onClick={() => setActiveTab('moving')}
-            style={{ padding: '4px 10px', fontSize: '11.5px', color: '#39ff6e' }}
+            style={{ padding: '4px 10px', fontSize: '11.5px', color: 'var(--success)' }}
           >
             ● Moving ({vehicleList.filter(v => v.status === 'Moving').length})
           </button>
@@ -269,7 +269,7 @@ export const LiveTrackingView: React.FC = () => {
             >
               <path d="M 0 140 Q 250 80 500 200 T 1000 260" stroke="#38bdf8" strokeWidth="3" fill="none" strokeDasharray="6 4" />
               <path d="M 100 0 Q 300 250 450 500" stroke="#ffcc4d" strokeWidth="2.5" fill="none" />
-              <path d="M 0 350 C 300 320 600 420 1000 300" stroke="#39ff6e" strokeWidth="3" fill="none" />
+              <path d="M 0 350 C 300 320 600 420 1000 300" stroke="var(--success)" strokeWidth="3" fill="none" />
             </svg>
 
             {/* Simulated Vehicle Pins on Map */}
@@ -359,7 +359,7 @@ export const LiveTrackingView: React.FC = () => {
                 gap: '8px'
               }}
             >
-              <Radio size={14} color="#39ff6e" />
+              <Radio size={14} color="var(--success)" />
               <span>Tracking <b>{vehicleList.length} Fleet GPS Units</b></span>
             </div>
           </div>
@@ -445,7 +445,7 @@ export const LiveTrackingView: React.FC = () => {
                     style={{
                       fontSize: '13px',
                       fontWeight: 600,
-                      color: selectedVehicle.ignition ? '#39ff6e' : 'var(--text-dim)',
+                      color: selectedVehicle.ignition ? 'var(--success)' : 'var(--text-dim)',
                       marginTop: '4px',
                       display: 'flex',
                       alignItems: 'center',

@@ -79,10 +79,10 @@ export const Topbar: React.FC<TopbarProps> = ({ onToggleMobileSidebar }) => {
           type="button"
           className="icon-btn"
           onClick={toggleTheme}
-          title={theme === 'dark' ? 'Switch to Light Mode (Blue KABPRO)' : 'Switch to Dark Mode (Dark KABPRO)'}
+          title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
           aria-label="Toggle Theme"
         >
-          {theme === 'dark' ? <Sun size={15} color="#ffcc4d" /> : <Moon size={15} color="#3b82f6" />}
+          {theme === 'dark' ? <Sun size={15} color="#fff36a" /> : <Moon size={15} color="#1687f5" />}
         </button>
 
         <div className="icon-btn" title={`${totalAlerts} active alert(s)`}>
