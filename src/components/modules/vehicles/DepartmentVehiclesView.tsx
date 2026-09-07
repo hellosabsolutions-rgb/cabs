@@ -2,11 +2,13 @@ import React, { useState, useMemo } from 'react';
 import { useFleet } from '../../../context/FleetContext';
 import { StatCard } from '../../common/StatCard';
 import { StatusChip } from '../../common/StatusChip';
+import { StatusDropdown } from '../../common/StatusDropdown';
 import { AddVehicleModal } from './AddVehicleModal';
 import { Building2, Fuel } from 'lucide-react';
+import { VehicleStatus } from '../../../types/fleet';
 
 export const DepartmentVehiclesView: React.FC = () => {
-  const { vehicles, searchQuery, departmentContracts } = useFleet();
+  const { vehicles, searchQuery, departmentContracts, updateVehicleStatus } = useFleet();
 
   const [deptFilter, setDeptFilter] = useState<string>('All');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -125,24 +127,41 @@ export const DepartmentVehiclesView: React.FC = () => {
                     <tr key={v.id}>
                       <td>
                         <div>
-                          <div style={{ fontWeight: 600, color: 'var(--text)', letterSpacing: '0.5px' }}>
+                          <div style={{ fontWeight: 600, color: 'var(--text)', letterSpacing: '0.5px', whiteSpace: 'nowrap' }}>
                             {v.registrationNumber}
                           </div>
-                          <div style={{ fontSize: '11px', color: 'var(--text-faint)', marginTop: '2px' }}>
+                          <div
+                            className="cell-truncate-md"
+                            style={{ fontSize: '11px', color: 'var(--text-faint)', marginTop: '2px' }}
+                            title={v.model || 'Executive Sedan (Sedan/SUV)'}
+                          >
                             {v.model || 'Executive Sedan (Sedan/SUV)'}
                           </div>
                         </div>
                       </td>
 
                       <td>
-                        <span className="tag dept" style={{ fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                          <Building2 size={11} /> {v.assignedTo}
+                        <span
+                          className="tag dept"
+                          style={{ fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: '4px', maxWidth: '170px' }}
+                          title={v.assignedTo}
+                        >
+                          <Building2 size={11} style={{ flexShrink: 0 }} />
+                          <span className="text-truncate">{v.assignedTo}</span>
                         </span>
                       </td>
 
                       <td>
-                        <div style={{ fontWeight: 500 }}>{v.assignedDriver || linkedContract?.driverName || 'Rahul Sharma'}</div>
-                        <div style={{ fontSize: '10.5px', color: 'var(--text-faint)' }}>Designated Driver</div>
+                        <div style={{ maxWidth: '140px' }}>
+                          <div
+                            className="cell-truncate"
+                            style={{ fontWeight: 500 }}
+                            title={v.assignedDriver || linkedContract?.driverName || 'Rahul Sharma'}
+                          >
+                            {v.assignedDriver || linkedContract?.driverName || 'Rahul Sharma'}
+                          </div>
+                          <div style={{ fontSize: '10.5px', color: 'var(--text-faint)', whiteSpace: 'nowrap' }}>Designated Driver</div>
+                        </div>
                       </td>
 
                       <td>
@@ -159,7 +178,16 @@ export const DepartmentVehiclesView: React.FC = () => {
                       </td>
 
                       <td>
-                        <StatusChip status={v.status} />
+                        <StatusDropdown
+                          value={v.status}
+                          options={[
+                            { value: 'Running', label: 'Running / On Duty' },
+                            { value: 'Idle', label: 'Idle in Yard' },
+                            { value: 'Maintenance', label: 'Maintenance' }
+                          ]}
+                          onChange={(newStatus) => updateVehicleStatus(v.id, newStatus as VehicleStatus)}
+                          title="Change vehicle duty status"
+                        />
                       </td>
 
                       <td>

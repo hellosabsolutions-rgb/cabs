@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useFleet } from '../../../context/FleetContext';
 import { StatCard } from '../../common/StatCard';
 import { StatusChip } from '../../common/StatusChip';
+import { StatusDropdown } from '../../common/StatusDropdown';
 import { AddVehicleModal } from './AddVehicleModal';
 import { VehicleAvailabilityModal } from '../bookings/VehicleAvailabilityModal';
 import { Vehicle, VehicleStatus, VehicleType } from '../../../types/fleet';
@@ -190,7 +191,7 @@ export const VehiclesView: React.FC = () => {
                 <th>Designated Driver</th>
                 <th>Odometer & Fuel</th>
                 <th>FASTag Balance</th>
-                <th>Status (Click Toggle)</th>
+                <th>Vehicle Status</th>
                 <th>Compliance (5 Docs)</th>
               </tr>
             </thead>
@@ -207,10 +208,14 @@ export const VehiclesView: React.FC = () => {
                     {/* Registration & Model */}
                     <td>
                       <div>
-                        <div style={{ fontWeight: 700, color: 'var(--text)', letterSpacing: '0.5px', fontSize: '13.5px' }}>
+                        <div style={{ fontWeight: 700, color: 'var(--text)', letterSpacing: '0.5px', fontSize: '13.5px', whiteSpace: 'nowrap' }}>
                           {v.registrationNumber}
                         </div>
-                        <div style={{ fontSize: '11px', color: 'var(--text-faint)', marginTop: '2px' }}>
+                        <div
+                          className="cell-truncate-md"
+                          style={{ fontSize: '11px', color: 'var(--text-faint)', marginTop: '2px' }}
+                          title={v.model || (v.type === 'Department' ? 'Executive Sedan' : 'Commercial MPV')}
+                        >
                           {v.model || (v.type === 'Department' ? 'Executive Sedan' : 'Commercial MPV')}
                         </div>
                       </div>
@@ -227,7 +232,7 @@ export const VehiclesView: React.FC = () => {
                               ? 'dept'
                               : 'trip'
                           }`}
-                          style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', whiteSpace: 'nowrap' }}
                         >
                           {v.currentOperationMode === 'Trip-based' && v.type === 'Department' ? (
                             <>
@@ -282,17 +287,36 @@ export const VehiclesView: React.FC = () => {
 
                     {/* Assigned Department / Stand (Konse Department Mai Lagi Hai) */}
                     <td>
-                      <div>
-                        <div style={{ fontWeight: 600, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                          {v.type === 'Department' ? <Building2 size={13} color="#ffcc4d" /> : <MapPin size={13} color="#38bdf8" />} {v.departmentName || v.assignedTo}
+                      <div style={{ maxWidth: '200px' }}>
+                        <div
+                          className="truncate-flex"
+                          style={{ fontWeight: 600, color: 'var(--text)' }}
+                          title={v.departmentName || v.assignedTo || 'Unassigned'}
+                        >
+                          {v.type === 'Department' ? (
+                            <Building2 size={13} color="#ffcc4d" style={{ flexShrink: 0 }} />
+                          ) : (
+                            <MapPin size={13} color="#38bdf8" style={{ flexShrink: 0 }} />
+                          )}
+                          <span className="text-truncate">
+                            {v.departmentName || v.assignedTo || 'Unassigned'}
+                          </span>
                         </div>
                         {v.type === 'Department' && (
-                          <div style={{ fontSize: '10.5px', color: 'var(--accent)', marginTop: '2px' }}>
+                          <div
+                            className="cell-truncate"
+                            style={{ fontSize: '10.5px', color: 'var(--accent)', marginTop: '2px' }}
+                            title="Govt Tender Contract"
+                          >
                             Govt Tender Contract
                           </div>
                         )}
                         {v.type === 'Trip-based' && v.assignedTo && v.assignedTo !== v.departmentName && (
-                          <div style={{ fontSize: '10.5px', color: 'var(--text-dim)', marginTop: '2px' }}>
+                          <div
+                            className="cell-truncate"
+                            style={{ fontSize: '10.5px', color: 'var(--text-dim)', marginTop: '2px' }}
+                            title={`Base: ${v.assignedTo}`}
+                          >
                             Base: {v.assignedTo}
                           </div>
                         )}
@@ -302,12 +326,18 @@ export const VehiclesView: React.FC = () => {
                     {/* Designated Driver */}
                     <td>
                       {v.assignedDriver ? (
-                        <div>
-                          <div style={{ fontWeight: 500 }}>{v.assignedDriver}</div>
-                          <div style={{ fontSize: '10.5px', color: 'var(--text-faint)' }}>Assigned Driver</div>
+                        <div style={{ maxWidth: '140px' }}>
+                          <div
+                            className="cell-truncate"
+                            style={{ fontWeight: 500 }}
+                            title={v.assignedDriver}
+                          >
+                            {v.assignedDriver}
+                          </div>
+                          <div style={{ fontSize: '10.5px', color: 'var(--text-faint)', whiteSpace: 'nowrap' }}>Assigned Driver</div>
                         </div>
                       ) : (
-                        <span style={{ color: 'var(--text-faint)', fontSize: '12px' }}>Pool / Unassigned</span>
+                        <span style={{ color: 'var(--text-faint)', fontSize: '12px', whiteSpace: 'nowrap' }}>Pool / Unassigned</span>
                       )}
                     </td>
 
@@ -339,15 +369,18 @@ export const VehiclesView: React.FC = () => {
                       )}
                     </td>
 
-                    {/* Status Toggle */}
+                    {/* Status Dropdown */}
                     <td>
-                      <span
-                        style={{ cursor: 'pointer' }}
-                        title="Click to toggle status"
-                        onClick={() => handleToggleStatus(v.id, v.status)}
-                      >
-                        <StatusChip status={v.status} />
-                      </span>
+                      <StatusDropdown
+                        value={v.status}
+                        options={[
+                          { value: 'Running', label: 'Running / Active' },
+                          { value: 'Idle', label: 'Idle in Yard' },
+                          { value: 'Maintenance', label: 'In Maintenance' }
+                        ]}
+                        onChange={(newStatus) => updateVehicleStatus(v.id, newStatus as VehicleStatus)}
+                        title="Change vehicle status"
+                      />
                     </td>
 
                     {/* 5 Compliance Documents */}

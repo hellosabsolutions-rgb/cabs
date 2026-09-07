@@ -313,15 +313,19 @@ export const DashboardView: React.FC = () => {
                 return (
                   <tr key={v.id}>
                     <td>
-                      <div className="status-name">{v.registrationNumber}</div>
-                      <div className="status-meta">{v.model}</div>
+                      <div className="status-name" style={{ whiteSpace: 'nowrap' }}>{v.registrationNumber}</div>
+                      <div className="status-meta cell-truncate-md" title={v.model}>{v.model}</div>
                     </td>
                     <td>
-                      <span className={`tag ${v.type === 'Department' ? 'dept' : 'trip'}`}>
+                      <span className={`tag ${v.type === 'Department' ? 'dept' : 'trip'}`} style={{ whiteSpace: 'nowrap' }}>
                         {v.type === 'Department' ? 'Department' : 'Trip-based'}
                       </span>
                     </td>
-                    <td>{v.assignedDriver || '—'}</td>
+                    <td>
+                      <span className="cell-truncate-sm" title={v.assignedDriver || 'Unassigned'}>
+                        {v.assignedDriver || '—'}
+                      </span>
+                    </td>
                     <td className="num">{inr(v.revenue)}</td>
                     <td className="num">{inr(v.expense)}</td>
                     <td className="num profit-pos">{inr(v.profit)}</td>

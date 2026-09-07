@@ -1,10 +1,10 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useFleet } from '../../../context/FleetContext';
 import { StatCard } from '../../common/StatCard';
 import { StatusChip } from '../../common/StatusChip';
 import { AddVehicleModal } from './AddVehicleModal';
 import { Vehicle, VehicleStatus } from '../../../types/fleet';
-import { Building2, Briefcase, Fuel, FileText, Shield, Wind, FileCheck, Award, Eye, ChevronDown } from 'lucide-react';
+import { Building2, Briefcase, Fuel, FileText, Shield, Wind, FileCheck, Award, Eye, ChevronDown, CheckCircle2, Clock, Wrench } from 'lucide-react';
 
 export const AllVehiclesView: React.FC = () => {
   const { vehicles, searchQuery, updateVehicleStatus } = useFleet();
@@ -50,75 +50,152 @@ export const AllVehiclesView: React.FC = () => {
     };
   }, [vehicles]);
 
-  const renderVehicleStatusDropdown = (v: Vehicle) => {
-    const getStatusStyle = (s: VehicleStatus) => {
-      switch (s) {
-        case 'Running':
-        case 'Active':
-          return {
-            background: 'rgba(57, 255, 110, 0.12)',
-            color: 'var(--success)',
-            borderColor: 'rgba(57, 255, 110, 0.35)'
-          };
-        case 'Idle':
-          return {
-            background: 'rgba(255, 193, 7, 0.12)',
-            color: '#ffc107',
-            borderColor: 'rgba(255, 193, 7, 0.35)'
-          };
-        case 'Maintenance':
-          return {
-            background: 'rgba(255, 92, 92, 0.12)',
-            color: 'var(--danger, #ff5c5c)',
-            borderColor: 'rgba(255, 92, 92, 0.35)'
-          };
-        default:
-          return {
-            background: 'var(--surface-3)',
-            color: 'var(--text)',
-            borderColor: 'var(--border)'
-          };
-      }
-    };
+  const StatusDropdown: React.FC<{ vehicle: Vehicle }> = ({ vehicle }) => {
+    const [open, setOpen] = useState(false);
+    const ref = useRef<HTMLDivElement>(null);
 
-    const currentVal = v.status === 'Active' ? 'Running' : v.status;
-    const style = getStatusStyle(v.status);
+    const STATUS_OPTIONS: { value: VehicleStatus; label: string; color: string; bg: string; border: string; icon: React.ReactNode }[] = [
+      {
+        value: 'Running',
+        label: 'Running',
+        color: 'var(--success, #39ff6e)',
+        bg: 'rgba(57, 255, 110, 0.12)',
+        border: 'rgba(57, 255, 110, 0.35)',
+        icon: <CheckCircle2 size={13} />,
+      },
+      {
+        value: 'Idle',
+        label: 'Idle',
+        color: '#ffc107',
+        bg: 'rgba(255, 193, 7, 0.12)',
+        border: 'rgba(255, 193, 7, 0.35)',
+        icon: <Clock size={13} />,
+      },
+      {
+        value: 'Maintenance',
+        label: 'Maintenance',
+        color: 'var(--danger, #ff5c5c)',
+        bg: 'rgba(255, 92, 92, 0.12)',
+        border: 'rgba(255, 92, 92, 0.35)',
+        icon: <Wrench size={13} />,
+      },
+    ];
+
+    const currentVal = vehicle.status === 'Active' ? 'Running' : vehicle.status;
+    const current = STATUS_OPTIONS.find(o => o.value === currentVal) || STATUS_OPTIONS[0];
+
+    useEffect(() => {
+      if (!open) return;
+      const handler = (e: MouseEvent) => {
+        if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      };
+      document.addEventListener('mousedown', handler);
+      return () => document.removeEventListener('mousedown', handler);
+    }, [open]);
 
     return (
-      <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
-        <select
-          value={currentVal}
-          onChange={e => updateVehicleStatus(v.id, e.target.value as VehicleStatus)}
+      <div ref={ref} style={{ position: 'relative', display: 'inline-block' }}>
+        {/* Trigger pill */}
+        <button
+          type="button"
+          onClick={() => setOpen(o => !o)}
           style={{
-            background: style.background,
-            color: style.color,
-            border: `1px solid ${style.borderColor}`,
-            padding: '4px 22px 4px 10px',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '5px',
+            background: current.bg,
+            color: current.color,
+            border: `1px solid ${current.border}`,
             borderRadius: '20px',
+            padding: '4px 10px 4px 9px',
             fontSize: '11.5px',
             fontWeight: 700,
             cursor: 'pointer',
             outline: 'none',
-            appearance: 'none',
-            WebkitAppearance: 'none',
-            lineHeight: 1.4
+            transition: 'opacity 0.15s',
+            whiteSpace: 'nowrap',
           }}
-          title="Change vehicle status"
+          title="Click to change vehicle status"
         >
-          <option value="Running" style={{ background: 'var(--surface-1, #1e293b)', color: 'var(--success)' }}>● Running</option>
-          <option value="Idle" style={{ background: 'var(--surface-1, #1e293b)', color: '#ffc107' }}>● Idle</option>
-          <option value="Maintenance" style={{ background: 'var(--surface-1, #1e293b)', color: '#ff5c5c' }}>● Maintenance</option>
-        </select>
-        <ChevronDown
-          size={11}
-          style={{
-            position: 'absolute',
-            right: '7px',
-            pointerEvents: 'none',
-            color: style.color,
-            opacity: 0.85
-          }}
-        />
+          {current.icon}
+          {current.label}
+          <ChevronDown
+            size={11}
+            style={{
+              marginLeft: '1px',
+              transition: 'transform 0.2s',
+              transform: open ? 'rotate(180deg)' : 'rotate(0deg)',
+              opacity: 0.8,
+            }}
+          />
+        </button>
+
+        {/* Floating menu */}
+        {open && (
+          <div
+            style={{
+              position: 'absolute',
+              top: 'calc(100% + 6px)',
+              left: 0,
+              zIndex: 9999,
+              background: 'var(--surface-2, #1a2236)',
+              border: '1px solid var(--border, rgba(255,255,255,0.08))',
+              borderRadius: '12px',
+              padding: '5px',
+              minWidth: '148px',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.45)',
+              animation: 'dropdownFadeIn 0.15s ease',
+            }}
+          >
+            {STATUS_OPTIONS.map(opt => {
+              const isActive = opt.value === currentVal;
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => {
+                    updateVehicleStatus(vehicle.id, opt.value);
+                    setOpen(false);
+                  }}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    width: '100%',
+                    padding: '7px 10px',
+                    borderRadius: '8px',
+                    background: isActive ? opt.bg : 'transparent',
+                    border: isActive ? `1px solid ${opt.border}` : '1px solid transparent',
+                    color: isActive ? opt.color : 'var(--text-dim, #94a3b8)',
+                    fontSize: '12px',
+                    fontWeight: isActive ? 700 : 500,
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                    transition: 'background 0.12s, color 0.12s',
+                  }}
+                  onMouseEnter={e => {
+                    if (!isActive) {
+                      (e.currentTarget as HTMLButtonElement).style.background = opt.bg;
+                      (e.currentTarget as HTMLButtonElement).style.color = opt.color;
+                    }
+                  }}
+                  onMouseLeave={e => {
+                    if (!isActive) {
+                      (e.currentTarget as HTMLButtonElement).style.background = 'transparent';
+                      (e.currentTarget as HTMLButtonElement).style.color = 'var(--text-dim, #94a3b8)';
+                    }
+                  }}
+                >
+                  <span style={{ color: opt.color }}>{opt.icon}</span>
+                  {opt.label}
+                  {isActive && (
+                    <span style={{ marginLeft: 'auto', fontSize: '10px', opacity: 0.6 }}>✓</span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
     );
   };
@@ -206,7 +283,7 @@ export const AllVehiclesView: React.FC = () => {
                         <div style={{ fontWeight: 600, color: 'var(--text)', letterSpacing: '0.5px' }}>
                           {v.registrationNumber}
                         </div>
-                        <div style={{ fontSize: '11px', color: 'var(--text-faint)', marginTop: '2px' }}>
+                        <div className="cell-truncate-md" title={v.model || (v.type === 'Department' ? 'Executive Sedan' : 'Commercial MPV')} style={{ fontSize: '11px', color: 'var(--text-faint)', marginTop: '2px' }}>
                           {v.model || (v.type === 'Department' ? 'Executive Sedan' : 'Commercial MPV')}
                         </div>
                       </div>
@@ -227,7 +304,7 @@ export const AllVehiclesView: React.FC = () => {
                     </td>
 
                     <td>
-                      <div style={{ fontWeight: 500, color: 'var(--text)' }}>
+                      <div className="cell-truncate" title={v.departmentName || v.assignedTo} style={{ fontWeight: 500, color: 'var(--text)' }}>
                         {v.departmentName || v.assignedTo}
                       </div>
                       <div style={{ fontSize: '11px', color: 'var(--text-faint)', marginTop: '2px' }}>
@@ -237,7 +314,7 @@ export const AllVehiclesView: React.FC = () => {
 
                     <td>
                       {v.assignedDriver ? (
-                        <span style={{ fontWeight: 500 }}>{v.assignedDriver}</span>
+                        <span className="cell-truncate" title={v.assignedDriver} style={{ fontWeight: 500 }}>{v.assignedDriver}</span>
                       ) : (
                         <span style={{ color: 'var(--text-faint)' }}>Unassigned</span>
                       )}
@@ -257,7 +334,7 @@ export const AllVehiclesView: React.FC = () => {
                     </td>
 
                     <td>
-                      {renderVehicleStatusDropdown(v)}
+                      <StatusDropdown vehicle={v} />
                     </td>
 
                     {/* 5 Compliance Documents */}

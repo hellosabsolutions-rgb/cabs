@@ -208,15 +208,19 @@ export const DriversView: React.FC = () => {
                               </div>
                             )}
                             <div>
-                              <div style={{ fontWeight: 600, color: 'var(--text)' }}>{d.name}</div>
+                              <div className="cell-truncate-md" style={{ fontWeight: 600, color: 'var(--text)' }} title={d.name}>{d.name}</div>
                               {d.phone && (
-                                <div style={{ fontSize: '11px', color: 'var(--text-faint)', marginTop: '2px' }}>
+                                <div style={{ fontSize: '11px', color: 'var(--text-faint)', marginTop: '2px', whiteSpace: 'nowrap' }}>
                                   {d.phone}
                                 </div>
                               )}
                               {d.address && (
-                                <div style={{ fontSize: '10.5px', color: 'var(--text-faint)', marginTop: '1px', display: 'flex', alignItems: 'center', gap: '3px' }}>
-                                  <MapPin size={10} /> {d.address}
+                                <div
+                                  className="cell-truncate-md"
+                                  style={{ fontSize: '10.5px', color: 'var(--text-faint)', marginTop: '1px', display: 'flex', alignItems: 'center', gap: '3px' }}
+                                  title={d.address}
+                                >
+                                  <MapPin size={10} style={{ flexShrink: 0 }} /> <span className="text-truncate">{d.address}</span>
                                 </div>
                               )}
                             </div>

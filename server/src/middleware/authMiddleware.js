@@ -1,14 +1,44 @@
+import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 import { User } from '../models/User.js';
+import { RefreshToken } from '../models/RefreshToken.js';
 import { asyncHandler } from './asyncHandler.js';
 
 /**
- * Generate a signed JWT token
+ * Generate a short-lived access token (default 15 minutes)
+ */
+export const generateAccessToken = (id, sessionId = null) => {
+  return jwt.sign(
+    { id, sessionId },
+    process.env.JWT_SECRET || 'fleetos_default_fallback_jwt_secret',
+    {
+      expiresIn: process.env.ACCESS_TOKEN_EXPIRE || '15m'
+    }
+  );
+};
+
+/**
+ * Generate a secure cryptographically random refresh token
+ */
+export const generateRefreshToken = (rememberMe = false) => {
+  const rawToken = crypto.randomBytes(40).toString('hex');
+  const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
+
+  const expiryDays = rememberMe ? 30 : 1;
+  const expiresAt = new Date(Date.now() + expiryDays * 24 * 60 * 60 * 1000);
+
+  return {
+    rawToken,
+    tokenHash,
+    expiresAt
+  };
+};
+
+/**
+ * Backwards compatibility token generator (longer default for non-refreshed flows)
  */
 export const generateToken = (id) => {
-  return jwt.sign({ id }, process.env.JWT_SECRET || 'fleetos_default_fallback_jwt_secret', {
-    expiresIn: process.env.JWT_EXPIRE || '7d'
-  });
+  return generateAccessToken(id);
 };
 
 /**
@@ -54,6 +84,15 @@ export const protect = asyncHandler(async (req, res, next) => {
     }
 
     req.user = user;
+    req.sessionId = decoded.sessionId || null;
+
+    // Asynchronously update last active time of session if sessionId exists
+    if (decoded.sessionId) {
+      RefreshToken.findByIdAndUpdate(decoded.sessionId, {
+        lastActiveAt: new Date()
+      }).catch(() => {});
+    }
+
     next();
   } catch (err) {
     return res.status(401).json({
@@ -77,3 +116,4 @@ export const authorize = (...roles) => {
     next();
   };
 };
+

@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { MinimalVoiceFiller } from '../../common/MinimalVoiceFiller';
 import { DatePicker } from '../../common/DatePicker';
+import { useModalAnimation } from '../../../hooks/useModalAnimation';
 
 interface AddDriverComplianceModalProps {
   isOpen: boolean;
@@ -39,6 +40,7 @@ export const AddDriverComplianceModal: React.FC<AddDriverComplianceModalProps> =
   preselectedDriver
 }) => {
   const { drivers, addDriverComplianceDoc } = useFleet();
+  const { isClosing, handleClose } = useModalAnimation(onClose);
 
   const [driverName, setDriverName] = useState(
     preselectedDriver || drivers[0]?.name || 'Rahul Sharma'
@@ -182,12 +184,12 @@ export const AddDriverComplianceModal: React.FC<AddDriverComplianceModalProps> =
     setDocPhotoName('');
     setDocPhotoPreview(null);
     setErrorMsg('');
-    onClose();
+    handleClose();
   };
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-dialog" onClick={e => e.stopPropagation()} style={{ maxWidth: 520 }}>
+    <div className={`modal-overlay ${isClosing ? 'closing' : ''}`} onClick={handleClose}>
+      <div className={`modal-dialog ${isClosing ? 'closing' : ''}`} onClick={e => e.stopPropagation()} style={{ maxWidth: 520 }}>
         <div className="modal-header">
           <div className="modal-title-group">
             <h3 className="modal-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -197,7 +199,7 @@ export const AddDriverComplianceModal: React.FC<AddDriverComplianceModalProps> =
               Record Driver Driving Licence (Mandatory) & optional compliance records
             </span>
           </div>
-          <button className="modal-close-btn" onClick={onClose} type="button">
+          <button className="modal-close-btn" onClick={handleClose} type="button">
             ✕
           </button>
         </div>
@@ -450,7 +452,7 @@ export const AddDriverComplianceModal: React.FC<AddDriverComplianceModalProps> =
           </div>
 
           <div className="modal-footer">
-            <button type="button" className="btn-secondary" onClick={onClose}>
+            <button type="button" className="btn-secondary" onClick={handleClose}>
               Cancel
             </button>
             <button type="submit" className="btn-primary-action">

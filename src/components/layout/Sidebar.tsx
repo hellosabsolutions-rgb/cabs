@@ -96,7 +96,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onCloseMobile }) => {
       </div>
 
       {/* Agency Switcher & Profile Dropdown */}
-      <div style={{ padding: '0 12px 12px' }}>
+      <div style={{ padding: '14px 12px 8px' }}>
         <AgencySwitcher />
       </div>
 
@@ -275,17 +275,26 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onCloseMobile }) => {
         {/* System */}
         <div className="nav-group">
           <div className="nav-label">System</div>
-          <NavLink to="/dashboard" className="nav-item" onClick={onCloseMobile}>
+          <NavLink to="/dashboard" className={navClass('/dashboard', true)} onClick={onCloseMobile}>
             <BarChart2 />
             Reports
           </NavLink>
-          <NavLink to="/dashboard" className="nav-item" onClick={onCloseMobile}>
+          <NavLink
+            to="/notifications"
+            className={navClass('/notifications')}
+            onClick={onCloseMobile}
+          >
             <Bell />
             Notifications
+            {totalAlerts > 0 && <span className="badge">{totalAlerts}</span>}
           </NavLink>
-          <NavLink to="/dashboard" className="nav-item" onClick={onCloseMobile}>
+          <NavLink
+            to="/profile"
+            className={navClass('/profile')}
+            onClick={onCloseMobile}
+          >
             <Settings />
-            Settings
+            Profile & Settings
           </NavLink>
         </div>
       </div>

@@ -13,6 +13,8 @@ import { ExpensesView } from '../modules/expenses/ExpensesView';
 import { ProfitabilityView } from '../modules/profitability/ProfitabilityView';
 import { ComplianceView } from '../modules/compliance/ComplianceView';
 import { MaintenanceView } from '../modules/maintenance/MaintenanceView';
+import { NotificationsView } from '../modules/notifications/NotificationsView';
+import { ProfileView } from '../modules/profile/ProfileView';
 import { ErrorBoundary } from '../common/ErrorBoundary';
 import { ToastContainer } from '../common/ToastContainer';
 import { useAuth } from '../../context/AuthContext';
@@ -111,6 +113,10 @@ export const MainLayout: React.FC = () => {
               {/* Compliance & Maintenance */}
               <Route path="/compliance" element={<ComplianceView />} />
               <Route path="/maintenance" element={<MaintenanceView />} />
+
+              {/* Notifications & Profile */}
+              <Route path="/notifications" element={<NotificationsView />} />
+              <Route path="/profile" element={<ProfileView />} />
 
               {/* Fallback */}
               <Route path="*" element={<Navigate to="/dashboard" replace />} />

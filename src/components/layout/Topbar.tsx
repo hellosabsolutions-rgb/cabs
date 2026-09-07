@@ -1,8 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useFleet } from '../../context/FleetContext';
 import { useAuth } from '../../context/AuthContext';
 import { useAgency } from '../../context/AgencyContext';
 import { useTheme } from '../../context/ThemeContext';
+import { useNotifications } from '../../context/NotificationContext';
 import { Search, Bell, Menu, RefreshCw, LogOut, User, Shield, Building2, Sun, Moon } from 'lucide-react';
 
 interface TopbarProps {
@@ -14,11 +16,14 @@ export const Topbar: React.FC<TopbarProps> = ({ onToggleMobileSidebar }) => {
   const { user, logout } = useAuth();
   const { currentAgency } = useAgency();
   const { theme, toggleTheme } = useTheme();
+  const { unreadCount, isConnected } = useNotifications();
+  const navigate = useNavigate();
 
   const [profileOpen, setProfileOpen] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
 
   const totalAlerts = complianceStats.expiringSoonCount + complianceStats.expiredCount;
+  const displayCount = unreadCount > 0 ? unreadCount : totalAlerts;
 
   // Compute initials
   const initials = user?.name
@@ -85,9 +90,31 @@ export const Topbar: React.FC<TopbarProps> = ({ onToggleMobileSidebar }) => {
           {theme === 'dark' ? <Sun size={15} color="#fff36a" /> : <Moon size={15} color="#1687f5" />}
         </button>
 
-        <div className="icon-btn" title={`${totalAlerts} active alert(s)`}>
+        <div
+          className="icon-btn"
+          title={`${displayCount} active notification(s) • ${isConnected ? 'Real-time Connected' : 'Connecting...'}`}
+          onClick={() => navigate('/notifications')}
+          style={{ cursor: 'pointer', position: 'relative' }}
+        >
           <Bell size={16} />
-          {totalAlerts > 0 && <div className="dot" />}
+          {displayCount > 0 ? (
+            <div className="badge-pill">
+              {displayCount > 99 ? '99+' : displayCount}
+            </div>
+          ) : isConnected ? (
+            <span
+              style={{
+                position: 'absolute',
+                bottom: '5px',
+                right: '5px',
+                width: '6px',
+                height: '6px',
+                borderRadius: '50%',
+                background: 'var(--success)'
+              }}
+              title="Socket connected"
+            />
+          ) : null}
         </div>
 
         {/* Profile Avatar & Dropdown Menu */}
@@ -211,6 +238,31 @@ export const Topbar: React.FC<TopbarProps> = ({ onToggleMobileSidebar }) => {
                   </span>
                 </div>
               )}
+
+              {/* View Profile Button */}
+              <button
+                type="button"
+                onClick={() => { setProfileOpen(false); navigate('/profile'); }}
+                style={{
+                  width: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  padding: '8px 0',
+                  borderRadius: '8px',
+                  border: '1px solid var(--border)',
+                  background: 'var(--surface-2)',
+                  color: 'var(--text)',
+                  fontWeight: 600,
+                  fontSize: '12px',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
+                  marginBottom: '8px'
+                }}
+              >
+                <User size={13} /> View Profile
+              </button>
 
               {/* Logout Button */}
               <button

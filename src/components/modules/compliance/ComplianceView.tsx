@@ -3,6 +3,8 @@ import { useFleet } from '../../../context/FleetContext';
 import { StatCard } from '../../common/StatCard';
 import { AddVehicleComplianceModal } from './AddVehicleComplianceModal';
 import { AddDriverComplianceModal } from './AddDriverComplianceModal';
+import { ComplianceDetailModal } from './ComplianceDetailModal';
+import { DocumentCompliance } from '../../../types/fleet';
 import {
   AlertTriangle,
   Clock,
@@ -15,7 +17,9 @@ import {
   Tag,
   IdCard,
   UserCheck,
-  HeartPulse
+  HeartPulse,
+  Edit3,
+  ExternalLink
 } from 'lucide-react';
 import { SkeletonCard, SkeletonTable } from '../../common/Skeleton';
 
@@ -24,6 +28,7 @@ export const ComplianceView: React.FC = () => {
 
   const [isVehModalOpen, setIsVehModalOpen] = useState(false);
   const [isDrvModalOpen, setIsDrvModalOpen] = useState(false);
+  const [selectedDoc, setSelectedDoc] = useState<DocumentCompliance | null>(null);
   const [viewDoc, setViewDoc] = useState<{ title: string; src: string; who: string; exp: string } | null>(null);
 
   const filteredVehDocs = vehicleCompliance.filter(d =>
@@ -52,6 +57,10 @@ export const ComplianceView: React.FC = () => {
     if (n.includes('medical')) return <HeartPulse size={14} color="#f87171" />;
     return <FileText size={14} color="var(--accent)" />;
   };
+
+  const currentSelectedDoc = selectedDoc
+    ? [...vehicleCompliance, ...driverCompliance].find(d => d.id === selectedDoc.id) || selectedDoc
+    : null;
 
   if (isLoading) {
     return (
@@ -100,18 +109,37 @@ export const ComplianceView: React.FC = () => {
           {complianceStats.alerts.length === 0 ? (
             <div className="alert-empty">No documents expiring soon. All fleet compliances valid!</div>
           ) : (
-            complianceStats.alerts.map((alert, idx) => (
-              <div className="alert-row" key={idx}>
-                <div className={`alert-icon ${alert.type}`}>
-                  {alert.type === 'late' ? <AlertTriangle size={15} /> : <Clock size={15} />}
+            complianceStats.alerts.map((alert, idx) => {
+              const matchingDoc = [...vehicleCompliance, ...driverCompliance].find(
+                d =>
+                  d.entityName.toLowerCase() === alert.who.toLowerCase() &&
+                  (d.documentName.toLowerCase().includes(alert.doc.toLowerCase()) ||
+                   alert.doc.toLowerCase().includes(d.documentName.toLowerCase()))
+              );
+              return (
+                <div
+                  className="alert-row"
+                  key={idx}
+                  style={{ cursor: matchingDoc ? 'pointer' : 'default' }}
+                  onClick={() => matchingDoc && setSelectedDoc(matchingDoc)}
+                  title={matchingDoc ? 'Click to open and edit compliance details' : undefined}
+                >
+                  <div className={`alert-icon ${alert.type}`}>
+                    {alert.type === 'late' ? <AlertTriangle size={15} /> : <Clock size={15} />}
+                  </div>
+                  <div className="alert-text">
+                    <b>{alert.who}</b> — {alert.doc}{' '}
+                    {alert.type === 'late' ? 'has expired' : 'expires soon'}{' '}
+                    <span style={{ color: 'var(--text-faint)' }}>({alert.text})</span>
+                  </div>
+                  {matchingDoc && (
+                    <span style={{ marginLeft: 'auto', fontSize: '11px', color: 'var(--accent)', display: 'inline-flex', alignItems: 'center', gap: '4px', fontWeight: 600 }}>
+                      <Edit3 size={12} /> Open & Edit
+                    </span>
+                  )}
                 </div>
-                <div className="alert-text">
-                  <b>{alert.who}</b> — {alert.doc}{' '}
-                  {alert.type === 'late' ? 'has expired' : 'expires soon'}{' '}
-                  <span style={{ color: 'var(--text-faint)' }}>({alert.text})</span>
-                </div>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
       </div>
@@ -140,21 +168,27 @@ export const ComplianceView: React.FC = () => {
             <table>
               <thead>
                 <tr>
-                  <th>Vehicle</th>
-                  <th>Document Type</th>
-                  <th>Expiry Status</th>
+                  <th style={{ width: '32%' }}>Vehicle</th>
+                  <th style={{ width: '38%' }}>Document Type</th>
+                  <th style={{ width: '22%' }}>Expiry Status</th>
+                  <th style={{ width: '8%', textAlign: 'center' }}></th>
                 </tr>
               </thead>
               <tbody>
                 {filteredVehDocs.length === 0 ? (
                   <tr>
-                    <td colSpan={3} style={{ textAlign: 'center', color: 'var(--text-faint)', padding: '24px 0' }}>
+                    <td colSpan={4} style={{ textAlign: 'center', color: 'var(--text-faint)', padding: '24px 0' }}>
                       No vehicle compliance documents found. Click "+ Add Document" to add Insurance, RC, PUC, etc.
                     </td>
                   </tr>
                 ) : (
                   filteredVehDocs.map(doc => (
-                    <tr key={doc.id}>
+                    <tr
+                      key={doc.id}
+                      className="compliance-row-clickable"
+                      onClick={() => setSelectedDoc(doc)}
+                      title="Click to view & edit compliance details"
+                    >
                       <td style={{ fontWeight: 700, color: 'var(--text)' }}>
                         <div>{doc.entityName}</div>
                         {doc.documentNumber && (
@@ -172,14 +206,15 @@ export const ComplianceView: React.FC = () => {
                           <span
                             className="bill-link"
                             style={{ fontSize: '10.5px', display: 'inline-block', marginTop: '2px' }}
-                            onClick={() =>
+                            onClick={(e) => {
+                              e.stopPropagation();
                               setViewDoc({
                                 title: `${doc.entityName} · ${doc.documentName}`,
                                 src: doc.documentPhoto!,
                                 who: doc.entityName,
                                 exp: doc.expiryLabel
-                              })
-                            }
+                              });
+                            }}
                           >
                             View Copy
                           </span>
@@ -189,6 +224,31 @@ export const ComplianceView: React.FC = () => {
                         <span className={`expiry-${doc.statusType}`} style={{ fontWeight: 600 }}>
                           {doc.expiryLabel}
                         </span>
+                      </td>
+                      <td style={{ textAlign: 'center' }}>
+                        <button
+                          type="button"
+                          className="btn-icon"
+                          title="Open & Edit Compliance"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedDoc(doc);
+                          }}
+                          style={{
+                            width: '26px',
+                            height: '26px',
+                            borderRadius: '6px',
+                            border: '1px solid var(--border)',
+                            background: 'var(--surface-2)',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            cursor: 'pointer',
+                            color: 'var(--text-faint)'
+                          }}
+                        >
+                          <Edit3 size={12} />
+                        </button>
                       </td>
                     </tr>
                   ))
@@ -220,21 +280,27 @@ export const ComplianceView: React.FC = () => {
             <table>
               <thead>
                 <tr>
-                  <th>Driver Name</th>
-                  <th>Document Type</th>
-                  <th>Expiry Status</th>
+                  <th style={{ width: '32%' }}>Driver Name</th>
+                  <th style={{ width: '38%' }}>Document Type</th>
+                  <th style={{ width: '22%' }}>Expiry Status</th>
+                  <th style={{ width: '8%', textAlign: 'center' }}></th>
                 </tr>
               </thead>
               <tbody>
                 {filteredDrvDocs.length === 0 ? (
                   <tr>
-                    <td colSpan={3} style={{ textAlign: 'center', color: 'var(--text-faint)', padding: '24px 0' }}>
+                    <td colSpan={4} style={{ textAlign: 'center', color: 'var(--text-faint)', padding: '24px 0' }}>
                       No driver documents found. Click "+ Add Document" to record Driver Licence.
                     </td>
                   </tr>
                 ) : (
                   filteredDrvDocs.map(doc => (
-                    <tr key={doc.id}>
+                    <tr
+                      key={doc.id}
+                      className="compliance-row-clickable"
+                      onClick={() => setSelectedDoc(doc)}
+                      title="Click to view & edit compliance details"
+                    >
                       <td style={{ fontWeight: 700, color: 'var(--text)' }}>
                         <div>{doc.entityName}</div>
                         {doc.documentNumber && (
@@ -270,14 +336,15 @@ export const ComplianceView: React.FC = () => {
                           <span
                             className="bill-link"
                             style={{ fontSize: '10.5px', display: 'inline-block', marginTop: '2px' }}
-                            onClick={() =>
+                            onClick={(e) => {
+                              e.stopPropagation();
                               setViewDoc({
                                 title: `${doc.entityName} · ${doc.documentName}`,
                                 src: doc.documentPhoto!,
                                 who: doc.entityName,
                                 exp: doc.expiryLabel
-                              })
-                            }
+                              });
+                            }}
                           >
                             View Copy
                           </span>
@@ -288,6 +355,31 @@ export const ComplianceView: React.FC = () => {
                           {doc.expiryLabel}
                         </span>
                       </td>
+                      <td style={{ textAlign: 'center' }}>
+                        <button
+                          type="button"
+                          className="btn-icon"
+                          title="Open & Edit Compliance"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedDoc(doc);
+                          }}
+                          style={{
+                            width: '26px',
+                            height: '26px',
+                            borderRadius: '6px',
+                            border: '1px solid var(--border)',
+                            background: 'var(--surface-2)',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            cursor: 'pointer',
+                            color: 'var(--text-faint)'
+                          }}
+                        >
+                          <Edit3 size={12} />
+                        </button>
+                      </td>
                     </tr>
                   ))
                 )}
@@ -296,6 +388,13 @@ export const ComplianceView: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Compliance Detail & Edit Modal */}
+      <ComplianceDetailModal
+        isOpen={!!selectedDoc}
+        doc={currentSelectedDoc}
+        onClose={() => setSelectedDoc(null)}
+      />
 
       {/* Vehicle Compliance Modal */}
       <AddVehicleComplianceModal

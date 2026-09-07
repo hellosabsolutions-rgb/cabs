@@ -4,6 +4,9 @@ import { ThemeProvider } from './context/ThemeContext';
 import { AuthProvider } from './context/AuthContext';
 import { AgencyProvider } from './context/AgencyContext';
 import { FleetProvider } from './context/FleetContext';
+import { NotificationProvider } from './context/NotificationContext';
+import { NotificationToast } from './components/common/NotificationToast';
+import { ModalAnimationController } from './components/common/ModalAnimationController';
 import { MainLayout } from './components/layout/MainLayout';
 import './styles/globals.css';
 
@@ -14,7 +17,11 @@ export const App: React.FC = () => {
         <AuthProvider>
           <AgencyProvider>
             <FleetProvider>
-              <MainLayout />
+              <NotificationProvider>
+                <MainLayout />
+                <NotificationToast />
+                <ModalAnimationController />
+              </NotificationProvider>
             </FleetProvider>
           </AgencyProvider>
         </AuthProvider>

@@ -55,7 +55,18 @@ const userSchema = new mongoose.Schema(
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Agency'
       }
-    ]
+    ],
+    notificationPreferences: {
+      compliance: { type: Boolean, default: true },
+      maintenance: { type: Boolean, default: true },
+      fleet: { type: Boolean, default: true },
+      financial: { type: Boolean, default: true },
+      bookings: { type: Boolean, default: true }
+    },
+    lastLoginAt: {
+      type: Date,
+      default: null
+    }
   },
   {
     timestamps: true,

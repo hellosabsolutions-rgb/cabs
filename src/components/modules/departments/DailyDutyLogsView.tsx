@@ -831,7 +831,11 @@ export const DailyDutyLogsView: React.FC = () => {
                                 </>
                               )}
                             </span>
-                            <div style={{ fontSize: '11.5px', fontWeight: 500, marginTop: '3px' }}>
+                            <div
+                              className="cell-truncate-md"
+                              style={{ fontSize: '11.5px', fontWeight: 500, marginTop: '3px' }}
+                              title={log.departmentName}
+                            >
                               {log.departmentName}
                             </div>
                           </div>
@@ -839,14 +843,18 @@ export const DailyDutyLogsView: React.FC = () => {
 
                         {/* Vehicle & Driver */}
                         <td>
-                          <div style={{ fontWeight: 600 }}>{log.vehicle}</div>
-                          <div style={{ fontSize: '11px', color: 'var(--text-faint)', marginTop: '1px' }}>
+                          <div style={{ fontWeight: 600, whiteSpace: 'nowrap' }}>{log.vehicle}</div>
+                          <div
+                            className="cell-truncate-sm"
+                            style={{ fontSize: '11px', color: 'var(--text-faint)', marginTop: '1px' }}
+                            title={log.driverName}
+                          >
                             {log.driverName}
                           </div>
                         </td>
 
                         {/* Odometer Start -> End */}
-                        <td style={{ fontFamily: 'monospace', fontSize: '12px' }}>
+                        <td style={{ fontFamily: 'monospace', fontSize: '12px', whiteSpace: 'nowrap' }}>
                           {log.startKm} → {log.endKm}
                         </td>
 
@@ -856,15 +864,23 @@ export const DailyDutyLogsView: React.FC = () => {
                             {log.totalKm} km
                           </div>
                           {log.journeyFrom && log.journeyTo ? (
-                            <div style={{ fontSize: '10.5px', color: 'var(--text-dim)', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '3px' }}>
-                              <MapPin size={10} /> {log.journeyFrom} → {log.journeyTo}
+                            <div
+                              className="cell-truncate-lg"
+                              style={{ fontSize: '10.5px', color: 'var(--text-dim)', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '3px' }}
+                              title={`${log.journeyFrom} → ${log.journeyTo}`}
+                            >
+                              <MapPin size={10} style={{ flexShrink: 0 }} /> <span className="text-truncate">{log.journeyFrom} → {log.journeyTo}</span>
                             </div>
                           ) : isWeekend ? (
-                            <div style={{ fontSize: '10.5px', color: 'var(--text-dim)', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '3px' }}>
-                              <MapPin size={10} /> {log.tripDestination || 'Outstation Run'}
+                            <div
+                              className="cell-truncate-lg"
+                              style={{ fontSize: '10.5px', color: 'var(--text-dim)', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '3px' }}
+                              title={log.tripDestination || 'Outstation Run'}
+                            >
+                              <MapPin size={10} style={{ flexShrink: 0 }} /> <span className="text-truncate">{log.tripDestination || 'Outstation Run'}</span>
                             </div>
                           ) : log.extraKm > 0 ? (
-                            <div style={{ fontSize: '11px', color: 'var(--warning)', marginTop: '2px' }}>
+                            <div style={{ fontSize: '11px', color: 'var(--warning)', marginTop: '2px', whiteSpace: 'nowrap' }}>
                               +{log.extraKm} km extra
                             </div>
                           ) : null}

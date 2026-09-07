@@ -50,6 +50,14 @@ export const BookingsView: React.FC = () => {
   const [prefillVehicle, setPrefillVehicle] = useState<string | undefined>(undefined);
   const [prefillDate, setPrefillDate] = useState<string | undefined>(undefined);
 
+  // Called by VehicleAvailabilityModal → prefill AddBookingModal and open it
+  const handleBookSelectedVehicle = (vehicleReg: string, date: string) => {
+    setPrefillVehicle(vehicleReg);
+    setPrefillDate(date);
+    setIsAvailabilityModalOpen(false);
+    setIsAddModalOpen(true);
+  };
+
   const formatINR = (val: number) => '₹' + Math.round(val).toLocaleString('en-IN');
 
   // Available unique months from booking dates
@@ -179,7 +187,7 @@ export const BookingsView: React.FC = () => {
             color: '#38bdf8',
             borderColor: 'rgba(56, 189, 248, 0.35)'
           };
-        case 'Upcoming':
+        case ('Upcoming' as any):
           return {
             background: 'rgba(255, 193, 7, 0.12)',
             color: '#ffc107',
@@ -494,14 +502,22 @@ export const BookingsView: React.FC = () => {
 
                       {/* 2. Vehicle & Driver */}
                       <td>
-                        <div>
-                          <div style={{ fontWeight: 700, color: 'var(--text)', fontSize: '13px' }}>
+                        <div style={{ maxWidth: '160px' }}>
+                          <div style={{ fontWeight: 700, color: 'var(--text)', fontSize: '13px', whiteSpace: 'nowrap' }}>
                             {b.vehicle}
                           </div>
-                          <div style={{ fontSize: '11px', color: 'var(--text-faint)', marginTop: '1px' }}>
+                          <div
+                            className="cell-truncate-md"
+                            style={{ fontSize: '11px', color: 'var(--text-faint)', marginTop: '1px' }}
+                            title={b.vehicleModel || 'Commercial Vehicle'}
+                          >
                             {b.vehicleModel || 'Commercial Vehicle'}
                           </div>
-                          <div style={{ fontSize: '11px', color: 'var(--text-dim)', marginTop: '2px' }}>
+                          <div
+                            className="cell-truncate-md"
+                            style={{ fontSize: '11px', color: 'var(--text-dim)', marginTop: '2px' }}
+                            title={`Driver: ${b.driverName}`}
+                          >
                             Driver: <b>{b.driverName}</b>
                           </div>
                         </div>
@@ -509,15 +525,23 @@ export const BookingsView: React.FC = () => {
 
                       {/* 3. Route & Passenger */}
                       <td>
-                        <div>
-                          <div style={{ fontWeight: 600, color: 'var(--text)', fontSize: '12.5px' }}>
+                        <div style={{ maxWidth: '200px' }}>
+                          <div
+                            className="cell-truncate-lg"
+                            style={{ fontWeight: 600, color: 'var(--text)', fontSize: '12.5px' }}
+                            title={b.route}
+                          >
                             {b.route}
                           </div>
-                          <div style={{ fontSize: '11.5px', color: 'var(--text-dim)', marginTop: '3px' }}>
+                          <div
+                            className="cell-truncate-md"
+                            style={{ fontSize: '11.5px', color: 'var(--text-dim)', marginTop: '3px' }}
+                            title={`Client: ${b.customerName || 'Customer'}`}
+                          >
                             Client: <b>{b.customerName || 'Customer'}</b>
                           </div>
                           {b.customerPhone && (
-                            <div style={{ fontSize: '10.5px', color: 'var(--text-faint)' }}>
+                            <div style={{ fontSize: '10.5px', color: 'var(--text-faint)', whiteSpace: 'nowrap' }}>
                               📞 {b.customerPhone}
                             </div>
                           )}

@@ -2,11 +2,13 @@ import React, { useState, useMemo } from 'react';
 import { useFleet } from '../../../context/FleetContext';
 import { StatCard } from '../../common/StatCard';
 import { StatusChip } from '../../common/StatusChip';
+import { StatusDropdown } from '../../common/StatusDropdown';
 import { AddVehicleModal } from './AddVehicleModal';
 import { Briefcase, Fuel } from 'lucide-react';
+import { VehicleStatus } from '../../../types/fleet';
 
 export const TripVehiclesView: React.FC = () => {
-  const { vehicles, searchQuery } = useFleet();
+  const { vehicles, searchQuery, updateVehicleStatus } = useFleet();
 
   const [statusFilter, setStatusFilter] = useState<string>('All');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -119,33 +121,51 @@ export const TripVehiclesView: React.FC = () => {
                   <tr key={v.id}>
                     <td>
                       <div>
-                        <div style={{ fontWeight: 600, color: 'var(--text)', letterSpacing: '0.5px' }}>
+                        <div style={{ fontWeight: 600, color: 'var(--text)', letterSpacing: '0.5px', whiteSpace: 'nowrap' }}>
                           {v.registrationNumber}
                         </div>
-                        <div style={{ fontSize: '11px', color: 'var(--text-faint)', marginTop: '2px' }}>
+                        <div
+                          className="cell-truncate-md"
+                          style={{ fontSize: '11px', color: 'var(--text-faint)', marginTop: '2px' }}
+                          title={v.model || 'Commercial MPV / Taxi'}
+                        >
                           {v.model || 'Commercial MPV / Taxi'}
                         </div>
                       </div>
                     </td>
 
                     <td>
-                      <span className="tag trip" style={{ fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                      <span className="tag trip" style={{ fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}>
                         <Briefcase size={11} /> Booking-based
                       </span>
                     </td>
 
                     <td>
-                      <div style={{ fontWeight: 500, color: 'var(--text)' }}>
-                        {v.meta || 'Delhi NCR Regional Stand'}
-                      </div>
-                      <div style={{ fontSize: '10.5px', color: 'var(--text-dim)', marginTop: '2px' }}>
-                        Base: Indira Gandhi Intl Airport
+                      <div style={{ maxWidth: '180px' }}>
+                        <div
+                          className="cell-truncate"
+                          style={{ fontWeight: 500, color: 'var(--text)' }}
+                          title={v.meta || 'Delhi NCR Regional Stand'}
+                        >
+                          {v.meta || 'Delhi NCR Regional Stand'}
+                        </div>
+                        <div style={{ fontSize: '10.5px', color: 'var(--text-dim)', marginTop: '2px', whiteSpace: 'nowrap' }}>
+                          Base: Indira Gandhi Intl Airport
+                        </div>
                       </div>
                     </td>
 
                     <td>
-                      <div style={{ fontWeight: 500 }}>{v.assignedDriver || 'Vikas Kumar'}</div>
-                      <div style={{ fontSize: '10.5px', color: 'var(--text-faint)' }}>Commercial Pilot</div>
+                      <div style={{ maxWidth: '140px' }}>
+                        <div
+                          className="cell-truncate"
+                          style={{ fontWeight: 500 }}
+                          title={v.assignedDriver || 'Vikas Kumar'}
+                        >
+                          {v.assignedDriver || 'Vikas Kumar'}
+                        </div>
+                        <div style={{ fontSize: '10.5px', color: 'var(--text-faint)', whiteSpace: 'nowrap' }}>Commercial Pilot</div>
+                      </div>
                     </td>
 
                     <td>
@@ -162,7 +182,16 @@ export const TripVehiclesView: React.FC = () => {
                     </td>
 
                     <td>
-                      <StatusChip status={v.status} />
+                      <StatusDropdown
+                        value={v.status}
+                        options={[
+                          { value: 'Running', label: 'Running / On Duty' },
+                          { value: 'Idle', label: 'Idle in Yard' },
+                          { value: 'Maintenance', label: 'Maintenance' }
+                        ]}
+                        onChange={(newStatus) => updateVehicleStatus(v.id, newStatus as VehicleStatus)}
+                        title="Change vehicle duty status"
+                      />
                     </td>
                   </tr>
                 ))

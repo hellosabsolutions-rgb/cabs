@@ -94,7 +94,7 @@ export const TripsView: React.FC = () => {
             color: '#38bdf8',
             borderColor: 'rgba(56, 189, 248, 0.35)'
           };
-        case 'Upcoming':
+        case ('Upcoming' as any):
           return {
             background: 'rgba(255, 193, 7, 0.12)',
             color: '#ffc107',
@@ -306,18 +306,28 @@ export const TripsView: React.FC = () => {
 
                     {/* 2. Vehicle & Driver */}
                     <td>
-                      <div>
-                        <div style={{ fontWeight: 600, color: 'var(--text)' }}>
+                      <div style={{ maxWidth: '170px' }}>
+                        <div style={{ fontWeight: 600, color: 'var(--text)', whiteSpace: 'nowrap' }}>
                           {trip.vehicle}
                         </div>
-                        <div style={{ fontSize: '11px', color: 'var(--text-faint)', marginTop: '1px' }}>
+                        <div
+                          className="cell-truncate-md"
+                          style={{ fontSize: '11px', color: 'var(--text-faint)', marginTop: '1px' }}
+                          title={trip.vehicleModel || 'Commercial MPV'}
+                        >
                           {trip.vehicleModel || 'Commercial MPV'}
                         </div>
-                        <div style={{ fontSize: '11px', color: 'var(--text-dim)', marginTop: '2px' }}>
+                        <div
+                          className="cell-truncate-md"
+                          style={{ fontSize: '11px', color: 'var(--text-dim)', marginTop: '2px' }}
+                          title={`Driver: ${trip.driverName}`}
+                        >
                           Driver: <b>{trip.driverName}</b>
                         </div>
                         {(trip.isDepartmentVehicle || trip.weekendDutyType) && (
                           <div
+                            className="cell-truncate-md"
+                            title={`Dept Sat/Sun Trip (${trip.departmentName || 'Dept Fleet'})`}
                             style={{
                               fontSize: '10px',
                               color: '#38bdf8',
@@ -331,7 +341,7 @@ export const TripsView: React.FC = () => {
                               gap: '3px'
                             }}
                           >
-                            <Building2 size={10} /> Dept Sat/Sun Trip ({trip.departmentName || 'Dept Fleet'})
+                            <Building2 size={10} style={{ flexShrink: 0 }} /> Dept Sat/Sun Trip
                           </div>
                         )}
                       </div>
@@ -339,14 +349,26 @@ export const TripsView: React.FC = () => {
 
                     {/* 3. Route */}
                     <td>
-                      <div>
-                        <div style={{ fontWeight: 600, color: 'var(--text)', fontSize: '12.5px' }}>
+                      <div style={{ maxWidth: '200px' }}>
+                        <div
+                          className="cell-truncate-lg"
+                          style={{ fontWeight: 600, color: 'var(--text)', fontSize: '12.5px' }}
+                          title={trip.route}
+                        >
                           {trip.route}
                         </div>
-                        <div style={{ fontSize: '10.5px', color: 'var(--text-dim)', marginTop: '2px' }}>
+                        <div
+                          className="cell-truncate-md"
+                          style={{ fontSize: '10.5px', color: 'var(--text-dim)', marginTop: '2px' }}
+                          title={`From: ${trip.pickupLocation}`}
+                        >
                           From: {trip.pickupLocation}
                         </div>
-                        <div style={{ fontSize: '10.5px', color: 'var(--text-dim)' }}>
+                        <div
+                          className="cell-truncate-md"
+                          style={{ fontSize: '10.5px', color: 'var(--text-dim)' }}
+                          title={`To: ${trip.dropLocation}`}
+                        >
                           To: {trip.dropLocation}
                         </div>
                       </div>

@@ -1,6 +1,11 @@
 import { Booking } from '../models/Booking.js';
 import { Vehicle } from '../models/Vehicle.js';
 import { Driver } from '../models/Driver.js';
+import {
+  emitBookingCreated,
+  emitBookingUpdated,
+  emitBookingCompleted
+} from '../services/notificationEmitter.js';
 
 // @desc    Get all bookings with optional filters (month, date, status, paymentStatus, search)
 // @route   GET /api/bookings
@@ -235,6 +240,13 @@ export const createBooking = async (req, res, next) => {
       notes
     });
 
+    // Dispatch real-time notification
+    emitBookingCreated({
+      userId: req.user?._id,
+      agencyId: req.user?.currentAgency,
+      booking
+    });
+
     res.status(201).json({
       success: true,
       data: booking,
@@ -258,6 +270,12 @@ export const updateBooking = async (req, res, next) => {
 
     Object.assign(booking, req.body);
     await booking.save();
+
+    emitBookingUpdated({
+      userId: req.user?._id,
+      agencyId: req.user?.currentAgency,
+      booking
+    });
 
     res.status(200).json({ success: true, data: booking });
   } catch (error) {
@@ -316,6 +334,12 @@ export const completeBooking = async (req, res, next) => {
     booking.endDate = booking.endDate || new Date().toISOString().split('T')[0];
 
     await booking.save();
+
+    emitBookingCompleted({
+      userId: req.user?._id,
+      agencyId: req.user?.currentAgency,
+      booking
+    });
 
     res.status(200).json({
       success: true,

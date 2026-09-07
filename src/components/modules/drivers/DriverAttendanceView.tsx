@@ -124,7 +124,7 @@ export const DriverAttendanceView: React.FC = () => {
       const matchDuty =
         dutyFilter === 'All' ||
         item.dutyType === dutyFilter ||
-        (dutyFilter === 'Booking Duty' && (item.dutyType === 'Trip Duty' || item.dutyType === 'Booking Duty'));
+        (dutyFilter === 'Booking Duty' && (item.dutyType === 'Trip Duty' || (item.dutyType as string) === 'Booking Duty'));
       return matchSearch && matchDuty;
     });
   }, [driverAttendanceList, searchQuery, dutyFilter]);
@@ -202,7 +202,10 @@ export const DriverAttendanceView: React.FC = () => {
   const renderStatusDropdown = (status: AttendanceStatus, id: string, record: DriverAttendance) => {
     const handleStatusSelect = async (newStatus: AttendanceStatus) => {
       if (newStatus === status) return;
-      if (id.startsWith('temp_')) {
+      const isMongoId = /^[0-9a-fA-F]{24}$/.test(id);
+
+      if (!isMongoId || id.startsWith('temp_') || id.startsWith('att')) {
+        // Not yet in MongoDB or using mock placeholder ID: upsert via markAttendance
         await markAttendance({
           driverId: record.driverId,
           driverName: record.driverName,
@@ -216,7 +219,16 @@ export const DriverAttendanceView: React.FC = () => {
           notes: record.notes
         });
       } else {
-        await updateAttendanceStatus(id, newStatus);
+        await updateAttendanceStatus(id, newStatus, {
+          driverId: record.driverId,
+          driverName: record.driverName,
+          date: record.date || selectedDate,
+          assignedVehicle: record.assignedVehicle,
+          dutyType: record.dutyType,
+          workingHours: newStatus === 'Absent' || newStatus === 'On Leave' ? 0 : (record.workingHours || 10),
+          checkIn: newStatus === 'Absent' || newStatus === 'On Leave' ? '—' : (record.checkIn && record.checkIn !== '—' ? record.checkIn : '08:30 AM'),
+          checkOut: newStatus === 'Absent' || newStatus === 'On Leave' ? '—' : (record.checkOut && record.checkOut !== '—' ? record.checkOut : '06:30 PM')
+        });
       }
     };
 
@@ -341,7 +353,7 @@ export const DriverAttendanceView: React.FC = () => {
       const matchDuty =
         dutyFilter === 'All' ||
         item.dutyType === dutyFilter ||
-        (dutyFilter === 'Booking Duty' && (item.dutyType === 'Trip Duty' || item.dutyType === 'Booking Duty'));
+        (dutyFilter === 'Booking Duty' && (item.dutyType === 'Trip Duty' || (item.dutyType as string) === 'Booking Duty'));
       return matchSearch && matchDuty;
     });
   }, [monthlyRecords, searchQuery, dutyFilter]);

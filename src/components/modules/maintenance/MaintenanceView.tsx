@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useFleet } from '../../../context/FleetContext';
 import { StatCard } from '../../common/StatCard';
 import { StatusChip } from '../../common/StatusChip';
+import { StatusDropdown } from '../../common/StatusDropdown';
 import { MaintenanceType } from '../../../types/fleet';
 import { Paperclip } from 'lucide-react';
 import { SkeletonCard, SkeletonTable } from '../../common/Skeleton';
@@ -10,7 +11,7 @@ import { DatePicker } from '../../common/DatePicker';
 const vehicleOptions = ['DL01AB1234', 'DL02CD5678', 'DL03EF9012', 'DL07GH2211', 'DL05KL4432'];
 
 export const MaintenanceView: React.FC = () => {
-  const { maintenanceRecords, addMaintenanceRecord, searchQuery, isLoading } = useFleet();
+  const { maintenanceRecords, addMaintenanceRecord, updateMaintenanceStatus, searchQuery, isLoading } = useFleet();
 
   const [mVehicle, setMVehicle] = useState('DL01AB1234');
   const [mType, setMType] = useState<MaintenanceType>('Service');
@@ -149,7 +150,18 @@ export const MaintenanceView: React.FC = () => {
                       )}
                     </td>
                     <td>
-                      <StatusChip status={m.status} />
+                      <StatusDropdown
+                        value={m.status}
+                        options={[
+                          { value: 'Scheduled', label: 'Scheduled' },
+                          { value: 'In Progress', label: 'In Progress' },
+                          { value: 'Completed', label: 'Completed' },
+                          { value: 'Cancelled', label: 'Cancelled' }
+                        ]}
+                        onChange={(newStatus) => updateMaintenanceStatus(m.id, newStatus)}
+                        size="sm"
+                        title="Change maintenance status"
+                      />
                     </td>
                   </tr>
                 ))}

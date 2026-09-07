@@ -1443,23 +1443,31 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
-  const updateAttendanceStatus = async (id: string, status: AttendanceStatus) => {
+  const updateAttendanceStatus = async (id: string, status: AttendanceStatus, meta?: Partial<DriverAttendance>) => {
     try {
-      if (!id.startsWith('temp_') && !id.startsWith('att_')) {
-        const res = await api.patch(`/attendance/${id}/status`, { status });
-        if (res.success && res.data) {
-          const updated: DriverAttendance = res.data;
-          setAttendanceRecords(prev =>
-            prev.map(item => (item.id === id ? updated : item))
-          );
-          showToast('info', `Attendance updated to ${status}.`, 'Attendance Updated');
-          return { success: true, data: updated };
-        }
+      const res = await api.patch(`/attendance/${id}/status`, {
+        status,
+        ...(meta?.driverId && { driverId: meta.driverId }),
+        ...(meta?.driverName && { driverName: meta.driverName }),
+        ...(meta?.date && { date: meta.date }),
+        ...(meta?.assignedVehicle && { assignedVehicle: meta.assignedVehicle }),
+        ...(meta?.dutyType && { dutyType: meta.dutyType }),
+        ...(meta?.workingHours !== undefined && { workingHours: meta.workingHours }),
+        ...(meta?.checkIn && { checkIn: meta.checkIn }),
+        ...(meta?.checkOut && { checkOut: meta.checkOut })
+      });
+      if (res.success && res.data) {
+        const updated: DriverAttendance = res.data;
+        setAttendanceRecords(prev =>
+          prev.map(item => (item.id === id || (item.driverId === updated.driverId && item.date === updated.date) ? updated : item))
+        );
+        showToast('info', `Attendance updated to ${status}.`, 'Attendance Updated');
+        return { success: true, data: updated };
       }
       // Offline fallback
       setAttendanceRecords(prev =>
         prev.map(item => {
-          if (item.id === id) {
+          if (item.id === id || (meta?.driverId && item.driverId === meta.driverId && item.date === meta.date)) {
             const isOff = status === 'Absent' || status === 'On Leave';
             return {
               ...item,
@@ -1475,9 +1483,24 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       showToast('info', `Attendance updated to ${status}.`, 'Attendance Updated');
       return { success: true };
     } catch (err: any) {
-      console.error('Failed to update attendance', err);
-      showToast('error', 'Attendance status update failed.', 'Error');
-      return { success: false, error: err.message };
+      console.warn('API error updating attendance status, updating locally', err);
+      setAttendanceRecords(prev =>
+        prev.map(item => {
+          if (item.id === id || (meta?.driverId && item.driverId === meta.driverId && item.date === meta.date)) {
+            const isOff = status === 'Absent' || status === 'On Leave';
+            return {
+              ...item,
+              status,
+              checkIn: isOff ? '—' : (item.checkIn === '—' ? '08:30 AM' : item.checkIn),
+              checkOut: isOff ? '—' : (item.checkOut === '—' ? '06:30 PM' : item.checkOut),
+              workingHours: isOff ? 0 : (item.workingHours || 10)
+            };
+          }
+          return item;
+        })
+      );
+      showToast('info', `Attendance updated to ${status}.`, 'Attendance Updated');
+      return { success: true };
     }
   };
 
@@ -1920,6 +1943,13 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
+  const updateMaintenanceStatus = (id: string, status: MaintenanceRecord['status']) => {
+    setMaintenanceRecords(prev =>
+      prev.map(r => (r.id === id ? { ...r, status } : r))
+    );
+    showToast('info', `Maintenance status updated to ${status}.`, 'Status Updated');
+  };
+
   const addVehicleComplianceDoc = async (docData: Omit<DocumentCompliance, 'id'>) => {
     try {
       try {
@@ -1975,6 +2005,74 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     } catch (err) {
       console.error('Failed to add driver compliance doc', err);
       showToast('error', 'Could not save driver compliance doc.', 'Error');
+    }
+  };
+
+  const updateComplianceDoc = async (id: string, docData: Partial<DocumentCompliance>) => {
+    try {
+      try {
+        const res = await api.put(`/compliance/${id}`, docData);
+        if (res.success && res.data) {
+          const serverDoc: DocumentCompliance = {
+            ...res.data,
+            id: res.data.id || res.data._id
+          };
+          if (serverDoc.entityType === 'Vehicle') {
+            setVehicleCompliance(prev => prev.map(d => d.id === id ? serverDoc : d));
+          } else {
+            setDriverCompliance(prev => prev.map(d => d.id === id ? serverDoc : d));
+          }
+          showToast('success', `${serverDoc.documentName} for ${serverDoc.entityName} updated.`, 'Compliance Saved');
+          return;
+        }
+      } catch (apiErr) {
+        // silent fallback for offline
+      }
+
+      let metaUpdates: Partial<DocumentCompliance> = {};
+      if (docData.expiryDate) {
+        const expDate = new Date(docData.expiryDate);
+        if (!isNaN(expDate.getTime())) {
+          const now = new Date();
+          const diffDays = Math.ceil((expDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+          const statusType = diffDays < 0 ? 'late' : diffDays <= 30 ? 'soon' : 'ok';
+          const expiryLabel = diffDays < 0
+            ? `Expired ${Math.abs(diffDays)} days ago`
+            : diffDays <= 30
+              ? `In ${diffDays} days`
+              : diffDays >= 365
+                ? `Valid · ${Math.round(diffDays / 365)} years`
+                : `Valid · ${Math.round(diffDays / 30)} months`;
+          metaUpdates = { statusType, expiryLabel, daysLeft: diffDays };
+        }
+      }
+
+      setVehicleCompliance(prev => prev.map(d => d.id === id ? { ...d, ...docData, ...metaUpdates } : d));
+      setDriverCompliance(prev => prev.map(d => d.id === id ? { ...d, ...docData, ...metaUpdates } : d));
+      showToast('success', 'Compliance document details updated.', 'Compliance Saved');
+    } catch (err) {
+      console.error('Failed to update compliance doc', err);
+      showToast('error', 'Could not update compliance document.', 'Error');
+    }
+  };
+
+  const deleteComplianceDoc = async (id: string, entityType: 'Vehicle' | 'Driver') => {
+    try {
+      try {
+        await api.delete(`/compliance/${id}`);
+      } catch (apiErr) {
+        // silent fallback
+      }
+
+      if (entityType === 'Vehicle') {
+        setVehicleCompliance(prev => prev.filter(d => d.id !== id));
+      } else {
+        setDriverCompliance(prev => prev.filter(d => d.id !== id));
+      }
+      showToast('info', 'Compliance record removed.', 'Deleted');
+    } catch (err) {
+      console.error('Failed to delete compliance doc', err);
+      showToast('error', 'Could not delete compliance doc.', 'Error');
     }
   };
 
@@ -2108,10 +2206,13 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         fetchLiveFastagTransactions,
         maintenanceRecords,
         addMaintenanceRecord,
+        updateMaintenanceStatus,
         vehicleCompliance,
         addVehicleComplianceDoc,
         driverCompliance,
         addDriverComplianceDoc,
+        updateComplianceDoc,
+        deleteComplianceDoc,
         complianceStats
       }}
     >

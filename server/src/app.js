@@ -27,6 +27,8 @@ import maintenanceRoutes from './routes/maintenance.js';
 import dashboardRoutes from './routes/dashboard.js';
 import authRoutes from './routes/auth.js';
 import agencyRoutes from './routes/agencies.js';
+import profileRoutes from './routes/profile.js';
+import notificationRoutes from './routes/notifications.js';
 
 const app = express();
 
@@ -55,15 +57,15 @@ if (process.env.NODE_ENV !== 'test') {
   app.use(morgan('dev'));
 }
 
-// Rate Limiting (120 requests per 15 mins per IP for general APIs)
+// Rate Limiting (per 2 mins per IP for general APIs)
 const apiLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 300,
+  windowMs: 2 * 60 * 1000, // 2 minutes
+  max: 600,
   standardHeaders: true,
   legacyHeaders: false,
   message: {
     success: false,
-    error: 'Too many requests from this IP, please try again after 15 minutes.'
+    error: 'Too many requests from this IP, please try again after 2 minutes.'
   }
 });
 app.use('/api', apiLimiter);
@@ -91,6 +93,7 @@ app.use('/api', (req, res, next) => {
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/agencies', agencyRoutes);
+app.use('/api/profile', profileRoutes);
 app.use('/api/vehicles', vehicleRoutes);
 app.use('/api/drivers', driverRoutes);
 app.use('/api/attendance', attendanceRoutes);
@@ -107,6 +110,7 @@ app.use('/api/expenses', expenseRoutes);
 app.use('/api/compliance', complianceRoutes);
 app.use('/api/maintenance', maintenanceRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 // Root route
 app.get('/', (req, res) => {

@@ -527,7 +527,7 @@ export const bulkMarkAttendance = asyncHandler(async (req, res) => {
  */
 export const updateAttendanceStatus = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const { status, workingHours, checkIn, checkOut } = req.body;
+  const { status, workingHours, checkIn, checkOut, driverId, driverName, date, assignedVehicle, dutyType, notes } = req.body;
 
   if (!status) {
     return res.status(400).json({
@@ -536,12 +536,68 @@ export const updateAttendanceStatus = asyncHandler(async (req, res) => {
     });
   }
 
-  const existing = await DriverAttendance.findById(id);
+  let existing = null;
+
+  if (mongoose.Types.ObjectId.isValid(id)) {
+    existing = await DriverAttendance.findById(id);
+  }
+
+  // If not found by ObjectId, try to find by driverId and date
   if (!existing) {
-    return res.status(404).json({
-      success: false,
-      error: `Attendance record with ID ${id} not found`
+    const targetDriverId = driverId || (id.startsWith('temp_') ? id.replace('temp_', '') : id);
+    const targetDate = date || new Date().toISOString().split('T')[0];
+
+    existing = await DriverAttendance.findOne({
+      $or: [
+        { driverId: targetDriverId, date: targetDate },
+        { driverId: id, date: targetDate }
+      ]
     });
+
+    // If still not found, upsert a new attendance record
+    if (!existing) {
+      let resolvedDriverName = driverName;
+      let resolvedVehicle = assignedVehicle;
+
+      // Look up driver info if not provided
+      if (!resolvedDriverName) {
+        const driverDoc = await Driver.findOne({
+          $or: [
+            { id: targetDriverId },
+            ...(mongoose.Types.ObjectId.isValid(targetDriverId) ? [{ _id: targetDriverId }] : [])
+          ]
+        }).lean();
+
+        if (driverDoc) {
+          resolvedDriverName = driverDoc.name;
+          resolvedVehicle = resolvedVehicle || driverDoc.assignedVehicle;
+        }
+      }
+
+      const isOff = status === 'Absent' || status === 'On Leave';
+      existing = new DriverAttendance({
+        driverId: targetDriverId,
+        driverName: resolvedDriverName || `Driver ${targetDriverId}`,
+        date: targetDate,
+        status,
+        checkIn: isOff ? '—' : (checkIn || '08:30 AM'),
+        checkOut: isOff ? '—' : (checkOut || '06:30 PM'),
+        assignedVehicle: resolvedVehicle || '—',
+        dutyType: dutyType || 'Department Duty',
+        workingHours: isOff ? 0 : (workingHours !== undefined ? Number(workingHours) : 10),
+        notes: notes || ''
+      });
+      await existing.save();
+
+      return res.status(200).json({
+        success: true,
+        message: `Attendance status recorded as ${status}`,
+        data: {
+          ...existing.toObject(),
+          id: existing._id.toString()
+        }
+      });
+    }
   }
 
   existing.status = status;

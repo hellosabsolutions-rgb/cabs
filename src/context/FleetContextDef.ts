@@ -62,7 +62,7 @@ export interface FleetContextType {
   deleteDriver: (id: string) => Promise<{ success: boolean; error?: string }>;
   attendanceRecords: DriverAttendance[];
   markAttendance: (record: Omit<DriverAttendance, 'id'>) => Promise<{ success: boolean; data?: DriverAttendance; error?: string } | void> | void;
-  updateAttendanceStatus: (id: string, status: AttendanceStatus) => Promise<{ success: boolean; data?: DriverAttendance; error?: string } | void> | void;
+  updateAttendanceStatus: (id: string, status: AttendanceStatus, meta?: Partial<DriverAttendance>) => Promise<{ success: boolean; data?: DriverAttendance; error?: string } | void> | void;
   updateAttendance: (id: string, data: Partial<DriverAttendance>) => Promise<{ success: boolean; data?: DriverAttendance; error?: string }>;
   bulkMarkAttendance: (date: string, records: Omit<DriverAttendance, 'id'>[]) => Promise<{ success: boolean; error?: string }>;
   fetchLiveAttendance: (queryParam?: string | { date?: string; month?: string; year?: string }) => Promise<void>;
@@ -164,11 +164,14 @@ export interface FleetContextType {
   addExpense: (expense: Omit<ExpenseRecord, 'id'>) => void;
   maintenanceRecords: MaintenanceRecord[];
   addMaintenanceRecord: (record: Omit<MaintenanceRecord, 'id' | 'status'>) => void;
+  updateMaintenanceStatus: (id: string, status: MaintenanceRecord['status']) => void;
 
   vehicleCompliance: DocumentCompliance[];
   addVehicleComplianceDoc: (doc: Omit<DocumentCompliance, 'id'>) => void;
   driverCompliance: DocumentCompliance[];
   addDriverComplianceDoc: (doc: Omit<DocumentCompliance, 'id'>) => void;
+  updateComplianceDoc: (id: string, docData: Partial<DocumentCompliance>) => Promise<void>;
+  deleteComplianceDoc: (id: string, entityType: 'Vehicle' | 'Driver') => Promise<void>;
 
   // Compliance computed metrics
   complianceStats: {
