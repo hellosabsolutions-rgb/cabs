@@ -56,6 +56,12 @@ export const AddDutyLogModal: React.FC<AddDutyLogModalProps> = ({
   const [tripFare, setTripFare] = useState('14500');
   const [driverBata, setDriverBata] = useState('1200');
 
+  // Sat-Sun / Weekend Off-Duty Package Billing (Image 2 Bill)
+  const [packageBasePrice, setPackageBasePrice] = useState('2255');
+  const [packageFreeKm, setPackageFreeKm] = useState('80');
+  const [extraKmRate, setExtraKmRate] = useState('14');
+  const [weekendGstRate, setWeekendGstRate] = useState('5');
+
   const [notes, setNotes] = useState('');
   const [slipPhotoName, setSlipPhotoName] = useState('');
   const [slipPhotoPreview, setSlipPhotoPreview] = useState<string | null>(null);
@@ -70,6 +76,12 @@ export const AddDutyLogModal: React.FC<AddDutyLogModalProps> = ({
   useEffect(() => {
     if (defaultDutyType) {
       setDutyType(defaultDutyType);
+      if (defaultDutyType === 'Weekend / Off-Duty Trip') {
+        setStartKm('12450');
+        setEndKm('12619');
+        setJourneyFrom('D.Dun Bangarawali');
+        setJourneyTo('Vikasnagar & Local to D.Dun');
+      }
     }
   }, [defaultDutyType]);
 
@@ -165,8 +177,17 @@ export const AddDutyLogModal: React.FC<AddDutyLogModalProps> = ({
 
     if (dutyType === 'Weekend / Off-Duty Trip') {
       const generatedTripSlip = `TRIP-WKND-${Math.floor(Math.random() * 9000 + 1000)}`;
+      const baseNum = Number(packageBasePrice) || 2255;
+      const freeKmNum = Number(packageFreeKm) || 80;
+      const extraKmNum = Math.max(0, calcTotalKm - freeKmNum);
+      const extraRateNum = Number(extraKmRate) || 14;
+      const extraCostNum = extraKmNum * extraRateNum;
+      const subtotalNum = baseNum + extraCostNum + tollNum;
+      const gstRateNum = Number(weekendGstRate) || 0;
+      const gstAmtNum = Math.round((subtotalNum * gstRateNum) / 100);
+      const grandTotalNum = subtotalNum + gstAmtNum;
 
-      // 1. Add Daily Duty Log marked as Weekend Trip
+      // 1. Add Daily Duty Log marked as Weekend Trip with package billing
       addDailyDutyLog({
         dutySlipNumber: generatedTripSlip,
         logBookPageNo: logBookPageNo.trim() || '122',
@@ -176,36 +197,46 @@ export const AddDutyLogModal: React.FC<AddDutyLogModalProps> = ({
         vehicle: vehicleReg,
         driverName,
         dutyType: 'Weekend / Off-Duty Trip',
-        tripDestination: tripDestination.trim(),
-        tripFare: fareNum,
-        tripNetProfit: netTripProfit,
+        tripDestination: `${journeyFrom || 'D.Dun Bangarawali'} to ${journeyTo || 'Vikasnagar & local'}`,
+        journeyFrom: journeyFrom.trim() || 'D.Dun Bangarawali',
+        journeyTo: journeyTo.trim() || 'Vikasnagar & local',
+        tripFare: grandTotalNum,
+        totalFare: grandTotalNum,
+        tripNetProfit: Math.max(0, grandTotalNum - (tollNum + fuelNum + bataNum)),
+        packageBasePrice: baseNum,
+        packageFreeKm: freeKmNum,
+        extraKmRate: extraRateNum,
+        extraKmCost: extraCostNum,
+        subtotal: subtotalNum,
+        gstRate: gstRateNum,
+        gstAmount: gstAmtNum,
+        cgstAmount: Math.round(gstAmtNum / 2),
+        sgstAmount: gstAmtNum - Math.round(gstAmtNum / 2),
         startKm: Number(startKm) || 0,
         endKm: Number(endKm) || 0,
         totalKm: calcTotalKm,
-        extraKm: 0,
+        extraKm: extraKmNum,
         startTime,
         endTime,
-        totalHours: Number(totalHours) || 16,
+        totalHours: Number(totalHours) || 10,
         extraHours: 0,
         tollParkingAmount: tollNum,
         fuelAmount: fuelNum > 0 ? fuelNum : undefined,
         fuelLitres: fuelLitres ? Number(fuelLitres) : undefined,
         motorOilUsed: motorOilUsed.trim() || 'None',
         mOilLitres: mOilLitres.trim() || '—',
-        journeyFrom: tripDestination.split(' to ')[0] || 'Delhi Base',
-        journeyTo: tripDestination.split(' to ')[1] || tripDestination,
-        purposeOfJourney: 'Weekend Outstation Booking',
-        headOfAccount: 'Fleet Commercial Trips',
-        officerName: 'Private Client (Weekend Trip)',
-        officerDesignation: 'Client Guest',
+        purposeOfJourney: 'Sat/Sun Department Duty Booking',
+        headOfAccount: 'Department Weekend Duty',
+        officerName: officerName.trim() || 'Director Horticulture Mission',
+        officerDesignation: officerDesignation.trim() || 'Circuit House D.Dun',
         officerSignatureStatus: 'Signed',
         driverSignatureStatus: 'Signed',
         dutySlipPhoto: slipPhotoPreview || slipPhotoName || null,
         fuelBillPhoto: fuelBillPreview || fuelBillName || null,
         status: 'Approved',
         notes: notes.trim()
-          ? `${notes.trim()} · Sat/Sun weekend trip: Fare ₹${fareNum.toLocaleString('en-IN')}, Profit ₹${netTripProfit.toLocaleString('en-IN')}`
-          : `Sat/Sun weekend trip: Fare ₹${fareNum.toLocaleString('en-IN')}, Profit ₹${netTripProfit.toLocaleString('en-IN')} (Excluded from ${deptName} monthly invoice).`
+          ? `${notes.trim()} · Sat/Sun duty: Fare ₹${grandTotalNum.toLocaleString('en-IN')} (Base ₹${baseNum} for ${freeKmNum}km, ${extraKmNum} extra km @ ₹${extraRateNum})`
+          : `Sat/Sun duty: Fare ₹${grandTotalNum.toLocaleString('en-IN')} (Base ₹${baseNum} for ${freeKmNum}km, ${extraKmNum} extra km @ ₹${extraRateNum}).`
       });
 
       // 2. Also register in Trips financial roster so net profit is counted in Trips module!
@@ -372,8 +403,15 @@ export const AddDutyLogModal: React.FC<AddDutyLogModalProps> = ({
                   onClick={() => {
                     setDutyType('Weekend / Off-Duty Trip');
                     setStartKm('45345');
-                    setEndKm('45980');
-                    setTollParkingAmount('650');
+                    setEndKm('45514'); // 169 KM
+                    setJourneyFrom('D.Dun Bangarawali');
+                    setJourneyTo('Vikasnagar & local');
+                    setPackageBasePrice('2255');
+                    setPackageFreeKm('80');
+                    setExtraKmRate('14');
+                    setTollParkingAmount('0');
+                    setOfficerName('Director Horticulture Mission');
+                    setOfficerDesignation('Circuit House D.Dun');
                   }}
                   style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
                 >
@@ -453,64 +491,221 @@ export const AddDutyLogModal: React.FC<AddDutyLogModalProps> = ({
               </div>
             </div>
 
-            {/* IF WEEKEND TRIP: Route & Customer Fare */}
-            {dutyType === 'Weekend / Off-Duty Trip' && (
-              <div
-                style={{
-                  background: 'rgba(56, 189, 248, 0.05)',
-                  border: '1px solid rgba(56, 189, 248, 0.2)',
-                  borderRadius: '10px',
-                  padding: '14px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '12px'
-                }}
-              >
-                <div style={{ fontSize: '12.5px', fontWeight: 700, color: '#38bdf8', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <Briefcase size={14} /> Weekend Commercial Booking Details & Net Profit
-                </div>
+            {/* IF WEEKEND TRIP: Package Billing Calculator matching Image 2 Cash Memo */}
+            {dutyType === 'Weekend / Off-Duty Trip' && (() => {
+              const calcKm = Math.max(0, (Number(endKm) || 0) - (Number(startKm) || 0));
+              const freeKmVal = Number(packageFreeKm) || 80;
+              const extraKmVal = Math.max(0, calcKm - freeKmVal);
+              const extraRateVal = Number(extraKmRate) || 14;
+              const extraCostVal = extraKmVal * extraRateVal;
+              const basePriceVal = Number(packageBasePrice) || 2255;
+              const tollVal = Number(tollParkingAmount) || 0;
+              const subtotalVal = basePriceVal + extraCostVal + tollVal;
+              const gstRateVal = Number(weekendGstRate) || 0;
+              const gstAmtVal = Math.round((subtotalVal * gstRateVal) / 100);
+              const grandTotalVal = subtotalVal + gstAmtVal;
 
-                <div className="form-row-2">
-                  <div className="form-group" style={{ marginBottom: 0 }}>
-                    <label className="form-label">Booking Route *</label>
-                    <input
-                      type="text"
-                      className="form-input"
-                      placeholder="e.g. Delhi to Jaipur (Round Trip)"
-                      value={tripDestination}
-                      onChange={e => setTripDestination(e.target.value)}
-                      required
-                    />
+              return (
+                <div
+                  style={{
+                    background: 'linear-gradient(135deg, rgba(22, 135, 245, 0.04), rgba(245, 158, 11, 0.04))',
+                    border: '1.5px solid rgba(22, 135, 245, 0.25)',
+                    borderRadius: '10px',
+                    padding: '14px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '12px'
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ fontSize: '13px', fontWeight: 800, color: 'var(--accent)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <Briefcase size={15} /> Sat-Sun Off-Duty Booking & Cash Memo Billing
+                    </div>
+                    <span style={{ fontSize: '11px', background: 'rgba(57, 255, 110, 0.12)', color: 'var(--success)', padding: '2px 8px', borderRadius: '4px', fontWeight: 700 }}>
+                      Fixed Package + Extra KM Rate
+                    </span>
                   </div>
 
-                  <div className="form-group" style={{ marginBottom: 0 }}>
-                    <label className="form-label">Customer Fare / Revenue (₹) *</label>
-                    <input
-                      type="number"
-                      min="0"
-                      className="form-input"
-                      style={{ fontWeight: 800, color: 'var(--accent)', fontSize: '15px' }}
-                      placeholder="14500"
-                      value={tripFare}
-                      onChange={e => setTripFare(e.target.value)}
-                      required
-                    />
+                  <div style={{ fontSize: '11.5px', color: 'var(--text-dim)', lineHeight: 1.4 }}>
+                    Fixed package price includes free KM with fuel. Extra KM charged at vehicle per-KM rate + Toll/Parking (on actuals) + GST.
+                  </div>
+
+                  {/* Journey Details: From and To */}
+                  <div className="form-row-2">
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                      <label className="form-label">Journey Origin (From) *</label>
+                      <input
+                        type="text"
+                        className="form-input"
+                        placeholder="e.g. D.Dun Bangarawali"
+                        value={journeyFrom}
+                        onChange={e => setJourneyFrom(e.target.value)}
+                        required
+                      />
+                    </div>
+
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                      <label className="form-label">Destination & Local (To) *</label>
+                      <input
+                        type="text"
+                        className="form-input"
+                        placeholder="e.g. Vikasnagar & local"
+                        value={journeyTo}
+                        onChange={e => setJourneyTo(e.target.value)}
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  {/* Package Base Price & Free KM */}
+                  <div className="form-row-2">
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                      <label className="form-label">
+                        Fixed Package Price (₹) * <span style={{ fontSize: '10.5px', color: 'var(--text-faint)' }}>(Fuel included)</span>
+                      </label>
+                      <div style={{ position: 'relative' }}>
+                        <span style={{ position: 'absolute', left: '9px', top: '50%', transform: 'translateY(-50%)', fontWeight: 600, color: 'var(--text-faint)' }}>₹</span>
+                        <input
+                          type="number"
+                          min="0"
+                          className="form-input"
+                          style={{ paddingLeft: '22px', fontWeight: 700 }}
+                          placeholder="2255"
+                          value={packageBasePrice}
+                          onChange={e => setPackageBasePrice(e.target.value)}
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                      <label className="form-label">
+                        Included Free KM * <span style={{ fontSize: '10.5px', color: 'var(--text-faint)' }}>(No extra charge)</span>
+                      </label>
+                      <div style={{ position: 'relative' }}>
+                        <input
+                          type="number"
+                          min="0"
+                          className="form-input"
+                          style={{ paddingRight: '35px', fontWeight: 700 }}
+                          placeholder="80"
+                          value={packageFreeKm}
+                          onChange={e => setPackageFreeKm(e.target.value)}
+                          required
+                        />
+                        <span style={{ position: 'absolute', right: '9px', top: '50%', transform: 'translateY(-50%)', fontSize: '11px', color: 'var(--text-faint)' }}>KM</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Extra KM Rate & Toll/Parking */}
+                  <div className="form-row-2">
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                      <label className="form-label">
+                        Extra KM Rate (₹/KM) * <span style={{ fontSize: '10.5px', color: 'var(--text-faint)' }}>(Beyond {freeKmVal} KM)</span>
+                      </label>
+                      <div style={{ position: 'relative' }}>
+                        <span style={{ position: 'absolute', left: '9px', top: '50%', transform: 'translateY(-50%)', fontWeight: 600, color: 'var(--text-faint)' }}>₹</span>
+                        <input
+                          type="number"
+                          min="0"
+                          className="form-input"
+                          style={{ paddingLeft: '22px', fontWeight: 700 }}
+                          placeholder="14"
+                          value={extraKmRate}
+                          onChange={e => setExtraKmRate(e.target.value)}
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                      <label className="form-label">
+                        Toll Tax & Parking (₹) <span style={{ fontSize: '10.5px', color: 'var(--text-faint)' }}>(Not in package, on actuals)</span>
+                      </label>
+                      <div style={{ position: 'relative' }}>
+                        <span style={{ position: 'absolute', left: '9px', top: '50%', transform: 'translateY(-50%)', fontWeight: 600, color: 'var(--text-faint)' }}>₹</span>
+                        <input
+                          type="number"
+                          min="0"
+                          className="form-input"
+                          style={{ paddingLeft: '22px' }}
+                          placeholder="0"
+                          value={tollParkingAmount}
+                          onChange={e => setTollParkingAmount(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* GST Rate Presets */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <label className="form-label" style={{ marginBottom: 0, fontSize: '11.5px' }}>GST Rate:</label>
+                      {[0, 5, 12, 18].map(r => (
+                        <button
+                          key={r}
+                          type="button"
+                          onClick={() => setWeekendGstRate(String(r))}
+                          className={`subtab-btn ${weekendGstRate === String(r) ? 'active' : ''}`}
+                          style={{ padding: '3px 8px', fontSize: '11px', fontWeight: 700 }}
+                        >
+                          {r}%
+                        </button>
+                      ))}
+                    </div>
+
+                    <div className="form-group" style={{ marginBottom: 0, width: '130px' }}>
+                      <label className="form-label" style={{ marginBottom: 2, fontSize: '11px' }}>Driver Bata (₹):</label>
+                      <input
+                        type="number"
+                        min="0"
+                        className="form-input"
+                        style={{ padding: '4px 8px', fontSize: '12px' }}
+                        placeholder="0"
+                        value={driverBata}
+                        onChange={e => setDriverBata(e.target.value)}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Live Distance & Bill Calculation Card */}
+                  <div
+                    style={{
+                      background: 'var(--surface-1, #ffffff)',
+                      border: '1px solid var(--border, #cbd5e1)',
+                      borderRadius: '8px',
+                      padding: '10px 14px',
+                      fontSize: '12px'
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border, #e2e8f0)', paddingBottom: '6px', marginBottom: '6px' }}>
+                      <span>Total KM Run: <strong>{calcKm} KM</strong></span>
+                      <span>Less Free: <strong>{freeKmVal} KM</strong></span>
+                      <span style={{ color: extraKmVal > 0 ? 'var(--warning, #ea580c)' : 'var(--success, #16a34a)', fontWeight: 700 }}>
+                        Extra KM: {extraKmVal} KM
+                      </span>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px', fontSize: '11.5px', color: 'var(--text-dim, #475569)' }}>
+                      <div>Base Package: <strong>₹{basePriceVal.toLocaleString('en-IN')}</strong></div>
+                      <div>Extra KM ({extraKmVal} @ ₹{extraRateVal}): <strong>₹{extraCostVal.toLocaleString('en-IN')}</strong></div>
+                      <div>Toll / Parking: <strong>₹{tollVal.toLocaleString('en-IN')}</strong></div>
+                      <div>Subtotal: <strong>₹{subtotalVal.toLocaleString('en-IN')}</strong></div>
+                      <div>CGST ({(gstRateVal / 2).toFixed(1)}%): <strong>₹{Math.round(gstAmtVal / 2).toLocaleString('en-IN')}</strong></div>
+                      <div>SGST ({(gstRateVal / 2).toFixed(1)}%): <strong>₹{(gstAmtVal - Math.round(gstAmtVal / 2)).toLocaleString('en-IN')}</strong></div>
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1.5px solid var(--border, #0f172a)', marginTop: '6px', paddingTop: '6px' }}>
+                      <span style={{ fontWeight: 800, fontSize: '13px' }}>TOTAL BILL (CASH MEMO):</span>
+                      <span style={{ fontWeight: 900, fontSize: '16px', color: 'var(--accent, #2563eb)' }}>
+                        ₹{grandTotalVal.toLocaleString('en-IN')}
+                      </span>
+                    </div>
                   </div>
                 </div>
-
-                <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label">Driver Bata / Outstation Allowance (₹)</label>
-                  <input
-                    type="number"
-                    min="0"
-                    className="form-input"
-                    placeholder="1200"
-                    value={driverBata}
-                    onChange={e => setDriverBata(e.target.value)}
-                  />
-                </div>
-              </div>
-            )}
+              );
+            })()}
 
             {/* Official Department Duty Log Book Fields */}
             {dutyType === 'Official Department Duty' && (

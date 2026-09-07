@@ -3,8 +3,9 @@ import { useFleet } from '../../../context/FleetContext';
 import { ContractsListView } from './ContractsListView';
 import { DailyDutyLogsView } from './DailyDutyLogsView';
 import { MonthlyBillingView } from './MonthlyBillingView';
+import { WeekendBillingView } from './WeekendBillingView';
 import { DepartmentPaymentsView } from './DepartmentPaymentsView';
-import { FileText, ClipboardList, ReceiptText, CreditCard } from 'lucide-react';
+import { FileText, ClipboardList, ReceiptText, CreditCard, Briefcase } from 'lucide-react';
 import { SkeletonCard, SkeletonTable } from '../../common/Skeleton';
 
 export const DepartmentsView: React.FC = () => {
@@ -19,6 +20,7 @@ export const DepartmentsView: React.FC = () => {
   } = useFleet();
 
   const totalMonthlyBilled = monthlyBills.reduce((acc, curr) => acc + curr.totalBill, 0);
+  const weekendTripsCount = dailyDutyLogs.filter(l => l.dutyType === 'Weekend / Off-Duty Trip').length;
 
   if (isLoading) {
     return (
@@ -63,6 +65,27 @@ export const DepartmentsView: React.FC = () => {
         </button>
 
         <button
+          className={`subtab-btn ${departmentSubTab === 'weekend-billing' ? 'active' : ''}`}
+          onClick={() => setDepartmentSubTab('weekend-billing')}
+          style={{
+            borderColor: departmentSubTab === 'weekend-billing' ? '#800020' : undefined,
+            color: departmentSubTab === 'weekend-billing' ? '#800020' : undefined
+          }}
+        >
+          <Briefcase size={16} color={departmentSubTab === 'weekend-billing' ? '#800020' : undefined} />
+          Sat-Sun Off Duty Billing
+          <span
+            className="subtab-counter"
+            style={{
+              background: departmentSubTab === 'weekend-billing' ? '#800020' : undefined,
+              color: departmentSubTab === 'weekend-billing' ? '#ffffff' : undefined
+            }}
+          >
+            {weekendTripsCount} trips
+          </span>
+        </button>
+
+        <button
           className={`subtab-btn ${departmentSubTab === 'payments' ? 'active' : ''}`}
           onClick={() => setDepartmentSubTab('payments')}
         >
@@ -76,6 +99,7 @@ export const DepartmentsView: React.FC = () => {
       {departmentSubTab === 'contracts' && <ContractsListView />}
       {departmentSubTab === 'duty-logs' && <DailyDutyLogsView />}
       {departmentSubTab === 'billing' && <MonthlyBillingView />}
+      {departmentSubTab === 'weekend-billing' && <WeekendBillingView />}
       {departmentSubTab === 'payments' && <DepartmentPaymentsView />}
     </div>
   );

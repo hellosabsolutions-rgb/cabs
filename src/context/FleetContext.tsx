@@ -89,6 +89,8 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [departmentContracts, setDepartmentContracts] = useState<DepartmentContract[]>(initialDepartmentContracts);
   const [dailyDutyLogs, setDailyDutyLogs] = useState<DailyDutyLog[]>(initialDailyDutyLogs);
   const [monthlyBills, setMonthlyBills] = useState<MonthlyDepartmentBill[]>(initialMonthlyBills);
+  const [activeGstRate, setActiveGstRate] = useState<number>(5);
+  const [activeGstType, setActiveGstType] = useState<'CGST_SGST' | 'IGST'>('CGST_SGST');
   const [departmentPayments, setDepartmentPayments] = useState<DepartmentPayment[]>(initialDepartmentPayments);
   const [fuelLogs, setFuelLogs] = useState<FuelLogEntry[]>(initialFuelLogs);
   const [fastagTransactions, setFastagTransactions] = useState<FastagTransaction[]>(initialFastagTransactions);
@@ -120,6 +122,7 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     } else if (path.startsWith('/departments')) {
       setActivePage('departments');
       if (path.includes('/duty-logs')) setDepartmentSubTab('duty-logs');
+      else if (path.includes('/weekend-billing')) setDepartmentSubTab('weekend-billing');
       else if (path.includes('/billing')) setDepartmentSubTab('billing');
       else if (path.includes('/payments')) setDepartmentSubTab('payments');
       else setDepartmentSubTab('contracts');
@@ -432,6 +435,32 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
+  const fetchLiveMonthlyBills = async (queryParam?: { month?: string; department?: string; status?: string; search?: string }) => {
+    try {
+      let endpoint = '/bills?limit=100';
+      if (queryParam) {
+        const params = new URLSearchParams();
+        if (queryParam.month && queryParam.month !== 'All') params.append('billingMonth', queryParam.month);
+        if (queryParam.department && queryParam.department !== 'All') params.append('departmentName', queryParam.department);
+        if (queryParam.status && queryParam.status !== 'All') params.append('status', queryParam.status);
+        if (queryParam.search) params.append('search', queryParam.search);
+        const qStr = params.toString();
+        if (qStr) endpoint += `&${qStr}`;
+      }
+      const res = await api.get(endpoint);
+      if (res.success && Array.isArray(res.data) && res.data.length > 0) {
+        setMonthlyBills(
+          res.data.map((item: any) => ({
+            ...item,
+            id: item.id || item._id
+          }))
+        );
+      }
+    } catch (err) {
+      console.warn('Backend bills API not reachable, using local cached monthly bills.', err);
+    }
+  };
+
   useEffect(() => {
     fetchLiveVehicles();
     fetchLiveDrivers();
@@ -442,6 +471,7 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     fetchLiveBookings();
     fetchLiveDailyDutyLogs();
     fetchLiveFastagTransactions();
+    fetchLiveMonthlyBills();
   }, []);
 
   const refreshData = async () => {
@@ -457,9 +487,10 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         fetchLiveDriverExpenses(),
         fetchLiveBookings(),
         fetchLiveDailyDutyLogs(),
-        fetchLiveFastagTransactions()
+        fetchLiveFastagTransactions(),
+        fetchLiveMonthlyBills()
       ]);
-      showToast('info', 'Fleet, Drivers, FASTag, Daily Duty Logs, Bookings & Expenses synchronized with live server.', 'Refreshed');
+      showToast('info', 'Fleet, Drivers, FASTag, Daily Duty Logs, Invoices & Expenses synchronized with live server.', 'Refreshed');
     } finally {
       setIsLoading(false);
       setLoadingKey(null);
@@ -1864,29 +1895,223 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
-  const addMonthlyBill = (billData: Omit<MonthlyDepartmentBill, 'id'>) => {
+  const addMonthlyBill = async (billData: Omit<MonthlyDepartmentBill, 'id'>) => {
     try {
+      const res = await api.post('/bills', billData);
+      if (res.success && res.data) {
+        const savedBill: MonthlyDepartmentBill = { ...res.data, id: res.data.id || res.data._id };
+        setMonthlyBills(prev => [savedBill, ...prev.filter(b => b.id !== savedBill.id && b.billNumber !== savedBill.billNumber)]);
+        showToast('success', `Invoice ${savedBill.billNumber} for ₹${savedBill.totalBill.toLocaleString('en-IN')} created in database.`, 'Invoice Generated');
+        return { success: true, bill: savedBill };
+      }
       const newBill: MonthlyDepartmentBill = {
         ...billData,
         id: 'bill_' + Date.now()
       };
       setMonthlyBills(prev => [newBill, ...prev]);
       showToast('success', `Invoice ${newBill.billNumber} for ₹${newBill.totalBill.toLocaleString('en-IN')} created.`, 'Invoice Generated');
-    } catch (err) {
-      console.error('Failed to generate bill', err);
-      showToast('error', 'Failed to generate invoice.', 'Error');
+      return { success: true, bill: newBill };
+    } catch (err: any) {
+      console.error('Failed to generate bill via API', err);
+      const newBill: MonthlyDepartmentBill = {
+        ...billData,
+        id: 'bill_' + Date.now()
+      };
+      setMonthlyBills(prev => [newBill, ...prev]);
+      showToast('info', `Invoice ${newBill.billNumber} saved locally (offline).`, 'Invoice Saved');
+      return { success: true, bill: newBill };
     }
   };
 
-  const updateBillStatus = (id: string, status: MonthlyDepartmentBill['status']) => {
+  const generateWeekendMemoBill = async (dailyDutyLogId: string) => {
+    try {
+      const res = await api.post('/bills/weekend-memo', { dailyDutyLogId });
+      if (res.success && res.data) {
+        const savedBill: MonthlyDepartmentBill = { ...res.data, id: res.data.id || res.data._id };
+        setMonthlyBills(prev => [savedBill, ...prev.filter(b => b.id !== savedBill.id && b.billNumber !== savedBill.billNumber)]);
+        
+        // Update linked duty log locally
+        setDailyDutyLogs(prev =>
+          prev.map(l =>
+            l.id === dailyDutyLogId
+              ? { ...l, billingStatus: 'Billed', weekendBillNumber: savedBill.billNumber, weekendBillId: savedBill.id }
+              : l
+          )
+        );
+
+        showToast('success', `Cash Memo #${savedBill.billNumber} generated successfully.`, 'Memo Generated');
+        return { success: true, bill: savedBill };
+      }
+      throw new Error(res.error || 'Failed to generate memo');
+    } catch (err: any) {
+      console.warn('generateWeekendMemoBill API failed, using local conversion', err);
+      // Local fallback
+      const targetLog = dailyDutyLogs.find(l => l.id === dailyDutyLogId);
+      if (targetLog) {
+        const basePrice = Number(targetLog.packageBasePrice) || 2255;
+        const freeKm = Number(targetLog.packageFreeKm) || 80;
+        const totalKm = Number(targetLog.totalKm) || Math.max(0, (targetLog.endKm || 0) - (targetLog.startKm || 0));
+        const extraKm = Math.max(0, totalKm - freeKm);
+        const extraKmRate = Number(targetLog.extraKmRate) || 14;
+        const extraKmCost = targetLog.extraKmCost ?? (extraKm * extraKmRate);
+        const tollParking = Number(targetLog.tollParkingAmount) || 0;
+        const extraFuel = Number(targetLog.extraFuelCost || targetLog.fuelAmount) || 0;
+        const subtotal = targetLog.subtotal || (basePrice + extraKmCost + tollParking + extraFuel);
+        const gstRate = targetLog.gstRate !== undefined ? Number(targetLog.gstRate) : 5;
+        const gstAmount = targetLog.gstAmount !== undefined ? Number(targetLog.gstAmount) : Math.round((subtotal * gstRate) / 100);
+        const totalBill = targetLog.totalFare && targetLog.totalFare > 0 ? targetLog.totalFare : (subtotal + gstAmount);
+        const billNumber = targetLog.dutySlipNumber.match(/^\d+$/) ? targetLog.dutySlipNumber : `MEMO-${targetLog.dutySlipNumber}`;
+
+        const newBill: MonthlyDepartmentBill = {
+          id: 'bill_' + Date.now(),
+          billNumber,
+          billType: 'Weekend / Off-Duty Cash Memo',
+          dailyDutyLogId,
+          departmentName: targetLog.departmentName,
+          vehicle: targetLog.vehicle,
+          billingMonth: targetLog.month || '2026-08',
+          dutyStartDate: targetLog.date,
+          dutyEndDate: targetLog.date,
+          baseContractAmount: basePrice,
+          packageFreeKm: freeKm,
+          extraKmRate,
+          totalKmRun: totalKm,
+          extraKmCost,
+          extraHoursCost: 0,
+          fuelCost: extraFuel,
+          tollParkingCost: tollParking,
+          subtotal,
+          gstRate,
+          gstType: 'CGST_SGST',
+          gstTaxableOn: 'TOTAL',
+          gstAmount,
+          cgstAmount: Math.round(gstAmount / 2),
+          sgstAmount: gstAmount - Math.round(gstAmount / 2),
+          igstAmount: 0,
+          partyGstin: '05AAAGB1234F1Z5',
+          totalBill,
+          paidAmount: totalBill,
+          balanceDue: 0,
+          status: 'Paid',
+          dueDate: targetLog.date,
+          journeyFrom: targetLog.journeyFrom || 'D.Dun Bangarawali',
+          journeyTo: targetLog.journeyTo || targetLog.tripDestination || 'Vikasnagar & Local to D.Dun',
+          invoicePdf: `cashmemo_${billNumber}.pdf`
+        };
+
+        setMonthlyBills(prev => [newBill, ...prev]);
+        setDailyDutyLogs(prev =>
+          prev.map(l =>
+            l.id === dailyDutyLogId
+              ? { ...l, billingStatus: 'Billed', weekendBillNumber: billNumber, weekendBillId: newBill.id }
+              : l
+          )
+        );
+
+        showToast('success', `Cash Memo #${billNumber} saved locally.`, 'Memo Issued');
+        return { success: true, bill: newBill };
+      }
+      return { success: false, error: err.message };
+    }
+  };
+
+  const updateBillStatus = async (id: string, status: MonthlyDepartmentBill['status']) => {
     try {
       setMonthlyBills(prev =>
-        prev.map(item => (item.id === id ? { ...item, status } : item))
+        prev.map(item => {
+          if (item.id === id) {
+            const isPaid = status === 'Paid';
+            const paidAmount = isPaid ? item.totalBill : item.paidAmount;
+            const balanceDue = isPaid ? 0 : Math.max(0, item.totalBill - paidAmount);
+            return { ...item, status, paidAmount, balanceDue };
+          }
+          return item;
+        })
       );
       showToast('info', `Invoice status marked as ${status}.`, 'Invoice Updated');
+      await api.put(`/bills/${id}/status`, { status });
     } catch (err) {
-      console.error('Failed to update bill status', err);
-      showToast('error', 'Could not update invoice status.', 'Error');
+      console.error('Failed to update bill status on server', err);
+    }
+  };
+
+  const applyGstRate = async (gstRate: number, gstType: 'CGST_SGST' | 'IGST' = 'CGST_SGST', departmentName?: string) => {
+    try {
+      setActiveGstRate(gstRate);
+      setActiveGstType(gstType);
+
+      // Optimistic state update
+      setMonthlyBills(prev =>
+        prev.map(b => {
+          if (departmentName && departmentName !== 'All' && b.departmentName !== departmentName) {
+            return b;
+          }
+          const subtotal =
+            (b.baseContractAmount || 0) +
+            (b.extraKmCost || 0) +
+            (b.extraHoursCost || 0) +
+            (b.extraDriverAllowance || 0) +
+            (b.fuelCost || 0) +
+            (b.nightCost || 0) +
+            (b.tollParkingCost || 0);
+
+          const gstAmount = Math.round((subtotal * gstRate) / 100);
+          const cgstAmount = gstType === 'IGST' ? 0 : Math.round(gstAmount / 2);
+          const sgstAmount = gstType === 'IGST' ? 0 : gstAmount - cgstAmount;
+          const igstAmount = gstType === 'IGST' ? gstAmount : 0;
+          const totalBill = subtotal + gstAmount;
+          const paidAmount = b.status === 'Paid' ? totalBill : (b.paidAmount || 0);
+          const balanceDue = Math.max(0, totalBill - paidAmount);
+
+          return {
+            ...b,
+            subtotal,
+            gstRate,
+            gstType,
+            gstAmount,
+            cgstAmount,
+            sgstAmount,
+            igstAmount,
+            totalBill,
+            paidAmount,
+            balanceDue
+          };
+        })
+      );
+
+      const res = await api.post('/bills/apply-gst', {
+        gstRate,
+        gstType,
+        departmentName: departmentName && departmentName !== 'All' ? departmentName : undefined
+      });
+
+      if (res.success && Array.isArray(res.data)) {
+        setMonthlyBills(
+          res.data.map((item: any) => ({
+            ...item,
+            id: item.id || item._id
+          }))
+        );
+      }
+
+      showToast('success', `${gstRate}% GST applied successfully to monthly bills.`, 'GST Applied');
+      return { success: true };
+    } catch (err: any) {
+      console.error('Failed to apply GST bulk', err);
+      showToast('info', `GST applied locally (${gstRate}%).`, 'GST Updated');
+      return { success: true };
+    }
+  };
+
+  const deleteMonthlyBill = async (id: string) => {
+    try {
+      setMonthlyBills(prev => prev.filter(b => b.id !== id));
+      showToast('info', 'Invoice removed.', 'Invoice Deleted');
+      await api.delete(`/bills/${id}`);
+      return { success: true };
+    } catch (err: any) {
+      console.error('Failed to delete bill', err);
+      return { success: false, error: err.message };
     }
   };
 
@@ -2154,8 +2379,16 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         updateDailyDutyLogStatus,
         deleteDailyDutyLog,
         monthlyBills,
+        fetchLiveMonthlyBills,
         addMonthlyBill,
+        generateWeekendMemoBill,
         updateBillStatus,
+        applyGstRate,
+        deleteMonthlyBill,
+        activeGstRate,
+        setActiveGstRate,
+        activeGstType,
+        setActiveGstType,
         departmentPayments,
         addDepartmentPayment,
         updateDepartmentPaymentStatus,

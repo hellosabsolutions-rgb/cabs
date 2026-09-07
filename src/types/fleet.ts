@@ -180,22 +180,62 @@ export interface DailyDutyLog {
   fuelBillPhoto?: string | null;
   status: 'Approved' | 'Pending' | 'Rejected';
   notes?: string;
+  // Sat-Sun / Weekend Off-Duty Package Billing
+  packageBasePrice?: number;
+  packageFreeKm?: number;
+  extraKmRate?: number;
+  extraKmCost?: number;
+  extraFuelCost?: number;
+  gstRate?: number;
+  gstAmount?: number;
+  cgstAmount?: number;
+  sgstAmount?: number;
+  igstAmount?: number;
+  subtotal?: number;
+  totalFare?: number;
+  billingStatus?: 'Unbilled' | 'Billed' | 'Paid';
+  weekendBillNumber?: string | null;
+  weekendBillId?: string | null;
 }
+
+export type DepartmentBillType = 'Monthly Tender Rent' | 'Weekend / Off-Duty Cash Memo';
 
 export interface MonthlyDepartmentBill {
   id: string;
   billNumber: string;
+  billType?: DepartmentBillType;
+  dailyDutyLogId?: string | null;
   departmentName: string;
   vehicle: string;
   billingMonth: string;
   baseContractAmount: number;
+  packageFreeKm?: number;
+  extraKmRate?: number;
+  journeyFrom?: string;
+  journeyTo?: string;
+  dutyStartDate?: string;
+  dutyEndDate?: string;
   totalKmRun: number;
   extraKmCost: number;
   extraHoursCost: number;
+  extraDriverAllowance?: number;
+  fuelAvgKmpl?: number;
+  fuelLitresUsed?: number;
+  fuelRatePerLitre?: number;
+  fuelCost?: number;
+  nightCount?: number;
+  nightRate?: number;
+  nightCost?: number;
   tollParkingCost: number;
   subtotal?: number;
   gstRate?: number;
+  gstType?: 'CGST_SGST' | 'IGST';
+  gstTaxableOn?: 'RENT_ONLY' | 'TOTAL';
   gstAmount?: number;
+  cgstAmount?: number;
+  sgstAmount?: number;
+  igstAmount?: number;
+  partyGstin?: string;
   totalBill: number;
   paidAmount: number;
   balanceDue: number;

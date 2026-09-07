@@ -3,6 +3,7 @@ import { useFleet } from '../../../context/FleetContext';
 import { StatCard } from '../../common/StatCard';
 import { AddDutyLogModal } from './AddDutyLogModal';
 import { LogBookPrintModal } from './LogBookPrintModal';
+import { WeekendTripBillModal } from './WeekendTripBillModal';
 import { DailyDutyLog } from '../../../types/fleet';
 import { Pagination } from '../../common/Pagination';
 import { usePagination } from '../../../hooks/usePagination';
@@ -47,6 +48,7 @@ export const DailyDutyLogsView: React.FC = () => {
   const [viewSlip, setViewSlip] = useState<{ title: string; src: string } | null>(null);
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
   const [printModalSingleLog, setPrintModalSingleLog] = useState<DailyDutyLog | null>(null);
+  const [selectedWeekendLogForPrint, setSelectedWeekendLogForPrint] = useState<DailyDutyLog | null>(null);
 
   // Unique lists for filtering
   const departments = useMemo(() => {
@@ -716,6 +718,24 @@ export const DailyDutyLogsView: React.FC = () => {
 
                           {/* Action */}
                           <td style={{ padding: '8px 10px', textAlign: 'center', whiteSpace: 'nowrap' }}>
+                            {log.dutyType === 'Weekend / Off-Duty Trip' && (
+                              <button
+                                className="btn-action"
+                                title="Print Sat-Sun Cash Memo / Bill (Photo Format)"
+                                onClick={() => setSelectedWeekendLogForPrint(log)}
+                                style={{
+                                  padding: '4px 6px',
+                                  borderRadius: '4px',
+                                  cursor: 'pointer',
+                                  marginRight: '4px',
+                                  background: 'rgba(128, 0, 32, 0.12)',
+                                  border: '1px solid rgba(128, 0, 32, 0.3)',
+                                  color: '#800020'
+                                }}
+                              >
+                                <FileText size={13} color="#e11d48" />
+                              </button>
+                            )}
                             <button
                               className="btn-action"
                               title="Print Log Book Slip"
@@ -902,13 +922,25 @@ export const DailyDutyLogsView: React.FC = () => {
                           {isWeekend ? (
                             <div>
                               <div style={{ fontSize: '12.5px', fontWeight: 800, color: 'var(--success)' }}>
-                                +₹{(log.tripNetProfit || 0).toLocaleString('en-IN')} Profit
+                                ₹{((log.totalFare && log.totalFare > 0) ? log.totalFare : (log.tripFare || 0)).toLocaleString('en-IN')} Total
                               </div>
-                              <div style={{ fontSize: '10.5px', color: 'var(--text-faint)', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                Fare: ₹{(log.tripFare || 0).toLocaleString('en-IN')} · <Fuel size={10} color="#ffcc4d" /> ₹{log.fuelAmount || 0}
-                              </div>
-                              <div style={{ fontSize: '9.5px', color: 'var(--accent)', fontWeight: 600 }}>
-                                (Excluded from Dept Bill)
+                              {log.packageBasePrice ? (
+                                <div style={{ fontSize: '10.5px', color: 'var(--text-dim)', marginTop: '2px' }}>
+                                  Pkg: ₹{log.packageBasePrice} ({log.packageFreeKm || 80}km free)
+                                  {log.extraKmCost ? ` + Ext: ₹${log.extraKmCost}` : ''}
+                                </div>
+                              ) : (
+                                <div style={{ fontSize: '10.5px', color: 'var(--text-faint)', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                  Net Profit: ₹{(log.tripNetProfit || 0).toLocaleString('en-IN')}
+                                </div>
+                              )}
+                              {log.tollParkingAmount > 0 && (
+                                <div style={{ fontSize: '10px', color: '#ffcc4d' }}>
+                                  + Toll: ₹{log.tollParkingAmount}
+                                </div>
+                              )}
+                              <div style={{ fontSize: '9.5px', color: '#800020', fontWeight: 700, marginTop: '2px' }}>
+                                Sat/Sun Memo Bill
                               </div>
                             </div>
                           ) : (
@@ -982,6 +1014,30 @@ export const DailyDutyLogsView: React.FC = () => {
                         {/* Receipts & Slips */}
                         <td>
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                            {log.dutyType === 'Weekend / Off-Duty Trip' && (
+                              <button
+                                type="button"
+                                className="bill-link"
+                                style={{
+                                  fontSize: '11px',
+                                  fontWeight: 700,
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '3px',
+                                  background: 'rgba(128, 0, 32, 0.1)',
+                                  border: '1px solid rgba(128, 0, 32, 0.3)',
+                                  color: '#800020',
+                                  padding: '2px 6px',
+                                  borderRadius: '4px',
+                                  cursor: 'pointer',
+                                  textAlign: 'left'
+                                }}
+                                onClick={() => setSelectedWeekendLogForPrint(log)}
+                                title="Print Sat-Sun Cash Memo / Bill (Photo Format)"
+                              >
+                                <FileText size={11} color="#e11d48" /> Print Sat-Sun Bill
+                              </button>
+                            )}
                             <button
                               type="button"
                               className="bill-link"
@@ -1114,6 +1170,14 @@ export const DailyDutyLogsView: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Sat-Sun Weekend Booking Cash Memo / Bill Modal (Matching User's Photo Format with KABPRO Branding) */}
+      {selectedWeekendLogForPrint && (
+        <WeekendTripBillModal
+          log={selectedWeekendLogForPrint}
+          onClose={() => setSelectedWeekendLogForPrint(null)}
+        />
       )}
     </div>
   );

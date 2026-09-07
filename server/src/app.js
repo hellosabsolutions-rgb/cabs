@@ -101,6 +101,7 @@ app.use('/api/driver-expenses', driverExpenseRoutes);
 app.use('/api/contracts', contractRoutes);
 app.use('/api/duty-logs', dutyLogRoutes);
 app.use('/api/bills', billRoutes);
+app.use('/api/monthly-bills', billRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/fuel-logs', fuelLogRoutes);
 app.use('/api/fastag', fastagRoutes);
