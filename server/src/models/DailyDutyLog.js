@@ -60,6 +60,72 @@ const dailyDutyLogSchema = new mongoose.Schema(
       type: Number,
       default: 0
     },
+    // Weekend / Sat-Sun Off-Duty Package Billing
+    packageBasePrice: {
+      type: Number,
+      default: 0
+    },
+    packageFreeKm: {
+      type: Number,
+      default: 80
+    },
+    extraKmRate: {
+      type: Number,
+      default: 14
+    },
+    extraKmCost: {
+      type: Number,
+      default: 0
+    },
+    extraFuelCost: {
+      type: Number,
+      default: 0
+    },
+    gstRate: {
+      type: Number,
+      default: 5
+    },
+    gstAmount: {
+      type: Number,
+      default: 0
+    },
+    cgstAmount: {
+      type: Number,
+      default: 0
+    },
+    sgstAmount: {
+      type: Number,
+      default: 0
+    },
+    igstAmount: {
+      type: Number,
+      default: 0
+    },
+    subtotal: {
+      type: Number,
+      default: 0
+    },
+    totalFare: {
+      type: Number,
+      default: 0
+    },
+    billingStatus: {
+      type: String,
+      enum: ['Unbilled', 'Billed', 'Paid'],
+      default: 'Unbilled',
+      index: true
+    },
+    weekendBillNumber: {
+      type: String,
+      default: null,
+      trim: true,
+      index: true
+    },
+    weekendBillId: {
+      type: String,
+      default: null,
+      index: true
+    },
     startKm: {
       type: Number,
       required: true

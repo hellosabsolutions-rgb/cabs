@@ -1,19 +1,38 @@
 import express from 'express';
-import { MonthlyBill } from '../models/MonthlyBill.js';
-import { createCrudController } from '../controllers/crudFactory.js';
+import {
+  getBills,
+  getBillStats,
+  getBillById,
+  createBill,
+  updateBill,
+  updateBillStatus,
+  applyGstBulk,
+  generateWeekendBillFromLog,
+  deleteBill
+} from '../controllers/billController.js';
 
 const router = express.Router();
-const billController = createCrudController(MonthlyBill, ['billNumber', 'departmentName', 'vehicle', 'billingMonth']);
 
+// Summary stats & bulk GST action
+router.get('/stats', getBillStats);
+router.post('/apply-gst', applyGstBulk);
+router.post('/weekend-memo', generateWeekendBillFromLog);
+
+// Base collection routes
 router
   .route('/')
-  .get(billController.getAll)
-  .post(billController.create);
+  .get(getBills)
+  .post(createBill);
 
+// Quick status update routes (supports both PATCH and PUT)
+router.patch('/:id/status', updateBillStatus);
+router.put('/:id/status', updateBillStatus);
+
+// Single bill routes
 router
   .route('/:id')
-  .get(billController.getById)
-  .put(billController.update)
-  .delete(billController.delete);
+  .get(getBillById)
+  .put(updateBill)
+  .delete(deleteBill);
 
 export default router;

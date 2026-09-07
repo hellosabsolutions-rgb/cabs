@@ -25,7 +25,7 @@ import {
 } from '../types/fleet';
 
 export type DriverSubTab = 'list' | 'attendance' | 'expenses';
-export type DepartmentSubTab = 'contracts' | 'duty-logs' | 'billing' | 'payments';
+export type DepartmentSubTab = 'contracts' | 'duty-logs' | 'billing' | 'weekend-billing' | 'payments';
 
 export interface AlertItem {
   type: 'soon' | 'late';
@@ -88,8 +88,16 @@ export interface FleetContextType {
   updateDailyDutyLogStatus: (id: string, status: DailyDutyLog['status']) => Promise<void>;
   deleteDailyDutyLog: (id: string) => Promise<{ success: boolean; error?: string }>;
   monthlyBills: MonthlyDepartmentBill[];
-  addMonthlyBill: (bill: Omit<MonthlyDepartmentBill, 'id'>) => void;
-  updateBillStatus: (id: string, status: MonthlyDepartmentBill['status']) => void;
+  fetchLiveMonthlyBills: () => Promise<void>;
+  addMonthlyBill: (bill: Omit<MonthlyDepartmentBill, 'id'>) => Promise<{ success: boolean; bill?: MonthlyDepartmentBill; error?: string }>;
+  generateWeekendMemoBill: (dailyDutyLogId: string) => Promise<{ success: boolean; bill?: MonthlyDepartmentBill; error?: string }>;
+  updateBillStatus: (id: string, status: MonthlyDepartmentBill['status']) => Promise<void>;
+  applyGstRate: (gstRate: number, gstType?: 'CGST_SGST' | 'IGST', departmentName?: string) => Promise<{ success: boolean; error?: string }>;
+  deleteMonthlyBill: (id: string) => Promise<{ success: boolean; error?: string }>;
+  activeGstRate: number;
+  setActiveGstRate: (rate: number) => void;
+  activeGstType: 'CGST_SGST' | 'IGST';
+  setActiveGstType: (type: 'CGST_SGST' | 'IGST') => void;
   departmentPayments: DepartmentPayment[];
   addDepartmentPayment: (payment: Omit<DepartmentPayment, 'id'>) => void;
   updateDepartmentPaymentStatus: (id: string, status: DepartmentPayment['status']) => void;
