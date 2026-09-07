@@ -5,6 +5,8 @@ import { StatusChip } from '../../common/StatusChip';
 import { AddVehicleModal } from './AddVehicleModal';
 import { Vehicle, VehicleStatus } from '../../../types/fleet';
 import { Building2, Briefcase, Fuel, FileText, Shield, Wind, FileCheck, Award, Eye, ChevronDown, CheckCircle2, Clock, Wrench } from 'lucide-react';
+import { Pagination } from '../../common/Pagination';
+import { usePagination } from '../../../hooks/usePagination';
 
 export const AllVehiclesView: React.FC = () => {
   const { vehicles, searchQuery, updateVehicleStatus } = useFleet();
@@ -30,6 +32,15 @@ export const AllVehiclesView: React.FC = () => {
       return matchSearch && matchStatus && matchType;
     });
   }, [vehicles, searchQuery, statusFilter, typeFilter]);
+
+  const {
+    currentPage,
+    setCurrentPage,
+    pageSize,
+    setPageSize,
+    totalItems,
+    paginatedItems: paginatedVehicles
+  } = usePagination(filtered, 10);
 
   const stats = useMemo(() => {
     let running = 0;
@@ -269,14 +280,14 @@ export const AllVehiclesView: React.FC = () => {
               </tr>
             </thead>
             <tbody>
-              {filtered.length === 0 ? (
+              {paginatedVehicles.length === 0 ? (
                 <tr>
                   <td colSpan={8} style={{ textAlign: 'center', color: 'var(--text-faint)', padding: '30px 0' }}>
                     No vehicles found. Click "+ Add vehicle" to register one.
                   </td>
                 </tr>
               ) : (
-                filtered.map(v => (
+                paginatedVehicles.map(v => (
                   <tr key={v.id}>
                     <td>
                       <div>
@@ -381,6 +392,14 @@ export const AllVehiclesView: React.FC = () => {
             </tbody>
           </table>
         </div>
+        <Pagination
+          currentPage={currentPage}
+          totalItems={totalItems}
+          pageSize={pageSize}
+          onPageChange={setCurrentPage}
+          onPageSizeChange={setPageSize}
+          itemLabel="vehicles"
+        />
       </div>
 
       {/* Add Vehicle Modal */}

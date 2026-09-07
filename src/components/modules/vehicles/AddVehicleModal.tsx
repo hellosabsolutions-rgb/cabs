@@ -20,6 +20,7 @@ import {
 import { MinimalVoiceFiller } from '../../common/MinimalVoiceFiller';
 import { ParsedVehicleVoiceData } from '../../../utils/vehicleVoiceParser';
 import { DatePicker } from '../../common/DatePicker';
+import { ACCEPT_DOC_TYPES, isPdfDocument } from '../../../utils/fileUtils';
 
 interface AddVehicleModalProps {
   isOpen: boolean;
@@ -562,12 +563,12 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
               </div>
 
               <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label">Vehicle Exterior Photo / Thumbnail</label>
+                <label className="form-label">Vehicle Photo / Document (Image or PDF)</label>
                 <input
                   type="file"
                   ref={photoInputRef}
                   onChange={handleVehiclePhotoUpload}
-                  accept="image/*"
+                  accept={ACCEPT_DOC_TYPES}
                   style={{ display: 'none' }}
                 />
                 <div
@@ -584,11 +585,17 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
                   }}
                 >
                   {vehiclePhotoPreview ? (
-                    <img
-                      src={vehiclePhotoPreview}
-                      alt="Vehicle"
-                      style={{ width: 28, height: 28, objectFit: 'cover', borderRadius: 4, flexShrink: 0 }}
-                    />
+                    isPdfDocument(vehiclePhotoName, vehiclePhotoPreview) ? (
+                      <div style={{ width: 28, height: 28, borderRadius: 4, background: 'rgba(239, 68, 68, 0.15)', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        <FileText size={16} />
+                      </div>
+                    ) : (
+                      <img
+                        src={vehiclePhotoPreview}
+                        alt="Vehicle"
+                        style={{ width: 28, height: 28, objectFit: 'cover', borderRadius: 4, flexShrink: 0 }}
+                      />
+                    )
                   ) : (
                     <Truck size={14} color="var(--accent)" style={{ flexShrink: 0 }} />
                   )}
@@ -710,7 +717,7 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
                       type="file"
                       ref={rcInputRef}
                       onChange={handleRcUpload}
-                      accept="image/*,.pdf"
+                      accept={ACCEPT_DOC_TYPES}
                       style={{ display: 'none' }}
                     />
                     <div
@@ -727,11 +734,17 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
                       }}
                     >
                       {rcPhotoPreview ? (
-                        <img
-                          src={rcPhotoPreview}
-                          alt="RC"
-                          style={{ width: 28, height: 28, objectFit: 'cover', borderRadius: 4, flexShrink: 0 }}
-                        />
+                        isPdfDocument(rcPhotoName, rcPhotoPreview) ? (
+                          <div style={{ width: 28, height: 28, borderRadius: 4, background: 'rgba(239, 68, 68, 0.15)', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                            <FileText size={16} />
+                          </div>
+                        ) : (
+                          <img
+                            src={rcPhotoPreview}
+                            alt="RC"
+                            style={{ width: 28, height: 28, objectFit: 'cover', borderRadius: 4, flexShrink: 0 }}
+                          />
+                        )
                       ) : (
                         <Upload size={14} color="var(--accent)" style={{ flexShrink: 0 }} />
                       )}
@@ -817,7 +830,7 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
                       type="file"
                       ref={insuranceInputRef}
                       onChange={handleInsuranceUpload}
-                      accept="image/*,.pdf"
+                      accept={ACCEPT_DOC_TYPES}
                       style={{ display: 'none' }}
                     />
                     <div
@@ -834,11 +847,17 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
                       }}
                     >
                       {insurancePhotoPreview ? (
-                        <img
-                          src={insurancePhotoPreview}
-                          alt="Insurance"
-                          style={{ width: 28, height: 28, objectFit: 'cover', borderRadius: 4, flexShrink: 0 }}
-                        />
+                        isPdfDocument(insurancePhotoName, insurancePhotoPreview) ? (
+                          <div style={{ width: 28, height: 28, borderRadius: 4, background: 'rgba(239, 68, 68, 0.15)', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                            <FileText size={16} />
+                          </div>
+                        ) : (
+                          <img
+                            src={insurancePhotoPreview}
+                            alt="Insurance"
+                            style={{ width: 28, height: 28, objectFit: 'cover', borderRadius: 4, flexShrink: 0 }}
+                          />
+                        )
                       ) : (
                         <Upload size={14} color="var(--accent)" style={{ flexShrink: 0 }} />
                       )}
@@ -924,7 +943,7 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
                       type="file"
                       ref={pollutionInputRef}
                       onChange={handlePollutionUpload}
-                      accept="image/*,.pdf"
+                      accept={ACCEPT_DOC_TYPES}
                       style={{ display: 'none' }}
                     />
                     <div
@@ -941,11 +960,17 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
                       }}
                     >
                       {pollutionPhotoPreview ? (
-                        <img
-                          src={pollutionPhotoPreview}
-                          alt="PUCC"
-                          style={{ width: 28, height: 28, objectFit: 'cover', borderRadius: 4, flexShrink: 0 }}
-                        />
+                        isPdfDocument(pollutionPhotoName, pollutionPhotoPreview) ? (
+                          <div style={{ width: 28, height: 28, borderRadius: 4, background: 'rgba(239, 68, 68, 0.15)', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                            <FileText size={16} />
+                          </div>
+                        ) : (
+                          <img
+                            src={pollutionPhotoPreview}
+                            alt="PUCC"
+                            style={{ width: 28, height: 28, objectFit: 'cover', borderRadius: 4, flexShrink: 0 }}
+                          />
+                        )
                       ) : (
                         <Upload size={14} color="var(--accent)" style={{ flexShrink: 0 }} />
                       )}
@@ -1031,7 +1056,7 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
                       type="file"
                       ref={permitInputRef}
                       onChange={handlePermitUpload}
-                      accept="image/*,.pdf"
+                      accept={ACCEPT_DOC_TYPES}
                       style={{ display: 'none' }}
                     />
                     <div
@@ -1048,11 +1073,17 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
                       }}
                     >
                       {permitPhotoPreview ? (
-                        <img
-                          src={permitPhotoPreview}
-                          alt="Permit"
-                          style={{ width: 28, height: 28, objectFit: 'cover', borderRadius: 4, flexShrink: 0 }}
-                        />
+                        isPdfDocument(permitPhotoName, permitPhotoPreview) ? (
+                          <div style={{ width: 28, height: 28, borderRadius: 4, background: 'rgba(239, 68, 68, 0.15)', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                            <FileText size={16} />
+                          </div>
+                        ) : (
+                          <img
+                            src={permitPhotoPreview}
+                            alt="Permit"
+                            style={{ width: 28, height: 28, objectFit: 'cover', borderRadius: 4, flexShrink: 0 }}
+                          />
+                        )
                       ) : (
                         <Upload size={14} color="var(--accent)" style={{ flexShrink: 0 }} />
                       )}
@@ -1138,7 +1169,7 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
                       type="file"
                       ref={authInputRef}
                       onChange={handleAuthUpload}
-                      accept="image/*,.pdf"
+                      accept={ACCEPT_DOC_TYPES}
                       style={{ display: 'none' }}
                     />
                     <div
@@ -1155,11 +1186,17 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
                       }}
                     >
                       {authPhotoPreview ? (
-                        <img
-                          src={authPhotoPreview}
-                          alt="Auth"
-                          style={{ width: 28, height: 28, objectFit: 'cover', borderRadius: 4, flexShrink: 0 }}
-                        />
+                        isPdfDocument(authPhotoName, authPhotoPreview) ? (
+                          <div style={{ width: 28, height: 28, borderRadius: 4, background: 'rgba(239, 68, 68, 0.15)', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                            <FileText size={16} />
+                          </div>
+                        ) : (
+                          <img
+                            src={authPhotoPreview}
+                            alt="Auth"
+                            style={{ width: 28, height: 28, objectFit: 'cover', borderRadius: 4, flexShrink: 0 }}
+                          />
+                        )
                       ) : (
                         <Upload size={14} color="var(--accent)" style={{ flexShrink: 0 }} />
                       )}

@@ -3,6 +3,8 @@ import { useFleet } from '../../../context/FleetContext';
 import { StatCard } from '../../common/StatCard';
 import { RecordPaymentModal } from './RecordPaymentModal';
 import { DepartmentPayment } from '../../../types/fleet';
+import { Pagination } from '../../common/Pagination';
+import { usePagination } from '../../../hooks/usePagination';
 import { FileText, Building2, Receipt, ChevronDown } from 'lucide-react';
 
 export const DepartmentPaymentsView: React.FC = () => {
@@ -28,6 +30,15 @@ export const DepartmentPaymentsView: React.FC = () => {
       return matchSearch && matchMode;
     });
   }, [departmentPayments, searchQuery, modeFilter]);
+
+  const {
+    currentPage,
+    setCurrentPage,
+    pageSize,
+    setPageSize,
+    totalItems,
+    paginatedItems: paginatedPayments
+  } = usePagination(filteredPayments, 10);
 
   // Stats
   const stats = useMemo(() => {
@@ -201,7 +212,7 @@ export const DepartmentPaymentsView: React.FC = () => {
                   </td>
                 </tr>
               ) : (
-                filteredPayments.map(p => (
+                paginatedPayments.map(p => (
                   <tr key={p.id}>
                     <td>
                       <div>
@@ -252,6 +263,15 @@ export const DepartmentPaymentsView: React.FC = () => {
             </tbody>
           </table>
         </div>
+
+        <Pagination
+          currentPage={currentPage}
+          totalItems={totalItems}
+          pageSize={pageSize}
+          onPageChange={setCurrentPage}
+          onPageSizeChange={setPageSize}
+          itemLabel="receipts"
+        />
       </div>
 
       {/* Record Payment Modal */}

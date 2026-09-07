@@ -4,6 +4,7 @@ import { DriverExpenseCategory } from '../../../types/fleet';
 import { IndianRupee, FileText, Loader2 } from 'lucide-react';
 import { MinimalVoiceFiller } from '../../common/MinimalVoiceFiller';
 import { DatePicker } from '../../common/DatePicker';
+import { ACCEPT_DOC_TYPES, isPdfDocument } from '../../../utils/fileUtils';
 
 interface AddDriverExpenseModalProps {
   isOpen: boolean;
@@ -300,12 +301,18 @@ export const AddDriverExpenseModal: React.FC<AddDriverExpenseModalProps> = ({
                 type="file"
                 ref={receiptInputRef}
                 onChange={handleReceiptUpload}
-                accept="image/*,.pdf"
+                accept={ACCEPT_DOC_TYPES}
                 style={{ display: 'none' }}
               />
               <div className="upload-box" onClick={() => receiptInputRef.current?.click()}>
                 {receiptPreview ? (
-                  <img src={receiptPreview} alt="Receipt preview" className="upload-preview" />
+                  isPdfDocument(receiptName, receiptPreview) ? (
+                    <div className="upload-icon-placeholder" style={{ background: 'rgba(239, 68, 68, 0.15)', color: '#ef4444' }}>
+                      <FileText size={18} />
+                    </div>
+                  ) : (
+                    <img src={receiptPreview} alt="Receipt preview" className="upload-preview" />
+                  )
                 ) : (
                   <div className="upload-icon-placeholder">
                     <FileText size={18} color="var(--accent)" />
@@ -319,7 +326,7 @@ export const AddDriverExpenseModal: React.FC<AddDriverExpenseModalProps> = ({
                       ? 'Receipt attached'
                       : 'Click to attach payment slip or voucher'}
                   </div>
-                  <div className="upload-hint">Image or PDF proof</div>
+                  <div className="upload-hint">Image (JPG/PNG) or PDF format up to 10MB</div>
                 </div>
                 {(receiptPreview || receiptName) && (
                   <button

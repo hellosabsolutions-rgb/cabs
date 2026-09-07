@@ -217,7 +217,7 @@ export const AddBookingModal: React.FC<AddBookingModalProps> = ({
       revenue: fareNum,
       totalAmount: fareNum,
       advanceAmount: advanceNum,
-      advancePaymentMode: advanceNum > 0 ? advanceMode : 'Not Paid',
+      advancePaymentMode: (advanceNum > 0 ? advanceMode : 'Not Paid') as any,
       pendingAmount: pendingNum,
       paymentStatus: (pendingNum === 0 && fareNum > 0 ? 'Paid' : advanceNum > 0 ? 'Partial' : 'Unpaid') as any,
       fuelCost: fuelNum,
@@ -813,7 +813,7 @@ export const AddBookingModal: React.FC<AddBookingModalProps> = ({
               type="submit"
               className="btn-primary-action"
               style={{ padding: '8px 22px', fontSize: '13px', fontWeight: 700 }}
-              disabled={isVehicleConflicted || (availability && availability.availableVehicles.length === 0)}
+              disabled={Boolean(isVehicleConflicted || (availability && availability.availableVehicles.length === 0))}
             >
               Confirm & Save Booking
             </button>

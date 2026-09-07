@@ -9,6 +9,8 @@ import { DriverExpensesView } from './DriverExpensesView';
 import { Driver, DriverType } from '../../../types/fleet';
 import { Users, CalendarCheck, Receipt, MapPin, Trash2, Power, Edit2, ChevronDown } from 'lucide-react';
 import { SkeletonCard, SkeletonTable } from '../../common/Skeleton';
+import { Pagination } from '../../common/Pagination';
+import { usePagination } from '../../../hooks/usePagination';
 
 export const DriversView: React.FC = () => {
   const {
@@ -41,6 +43,15 @@ export const DriversView: React.FC = () => {
 
     return matchSearch && matchType && matchStatus;
   });
+
+  const {
+    currentPage,
+    setCurrentPage,
+    pageSize,
+    setPageSize,
+    totalItems,
+    paginatedItems: paginatedDrivers
+  } = usePagination(filtered, 10);
 
   const getTypeBadgeClass = (type?: DriverType) => {
     switch (type) {
@@ -189,14 +200,14 @@ export const DriversView: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {filtered.length === 0 ? (
-                    <tr>
-                      <td colSpan={8} style={{ textAlign: 'center', color: 'var(--text-faint)', padding: '30px 0' }}>
-                        No drivers match your criteria. Click "+ Add Driver" to create one.
-                      </td>
-                    </tr>
-                  ) : (
-                    filtered.map(d => (
+                  {paginatedDrivers.length === 0 ? (
+                <tr>
+                  <td colSpan={7} style={{ textAlign: 'center', color: 'var(--text-faint)', padding: '30px 0' }}>
+                    No drivers found matching your filter criteria.
+                  </td>
+                </tr>
+              ) : (
+                paginatedDrivers.map(d => (
                       <tr key={d.id}>
                         <td>
                           <div className="driver-info-cell">
@@ -318,6 +329,14 @@ export const DriversView: React.FC = () => {
                 </tbody>
               </table>
             </div>
+            <Pagination
+              currentPage={currentPage}
+              totalItems={totalItems}
+              pageSize={pageSize}
+              onPageChange={setCurrentPage}
+              onPageSizeChange={setPageSize}
+              itemLabel="drivers"
+            />
           </div>
 
           {/* Slide-from-bottom Animated Modals */}

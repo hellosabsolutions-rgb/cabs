@@ -14,6 +14,7 @@ import {
 import { MinimalVoiceFiller } from '../../common/MinimalVoiceFiller';
 import { DatePicker } from '../../common/DatePicker';
 import { useModalAnimation } from '../../../hooks/useModalAnimation';
+import { ACCEPT_DOC_TYPES, isPdfDocument } from '../../../utils/fileUtils';
 
 interface AddVehicleComplianceModalProps {
   isOpen: boolean;
@@ -337,7 +338,7 @@ export const AddVehicleComplianceModal: React.FC<AddVehicleComplianceModalProps>
                 type="file"
                 ref={fileInputRef}
                 onChange={handleFileUpload}
-                accept="image/*,.pdf"
+                accept={ACCEPT_DOC_TYPES}
                 style={{ display: 'none' }}
               />
               <div
@@ -346,7 +347,13 @@ export const AddVehicleComplianceModal: React.FC<AddVehicleComplianceModalProps>
                 style={{ padding: '10px 14px' }}
               >
                 {docPhotoPreview ? (
-                  <img src={docPhotoPreview} alt="Doc preview" className="upload-preview" />
+                  isPdfDocument(docPhotoName, docPhotoPreview) ? (
+                    <div className="upload-icon-placeholder" style={{ width: 36, height: 36, background: 'rgba(239, 68, 68, 0.15)', color: '#ef4444' }}>
+                      <FileText size={18} />
+                    </div>
+                  ) : (
+                    <img src={docPhotoPreview} alt="Doc preview" className="upload-preview" />
+                  )
                 ) : (
                   <div className="upload-icon-placeholder" style={{ width: 36, height: 36 }}>
                     <Upload size={18} color="var(--accent)" />
@@ -356,7 +363,7 @@ export const AddVehicleComplianceModal: React.FC<AddVehicleComplianceModalProps>
                   <div className="upload-title" style={{ fontSize: '12.5px' }}>
                     {docPhotoName ? docPhotoName : `Upload ${documentName} scan or photo`}
                   </div>
-                  <div className="upload-hint">RTO certificate or insurer policy copy</div>
+                  <div className="upload-hint">Image (JPG/PNG) or PDF format up to 10MB</div>
                 </div>
               </div>
             </div>

@@ -24,11 +24,14 @@ import {
   Car,
   User,
   Save,
-  RotateCcw
+  RotateCcw,
+  Check,
+  Download
 } from 'lucide-react';
 import { DocumentCompliance } from '../../../types/fleet';
 import { useFleet } from '../../../context/FleetContext';
 import { useModalAnimation } from '../../../hooks/useModalAnimation';
+import { ACCEPT_DOC_TYPES, isPdfDocument } from '../../../utils/fileUtils';
 
 interface ComplianceDetailModalProps {
   isOpen: boolean;
@@ -442,7 +445,7 @@ export const ComplianceDetailModal: React.FC<ComplianceDetailModalProps> = ({
                       type="file"
                       ref={fileInputRef}
                       onChange={handleFileChange}
-                      accept="image/*,application/pdf"
+                      accept={ACCEPT_DOC_TYPES}
                       style={{ display: 'none' }}
                     />
                     {documentPhoto ? (
@@ -454,14 +457,21 @@ export const ComplianceDetailModal: React.FC<ComplianceDetailModalProps> = ({
                             borderRadius: '6px',
                             overflow: 'hidden',
                             border: '1px solid var(--border)',
-                            background: '#000'
+                            background: isPdfDocument(photoFileName, documentPhoto) ? 'rgba(239, 68, 68, 0.15)' : '#000',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
                           }}
                         >
-                          <img
-                            src={documentPhoto}
-                            alt="Preview"
-                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                          />
+                          {isPdfDocument(photoFileName, documentPhoto) ? (
+                            <FileText size={24} color="#ef4444" />
+                          ) : (
+                            <img
+                              src={documentPhoto}
+                              alt="Preview"
+                              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                            />
+                          )}
                         </div>
                         <div style={{ textAlign: 'left' }}>
                           <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text)' }}>
@@ -858,16 +868,30 @@ export const ComplianceDetailModal: React.FC<ComplianceDetailModalProps> = ({
                 <X size={18} />
               </button>
             </div>
-            <img
-              src={doc.documentPhoto}
-              alt={doc.documentName}
-              style={{
-                maxWidth: '100%',
-                maxHeight: '80vh',
-                borderRadius: '8px',
-                boxShadow: '0 20px 50px rgba(0,0,0,0.8)'
-              }}
-            />
+            {isPdfDocument(photoFileName, doc.documentPhoto) ? (
+              <iframe
+                src={doc.documentPhoto}
+                title="PDF Document Viewer"
+                style={{
+                  width: '80vw',
+                  height: '75vh',
+                  borderRadius: '8px',
+                  border: 'none',
+                  background: '#ffffff'
+                }}
+              />
+            ) : (
+              <img
+                src={doc.documentPhoto}
+                alt={doc.documentName}
+                style={{
+                  maxWidth: '100%',
+                  maxHeight: '80vh',
+                  borderRadius: '8px',
+                  boxShadow: '0 20px 50px rgba(0,0,0,0.8)'
+                }}
+              />
+            )}
           </div>
         </div>
       )}

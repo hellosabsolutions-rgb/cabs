@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { useFleet } from '../../../context/FleetContext';
 import { useNotifications, NotificationCategory, NotificationPriority } from '../../../context/NotificationContext';
 import { api } from '../../../services/api';
+import { Pagination } from '../../common/Pagination';
+import { usePagination } from '../../../hooks/usePagination';
 import {
   Bell,
   ShieldAlert,
@@ -222,6 +224,15 @@ export const NotificationsView: React.FC = () => {
     return combinedNotifications.filter((n) => n.category === activeCategory);
   }, [combinedNotifications, activeCategory]);
 
+  const {
+    currentPage,
+    setCurrentPage,
+    pageSize,
+    setPageSize,
+    totalItems,
+    paginatedItems: paginatedNotifications
+  } = usePagination(filtered, 10);
+
   const totalUnreadCount = combinedNotifications.filter((n) => !n.isRead).length;
 
   const getCategoryUnreadCount = (cat: Exclude<NotifCategory, 'all'>) =>
@@ -407,7 +418,7 @@ export const NotificationsView: React.FC = () => {
             <div className="notif-empty-sub">No notifications in this category right now.</div>
           </div>
         ) : (
-          filtered.map((notif) => {
+          paginatedNotifications.map((notif) => {
             const isRead = notif.isRead;
             const cfg = PRIORITY_CONFIG[notif.priority] || PRIORITY_CONFIG.info;
             return (
@@ -515,6 +526,15 @@ export const NotificationsView: React.FC = () => {
           })
         )}
       </div>
+
+      <Pagination
+        currentPage={currentPage}
+        totalItems={totalItems}
+        pageSize={pageSize}
+        onPageChange={setCurrentPage}
+        onPageSizeChange={setPageSize}
+        itemLabel="notifications"
+      />
     </div>
   );
 };

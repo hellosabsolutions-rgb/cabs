@@ -20,6 +20,8 @@ import {
   Filter
 } from 'lucide-react';
 import { api } from '../../../services/api';
+import { Pagination } from '../../common/Pagination';
+import { usePagination } from '../../../hooks/usePagination';
 
 type AttendanceTimeFrame = 'daily' | 'monthly' | 'yearly';
 
@@ -128,6 +130,15 @@ export const DriverAttendanceView: React.FC = () => {
       return matchSearch && matchDuty;
     });
   }, [driverAttendanceList, searchQuery, dutyFilter]);
+
+  const {
+    currentPage: dailyPage,
+    setCurrentPage: setDailyPage,
+    pageSize: dailyPageSize,
+    setPageSize: setDailyPageSize,
+    totalItems: totalDailyItems,
+    paginatedItems: paginatedDailyRecords
+  } = usePagination(filteredDailyRecords, 10);
 
   const dailyStats = useMemo(() => {
     let present = 0;
@@ -358,6 +369,15 @@ export const DriverAttendanceView: React.FC = () => {
     });
   }, [monthlyRecords, searchQuery, dutyFilter]);
 
+  const {
+    currentPage: monthlyLogsPage,
+    setCurrentPage: setMonthlyLogsPage,
+    pageSize: monthlyLogsPageSize,
+    setPageSize: setMonthlyLogsPageSize,
+    totalItems: totalMonthlyLogsItems,
+    paginatedItems: paginatedMonthlyLogs
+  } = usePagination(filteredMonthlyLogs, 10);
+
   const monthlyDriverSummary = useMemo(() => {
     if (analyticsData?.period === 'month' && analyticsData?.month === selectedMonth && analyticsData?.driverTotals) {
       return analyticsData.driverTotals;
@@ -402,6 +422,15 @@ export const DriverAttendanceView: React.FC = () => {
       };
     });
   }, [drivers, monthlyRecords, analyticsData, selectedMonth]);
+
+  const {
+    currentPage: summaryPage,
+    setCurrentPage: setSummaryPage,
+    pageSize: summaryPageSize,
+    setPageSize: setSummaryPageSize,
+    totalItems: totalSummaryItems,
+    paginatedItems: paginatedDriverSummary
+  } = usePagination(monthlyDriverSummary, 10);
 
   const monthStats = useMemo(() => {
     let totalHours = 0;
@@ -678,14 +707,14 @@ export const DriverAttendanceView: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredDailyRecords.length === 0 ? (
+                  {paginatedDailyRecords.length === 0 ? (
                     <tr>
                       <td colSpan={9} style={{ textAlign: 'center', color: 'var(--text-faint)', padding: '30px 0' }}>
                         No attendance records match your search criteria.
                       </td>
                     </tr>
                   ) : (
-                    filteredDailyRecords.map(r => (
+                    paginatedDailyRecords.map(r => (
                       <tr key={r.id}>
                         <td style={{ fontWeight: 600 }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -724,6 +753,14 @@ export const DriverAttendanceView: React.FC = () => {
                 </tbody>
               </table>
             </div>
+            <Pagination
+              currentPage={dailyPage}
+              totalItems={totalDailyItems}
+              pageSize={dailyPageSize}
+              onPageChange={setDailyPage}
+              onPageSizeChange={setDailyPageSize}
+              itemLabel="records"
+            />
           </div>
         </>
       )}
@@ -842,14 +879,14 @@ export const DriverAttendanceView: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {monthlyDriverSummary.length === 0 ? (
+                    {paginatedDriverSummary.length === 0 ? (
                       <tr>
                         <td colSpan={10} style={{ textAlign: 'center', color: 'var(--text-faint)', padding: '30px 0' }}>
                           No drivers registered for this month.
                         </td>
                       </tr>
                     ) : (
-                      monthlyDriverSummary.map((item: any) => (
+                      paginatedDriverSummary.map((item: any) => (
                         <tr key={item.driverId}>
                           <td style={{ fontWeight: 600 }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -942,14 +979,14 @@ export const DriverAttendanceView: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredMonthlyLogs.length === 0 ? (
+                    {paginatedMonthlyLogs.length === 0 ? (
                       <tr>
                         <td colSpan={10} style={{ textAlign: 'center', color: 'var(--text-faint)', padding: '30px 0' }}>
                           No shift logs found for this month matching criteria.
                         </td>
                       </tr>
                     ) : (
-                      filteredMonthlyLogs.map(r => (
+                      paginatedMonthlyLogs.map(r => (
                         <tr key={r.id}>
                           <td style={{ fontWeight: 600, fontFamily: 'monospace', fontSize: '12px' }}>{r.date}</td>
                           <td style={{ fontWeight: 600 }}>{r.driverName}</td>

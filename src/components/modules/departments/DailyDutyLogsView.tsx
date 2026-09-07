@@ -4,6 +4,8 @@ import { StatCard } from '../../common/StatCard';
 import { AddDutyLogModal } from './AddDutyLogModal';
 import { LogBookPrintModal } from './LogBookPrintModal';
 import { DailyDutyLog } from '../../../types/fleet';
+import { Pagination } from '../../common/Pagination';
+import { usePagination } from '../../../hooks/usePagination';
 import {
   Building2,
   Briefcase,
@@ -92,6 +94,15 @@ export const DailyDutyLogsView: React.FC = () => {
       return matchSearch && matchDept && matchVehicle && matchMonth && matchStatus && matchCategory;
     });
   }, [dailyDutyLogs, searchQuery, deptFilter, vehicleFilter, monthFilter, statusFilter, dutyCategoryFilter]);
+
+  const {
+    currentPage,
+    setCurrentPage,
+    pageSize,
+    setPageSize,
+    totalItems,
+    paginatedItems: paginatedLogs
+  } = usePagination(filteredLogs, 10);
 
   // Stats calculation
   const stats = useMemo(() => {
@@ -551,7 +562,7 @@ export const DailyDutyLogsView: React.FC = () => {
                       </td>
                     </tr>
                   ) : (
-                    filteredLogs.map(log => {
+                    paginatedLogs.map(log => {
                       const isSignedOfficer = log.officerSignatureStatus === 'Signed';
                       const isSignedDriver = log.driverSignatureStatus === 'Signed';
 
@@ -783,7 +794,7 @@ export const DailyDutyLogsView: React.FC = () => {
                     </td>
                   </tr>
                 ) : (
-                  filteredLogs.map(log => {
+                  paginatedLogs.map(log => {
                     const isWeekend = log.dutyType === 'Weekend / Off-Duty Trip';
 
                     return (
@@ -1034,6 +1045,15 @@ export const DailyDutyLogsView: React.FC = () => {
             </table>
           </div>
         )}
+
+        <Pagination
+          currentPage={currentPage}
+          totalItems={totalItems}
+          pageSize={pageSize}
+          onPageChange={setCurrentPage}
+          onPageSizeChange={setPageSize}
+          itemLabel="duty logs"
+        />
       </div>
 
       {/* Add Duty Log Modal */}

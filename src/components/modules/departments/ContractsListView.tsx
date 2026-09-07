@@ -3,6 +3,8 @@ import { useFleet } from '../../../context/FleetContext';
 import { StatCard } from '../../common/StatCard';
 import { AddContractModal } from './AddContractModal';
 import { DepartmentContract } from '../../../types/fleet';
+import { Pagination } from '../../common/Pagination';
+import { usePagination } from '../../../hooks/usePagination';
 import { FileText, Folder, Trash2, ChevronDown, RefreshCw, Radio } from 'lucide-react';
 
 export const ContractsListView: React.FC = () => {
@@ -37,6 +39,15 @@ export const ContractsListView: React.FC = () => {
       return matchSearch && matchStatus;
     });
   }, [departmentContracts, searchQuery, statusFilter]);
+
+  const {
+    currentPage,
+    setCurrentPage,
+    pageSize,
+    setPageSize,
+    totalItems,
+    paginatedItems: paginatedContracts
+  } = usePagination(filteredContracts, 10);
 
   // Quick stats
   const stats = useMemo(() => {
@@ -272,7 +283,7 @@ export const ContractsListView: React.FC = () => {
                   </td>
                 </tr>
               ) : (
-                filteredContracts.map(c => (
+                paginatedContracts.map(c => (
                   <tr key={c.id}>
                     <td>
                       <div>
@@ -369,6 +380,15 @@ export const ContractsListView: React.FC = () => {
             </tbody>
           </table>
         </div>
+
+        <Pagination
+          currentPage={currentPage}
+          totalItems={totalItems}
+          pageSize={pageSize}
+          onPageChange={setCurrentPage}
+          onPageSizeChange={setPageSize}
+          itemLabel="contracts"
+        />
       </div>
 
       {/* Add Contract Modal */}

@@ -1,9 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useFleet } from '../../../context/FleetContext';
 import { Driver, DriverType } from '../../../types/fleet';
-import { Edit2, Camera, IdCard, Loader2 } from 'lucide-react';
+import { Edit2, Camera, IdCard, Loader2, FileText } from 'lucide-react';
 import { MinimalVoiceFiller } from '../../common/MinimalVoiceFiller';
 import { DatePicker } from '../../common/DatePicker';
+import { ACCEPT_DOC_TYPES, isPdfDocument } from '../../../utils/fileUtils';
 
 interface EditDriverModalProps {
   isOpen: boolean;
@@ -200,17 +201,23 @@ export const EditDriverModal: React.FC<EditDriverModalProps> = ({ isOpen, onClos
 
             {/* Driver Photo Upload */}
             <div className="form-group" style={{ marginBottom: 0 }}>
-              <label className="form-label">Driver Photo</label>
+              <label className="form-label">Driver Photo (Image or PDF)</label>
               <input
                 type="file"
                 ref={photoInputRef}
                 onChange={handlePhotoUpload}
-                accept="image/*"
+                accept={ACCEPT_DOC_TYPES}
                 style={{ display: 'none' }}
               />
               <div className="upload-box" onClick={() => photoInputRef.current?.click()}>
                 {photoPreview ? (
-                  <img src={photoPreview} alt="Driver preview" className="upload-preview upload-preview-avatar" />
+                  isPdfDocument(undefined, photoPreview) ? (
+                    <div className="upload-icon-placeholder" style={{ borderRadius: '8px', background: 'rgba(239, 68, 68, 0.15)', color: '#ef4444' }}>
+                      <FileText size={20} />
+                    </div>
+                  ) : (
+                    <img src={photoPreview} alt="Driver preview" className="upload-preview upload-preview-avatar" />
+                  )
                 ) : (
                   <div className="upload-icon-placeholder" style={{ borderRadius: '50%' }}>
                     <Camera size={18} color="var(--accent)" />
@@ -218,9 +225,9 @@ export const EditDriverModal: React.FC<EditDriverModalProps> = ({ isOpen, onClos
                 )}
                 <div className="upload-info">
                   <div className="upload-title">
-                    {photoPreview ? 'Photo selected (Click to change)' : 'Click to upload driver profile photo'}
+                    {photoPreview ? 'Document selected (Click to change)' : 'Click to upload driver profile photo / document'}
                   </div>
-                  <div className="upload-hint">JPG, PNG, WebP up to 5MB</div>
+                  <div className="upload-hint">JPG, PNG, WebP or PDF (up to 10MB)</div>
                 </div>
                 {photoPreview && (
                   <button
@@ -328,17 +335,23 @@ export const EditDriverModal: React.FC<EditDriverModalProps> = ({ isOpen, onClos
 
             {/* Driving License Photo */}
             <div className="form-group" style={{ marginBottom: 0 }}>
-              <label className="form-label">Driving License Photo / Document</label>
+              <label className="form-label">Driving License Document (Image or PDF)</label>
               <input
                 type="file"
                 ref={licenseInputRef}
                 onChange={handleLicensePhotoUpload}
-                accept="image/*,.pdf"
+                accept={ACCEPT_DOC_TYPES}
                 style={{ display: 'none' }}
               />
               <div className="upload-box" onClick={() => licenseInputRef.current?.click()}>
                 {licensePhotoPreview ? (
-                  <img src={licensePhotoPreview} alt="License preview" className="upload-preview" />
+                  isPdfDocument(licenseFileName, licensePhotoPreview) ? (
+                    <div className="upload-icon-placeholder" style={{ borderRadius: '8px', background: 'rgba(239, 68, 68, 0.15)', color: '#ef4444' }}>
+                      <FileText size={20} />
+                    </div>
+                  ) : (
+                    <img src={licensePhotoPreview} alt="License preview" className="upload-preview" />
+                  )
                 ) : (
                   <div className="upload-icon-placeholder">
                     <IdCard size={18} color="var(--accent)" />
@@ -352,7 +365,7 @@ export const EditDriverModal: React.FC<EditDriverModalProps> = ({ isOpen, onClos
                       ? 'License document uploaded'
                       : 'Click to upload driving license copy'}
                   </div>
-                  <div className="upload-hint">Upload front/back photo or scan</div>
+                  <div className="upload-hint">JPG, PNG, WebP or PDF format (front/back)</div>
                 </div>
                 {(licensePhotoPreview || licenseFileName) && (
                   <button

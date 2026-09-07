@@ -5,6 +5,8 @@ import { AddVehicleComplianceModal } from './AddVehicleComplianceModal';
 import { AddDriverComplianceModal } from './AddDriverComplianceModal';
 import { ComplianceDetailModal } from './ComplianceDetailModal';
 import { DocumentCompliance } from '../../../types/fleet';
+import { Pagination } from '../../common/Pagination';
+import { usePagination } from '../../../hooks/usePagination';
 import {
   AlertTriangle,
   Clock,
@@ -42,6 +44,24 @@ export const ComplianceView: React.FC = () => {
     d.documentName.toLowerCase().includes(searchQuery.toLowerCase()) ||
     (d.documentNumber && d.documentNumber.toLowerCase().includes(searchQuery.toLowerCase()))
   );
+
+  const {
+    currentPage: vehPage,
+    setCurrentPage: setVehPage,
+    pageSize: vehPageSize,
+    setPageSize: setVehPageSize,
+    totalItems: totalVehDocs,
+    paginatedItems: paginatedVehDocs
+  } = usePagination(filteredVehDocs, 10);
+
+  const {
+    currentPage: drvPage,
+    setCurrentPage: setDrvPage,
+    pageSize: drvPageSize,
+    setPageSize: setDrvPageSize,
+    totalItems: totalDrvDocs,
+    paginatedItems: paginatedDrvDocs
+  } = usePagination(filteredDrvDocs, 10);
 
   const getDocIcon = (name: string) => {
     const n = (name || '').toLowerCase();
@@ -182,7 +202,7 @@ export const ComplianceView: React.FC = () => {
                     </td>
                   </tr>
                 ) : (
-                  filteredVehDocs.map(doc => (
+                  paginatedVehDocs.map(doc => (
                     <tr
                       key={doc.id}
                       className="compliance-row-clickable"
@@ -256,6 +276,14 @@ export const ComplianceView: React.FC = () => {
               </tbody>
             </table>
           </div>
+          <Pagination
+            currentPage={vehPage}
+            totalItems={totalVehDocs}
+            pageSize={vehPageSize}
+            onPageChange={setVehPage}
+            onPageSizeChange={setVehPageSize}
+            itemLabel="docs"
+          />
         </div>
 
         {/* 2. Driver Compliance Panel */}
@@ -294,7 +322,7 @@ export const ComplianceView: React.FC = () => {
                     </td>
                   </tr>
                 ) : (
-                  filteredDrvDocs.map(doc => (
+                  paginatedDrvDocs.map(doc => (
                     <tr
                       key={doc.id}
                       className="compliance-row-clickable"
@@ -386,6 +414,14 @@ export const ComplianceView: React.FC = () => {
               </tbody>
             </table>
           </div>
+          <Pagination
+            currentPage={drvPage}
+            totalItems={totalDrvDocs}
+            pageSize={drvPageSize}
+            onPageChange={setDrvPage}
+            onPageSizeChange={setDrvPageSize}
+            itemLabel="docs"
+          />
         </div>
       </div>
 

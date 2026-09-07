@@ -4,6 +4,8 @@ import { StatCard } from '../../common/StatCard';
 import { StatusChip } from '../../common/StatusChip';
 import { StatusDropdown } from '../../common/StatusDropdown';
 import { MaintenanceType } from '../../../types/fleet';
+import { Pagination } from '../../common/Pagination';
+import { usePagination } from '../../../hooks/usePagination';
 import { Paperclip } from 'lucide-react';
 import { SkeletonCard, SkeletonTable } from '../../common/Skeleton';
 import { DatePicker } from '../../common/DatePicker';
@@ -29,6 +31,15 @@ export const MaintenanceView: React.FC = () => {
     r.type.toLowerCase().includes(searchQuery.toLowerCase()) ||
     r.dateLabel.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  const {
+    currentPage,
+    setCurrentPage,
+    pageSize,
+    setPageSize,
+    totalItems,
+    paginatedItems: paginatedRecords
+  } = usePagination(filteredRecords, 10);
 
   // Quick stats calculation for current month (2026-08)
   const currentMonthStats = useMemo(() => {
@@ -132,42 +143,59 @@ export const MaintenanceView: React.FC = () => {
                 </tr>
               </thead>
               <tbody>
-                {filteredRecords.map(m => (
-                  <tr key={m.id}>
-                    <td>{m.dateLabel}</td>
-                    <td style={{ fontWeight: 600 }}>{m.vehicle}</td>
-                    <td>
-                      {m.type} {m.tyreCount ? `(${m.tyreCount} tyres)` : ''}
-                    </td>
-                    <td className="num">{formatINR(m.cost)}</td>
-                    <td>
-                      {m.bill ? (
-                        <span className="bill-link" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                          <Paperclip size={12} /> View
-                        </span>
-                      ) : (
-                        '—'
-                      )}
-                    </td>
-                    <td>
-                      <StatusDropdown
-                        value={m.status}
-                        options={[
-                          { value: 'Scheduled', label: 'Scheduled' },
-                          { value: 'In Progress', label: 'In Progress' },
-                          { value: 'Completed', label: 'Completed' },
-                          { value: 'Cancelled', label: 'Cancelled' }
-                        ]}
-                        onChange={(newStatus) => updateMaintenanceStatus(m.id, newStatus)}
-                        size="sm"
-                        title="Change maintenance status"
-                      />
+                {filteredRecords.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} style={{ textAlign: 'center', color: 'var(--text-faint)', padding: '24px 0' }}>
+                      No maintenance records found.
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  paginatedRecords.map(m => (
+                    <tr key={m.id}>
+                      <td>{m.dateLabel}</td>
+                      <td style={{ fontWeight: 600 }}>{m.vehicle}</td>
+                      <td>
+                        {m.type} {m.tyreCount ? `(${m.tyreCount} tyres)` : ''}
+                      </td>
+                      <td className="num">{formatINR(m.cost)}</td>
+                      <td>
+                        {m.bill ? (
+                          <span className="bill-link" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                            <Paperclip size={12} /> View
+                          </span>
+                        ) : (
+                          '—'
+                        )}
+                      </td>
+                      <td>
+                        <StatusDropdown
+                          value={m.status}
+                          options={[
+                            { value: 'Scheduled', label: 'Scheduled' },
+                            { value: 'In Progress', label: 'In Progress' },
+                            { value: 'Completed', label: 'Completed' },
+                            { value: 'Cancelled', label: 'Cancelled' }
+                          ]}
+                          onChange={(newStatus) => updateMaintenanceStatus(m.id, newStatus)}
+                          size="sm"
+                          title="Change maintenance status"
+                        />
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
+
+          <Pagination
+            currentPage={currentPage}
+            totalItems={totalItems}
+            pageSize={pageSize}
+            onPageChange={setCurrentPage}
+            onPageSizeChange={setPageSize}
+            itemLabel="records"
+          />
         </div>
 
         <div className="panel">
@@ -240,10 +268,11 @@ export const MaintenanceView: React.FC = () => {
               </div>
 
               <div className="form-group">
-                <label className="form-label">Bill upload (photo/PDF)</label>
+                <label className="form-label">Bill upload (Image or PDF)</label>
                 <input
                   type="file"
                   className="form-input"
+                  accept="image/*,application/pdf,.pdf"
                   onChange={e => setMBillFile(e.target.files ? e.target.files[0] : null)}
                 />
               </div>

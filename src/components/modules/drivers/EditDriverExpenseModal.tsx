@@ -3,6 +3,7 @@ import { useFleet } from '../../../context/FleetContext';
 import { DriverExpenseCategory, DriverExpenseItem } from '../../../types/fleet';
 import { Edit3, IndianRupee, FileText, Loader2, Car, Calendar, CheckCircle2 } from 'lucide-react';
 import { DatePicker } from '../../common/DatePicker';
+import { ACCEPT_DOC_TYPES, isPdfDocument } from '../../../utils/fileUtils';
 
 interface EditDriverExpenseModalProps {
   isOpen: boolean;
@@ -283,12 +284,18 @@ export const EditDriverExpenseModal: React.FC<EditDriverExpenseModalProps> = ({
                 type="file"
                 ref={receiptInputRef}
                 onChange={handleReceiptUpload}
-                accept="image/*,.pdf"
+                accept={ACCEPT_DOC_TYPES}
                 style={{ display: 'none' }}
               />
               <div className="upload-box" onClick={() => receiptInputRef.current?.click()}>
                 {receiptPreview ? (
-                  <img src={receiptPreview} alt="Receipt preview" className="upload-preview" />
+                  isPdfDocument(receiptName, receiptPreview) ? (
+                    <div className="upload-icon-placeholder" style={{ background: 'rgba(239, 68, 68, 0.15)', color: '#ef4444' }}>
+                      <FileText size={18} />
+                    </div>
+                  ) : (
+                    <img src={receiptPreview} alt="Receipt preview" className="upload-preview" />
+                  )
                 ) : (
                   <div className="upload-icon-placeholder">
                     <FileText size={18} color="var(--accent)" />
@@ -298,7 +305,7 @@ export const EditDriverExpenseModal: React.FC<EditDriverExpenseModalProps> = ({
                   <div className="upload-title">
                     {receiptName ? receiptName : 'Click to upload receipt document or photo'}
                   </div>
-                  <div className="upload-hint">JPG, PNG, PDF up to 5MB</div>
+                  <div className="upload-hint">Image (JPG/PNG) or PDF format up to 10MB</div>
                 </div>
                 {receiptName && (
                   <button

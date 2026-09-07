@@ -4,6 +4,8 @@ import { StatCard } from '../../common/StatCard';
 import { AddTripModal } from './AddTripModal';
 import { CompleteTripModal } from './CompleteTripModal';
 import { TripFinancial, TripStatus } from '../../../types/fleet';
+import { Pagination } from '../../common/Pagination';
+import { usePagination } from '../../../hooks/usePagination';
 import { Navigation, Plus, CheckCircle2, Clock, MapPin, Gauge, Fuel, CreditCard, User, TrendingUp, RotateCcw, ArrowRight, Building2, ChevronDown } from 'lucide-react';
 import { SkeletonCard, SkeletonTable } from '../../common/Skeleton';
 
@@ -36,6 +38,15 @@ export const TripsView: React.FC = () => {
       return matchSearch && matchStatus;
     });
   }, [trips, searchQuery, statusFilter]);
+
+  const {
+    currentPage,
+    setCurrentPage,
+    pageSize,
+    setPageSize,
+    totalItems,
+    paginatedItems: paginatedTrips
+  } = usePagination(filteredTrips, 10);
 
   const ongoingCount = trips.filter(t => t.status === 'Ongoing').length;
   const completedCount = trips.filter(t => t.status === 'Completed').length;
@@ -276,7 +287,7 @@ export const TripsView: React.FC = () => {
                   </td>
                 </tr>
               ) : (
-                filteredTrips.map(trip => (
+                paginatedTrips.map(trip => (
                   <tr key={trip.id}>
                     {/* 1. Trip & Type */}
                     <td>
@@ -479,6 +490,15 @@ export const TripsView: React.FC = () => {
             </tbody>
           </table>
         </div>
+
+        <Pagination
+          currentPage={currentPage}
+          totalItems={totalItems}
+          pageSize={pageSize}
+          onPageChange={setCurrentPage}
+          onPageSizeChange={setPageSize}
+          itemLabel="trips"
+        />
       </div>
 
       {/* Add Trip Modal */}

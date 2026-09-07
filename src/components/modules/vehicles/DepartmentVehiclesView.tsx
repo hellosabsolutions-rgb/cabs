@@ -6,6 +6,8 @@ import { StatusDropdown } from '../../common/StatusDropdown';
 import { AddVehicleModal } from './AddVehicleModal';
 import { Building2, Fuel } from 'lucide-react';
 import { VehicleStatus } from '../../../types/fleet';
+import { Pagination } from '../../common/Pagination';
+import { usePagination } from '../../../hooks/usePagination';
 
 export const DepartmentVehiclesView: React.FC = () => {
   const { vehicles, searchQuery, departmentContracts, updateVehicleStatus } = useFleet();
@@ -30,6 +32,15 @@ export const DepartmentVehiclesView: React.FC = () => {
       return matchSearch && matchDept;
     });
   }, [deptVehicles, searchQuery, deptFilter]);
+
+  const {
+    currentPage,
+    setCurrentPage,
+    pageSize,
+    setPageSize,
+    totalItems,
+    paginatedItems: paginatedVehicles
+  } = usePagination(filtered, 10);
 
   const availableDepts = useMemo(() => {
     const set = new Set<string>();
@@ -113,14 +124,14 @@ export const DepartmentVehiclesView: React.FC = () => {
               </tr>
             </thead>
             <tbody>
-              {filtered.length === 0 ? (
+              {paginatedVehicles.length === 0 ? (
                 <tr>
                   <td colSpan={7} style={{ textAlign: 'center', color: 'var(--text-faint)', padding: '30px 0' }}>
-                    No department vehicles found matching your filter.
+                    No department vehicles found matching criteria.
                   </td>
                 </tr>
               ) : (
-                filtered.map(v => {
+                paginatedVehicles.map(v => {
                   const linkedContract = departmentContracts.find(c => c.vehicle === v.registrationNumber);
 
                   return (
@@ -209,6 +220,14 @@ export const DepartmentVehiclesView: React.FC = () => {
             </tbody>
           </table>
         </div>
+        <Pagination
+          currentPage={currentPage}
+          totalItems={totalItems}
+          pageSize={pageSize}
+          onPageChange={setCurrentPage}
+          onPageSizeChange={setPageSize}
+          itemLabel="vehicles"
+        />
       </div>
 
       {/* Add Vehicle Modal */}

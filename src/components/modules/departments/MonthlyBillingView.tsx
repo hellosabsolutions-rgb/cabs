@@ -5,6 +5,8 @@ import { GenerateBillModal } from './GenerateBillModal';
 import { MonthlyDepartmentBill } from '../../../types/fleet';
 import { Building2, Layers, ListFilter, FileText, ChevronDown } from 'lucide-react';
 import { MonthPicker } from '../../common/MonthPicker';
+import { Pagination } from '../../common/Pagination';
+import { usePagination } from '../../../hooks/usePagination';
 
 export const MonthlyBillingView: React.FC = () => {
   const { monthlyBills, updateBillStatus, searchQuery, departmentContracts } = useFleet();
@@ -110,6 +112,24 @@ export const MonthlyBillingView: React.FC = () => {
 
     return Object.values(groupsMap);
   }, [allDepartmentNames, departmentContracts, filteredBills, deptFilter, searchQuery, statusFilter, monthFilter]);
+
+  const {
+    currentPage: deptPage,
+    setCurrentPage: setDeptPage,
+    pageSize: deptPageSize,
+    setPageSize: setDeptPageSize,
+    totalItems: totalDeptGroups,
+    paginatedItems: paginatedDeptGroups
+  } = usePagination(departmentGroups, 10);
+
+  const {
+    currentPage: flatPage,
+    setCurrentPage: setFlatPage,
+    pageSize: flatPageSize,
+    setPageSize: setFlatPageSize,
+    totalItems: totalFlatBills,
+    paginatedItems: paginatedFlatBills
+  } = usePagination(filteredBills, 10);
 
   // Quick stats
   const stats = useMemo(() => {
@@ -359,7 +379,7 @@ export const MonthlyBillingView: React.FC = () => {
               No department billing records found matching your filters.
             </div>
           ) : (
-            departmentGroups.map(group => (
+            paginatedDeptGroups.map(group => (
               <div key={group.departmentName} className="dept-billing-card">
                 {/* Department Header Card */}
                 <div className="dept-billing-header">
@@ -485,6 +505,15 @@ export const MonthlyBillingView: React.FC = () => {
               </div>
             ))
           )}
+
+          <Pagination
+            currentPage={deptPage}
+            totalItems={totalDeptGroups}
+            pageSize={deptPageSize}
+            onPageChange={setDeptPage}
+            onPageSizeChange={setDeptPageSize}
+            itemLabel="departments"
+          />
         </div>
       )}
 
@@ -522,7 +551,7 @@ export const MonthlyBillingView: React.FC = () => {
                     </td>
                   </tr>
                 ) : (
-                  filteredBills.map(b => (
+                  paginatedFlatBills.map(b => (
                     <tr key={b.id}>
                       <td>
                         <div>
@@ -564,6 +593,15 @@ export const MonthlyBillingView: React.FC = () => {
               </tbody>
             </table>
           </div>
+
+          <Pagination
+            currentPage={flatPage}
+            totalItems={totalFlatBills}
+            pageSize={flatPageSize}
+            onPageChange={setFlatPage}
+            onPageSizeChange={setFlatPageSize}
+            itemLabel="invoices"
+          />
         </div>
       )}
 

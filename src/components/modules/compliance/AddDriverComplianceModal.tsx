@@ -7,11 +7,13 @@ import {
   Award,
   Upload,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  FileText
 } from 'lucide-react';
 import { MinimalVoiceFiller } from '../../common/MinimalVoiceFiller';
 import { DatePicker } from '../../common/DatePicker';
 import { useModalAnimation } from '../../../hooks/useModalAnimation';
+import { ACCEPT_DOC_TYPES, isPdfDocument } from '../../../utils/fileUtils';
 
 interface AddDriverComplianceModalProps {
   isOpen: boolean;
@@ -414,7 +416,7 @@ export const AddDriverComplianceModal: React.FC<AddDriverComplianceModalProps> =
                 type="file"
                 ref={fileInputRef}
                 onChange={handleFileUpload}
-                accept="image/*,.pdf"
+                accept={ACCEPT_DOC_TYPES}
                 style={{ display: 'none' }}
               />
               <div
@@ -423,7 +425,13 @@ export const AddDriverComplianceModal: React.FC<AddDriverComplianceModalProps> =
                 style={{ padding: '10px 14px' }}
               >
                 {docPhotoPreview ? (
-                  <img src={docPhotoPreview} alt="Licence preview" className="upload-preview" />
+                  isPdfDocument(docPhotoName, docPhotoPreview) ? (
+                    <div className="upload-icon-placeholder" style={{ width: 36, height: 36, background: 'rgba(239, 68, 68, 0.15)', color: '#ef4444' }}>
+                      <FileText size={18} />
+                    </div>
+                  ) : (
+                    <img src={docPhotoPreview} alt="Licence preview" className="upload-preview" />
+                  )
                 ) : (
                   <div className="upload-icon-placeholder" style={{ width: 36, height: 36 }}>
                     <Upload size={18} color="var(--accent)" />
@@ -433,7 +441,7 @@ export const AddDriverComplianceModal: React.FC<AddDriverComplianceModalProps> =
                   <div className="upload-title" style={{ fontSize: '12.5px' }}>
                     {docPhotoName ? docPhotoName : 'Upload Driving Licence copy'}
                   </div>
-                  <div className="upload-hint">Image or PDF format</div>
+                  <div className="upload-hint">Image (JPG/PNG) or PDF format up to 10MB</div>
                 </div>
               </div>
             </div>

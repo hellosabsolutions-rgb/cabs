@@ -6,6 +6,8 @@ import { StatusDropdown } from '../../common/StatusDropdown';
 import { AddVehicleModal } from './AddVehicleModal';
 import { Briefcase, Fuel } from 'lucide-react';
 import { VehicleStatus } from '../../../types/fleet';
+import { Pagination } from '../../common/Pagination';
+import { usePagination } from '../../../hooks/usePagination';
 
 export const TripVehiclesView: React.FC = () => {
   const { vehicles, searchQuery, updateVehicleStatus } = useFleet();
@@ -30,6 +32,15 @@ export const TripVehiclesView: React.FC = () => {
       return matchSearch && matchStatus;
     });
   }, [tripVehicles, searchQuery, statusFilter]);
+
+  const {
+    currentPage,
+    setCurrentPage,
+    pageSize,
+    setPageSize,
+    totalItems,
+    paginatedItems: paginatedVehicles
+  } = usePagination(filtered, 10);
 
   const stats = useMemo(() => {
     let onTrip = 0;
@@ -110,14 +121,14 @@ export const TripVehiclesView: React.FC = () => {
               </tr>
             </thead>
             <tbody>
-              {filtered.length === 0 ? (
+              {paginatedVehicles.length === 0 ? (
                 <tr>
                   <td colSpan={7} style={{ textAlign: 'center', color: 'var(--text-faint)', padding: '30px 0' }}>
-                    No booking vehicles found matching your filter.
+                    No trip vehicles found matching criteria.
                   </td>
                 </tr>
               ) : (
-                filtered.map(v => (
+                paginatedVehicles.map(v => (
                   <tr key={v.id}>
                     <td>
                       <div>
@@ -199,6 +210,14 @@ export const TripVehiclesView: React.FC = () => {
             </tbody>
           </table>
         </div>
+        <Pagination
+          currentPage={currentPage}
+          totalItems={totalItems}
+          pageSize={pageSize}
+          onPageChange={setCurrentPage}
+          onPageSizeChange={setPageSize}
+          itemLabel="vehicles"
+        />
       </div>
 
       {/* Add Vehicle Modal */}

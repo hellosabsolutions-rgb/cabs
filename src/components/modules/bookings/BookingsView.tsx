@@ -8,6 +8,8 @@ import { VehicleAvailabilityModal } from './VehicleAvailabilityModal';
 import { DatePicker } from '../../common/DatePicker';
 import { MonthPicker } from '../../common/MonthPicker';
 import { TripFinancial, TripStatus, PaymentStatus } from '../../../types/fleet';
+import { Pagination } from '../../common/Pagination';
+import { usePagination } from '../../../hooks/usePagination';
 import {
   Navigation,
   Plus,
@@ -113,6 +115,15 @@ export const BookingsView: React.FC = () => {
       return matchSearch && matchMonth && matchDate && matchStatus;
     });
   }, [bookingList, searchQuery, selectedMonth, selectedDate, statusFilter]);
+
+  const {
+    currentPage,
+    setCurrentPage,
+    pageSize,
+    setPageSize,
+    totalItems,
+    paginatedItems: paginatedBookings
+  } = usePagination(filteredBookings, 10);
 
   // Aggregate Metrics
   const stats = useMemo(() => {
@@ -460,7 +471,7 @@ export const BookingsView: React.FC = () => {
                   </td>
                 </tr>
               ) : (
-                filteredBookings.map(b => {
+                paginatedBookings.map(b => {
                   const fare = Number(b.revenue || b.totalAmount || 0);
                   const adv = Number(b.advanceAmount || 0);
                   const bal = Number(b.balancePaid || 0);
@@ -683,6 +694,15 @@ export const BookingsView: React.FC = () => {
             </tbody>
           </table>
         </div>
+
+        <Pagination
+          currentPage={currentPage}
+          totalItems={totalItems}
+          pageSize={pageSize}
+          onPageChange={setCurrentPage}
+          onPageSizeChange={setPageSize}
+          itemLabel="bookings"
+        />
       </div>
 
       {/* Add Booking Modal */}

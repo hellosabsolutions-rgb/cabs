@@ -5,6 +5,8 @@ import { RechargeFastagModal } from './RechargeFastagModal';
 import { DeductTollModal } from './DeductTollModal';
 import { EditFastagModal } from './EditFastagModal';
 import { CreditCard, AlertTriangle, Zap, ShieldCheck, MinusCircle, Edit3, Plus, RefreshCw, Radio } from 'lucide-react';
+import { Pagination } from '../../common/Pagination';
+import { usePagination } from '../../../hooks/usePagination';
 
 export const FastagExpensesView: React.FC = () => {
   const { vehicles, fastagTransactions, searchQuery, fetchLiveFastagTransactions } = useFleet();
@@ -96,6 +98,15 @@ export const FastagExpensesView: React.FC = () => {
       return matchSearch && matchMode;
     });
   }, [vehicleFastagSummaries, searchQuery, filterMode]);
+
+  const {
+    currentPage,
+    setCurrentPage,
+    pageSize,
+    setPageSize,
+    totalItems,
+    paginatedItems: paginatedSummaries
+  } = usePagination(filteredSummaries, 10);
 
   const handleOpenRecharge = (reg?: string) => {
     setModalVehicleTarget(reg);
@@ -288,7 +299,7 @@ export const FastagExpensesView: React.FC = () => {
                   </td>
                 </tr>
               ) : (
-                filteredSummaries.map(item => (
+                paginatedSummaries.map(item => (
                   <tr key={item.vehicleReg}>
                     {/* 1. Vehicle Details */}
                     <td>
@@ -470,6 +481,15 @@ export const FastagExpensesView: React.FC = () => {
             </tbody>
           </table>
         </div>
+
+        <Pagination
+          currentPage={currentPage}
+          totalItems={totalItems}
+          pageSize={pageSize}
+          onPageChange={setCurrentPage}
+          onPageSizeChange={setPageSize}
+          itemLabel="vehicles"
+        />
       </div>
 
       {/* Recharge Modal */}

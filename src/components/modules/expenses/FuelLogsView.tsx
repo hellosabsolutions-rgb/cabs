@@ -3,6 +3,8 @@ import { useFleet } from '../../../context/FleetContext';
 import { StatCard } from '../../common/StatCard';
 import { AddFuelLogModal } from './AddFuelLogModal';
 import { FuelLogEntry } from '../../../types/fleet';
+import { Pagination } from '../../common/Pagination';
+import { usePagination } from '../../../hooks/usePagination';
 import { Fuel, Camera, FileText, Plus, CheckCircle2, Building2, User, Gauge, Truck, Briefcase } from 'lucide-react';
 
 export const FuelLogsView: React.FC = () => {
@@ -99,6 +101,24 @@ export const FuelLogsView: React.FC = () => {
       return matchSearch && matchVehicle && matchFuelType;
     });
   }, [fuelLogs, searchQuery, vehicleFilter, fuelTypeFilter]);
+
+  const {
+    currentPage: groupPage,
+    setCurrentPage: setGroupPage,
+    pageSize: groupPageSize,
+    setPageSize: setGroupPageSize,
+    totalItems: totalGroupItems,
+    paginatedItems: paginatedVehicleGroups
+  } = usePagination(displayedVehicleGroups, 10);
+
+  const {
+    currentPage: flatPage,
+    setCurrentPage: setFlatPage,
+    pageSize: flatPageSize,
+    setPageSize: setFlatPageSize,
+    totalItems: totalFlatItems,
+    paginatedItems: paginatedFlatLogs
+  } = usePagination(flatFilteredLogs, 10);
 
   const handleOpenAddFuel = (vehicleReg?: string) => {
     setModalVehicleTarget(vehicleReg);
@@ -226,7 +246,7 @@ export const FuelLogsView: React.FC = () => {
       {/* VIEW MODE 1: ACCORDING TO VEHICLE (Vehicle-wise Grouped Cards) */}
       {viewMode === 'by-vehicle' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
-          {displayedVehicleGroups.map(group => {
+          {paginatedVehicleGroups.map(group => {
             const v = group.vehicle;
 
             return (
@@ -490,6 +510,15 @@ export const FuelLogsView: React.FC = () => {
               </div>
             );
           })}
+
+          <Pagination
+            currentPage={groupPage}
+            totalItems={totalGroupItems}
+            pageSize={groupPageSize}
+            onPageChange={setGroupPage}
+            onPageSizeChange={setGroupPageSize}
+            itemLabel="vehicles"
+          />
         </div>
       )}
 
@@ -526,7 +555,7 @@ export const FuelLogsView: React.FC = () => {
                     </td>
                   </tr>
                 ) : (
-                  flatFilteredLogs.map(log => (
+                  paginatedFlatLogs.map(log => (
                     <tr key={log.id}>
                       <td>
                         <div style={{ fontWeight: 700, color: 'var(--text)' }}>
@@ -580,10 +609,10 @@ export const FuelLogsView: React.FC = () => {
                           {log.receiptPhoto && (
                             <span
                               className="bill-link"
-                              style={{ fontSize: '11px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}
+                              style={{ fontSize: '11px', color: '#ffcc4d', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}
                               onClick={() =>
                                 setSelectedProof({
-                                  title: 'Printed Fuel Pump Receipt / Bill Slip',
+                                  title: 'Official Petrol Pump Bill / Slip',
                                   vehicle: log.vehicle,
                                   litres: log.litres,
                                   amount: log.totalCost,
@@ -594,8 +623,11 @@ export const FuelLogsView: React.FC = () => {
                                 })
                               }
                             >
-                              <FileText size={11} style={{ marginRight: '4px' }} /> Bill Slip Photo
+                              <FileText size={11} style={{ marginRight: '4px' }} /> Receipt Bill
                             </span>
+                          )}
+                          {!log.meterPhoto && !log.receiptPhoto && (
+                            <span style={{ fontSize: '11.5px', color: 'var(--text-faint)' }}>—</span>
                           )}
                         </div>
                       </td>
@@ -608,6 +640,15 @@ export const FuelLogsView: React.FC = () => {
               </tbody>
             </table>
           </div>
+
+          <Pagination
+            currentPage={flatPage}
+            totalItems={totalFlatItems}
+            pageSize={flatPageSize}
+            onPageChange={setFlatPage}
+            onPageSizeChange={setFlatPageSize}
+            itemLabel="fuel logs"
+          />
         </div>
       )}
 

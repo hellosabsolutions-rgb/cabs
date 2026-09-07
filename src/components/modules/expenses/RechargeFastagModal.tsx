@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useFleet } from '../../../context/FleetContext';
 import { Zap, FileText } from 'lucide-react';
 import { MinimalVoiceFiller } from '../../common/MinimalVoiceFiller';
+import { ACCEPT_DOC_TYPES, isPdfDocument } from '../../../utils/fileUtils';
 
 interface RechargeFastagModalProps {
   isOpen: boolean;
@@ -251,7 +252,7 @@ export const RechargeFastagModal: React.FC<RechargeFastagModalProps> = ({
                 type="file"
                 ref={proofInputRef}
                 onChange={handleProofUpload}
-                accept="image/*,.pdf"
+                accept={ACCEPT_DOC_TYPES}
                 style={{ display: 'none' }}
               />
               <div
@@ -260,7 +261,13 @@ export const RechargeFastagModal: React.FC<RechargeFastagModalProps> = ({
                 style={{ padding: '8px 12px' }}
               >
                 {proofPreview ? (
-                  <img src={proofPreview} alt="Receipt" className="upload-preview" />
+                  isPdfDocument(proofName, proofPreview) ? (
+                    <div className="upload-icon-placeholder" style={{ width: 34, height: 34, background: 'rgba(239, 68, 68, 0.15)', color: '#ef4444' }}>
+                      <FileText size={16} />
+                    </div>
+                  ) : (
+                    <img src={proofPreview} alt="Receipt" className="upload-preview" />
+                  )
                 ) : (
                   <div className="upload-icon-placeholder" style={{ width: 34, height: 34 }}>
                     <FileText size={16} color="var(--accent)" />
@@ -270,7 +277,7 @@ export const RechargeFastagModal: React.FC<RechargeFastagModalProps> = ({
                   <div className="upload-title" style={{ fontSize: '12px' }}>
                     {proofName ? proofName : 'Upload payment confirmation receipt'}
                   </div>
-                  <div className="upload-hint">Bank advice or screenshot</div>
+                  <div className="upload-hint">Image (JPG/PNG) or PDF format up to 10MB</div>
                 </div>
                 {proofName && (
                   <button

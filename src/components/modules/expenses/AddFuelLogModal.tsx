@@ -4,6 +4,7 @@ import { FuelLogEntry } from '../../../types/fleet';
 import { Fuel, Camera, FileText } from 'lucide-react';
 import { MinimalVoiceFiller } from '../../common/MinimalVoiceFiller';
 import { DatePicker } from '../../common/DatePicker';
+import { ACCEPT_DOC_TYPES, isPdfDocument } from '../../../utils/fileUtils';
 
 interface AddFuelLogModalProps {
   isOpen: boolean;
@@ -375,7 +376,7 @@ export const AddFuelLogModal: React.FC<AddFuelLogModalProps> = ({
                     type="file"
                     ref={meterInputRef}
                     onChange={handleMeterPhotoUpload}
-                    accept="image/*,.pdf"
+                    accept={ACCEPT_DOC_TYPES}
                     style={{ display: 'none' }}
                   />
                   <div
@@ -384,7 +385,13 @@ export const AddFuelLogModal: React.FC<AddFuelLogModalProps> = ({
                     style={{ padding: '8px 12px' }}
                   >
                     {meterPhotoPreview ? (
-                      <img src={meterPhotoPreview} alt="Meter" className="upload-preview" />
+                      isPdfDocument(meterPhotoName, meterPhotoPreview) ? (
+                        <div className="upload-icon-placeholder" style={{ width: 34, height: 34, background: 'rgba(239, 68, 68, 0.15)', color: '#ef4444' }}>
+                          <FileText size={16} />
+                        </div>
+                      ) : (
+                        <img src={meterPhotoPreview} alt="Meter" className="upload-preview" />
+                      )
                     ) : (
                       <div className="upload-icon-placeholder" style={{ width: 34, height: 34 }}>
                         <Camera size={16} color="var(--accent)" />
@@ -422,7 +429,7 @@ export const AddFuelLogModal: React.FC<AddFuelLogModalProps> = ({
                     type="file"
                     ref={receiptInputRef}
                     onChange={handleReceiptPhotoUpload}
-                    accept="image/*,.pdf"
+                    accept={ACCEPT_DOC_TYPES}
                     style={{ display: 'none' }}
                   />
                   <div
@@ -431,7 +438,13 @@ export const AddFuelLogModal: React.FC<AddFuelLogModalProps> = ({
                     style={{ padding: '8px 12px' }}
                   >
                     {receiptPhotoPreview ? (
-                      <img src={receiptPhotoPreview} alt="Receipt" className="upload-preview" />
+                      isPdfDocument(receiptPhotoName, receiptPhotoPreview) ? (
+                        <div className="upload-icon-placeholder" style={{ width: 34, height: 34, background: 'rgba(239, 68, 68, 0.15)', color: '#ef4444' }}>
+                          <FileText size={16} />
+                        </div>
+                      ) : (
+                        <img src={receiptPhotoPreview} alt="Receipt" className="upload-preview" />
+                      )
                     ) : (
                       <div className="upload-icon-placeholder" style={{ width: 34, height: 34 }}>
                         <FileText size={16} color="var(--accent)" />
