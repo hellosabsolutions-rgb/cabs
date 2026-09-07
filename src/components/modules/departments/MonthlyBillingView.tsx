@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useFleet } from '../../../context/FleetContext';
 import { StatCard } from '../../common/StatCard';
 import { GenerateBillModal } from './GenerateBillModal';
@@ -19,7 +19,8 @@ import {
   MapPin,
   Fuel,
   CreditCard,
-  Plus
+  Plus,
+  X
 } from 'lucide-react';
 import { MonthPicker } from '../../common/MonthPicker';
 import { Pagination } from '../../common/Pagination';
@@ -50,7 +51,24 @@ export const MonthlyBillingView: React.FC = () => {
   const [selectedWeekendBillForPreview, setSelectedWeekendBillForPreview] = useState<MonthlyDepartmentBill | null>(null);
   const [deptRecordTabs, setDeptRecordTabs] = useState<Record<string, 'all' | 'tender' | 'weekend'>>({});
 
-  // Active GST Configurator State
+  // Active GST Configurator State (Pop-up on the side)
+  const [isGstConfigOpen, setIsGstConfigOpen] = useState(false);
+  const gstPopoverRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (gstPopoverRef.current && !gstPopoverRef.current.contains(event.target as Node)) {
+        setIsGstConfigOpen(false);
+      }
+    };
+    if (isGstConfigOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isGstConfigOpen]);
+
   const [customGstInput, setCustomGstInput] = useState<string>(String(activeGstRate ?? 5));
   const [customGstType, setCustomGstType] = useState<'CGST_SGST' | 'IGST'>(activeGstType || 'CGST_SGST');
   const [isApplyingGst, setIsApplyingGst] = useState(false);
@@ -487,112 +505,7 @@ export const MonthlyBillingView: React.FC = () => {
         })}
       </div>
 
-      {/* GST CONFIGURATION BAR FOR MONTHLY BILLING */}
-      <div
-        className="panel"
-        style={{
-          padding: '12px 18px',
-          background: 'linear-gradient(135deg, rgba(22, 135, 245, 0.07), rgba(99, 102, 241, 0.04))',
-          border: '1.5px solid rgba(22, 135, 245, 0.3)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: '12px',
-          borderRadius: '10px'
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--accent)', fontWeight: 800, fontSize: '13.5px' }}>
-            <Percent size={17} /> GST Configuration for Bills:
-          </div>
 
-          {/* Quick GST Presets */}
-          <div style={{ display: 'flex', gap: '6px' }}>
-            {[0, 5, 12, 18].map(rate => (
-              <button
-                key={rate}
-                type="button"
-                onClick={() => setCustomGstInput(String(rate))}
-                className={`subtab-btn ${customGstInput === String(rate) ? 'active' : ''}`}
-                style={{ padding: '4px 10px', fontSize: '12px', fontWeight: 700 }}
-              >
-                {rate === 0 ? '0% (Exempt)' : `${rate}%`}
-              </button>
-            ))}
-          </div>
-
-          {/* Custom GST Input Field */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span style={{ fontSize: '12px', color: 'var(--text-dim)', fontWeight: 500 }}>Custom:</span>
-            <div style={{ position: 'relative', width: '85px' }}>
-              <input
-                type="number"
-                min="0"
-                max="28"
-                step="0.5"
-                className="form-input"
-                style={{ padding: '4px 22px 4px 8px', fontSize: '12.5px', fontWeight: 700, textAlign: 'right' }}
-                value={customGstInput}
-                onChange={e => setCustomGstInput(e.target.value)}
-                placeholder="Rate"
-              />
-              <span
-                style={{
-                  position: 'absolute',
-                  right: '8px',
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  fontSize: '12px',
-                  color: 'var(--text-faint)',
-                  fontWeight: 700
-                }}
-              >
-                %
-              </span>
-            </div>
-          </div>
-
-          {/* GST Type Selector */}
-          <select
-            className="form-input"
-            style={{ width: 'auto', padding: '4px 8px', fontSize: '12px', fontWeight: 500 }}
-            value={customGstType}
-            onChange={e => setCustomGstType(e.target.value as 'CGST_SGST' | 'IGST')}
-          >
-            <option value="CGST_SGST">CGST + SGST (Intra-state 50/50)</option>
-            <option value="IGST">IGST (Inter-state Full)</option>
-          </select>
-        </div>
-
-        {/* Apply Button & Live Summary */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <div style={{ fontSize: '11.5px', color: 'var(--text-dim)', textAlign: 'right' }}>
-            <div>Total GST Earned:</div>
-            <div style={{ fontWeight: 800, fontSize: '13px', color: '#f59e0b' }}>
-              {formatINR(stats.totalGstEarned)}
-            </div>
-          </div>
-          <button
-            type="button"
-            className="btn-primary-action"
-            onClick={handleApplyGstToBills}
-            disabled={isApplyingGst}
-            style={{
-              padding: '7px 16px',
-              fontSize: '12.5px',
-              fontWeight: 700,
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              background: 'linear-gradient(135deg, #1687f5, #2563eb)',
-              boxShadow: '0 2px 8px rgba(22, 135, 245, 0.3)'
-            }}
-          >
-            <Zap size={14} /> {isApplyingGst ? 'Applying...' : `Apply ${customGstInput}% GST to Bills`}
-          </button>
-        </div>
-      </div>
 
       {/* Main Filter & View Mode Toolbar */}
       <div
@@ -675,8 +588,310 @@ export const MonthlyBillingView: React.FC = () => {
             <option value="Sent">Sent</option>
             <option value="Paid">Paid</option>
             <option value="Overdue">Overdue</option>
-            <option value="Draft">Draft</option>
           </select>
+
+          {/* Side GST Config Button & Popover */}
+          <div style={{ position: 'relative' }} ref={gstPopoverRef}>
+            <button
+              type="button"
+              className={`subtab-btn ${isGstConfigOpen ? 'active' : ''}`}
+              onClick={() => setIsGstConfigOpen(!isGstConfigOpen)}
+              style={{
+                padding: '5px 12px',
+                fontSize: '12px',
+                fontWeight: 700,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                cursor: 'pointer'
+              }}
+              title="Click to configure GST and apply to bills"
+            >
+              <Percent size={13} color="var(--accent)" />
+              <span>% GST: <b>{customGstInput}%</b></span>
+              <span
+                style={{
+                  fontSize: '10.5px',
+                  color: 'var(--warning)',
+                  background: 'var(--warning-bg)',
+                  border: '1px solid var(--border-soft)',
+                  padding: '1px 6px',
+                  borderRadius: '10px',
+                  fontWeight: 800
+                }}
+              >
+                {formatINR(stats.totalGstEarned)}
+              </span>
+              <ChevronDown
+                size={12}
+                style={{
+                  transform: isGstConfigOpen ? 'rotate(180deg)' : 'none',
+                  transition: 'transform 0.2s'
+                }}
+              />
+            </button>
+
+            {/* Dropdown Popover Panel */}
+            {isGstConfigOpen && (
+              <div
+                style={{
+                  position: 'absolute',
+                  right: 0,
+                  top: 'calc(100% + 8px)',
+                  zIndex: 1000,
+                  width: '360px',
+                  maxWidth: '90vw',
+                  padding: '16px',
+                  background: 'var(--surface)',
+                  color: 'var(--text)',
+                  border: '1px solid var(--border)',
+                  boxShadow: '0 16px 36px -6px rgba(0, 0, 0, 0.25), 0 0 0 1px var(--border)',
+                  borderRadius: '14px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '14px',
+                  boxSizing: 'border-box',
+                  transformOrigin: 'top right',
+                  animation: 'modalFadeIn 0.16s cubic-bezier(0.16, 1, 0.3, 1) forwards'
+                }}
+              >
+                {/* Header */}
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    borderBottom: '1px solid var(--border)',
+                    paddingBottom: '10px'
+                  }}
+                >
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '7px',
+                      fontWeight: 700,
+                      fontSize: '13.5px',
+                      color: 'var(--accent)'
+                    }}
+                  >
+                    <Percent size={16} />
+                    <span>GST Configuration for Bills</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsGstConfigOpen(false)}
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      color: 'var(--text-faint)',
+                      cursor: 'pointer',
+                      padding: '4px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      borderRadius: '6px',
+                      transition: 'color 0.15s ease'
+                    }}
+                    onMouseEnter={e => (e.currentTarget.style.color = 'var(--text)')}
+                    onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-faint)')}
+                    title="Close"
+                  >
+                    <X size={15} />
+                  </button>
+                </div>
+
+                {/* Quick Presets */}
+                <div>
+                  <div
+                    style={{
+                      fontSize: '11px',
+                      color: 'var(--text-faint)',
+                      fontWeight: 600,
+                      letterSpacing: '0.3px',
+                      marginBottom: '6px',
+                      textTransform: 'uppercase'
+                    }}
+                  >
+                    Select GST Rate Preset:
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px' }}>
+                    {[0, 5, 12, 18].map(rate => {
+                      const isSelected = customGstInput === String(rate);
+                      return (
+                        <button
+                          key={rate}
+                          type="button"
+                          onClick={() => setCustomGstInput(String(rate))}
+                          style={{
+                            padding: '7px 0',
+                            fontSize: '11.5px',
+                            fontWeight: 700,
+                            textAlign: 'center',
+                            borderRadius: '8px',
+                            cursor: 'pointer',
+                            transition: 'all 0.15s ease',
+                            border: isSelected ? '1px solid var(--accent)' : '1px solid var(--border)',
+                            background: isSelected ? 'var(--accent)' : 'var(--surface-3)',
+                            color: isSelected ? 'var(--accent-text, #ffffff)' : 'var(--text)',
+                            boxShadow: isSelected ? 'var(--glow)' : 'none'
+                          }}
+                          onMouseEnter={e => {
+                            if (!isSelected) {
+                              e.currentTarget.style.borderColor = 'var(--text-faint)';
+                              e.currentTarget.style.background = 'var(--surface-2)';
+                            }
+                          }}
+                          onMouseLeave={e => {
+                            if (!isSelected) {
+                              e.currentTarget.style.borderColor = 'var(--border)';
+                              e.currentTarget.style.background = 'var(--surface-3)';
+                            }
+                          }}
+                        >
+                          {rate === 0 ? '0% Exempt' : `${rate}%`}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Custom Rate Input & GST Type */}
+                <div style={{ display: 'grid', gridTemplateColumns: '110px 1fr', gap: '10px', alignItems: 'end' }}>
+                  <div>
+                    <label
+                      style={{
+                        fontSize: '11px',
+                        color: 'var(--text-faint)',
+                        fontWeight: 600,
+                        letterSpacing: '0.3px',
+                        display: 'block',
+                        marginBottom: '4px',
+                        textTransform: 'uppercase'
+                      }}
+                    >
+                      Custom Rate
+                    </label>
+                    <div style={{ position: 'relative' }}>
+                      <input
+                        type="number"
+                        min="0"
+                        max="28"
+                        step="0.5"
+                        style={{
+                          width: '100%',
+                          padding: '6px 22px 6px 8px',
+                          fontSize: '12.5px',
+                          fontWeight: 700,
+                          textAlign: 'right',
+                          background: 'var(--surface-3)',
+                          border: '1px solid var(--border)',
+                          borderRadius: '8px',
+                          color: 'var(--text)',
+                          outline: 'none',
+                          boxSizing: 'border-box'
+                        }}
+                        value={customGstInput}
+                        onChange={e => setCustomGstInput(e.target.value)}
+                        placeholder="Rate"
+                      />
+                      <span
+                        style={{
+                          position: 'absolute',
+                          right: '8px',
+                          top: '50%',
+                          transform: 'translateY(-50%)',
+                          fontSize: '12px',
+                          color: 'var(--text-faint)',
+                          fontWeight: 700
+                        }}
+                      >
+                        %
+                      </span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label
+                      style={{
+                        fontSize: '11px',
+                        color: 'var(--text-faint)',
+                        fontWeight: 600,
+                        letterSpacing: '0.3px',
+                        display: 'block',
+                        marginBottom: '4px',
+                        textTransform: 'uppercase'
+                      }}
+                    >
+                      Tax Split Type
+                    </label>
+                    <select
+                      style={{
+                        width: '100%',
+                        padding: '6px 8px',
+                        fontSize: '11.5px',
+                        fontWeight: 500,
+                        background: 'var(--surface-3)',
+                        border: '1px solid var(--border)',
+                        borderRadius: '8px',
+                        color: 'var(--text)',
+                        outline: 'none',
+                        boxSizing: 'border-box'
+                      }}
+                      value={customGstType}
+                      onChange={e => setCustomGstType(e.target.value as 'CGST_SGST' | 'IGST')}
+                    >
+                      <option value="CGST_SGST" style={{ background: 'var(--surface)', color: 'var(--text)' }}>CGST + SGST (50/50)</option>
+                      <option value="IGST" style={{ background: 'var(--surface)', color: 'var(--text)' }}>IGST (Inter-state Full)</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Summary Box */}
+                <div
+                  style={{
+                    background: 'var(--surface-3)',
+                    padding: '9px 12px',
+                    borderRadius: '8px',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    border: '1px solid var(--border-soft)'
+                  }}
+                >
+                  <span style={{ fontSize: '11.5px', color: 'var(--text-dim)', fontWeight: 500 }}>
+                    Total GST Earned on Bills:
+                  </span>
+                  <span style={{ fontWeight: 800, fontSize: '13px', color: 'var(--warning)' }}>
+                    {formatINR(stats.totalGstEarned)}
+                  </span>
+                </div>
+
+                {/* Apply Button */}
+                <button
+                  type="button"
+                  className="btn-primary-action"
+                  onClick={async () => {
+                    await handleApplyGstToBills();
+                    setIsGstConfigOpen(false);
+                  }}
+                  disabled={isApplyingGst}
+                  style={{
+                    width: '100%',
+                    padding: '8px 16px',
+                    fontSize: '12.5px',
+                    fontWeight: 700,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px',
+                    borderRadius: '8px'
+                  }}
+                >
+                  <Zap size={14} /> {isApplyingGst ? 'Applying...' : `Apply ${customGstInput}% GST to Bills`}
+                </button>
+              </div>
+            )}
+          </div>
 
           <button
             className="btn-primary-action"
@@ -696,20 +911,7 @@ export const MonthlyBillingView: React.FC = () => {
               No department billing records found matching your filters.
             </div>
           ) : (
-<<<<<<< HEAD
-            paginatedDeptGroups.map(group => (
-              <div key={group.departmentName} className="dept-billing-card">
-                {/* Department Header Card */}
-                <div className="dept-billing-header">
-                  <div className="dept-billing-title-group">
-                    <div className="dept-billing-icon">
-                      <Building2 size={18} color="var(--accent)" />
-                    </div>
-                    <div>
-                      <div style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text)' }}>
-                        {group.departmentName}
-=======
-            departmentGroups.map(group => {
+            paginatedDeptGroups.map(group => {
               const deptTab = deptRecordTabs[group.departmentName] || 'all';
 
               return (
@@ -719,7 +921,6 @@ export const MonthlyBillingView: React.FC = () => {
                     <div className="dept-billing-title-group">
                       <div className="dept-billing-icon">
                         <Building2 size={18} color="var(--accent)" />
->>>>>>> 4aae514f48bb459be9972b8dc413492dcefb62db
                       </div>
                       <div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
