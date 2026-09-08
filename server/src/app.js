@@ -30,6 +30,8 @@ import authRoutes from './routes/auth.js';
 import agencyRoutes from './routes/agencies.js';
 import profileRoutes from './routes/profile.js';
 import notificationRoutes from './routes/notifications.js';
+import payrollRoutes from './routes/payroll.js';
+import reportRoutes from './routes/reports.js';
 
 const app = express();
 
@@ -113,6 +115,8 @@ app.use('/api/compliance', complianceRoutes);
 app.use('/api/maintenance', maintenanceRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/payroll', payrollRoutes);
+app.use('/api/reports', reportRoutes);
 
 // Root route
 app.get('/', (req, res) => {

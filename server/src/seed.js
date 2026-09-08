@@ -10,6 +10,9 @@ import { Agency } from './models/Agency.js';
 import { Driver } from './models/Driver.js';
 import { DriverAttendance } from './models/DriverAttendance.js';
 import { DriverExpense } from './models/DriverExpense.js';
+import { DriverAdvance } from './models/DriverAdvance.js';
+import { DriverPenalty } from './models/DriverPenalty.js';
+import { DriverPayrollSettlement } from './models/DriverPayrollSettlement.js';
 import { DepartmentContract } from './models/DepartmentContract.js';
 import { DailyDutyLog } from './models/DailyDutyLog.js';
 import { MonthlyBill } from './models/MonthlyBill.js';
@@ -27,6 +30,8 @@ import {
   initialDrivers,
   initialDriverAttendance,
   initialDriverExpenses,
+  initialDriverAdvances,
+  initialDriverPenalties,
   initialDepartmentContracts,
   initialDailyDutyLogs,
   initialMonthlyBills,
@@ -66,6 +71,9 @@ const seedDatabase = async () => {
       Driver.deleteMany({}),
       DriverAttendance.deleteMany({}),
       DriverExpense.deleteMany({}),
+      DriverAdvance.deleteMany({}),
+      DriverPenalty.deleteMany({}),
+      DriverPayrollSettlement.deleteMany({}),
       DepartmentContract.deleteMany({}),
       DailyDutyLog.deleteMany({}),
       MonthlyBill.deleteMany({}),
@@ -130,6 +138,8 @@ const seedDatabase = async () => {
       Driver.insertMany(sanitizeDocs(initialDrivers)),
       DriverAttendance.insertMany(sanitizeDocs(initialDriverAttendance)),
       DriverExpense.insertMany(sanitizeDocs(initialDriverExpenses)),
+      DriverAdvance.insertMany(sanitizeDocs(initialDriverAdvances)),
+      DriverPenalty.insertMany(sanitizeDocs(initialDriverPenalties)),
       DepartmentContract.insertMany(sanitizeDocs(initialDepartmentContracts)),
       DailyDutyLog.insertMany(sanitizeDocs(initialDailyDutyLogs)),
       MonthlyBill.insertMany(sanitizeDocs(initialMonthlyBills)),

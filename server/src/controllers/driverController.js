@@ -49,6 +49,7 @@ export const createDriver = asyncHandler(async (req, res) => {
     assignedVehicle,
     joiningDate,
     status,
+    monthlySalary,
     agencyId
   } = req.body;
 
@@ -104,6 +105,7 @@ export const createDriver = asyncHandler(async (req, res) => {
     assignedVehicle: cleanVehicle,
     joiningDate: cleanJoiningDate,
     status: status || 'On duty',
+    monthlySalary: Number(monthlySalary) || 0,
     agencyId: agencyId || undefined
   });
 

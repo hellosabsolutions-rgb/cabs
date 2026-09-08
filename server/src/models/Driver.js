@@ -56,6 +56,11 @@ const driverSchema = new mongoose.Schema(
       default: 'On duty',
       index: true
     },
+    monthlySalary: {
+      type: Number,
+      default: 0,
+      min: 0
+    },
     agencyId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Agency',

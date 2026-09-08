@@ -23,7 +23,8 @@ import {
   DocumentCompliance,
   MaintenanceRecord,
   ToastNotification,
-  ToastType
+  ToastType,
+  DriverPayrollItem
 } from '../types/fleet';
 import {
   initialVehicles,
@@ -118,6 +119,7 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setActivePage('drivers');
       if (path.includes('/attendance')) setDriverSubTab('attendance');
       else if (path.includes('/expenses')) setDriverSubTab('expenses');
+      else if (path.includes('/payroll')) setDriverSubTab('payroll');
       else setDriverSubTab('list');
     } else if (path.startsWith('/departments')) {
       setActivePage('departments');
@@ -227,15 +229,21 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   // Fetch drivers from live backend API
-  const fetchLiveDrivers = async () => {
+  const fetchLiveDrivers = async (): Promise<Driver[]> => {
     try {
-      const res = await api.get('/drivers?limit=100');
-      if (res.success && Array.isArray(res.data) && res.data.length > 0) {
-        setDrivers(res.data);
+      const res = await api.get('/drivers?limit=500');
+      if (res && res.success && Array.isArray(res.data)) {
+        const liveDrivers: Driver[] = res.data.map((d: any) => ({
+          ...d,
+          id: d.id || d._id?.toString()
+        }));
+        setDrivers(liveDrivers);
+        return liveDrivers;
       }
     } catch (err) {
       console.warn('Backend drivers API not reachable, using local driver cache.', err);
     }
+    return drivers;
   };
 
   // Fetch contracts from live backend API
@@ -472,6 +480,7 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     fetchLiveDailyDutyLogs();
     fetchLiveFastagTransactions();
     fetchLiveMonthlyBills();
+    fetchPayrollSummary();
   }, []);
 
   const refreshData = async () => {
@@ -488,7 +497,8 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         fetchLiveBookings(),
         fetchLiveDailyDutyLogs(),
         fetchLiveFastagTransactions(),
-        fetchLiveMonthlyBills()
+        fetchLiveMonthlyBills(),
+        fetchPayrollSummary()
       ]);
       showToast('info', 'Fleet, Drivers, FASTag, Daily Duty Logs, Invoices & Expenses synchronized with live server.', 'Refreshed');
     } finally {
@@ -1320,7 +1330,7 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               documentName: 'Driving licence',
               documentNumber: serverDriver.licenseNumber || driverData.licenseNumber,
               expiryDate: dlExp,
-              documentPhoto: serverDriver.licensePhoto || driverData.licensePhoto || null,
+            documentPhoto: serverDriver.licensePhoto || driverData.licensePhoto || null,
               expiryLabel,
               statusType,
               daysLeft: diff
@@ -1333,6 +1343,8 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             `Driver ${serverDriver.name} added to ${serverDriver.driverType || 'roster'}.`,
             'Driver Registered'
           );
+          await fetchLiveDrivers();
+          await fetchPayrollSummary(selectedPayrollMonth);
           return { success: true, driver: serverDriver };
         } else if (res.error) {
           showToast('error', res.error, 'Registration Error');
@@ -1391,6 +1403,8 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           };
           setDrivers(prev => prev.map(d => (d.id === id ? updated : d)));
           showToast('success', `Driver ${updated.name} updated successfully.`, 'Driver Updated');
+          await fetchLiveDrivers();
+          await fetchPayrollSummary(selectedPayrollMonth);
           return { success: true, driver: updated };
         }
       } catch (apiErr: any) {
@@ -1425,10 +1439,12 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       showToast('info', `Driver ${targetDriver?.name || ''} removed from roster.`, 'Driver Deleted');
       try {
         await api.delete(`/drivers/${id}`);
-        return { success: true };
       } catch (apiErr: any) {
-        return { success: false, error: apiErr.message };
+        // ...
       }
+      await fetchLiveDrivers();
+      await fetchPayrollSummary(selectedPayrollMonth);
+      return { success: true };
     } catch (err: any) {
       console.error('Failed to delete driver', err);
       showToast('error', 'Could not delete driver.', 'Error');
@@ -1657,6 +1673,211 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       console.error('Failed to delete expense', err);
       showToast('error', 'Could not delete expense.', 'Error');
       return { success: false, error: err.message };
+    }
+  };
+
+  // Driver Payroll State & Actions
+  const [payrollItems, setPayrollItems] = useState<DriverPayrollItem[]>([]);
+  const [isPayrollLoading, setIsPayrollLoading] = useState<boolean>(false);
+  const [selectedPayrollMonth, setSelectedPayrollMonth] = useState<string>(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  });
+
+  const fetchPayrollSummary = async (month?: string) => {
+    const targetMonth = month || selectedPayrollMonth;
+    setIsPayrollLoading(true);
+    try {
+      const res = await api.get(`/payroll/summary?month=${encodeURIComponent(targetMonth)}`);
+      if (res && res.success && Array.isArray(res.data)) {
+        setPayrollItems(res.data);
+      }
+    } catch (err) {
+      console.warn('Backend payroll API failed, using fallback driver computation', err);
+      setPayrollItems(
+        drivers.map(d => ({
+          driverId: d.id,
+          name: d.name,
+          phone: d.phone,
+          photo: d.photo,
+          assignedVehicle: d.assignedVehicle,
+          driverType: d.driverType,
+          joiningDate: d.joiningDate,
+          monthlySalary: d.monthlySalary || 0,
+          advanceBalance: 0,
+          challanBalance: 0,
+          netPayable: d.monthlySalary || 0,
+          status: 'DUE',
+          settlement: null,
+          advances: [],
+          challans: []
+        }))
+      );
+    } finally {
+      setIsPayrollLoading(false);
+    }
+  };
+
+  const giveDriverAdvance = async (data: { driverId: string; amount: number; date?: string; paymentMode?: string; reason?: string; remarks?: string }) => {
+    try {
+      const res = await api.post('/payroll/advance', data);
+      if (res && res.success) {
+        showToast('success', res.message || 'Advance recorded successfully');
+        await fetchPayrollSummary(selectedPayrollMonth);
+        return { success: true };
+      }
+      showToast('error', res?.error || 'Failed to record advance');
+      return { success: false, error: res?.error };
+    } catch (err: any) {
+      showToast('error', err.message || 'Network error recording advance');
+      return { success: false, error: err.message };
+    }
+  };
+
+  const addDriverPenalty = async (data: { driverId: string; amount: number; date?: string; challanNumber?: string; reason: string; vehicle?: string }) => {
+    try {
+      const res = await api.post('/payroll/penalty', data);
+      if (res && res.success) {
+        showToast('success', res.message || 'Challan / Penalty recorded successfully');
+        await fetchPayrollSummary(selectedPayrollMonth);
+        return { success: true };
+      }
+      showToast('error', res?.error || 'Failed to record penalty');
+      return { success: false, error: res?.error };
+    } catch (err: any) {
+      showToast('error', err.message || 'Network error recording penalty');
+      return { success: false, error: err.message };
+    }
+  };
+
+  const settleDriverSalary = async (data: { driverId: string; month?: string; paymentMode?: string; paymentDate?: string; remarks?: string }) => {
+    try {
+      const res = await api.post('/payroll/settle', {
+        ...data,
+        month: data.month || selectedPayrollMonth
+      });
+      if (res && res.success) {
+        showToast('success', res.message || 'Salary marked as PAID');
+        await fetchPayrollSummary(selectedPayrollMonth);
+        return { success: true };
+      }
+      showToast('error', res?.error || 'Failed to settle salary');
+      return { success: false, error: res?.error };
+    } catch (err: any) {
+      showToast('error', err.message || 'Network error settling salary');
+      return { success: false, error: err.message };
+    }
+  };
+
+  const unsettleDriverSalary = async (data: { driverId: string; month?: string }) => {
+    try {
+      const res = await api.post('/payroll/unsettle', {
+        ...data,
+        month: data.month || selectedPayrollMonth
+      });
+      if (res && res.success) {
+        showToast('info', res.message || 'Salary payment reverted to DUE');
+        await fetchPayrollSummary(selectedPayrollMonth);
+        return { success: true };
+      }
+      showToast('error', res?.error || 'Failed to revert salary payment');
+      return { success: false, error: res?.error };
+    } catch (err: any) {
+      showToast('error', err.message || 'Network error reverting salary');
+      return { success: false, error: err.message };
+    }
+  };
+
+  const updateDriverAdvance = async (id: string, data: Partial<{ amount: number; date: string; paymentMode: string; reason: string; remarks: string }>) => {
+    try {
+      const res = await api.put(`/payroll/advance/${id}`, data);
+      if (res && res.success) {
+        showToast('success', res.message || 'Advance updated successfully');
+        await fetchPayrollSummary(selectedPayrollMonth);
+        return { success: true };
+      }
+      showToast('error', res?.error || 'Failed to update advance');
+      return { success: false, error: res?.error };
+    } catch (err: any) {
+      showToast('error', err.message || 'Network error updating advance');
+      return { success: false, error: err.message };
+    }
+  };
+
+  const deleteDriverAdvance = async (id: string) => {
+    try {
+      const res = await api.delete(`/payroll/advance/${id}`);
+      if (res && res.success) {
+        showToast('success', res.message || 'Advance deleted successfully');
+        await fetchPayrollSummary(selectedPayrollMonth);
+        return { success: true };
+      }
+      showToast('error', res?.error || 'Failed to delete advance');
+      return { success: false, error: res?.error };
+    } catch (err: any) {
+      showToast('error', err.message || 'Network error deleting advance');
+      return { success: false, error: err.message };
+    }
+  };
+
+  const updateDriverPenalty = async (id: string, data: Partial<{ amount: number; date: string; challanNumber: string; reason: string; vehicle: string }>) => {
+    try {
+      const res = await api.put(`/payroll/penalty/${id}`, data);
+      if (res && res.success) {
+        showToast('success', res.message || 'Penalty updated successfully');
+        await fetchPayrollSummary(selectedPayrollMonth);
+        return { success: true };
+      }
+      showToast('error', res?.error || 'Failed to update penalty');
+      return { success: false, error: res?.error };
+    } catch (err: any) {
+      showToast('error', err.message || 'Network error updating penalty');
+      return { success: false, error: err.message };
+    }
+  };
+
+  const deleteDriverPenalty = async (id: string) => {
+    try {
+      const res = await api.delete(`/payroll/penalty/${id}`);
+      if (res && res.success) {
+        showToast('success', res.message || 'Penalty deleted successfully');
+        await fetchPayrollSummary(selectedPayrollMonth);
+        return { success: true };
+      }
+      showToast('error', res?.error || 'Failed to delete penalty');
+      return { success: false, error: res?.error };
+    } catch (err: any) {
+      showToast('error', err.message || 'Network error deleting penalty');
+      return { success: false, error: err.message };
+    }
+  };
+
+  const deletePayrollSettlement = async (id: string) => {
+    try {
+      const res = await api.delete(`/payroll/settlement/${id}`);
+      if (res && res.success) {
+        showToast('success', res.message || 'Settlement removed successfully');
+        await fetchPayrollSummary(selectedPayrollMonth);
+        return { success: true };
+      }
+      showToast('error', res?.error || 'Failed to remove settlement');
+      return { success: false, error: res?.error };
+    } catch (err: any) {
+      showToast('error', err.message || 'Network error removing settlement');
+      return { success: false, error: err.message };
+    }
+  };
+
+  const fetchDriverPayrollDetail = async (driverId: string, month?: string) => {
+    try {
+      const queryMonth = month || selectedPayrollMonth;
+      const res = await api.get(`/payroll/driver/${driverId}?month=${encodeURIComponent(queryMonth)}`);
+      if (res && res.success) {
+        return { success: true, data: res.data };
+      }
+      return { success: false, error: res?.error || 'Failed to fetch driver payroll detail' };
+    } catch (err: any) {
+      return { success: false, error: err.message || 'Network error fetching driver detail' };
     }
   };
 
@@ -2399,6 +2620,7 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         updateVehicleStatus,
         switchVehicleMode,
         drivers,
+        fetchLiveDrivers,
         addDriver,
         updateDriverStatus,
         updateDriver,
@@ -2415,6 +2637,21 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         updateDriverExpense,
         updateDriverExpenseStatus,
         deleteDriverExpense,
+        payrollItems,
+        isPayrollLoading,
+        selectedPayrollMonth,
+        setSelectedPayrollMonth,
+        fetchPayrollSummary,
+        giveDriverAdvance,
+        updateDriverAdvance,
+        deleteDriverAdvance,
+        addDriverPenalty,
+        updateDriverPenalty,
+        deleteDriverPenalty,
+        settleDriverSalary,
+        unsettleDriverSalary,
+        deletePayrollSettlement,
+        fetchDriverPayrollDetail,
         contracts,
         trips,
         bookings: trips,

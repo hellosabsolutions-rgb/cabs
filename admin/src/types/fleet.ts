@@ -84,6 +84,89 @@ export interface Driver {
   assignedVehicle: string;
   joiningDate: string;
   status: 'On duty' | 'Off duty';
+  monthlySalary?: number;
+}
+
+export type PayrollStatus = 'PAID' | 'DUE' | 'ADVANCE RUNNING';
+
+export interface DriverAdvance {
+  id: string;
+  driverId: string;
+  driverName?: string;
+  amount: number;
+  date: string;
+  paymentMode?: 'Cash' | 'UPI' | 'Bank Transfer' | 'Cheque';
+  reason?: string;
+  remarks?: string;
+  status: 'ACTIVE' | 'DEDUCTED';
+  settledInMonth?: string;
+}
+
+export interface DriverPenalty {
+  id: string;
+  driverId: string;
+  driverName?: string;
+  vehicle?: string;
+  challanNumber?: string;
+  amount: number;
+  date: string;
+  reason: string;
+  status: 'ACTIVE' | 'DEDUCTED';
+  settledInMonth?: string;
+}
+
+export interface DriverPayrollSettlement {
+  id: string;
+  driverId: string;
+  driverName: string;
+  month: string;
+  baseSalary: number;
+  advancesDeducted: number;
+  challansDeducted: number;
+  netPaid: number;
+  paymentStatus: PayrollStatus;
+  paymentMode: 'Cash' | 'UPI' | 'Bank Transfer' | 'Cheque';
+  paymentDate: string;
+  remarks?: string;
+}
+
+export interface DriverPayrollItem {
+  driverId: string;
+  name: string;
+  phone?: string;
+  photo?: string;
+  assignedVehicle: string;
+  driverType?: DriverType;
+  joiningDate?: string;
+  monthlySalary: number;
+  advanceBalance: number;
+  challanBalance: number;
+  netPayable: number;
+  status: PayrollStatus;
+  settlement?: {
+    id: string;
+    month: string;
+    paidAmount: number;
+    paymentMode: string;
+    paymentDate: string;
+    remarks?: string;
+  } | null;
+  advances: Array<{
+    id: string;
+    amount: number;
+    date: string;
+    reason?: string;
+    paymentMode?: string;
+    status: 'ACTIVE' | 'DEDUCTED';
+  }>;
+  challans: Array<{
+    id: string;
+    amount: number;
+    date: string;
+    reason: string;
+    challanNumber?: string;
+    status: 'ACTIVE' | 'DEDUCTED';
+  }>;
 }
 
 export type AttendanceStatus = 'Present' | 'Late' | 'Absent' | 'On Trip' | 'On Leave';

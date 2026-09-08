@@ -23,7 +23,9 @@ import {
   Settings,
   Sun,
   Moon,
-  Fuel
+  Fuel,
+  Banknote,
+  LifeBuoy
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -43,9 +45,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onCloseMobile }) => {
     if (exact) return currentPath === path;
     if (path === '/dashboard') return currentPath === '/' || currentPath.startsWith('/dashboard');
     if (path === '/booking' || path === '/bookings') return currentPath.startsWith('/booking') || currentPath.startsWith('/bookings') || currentPath.startsWith('/trips');
-    if (path === '/drivers/list') return currentPath === '/drivers' || currentPath.startsWith('/drivers/list');
+    if (path === '/drivers/list') return currentPath === '/drivers' || currentPath === '/drivers/' || currentPath.startsWith('/drivers/list');
+    if (path === '/drivers/payroll') return currentPath.startsWith('/drivers/payroll');
     if (path === '/departments/contracts') return currentPath === '/departments' || currentPath.startsWith('/departments/contracts');
     if (path === '/expenses/fastag') return currentPath === '/expenses' || currentPath.startsWith('/expenses/fastag');
+    if (path === '/report' || path === '/reports') return currentPath.startsWith('/report') || currentPath.startsWith('/reports');
     return currentPath.startsWith(path);
   };
 
@@ -152,6 +156,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onCloseMobile }) => {
           >
             <Receipt />
             Driver expenses
+          </NavLink>
+          <NavLink
+            to="/drivers/payroll"
+            className={navClass('/drivers/payroll')}
+            onClick={onCloseMobile}
+          >
+            <Banknote />
+            Driver payroll
           </NavLink>
         </div>
 
@@ -275,9 +287,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onCloseMobile }) => {
         {/* System */}
         <div className="nav-group">
           <div className="nav-label">System</div>
-          <NavLink to="/dashboard" className={navClass('/dashboard', true)} onClick={onCloseMobile}>
-            <BarChart2 />
-            Reports
+          <NavLink
+            to="/report"
+            className={navClass('/report')}
+            onClick={onCloseMobile}
+          >
+            <LifeBuoy />
+            Report
           </NavLink>
           <NavLink
             to="/notifications"
