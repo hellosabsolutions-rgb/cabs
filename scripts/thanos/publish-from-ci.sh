@@ -31,7 +31,7 @@ fi
 if command -v pm2 >/dev/null 2>&1; then
   cd "${REPO_ROOT}/server"
   if pm2 describe kabpro-api >/dev/null 2>&1; then
-    pm2 restart kabpro-api --update-env
+    NODE_ENV=production pm2 restart kabpro-api --update-env
   else
     NODE_ENV=production pm2 start src/server.js --name kabpro-api --cwd "${REPO_ROOT}/server"
   fi

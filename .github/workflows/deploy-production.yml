@@ -58,5 +58,12 @@ jobs:
           bash scripts/thanos/publish-from-ci.sh
 
       - name: Smoke test API
+        env:
+          REPO_ROOT: /srv/apps/cabs
         run: |
-          curl -sf http://127.0.0.1:5000/api/health | grep -q '"success"'
+          PORT=$(grep -E '^PORT=' "${REPO_ROOT}/server/.env.production" 2>/dev/null | cut -d= -f2 | tr -d ' \r' || true)
+          PORT="${PORT:-5002}"
+          echo "==> Direct API health (port ${PORT})"
+          curl -sf "http://127.0.0.1:${PORT}/api/health" | grep -q '"success"'
+          echo "==> nginx + Host header (api-kabpro.opsiva.in)"
+          curl -sf -H "Host: api-kabpro.opsiva.in" http://127.0.0.1/api/health | grep -q '"success"'
