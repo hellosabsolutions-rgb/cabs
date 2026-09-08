@@ -7,6 +7,7 @@ import rateLimit from 'express-rate-limit';
 
 import { errorHandler, notFound } from './middleware/errorHandler.js';
 import { getDbStatus } from './config/db.js';
+import { corsOriginCallback } from './config/cors.js';
 
 // Route imports
 import vehicleRoutes from './routes/vehicles.js';
@@ -38,7 +39,7 @@ app.use(helmet());
 // CORS configuration (allow frontend origin or any during development)
 app.use(
   cors({
-    origin: process.env.CLIENT_URL || 'http://localhost:3000',
+    origin: corsOriginCallback,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization']

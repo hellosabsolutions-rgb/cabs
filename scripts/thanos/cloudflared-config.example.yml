@@ -1,0 +1,10 @@
+# Add to /etc/cloudflared/config.yml on THANOS (merge with existing tunnel ingress)
+
+ingress:
+  - hostname: api-kabpro.opsiva.in
+    service: http://127.0.0.1:80
+  - hostname: admin-kabpro.opsiva.in
+    service: http://127.0.0.1:80
+  - hostname: kabpro.opsiva.in
+    service: http://127.0.0.1:80
+  - service: http_status:404

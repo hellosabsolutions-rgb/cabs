@@ -1,7 +1,9 @@
+import { API_URL } from '../config/env';
+
 /**
  * Centralized HTTP client for FleetOS API with Silent Refresh Token Rotation
  */
-const BASE_URL = 'http://localhost:5001/api';
+const BASE_URL = API_URL;
 
 interface RequestOptions extends RequestInit {
   data?: any;

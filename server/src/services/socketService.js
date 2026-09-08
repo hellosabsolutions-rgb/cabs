@@ -1,6 +1,7 @@
 import { Server } from 'socket.io';
 import jwt from 'jsonwebtoken';
 import { User } from '../models/User.js';
+import { getSocketCorsOrigin } from '../config/cors.js';
 
 /**
  * SocketService
@@ -29,7 +30,7 @@ const onlineUsers = new Map();
 export const initSocket = (httpServer) => {
   io = new Server(httpServer, {
     cors: {
-      origin: process.env.CLIENT_URL || 'http://localhost:3000',
+      origin: getSocketCorsOrigin(),
       credentials: true,
       methods: ['GET', 'POST']
     },

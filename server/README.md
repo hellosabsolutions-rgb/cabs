@@ -22,21 +22,26 @@ High-performance, production-ready REST API backend for the FleetOS Fleet Manage
 - MongoDB installed locally **OR** a free [MongoDB Atlas](https://www.mongodb.com/cloud/atlas) cluster connection string.
 
 ### 2. Configure Environment Variables
-Edit `server/.env`:
+Copy `server/.env.production.example` to `server/.env.production` on THANOS (or use `.env.development` locally):
+
 ```env
 PORT=5000
-MONGO_URI=mongodb://127.0.0.1:27017/fleetos
+MONGO_URI=mongodb://127.0.0.1:27017/kabpro
 NODE_ENV=development
 CLIENT_URL=http://localhost:3000
+JWT_SECRET=your-secret
 ```
+
+Full home-server guide: **`server/docs/DEPLOYMENT.md`**
 > For MongoDB Atlas, replace `MONGO_URI` with:
 > `mongodb+srv://<username>:<password>@cluster0.mongodb.net/fleetos?retryWrites=true&w=majority`
 
-### 3. Seed Mock Fleet Data
-Populate MongoDB with all initial fleet vehicles, drivers, trips, fuel logs, and contracts:
+### 3. Seed Demo Data (development only)
+Populate local MongoDB with dummy fleet data (vehicles, drivers, trips, etc.):
 ```bash
 npm run seed
 ```
+> Not available in production. Production starts with an empty database — create admin users via registration or manually.
 
 ### 4. Start Development Server
 ```bash

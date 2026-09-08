@@ -1,5 +1,4 @@
-import dotenv from 'dotenv';
-dotenv.config();
+import './config/loadEnv.js';
 
 import mongoose from 'mongoose';
 import { connectDB } from './config/db.js';
@@ -22,7 +21,7 @@ import { Expense } from './models/Expense.js';
 import { Compliance } from './models/Compliance.js';
 import { Maintenance } from './models/Maintenance.js';
 
-// Seed data
+// Seed data (development / demo only — never runs in production)
 import {
   initialVehicles,
   initialDrivers,
@@ -41,17 +40,22 @@ import {
   initialMaintenanceRecords
 } from './data/seedData.js';
 
-const sanitizeDocs = (items) => {
-  return items.map(item => {
-    const doc = { ...item };
-    // Keep custom string id if present, or let mongo create _id
-    return doc;
-  });
-};
+if (process.env.NODE_ENV === 'production') {
+  console.error('❌ Seed is disabled in production. Dummy data is for local development only.');
+  console.error('   Run: npm run seed  (uses .env.development + local MongoDB)');
+  process.exit(1);
+}
+
+const adminEmail = process.env.SEED_ADMIN_EMAIL || 'admin@fleetos.com';
+const adminPassword = process.env.SEED_ADMIN_PASSWORD || 'admin123';
+const adminName = process.env.SEED_ADMIN_NAME || 'Rahul Sharma';
+const adminPhone = process.env.SEED_ADMIN_PHONE || '+91 98101 23456';
+
+const sanitizeDocs = (items) => items.map((item) => ({ ...item }));
 
 const seedDatabase = async () => {
   try {
-    console.log('🌱 Connecting to MongoDB for seeding...');
+    console.log('🌱 Connecting to MongoDB for seeding (development)...');
     await connectDB();
 
     console.log('🧹 Clearing existing collections...');
@@ -76,18 +80,18 @@ const seedDatabase = async () => {
 
     console.log('👤 Creating default Administrator account & Agency...');
     const adminUser = await User.create({
-      name: 'Rahul Sharma',
-      email: 'admin@fleetos.com',
-      password: 'admin123',
+      name: adminName,
+      email: adminEmail,
+      password: adminPassword,
       role: 'admin',
-      phone: '+91 98101 23456'
+      phone: adminPhone
     });
 
     const defaultAgency = await Agency.create({
       name: 'Sharma Fleet & Logistics Pvt. Ltd.',
       owner: adminUser._id,
       businessType: 'Department & Tour Operator',
-      phone: '+91 98101 23456',
+      phone: adminPhone,
       email: 'info@sharmafleet.com',
       address: 'Plot 42, Transport Nagar, Phase-2',
       city: 'New Delhi',
@@ -101,10 +105,10 @@ const seedDatabase = async () => {
     adminUser.agencies = [defaultAgency._id];
     await adminUser.save();
 
-    console.log(`  🔑 Default Admin Created: ${adminUser.email} (Password: admin123)`);
-    console.log(`  🏢 Default Agency Created: ${defaultAgency.name}`);
+    console.log(`  🔑 Admin: ${adminUser.email} (password: ${adminPassword})`);
+    console.log(`  🏢 Agency: ${defaultAgency.name}`);
 
-    console.log('📦 Inserting initial mock data...');
+    console.log('📦 Inserting demo fleet data...');
 
     const [
       vehicles,

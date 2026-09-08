@@ -1,0 +1,62 @@
+name: Deploy production
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'admin/**'
+      - 'server/**'
+      - 'scripts/thanos/**'
+      - '.github/workflows/deploy-production.yml'
+  workflow_dispatch:
+    inputs:
+      deploy_all:
+        description: 'Deploy admin + server'
+        type: boolean
+        default: true
+
+concurrency:
+  group: kabpro-production
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Build & publish on THANOS
+    runs-on: [self-hosted, thanos]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: |
+            admin/package-lock.json
+            server/package-lock.json
+
+      - name: Build admin dashboard
+        working-directory: admin
+        env:
+          VITE_API_URL: https://api-kabpro.opsiva.in/api
+          VITE_SOCKET_URL: https://api-kabpro.opsiva.in
+          VITE_APP_URL: https://admin-kabpro.opsiva.in
+          VITE_LANDING_URL: https://kabpro.opsiva.in
+        run: |
+          npm ci --include=dev
+          npm run build
+          echo "==> Admin build output"
+          du -sh dist/assets 2>/dev/null || true
+          ls -la dist/assets/*.js 2>/dev/null | head -10 || true
+
+      - name: Publish to /srv/apps/cabs
+        env:
+          REPO_ROOT: /srv/apps/cabs
+        run: |
+          chmod +x scripts/thanos/publish-from-ci.sh
+          bash scripts/thanos/publish-from-ci.sh
+
+      - name: Smoke test API
+        run: |
+          curl -sf http://127.0.0.1:5000/api/health | grep -q '"success"'

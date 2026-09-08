@@ -1,6 +1,5 @@
 import { io, Socket } from 'socket.io-client';
-
-const SOCKET_SERVER_URL = 'http://localhost:5001';
+import { getSocketBaseUrl } from '../config/env';
 
 /**
  * SocketManager
@@ -23,7 +22,7 @@ class SocketManager {
   public getNotificationSocket(): Socket {
     if (!this.notificationSocket) {
       const token = this.getToken();
-      this.notificationSocket = io(`${SOCKET_SERVER_URL}/notifications`, {
+      this.notificationSocket = io(`${getSocketBaseUrl()}/notifications`, {
         auth: { token },
         transports: ['websocket', 'polling'],
         reconnection: true,
@@ -55,7 +54,7 @@ class SocketManager {
   public getChatSocket(): Socket {
     if (!this.chatSocket) {
       const token = this.getToken();
-      this.chatSocket = io(`${SOCKET_SERVER_URL}/chat`, {
+      this.chatSocket = io(`${getSocketBaseUrl()}/chat`, {
         auth: { token },
         transports: ['websocket', 'polling'],
         autoConnect: false, // Activated when chat view mounts
@@ -70,7 +69,7 @@ class SocketManager {
   public getTrackingSocket(): Socket {
     if (!this.trackingSocket) {
       const token = this.getToken();
-      this.trackingSocket = io(`${SOCKET_SERVER_URL}/tracking`, {
+      this.trackingSocket = io(`${getSocketBaseUrl()}/tracking`, {
         auth: { token },
         transports: ['websocket', 'polling'],
         autoConnect: false,

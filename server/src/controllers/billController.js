@@ -273,8 +273,12 @@ export const getBills = asyncHandler(async (req, res) => {
 
   let count = await MonthlyBill.countDocuments(queryObj);
 
-  // Auto-seed if database is completely empty
-  if (count === 0 && Object.keys(queryObj).length === 0) {
+  // Auto-seed dummy bills in development only when DB is empty
+  if (
+    process.env.NODE_ENV !== 'production' &&
+    count === 0 &&
+    Object.keys(queryObj).length === 0
+  ) {
     const totalInDb = await MonthlyBill.countDocuments({});
     if (totalInDb === 0) {
       await MonthlyBill.insertMany(defaultSeedBills);
