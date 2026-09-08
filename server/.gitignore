@@ -4,3 +4,7 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .DS_Store
+
+# Firebase & Google Cloud Service Account Keys / Secrets
+*firebase-adminsdk*.json
+opsiva-*.json

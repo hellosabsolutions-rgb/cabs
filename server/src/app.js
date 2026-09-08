@@ -31,6 +31,7 @@ import profileRoutes from './routes/profile.js';
 import notificationRoutes from './routes/notifications.js';
 import payrollRoutes from './routes/payroll.js';
 import reportRoutes from './routes/reports.js';
+import uploadRoutes from './routes/upload.js';
 
 const app = express();
 
@@ -116,6 +117,7 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/payroll', payrollRoutes);
 app.use('/api/reports', reportRoutes);
+app.use('/api/upload', uploadRoutes);
 
 // Root route
 app.get('/', (req, res) => {

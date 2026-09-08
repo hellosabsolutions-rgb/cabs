@@ -22,7 +22,8 @@ import {
   MaintenanceRecord,
   ToastNotification,
   ToastType,
-  DriverPayrollItem
+  DriverPayrollItem,
+  DashboardStatsData
 } from '../types/fleet';
 
 export type DriverSubTab = 'list' | 'attendance' | 'expenses' | 'payroll';
@@ -41,6 +42,11 @@ export interface FleetContextType {
   searchQuery: string;
   setSearchQuery: (query: string) => void;
   pageHeader: { title: string; subtitle: string };
+
+  // Dashboard Aggregated Live Data
+  dashboardStats: DashboardStatsData | null;
+  isLoadingDashboard: boolean;
+  fetchLiveDashboardStats: () => Promise<DashboardStatsData | null>;
 
   // Loading & Global Status Management
   isLoading: boolean;

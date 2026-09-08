@@ -1,6 +1,8 @@
 import { Vehicle } from '../models/Vehicle.js';
 import { Compliance } from '../models/Compliance.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
+import { notify } from '../services/notificationService.js';
+import { uploadToCloudinary } from '../services/cloudinaryService.js';
 import { createCrudController } from './crudFactory.js';
 
 // Base CRUD controller for vehicles
@@ -98,6 +100,38 @@ export const onboardVehicle = asyncHandler(async (req, res) => {
       ? `${departmentName || finalAssignedTo} Contract Duty`
       : `Trip · ${hubStand || finalAssignedTo}`);
 
+  // Helper to upload document or photo to Cloudinary
+  const uploadDoc = async (val, folder = 'fleetos/vehicles') => {
+    if (!val || typeof val !== 'string' || !val.startsWith('data:')) return val || null;
+    try {
+      const isPdf = val.startsWith('data:application/pdf');
+      const uploaded = await uploadToCloudinary(val, {
+        folder,
+        resource_type: isPdf ? 'raw' : 'auto'
+      });
+      return uploaded.secure_url;
+    } catch (e) {
+      console.warn(`Cloudinary upload failed for ${folder}:`, e.message);
+      return val;
+    }
+  };
+
+  const [
+    finalVehiclePhoto,
+    finalRcPhoto,
+    finalInsurancePhoto,
+    finalPollutionPhoto,
+    finalPermitPhoto,
+    finalAuthPhoto
+  ] = await Promise.all([
+    uploadDoc(vehiclePhoto, 'fleetos/vehicles'),
+    uploadDoc(rcPhoto, 'fleetos/compliance'),
+    uploadDoc(insurancePhoto, 'fleetos/compliance'),
+    uploadDoc(pollutionPhoto, 'fleetos/compliance'),
+    uploadDoc(permitPhoto, 'fleetos/compliance'),
+    uploadDoc(authPhoto, 'fleetos/compliance')
+  ]);
+
   // 3. Create Vehicle Document
   const vehicle = await Vehicle.create({
     registrationNumber: cleanReg,
@@ -116,16 +150,16 @@ export const onboardVehicle = asyncHandler(async (req, res) => {
     gpsImei: gpsImei ? gpsImei.trim() : undefined,
     status: status || 'Running',
     rcExpiry: rcExpiry || undefined,
-    rcPhoto: rcPhoto || null,
+    rcPhoto: finalRcPhoto,
     insuranceExpiry: insuranceExpiry || undefined,
-    insurancePhoto: insurancePhoto || null,
+    insurancePhoto: finalInsurancePhoto,
     pollutionExpiry: pollutionExpiry || puccExpiry || undefined,
-    pollutionPhoto: pollutionPhoto || null,
+    pollutionPhoto: finalPollutionPhoto,
     permitExpiry: permitExpiry || undefined,
-    permitPhoto: permitPhoto || null,
+    permitPhoto: finalPermitPhoto,
     authExpiry: authExpiry || undefined,
-    authPhoto: authPhoto || null,
-    vehiclePhoto: vehiclePhoto || null,
+    authPhoto: finalAuthPhoto,
+    vehiclePhoto: finalVehiclePhoto,
     fitnessExpiry,
     puccExpiry: pollutionExpiry || puccExpiry || undefined,
     roadTaxExpiry,
@@ -251,6 +285,16 @@ export const onboardVehicle = asyncHandler(async (req, res) => {
       console.warn('Could not auto-insert compliance records for vehicle', cErr);
     }
   }
+
+  notify.fleet({
+    userId: req.user?._id,
+    agencyId: req.user?.currentAgency || agencyId,
+    priority: 'success',
+    title: 'New Vehicle Onboarded',
+    message: `Vehicle ${cleanReg} (${model || 'Fleet Vehicle'}) has been successfully onboarded.`,
+    link: '/vehicles',
+    metadata: { vehicleId: vehicle._id?.toString(), registrationNumber: cleanReg }
+  });
 
   res.status(201).json({
     success: true,

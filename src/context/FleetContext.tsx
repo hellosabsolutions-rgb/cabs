@@ -24,7 +24,8 @@ import {
   MaintenanceRecord,
   ToastNotification,
   ToastType,
-  DriverPayrollItem
+  DriverPayrollItem,
+  DashboardStatsData
 } from '../types/fleet';
 import {
   initialVehicles,
@@ -103,6 +104,9 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [driverCompliance, setDriverCompliance] = useState<DocumentCompliance[]>(driverComplianceDocs);
   
   const [maintenanceRecords, setMaintenanceRecords] = useState<MaintenanceRecord[]>(initialMaintenanceRecords);
+
+  const [dashboardStats, setDashboardStats] = useState<DashboardStatsData | null>(null);
+  const [isLoadingDashboard, setIsLoadingDashboard] = useState<boolean>(false);
 
   const [isLoading, setIsLoading] = useState(false);
   const [loadingKey, setLoadingKey] = useState<string | null>(null);
@@ -469,6 +473,23 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
+  // Fetch live aggregated dashboard statistics
+  const fetchLiveDashboardStats = async (): Promise<DashboardStatsData | null> => {
+    setIsLoadingDashboard(true);
+    try {
+      const res = await api.get('/dashboard/stats');
+      if (res && res.success && res.data) {
+        setDashboardStats(res.data);
+        return res.data;
+      }
+    } catch (err) {
+      console.warn('Backend dashboard stats API not reachable:', err);
+    } finally {
+      setIsLoadingDashboard(false);
+    }
+    return null;
+  };
+
   useEffect(() => {
     fetchLiveVehicles();
     fetchLiveDrivers();
@@ -481,6 +502,7 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     fetchLiveFastagTransactions();
     fetchLiveMonthlyBills();
     fetchPayrollSummary();
+    fetchLiveDashboardStats();
   }, []);
 
   const refreshData = async () => {
@@ -498,9 +520,10 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         fetchLiveDailyDutyLogs(),
         fetchLiveFastagTransactions(),
         fetchLiveMonthlyBills(),
-        fetchPayrollSummary()
+        fetchPayrollSummary(),
+        fetchLiveDashboardStats()
       ]);
-      showToast('info', 'Fleet, Drivers, FASTag, Daily Duty Logs, Invoices & Expenses synchronized with live server.', 'Refreshed');
+      showToast('info', 'Fleet, Drivers, FASTag, Daily Duty Logs, Invoices, Expenses & Dashboard synchronized with live server.', 'Refreshed');
     } finally {
       setIsLoading(false);
       setLoadingKey(null);
@@ -2577,6 +2600,9 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         pageHeader,
         searchQuery,
         setSearchQuery,
+        dashboardStats,
+        isLoadingDashboard,
+        fetchLiveDashboardStats,
         isLoading,
         loadingKey,
         refreshData,

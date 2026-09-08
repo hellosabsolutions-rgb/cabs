@@ -533,3 +533,80 @@ export interface LoadingState {
   loadingKey: string | null;
 }
 
+export interface DashboardStatsData {
+  summary: {
+    totalRevenue: number;
+    deptRevenue: number;
+    tripRevenue: number;
+    totalExpense: number;
+    fuelExpense: number;
+    tollExpense: number;
+    driverExpense: number;
+    maintenanceExpense: number;
+    otherExpense: number;
+    netProfit: number;
+    profitMargin: number;
+    totalVehicles: number;
+    runningVehicles: number;
+    idleVehicles: number;
+    maintenanceVehicles: number;
+    departmentVehicles: number;
+    tripVehicles: number;
+    totalDrivers: number;
+    onDutyDrivers: number;
+    offDutyDrivers: number;
+  };
+  monthly: Array<{
+    month: string;
+    monthKey: string;
+    revenue: number;
+    expense: number;
+  }>;
+  expenseMix: Array<{
+    label: string;
+    value: number;
+    color: string;
+  }>;
+  expenseTotal: number;
+  operationsSnapshot: {
+    departmentCabs: number;
+    tripCabs: number;
+    fuelFillsLogged: number;
+    totalFuelLitres: number;
+    liveTrips: number;
+    totalDrivers: number;
+  };
+  compliance: {
+    totalDocs: number;
+    expiringSoon: number;
+    expired: number;
+  };
+  vehicles: Array<{
+    id: string;
+    registrationNumber: string;
+    model: string;
+    type: string;
+    status: string;
+    assignedDriver: string;
+    assignedTo: string;
+    meta?: string;
+    revenue: number;
+    expense: number;
+    profit: number;
+  }>;
+  profitabilityRanking: Array<{
+    id: string;
+    registrationNumber: string;
+    model: string;
+    type: string;
+    assignedDriver: string;
+    assignedTo: string;
+    status: string;
+    revenue: number;
+    expense: number;
+    profit: number;
+    margin: number;
+  }>;
+}
+
+

@@ -33,6 +33,7 @@ export interface AuthContextType {
   triggerDashboardOpening: (durationMs?: number) => void;
   login: (email: string, password: string, rememberMe?: boolean) => Promise<{ success: boolean; error?: string }>;
   register: (name: string, email: string, password: string, phone?: string, rememberMe?: boolean) => Promise<{ success: boolean; error?: string }>;
+  googleLogin: (credentialOrData: string | { credential?: string; accessToken?: string }, rememberMe?: boolean) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
   sessions: DeviceSession[];
   isLoadingSessions: boolean;
@@ -169,6 +170,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const googleLogin = async (data: string | { credential?: string; accessToken?: string }, rememberMe = true) => {
+    try {
+      const payload = typeof data === 'string' ? { credential: data, rememberMe } : { ...data, rememberMe };
+      const response = await api.post('/auth/google', payload);
+      if (response.success && (response.token || response.accessToken)) {
+        const activeToken = response.accessToken || response.token;
+        localStorage.setItem('fleetos_auth_token', activeToken);
+        setToken(activeToken);
+
+        if (response.refreshToken) {
+          localStorage.setItem('fleetos_refresh_token', response.refreshToken);
+          setRefreshToken(response.refreshToken);
+        }
+
+        setUser(response.user);
+        setIsDashboardOpening(true);
+        setTimeout(() => {
+          setIsDashboardOpening(false);
+        }, 2800);
+        return { success: true };
+      }
+      return { success: false, error: response.error || 'Google sign-in failed' };
+    } catch (err: any) {
+      return { success: false, error: err.message || 'Google sign-in failed. Please try again.' };
+    }
+  };
+
   const logout = async () => {
     const currentRefreshToken = localStorage.getItem('fleetos_refresh_token');
     try {
@@ -244,6 +272,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         triggerDashboardOpening,
         login,
         register,
+        googleLogin,
         logout,
         sessions,
         isLoadingSessions,

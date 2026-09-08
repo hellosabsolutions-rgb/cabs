@@ -4,7 +4,9 @@ import { Driver } from '../models/Driver.js';
 import {
   emitBookingCreated,
   emitBookingUpdated,
-  emitBookingCompleted
+  emitBookingCompleted,
+  emitBookingCancelled,
+  emitPaymentReceived
 } from '../services/notificationEmitter.js';
 
 // @desc    Get all bookings with optional filters (month, date, status, paymentStatus, search)
@@ -370,6 +372,13 @@ export const recordPayment = async (req, res, next) => {
 
     await booking.save();
 
+    emitPaymentReceived({
+      userId: req.user?._id,
+      agencyId: req.user?.currentAgency,
+      booking,
+      amount: paidAmount
+    });
+
     res.status(200).json({
       success: true,
       message: `Payment of ₹${paidAmount.toLocaleString('en-IN')} recorded successfully.`,
@@ -459,6 +468,13 @@ export const deleteBooking = async (req, res, next) => {
     if (!booking) {
       return res.status(404).json({ success: false, error: 'Booking not found' });
     }
+
+    emitBookingCancelled({
+      userId: req.user?._id,
+      agencyId: req.user?.currentAgency,
+      booking
+    });
+
     res.status(200).json({ success: true, message: 'Booking deleted successfully' });
   } catch (error) {
     next(error);

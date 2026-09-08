@@ -1,4 +1,5 @@
 import crypto from 'crypto';
+import { OAuth2Client } from 'google-auth-library';
 import { User } from '../models/User.js';
 import { RefreshToken } from '../models/RefreshToken.js';
 import {
@@ -437,6 +438,174 @@ export const updatePassword = asyncHandler(async (req, res) => {
     success: true,
     message: 'Password updated successfully.',
     token
+  });
+});
+
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '546992458715-dbhmfbb7bj36h6sfm2m4l8qjisdmd491.apps.googleusercontent.com';
+const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
+
+/**
+ * @desc    Google OAuth Sign-in / Sign-up
+ * @route   POST /api/auth/google
+ * @access  Public
+ */
+export const googleLogin = asyncHandler(async (req, res) => {
+  const { credential, accessToken: googleAccessToken, rememberMe } = req.body;
+
+  if (!credential && !googleAccessToken) {
+    return res.status(400).json({
+      success: false,
+      error: 'Google ID credential token or access token is required.'
+    });
+  }
+
+  let payload;
+  if (credential) {
+    try {
+      const ticket = await googleClient.verifyIdToken({
+        idToken: credential,
+        audience: GOOGLE_CLIENT_ID
+      });
+      payload = ticket.getPayload();
+    } catch (verifyError) {
+      // Fallback: verify with Google's tokeninfo endpoint if needed
+      try {
+        const resp = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(credential)}`);
+        if (resp.ok) {
+          payload = await resp.json();
+        }
+      } catch (fallbackError) {
+        console.warn('Google token verification fallback error:', fallbackError);
+      }
+    }
+  }
+
+  if (!payload && googleAccessToken) {
+    try {
+      const resp = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+        headers: { Authorization: `Bearer ${googleAccessToken}` }
+      });
+      if (resp.ok) {
+        payload = await resp.json();
+      } else {
+        const infoResp = await fetch(`https://oauth2.googleapis.com/tokeninfo?access_token=${encodeURIComponent(googleAccessToken)}`);
+        if (infoResp.ok) {
+          payload = await infoResp.json();
+        }
+      }
+    } catch (fallbackError) {
+      console.warn('Google access token verification error:', fallbackError);
+    }
+  }
+
+  if (!payload || !payload.email) {
+    return res.status(401).json({
+      success: false,
+      error: 'Invalid or expired Google credential.'
+    });
+  }
+
+  const googleId = payload.sub || payload.user_id;
+  const email = payload.email;
+  const name = payload.name;
+  const picture = payload.picture;
+
+  if (!email) {
+    return res.status(400).json({
+      success: false,
+      error: 'No email address associated with this Google account.'
+    });
+  }
+
+  const cleanEmail = email.toLowerCase().trim();
+
+  // Find user by googleId or email
+  let user = await User.findOne({
+    $or: [{ googleId }, { email: cleanEmail }]
+  });
+
+  if (user) {
+    let changed = false;
+    if (!user.googleId) {
+      user.googleId = googleId;
+      changed = true;
+    }
+    if (!user.avatar && picture) {
+      user.avatar = picture;
+      changed = true;
+    }
+    if (changed) {
+      await user.save();
+    }
+  } else {
+    user = await User.create({
+      name: name || cleanEmail.split('@')[0],
+      email: cleanEmail,
+      googleId,
+      avatar: picture || null,
+      role: 'admin',
+      authProvider: 'google',
+      status: 'Active'
+    });
+  }
+
+  if (user.status === 'Suspended') {
+    return res.status(403).json({
+      success: false,
+      error: 'Your account has been suspended. Please contact administrator.'
+    });
+  }
+
+  user.lastLoginAt = new Date();
+  await user.save();
+
+  // Device & Session capture
+  const device = parseDeviceInfo(req);
+  const { rawToken, tokenHash, expiresAt } = generateRefreshToken(Boolean(rememberMe));
+
+  const session = await RefreshToken.create({
+    userId: user._id,
+    tokenHash,
+    device,
+    rememberMe: Boolean(rememberMe),
+    expiresAt,
+    lastActiveAt: new Date()
+  });
+
+  const accessToken = generateAccessToken(user._id, session._id);
+
+  try {
+    emitLoginAlert({
+      userId: user._id,
+      email: user.email,
+      name: user.name,
+      device,
+      timestamp: new Date()
+    });
+  } catch (err) {
+    console.warn('Failed to emit login alert notification:', err);
+  }
+
+  res.status(200).json({
+    success: true,
+    token: accessToken,
+    accessToken,
+    refreshToken: rawToken,
+    session: {
+      id: session._id.toString(),
+      device: session.device,
+      rememberMe: session.rememberMe,
+      expiresAt: session.expiresAt
+    },
+    user: {
+      id: user._id.toString(),
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      phone: user.phone,
+      avatar: user.avatar,
+      currentAgency: user.currentAgency
+    }
   });
 });
 

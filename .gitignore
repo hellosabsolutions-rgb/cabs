@@ -31,3 +31,9 @@ yarn-error.log*
 *.njsproj
 *.sln
 *.sw?
+
+# Firebase & Google Cloud Service Account Keys / Secrets
+*firebase-adminsdk*.json
+opsiva-*.json
+server/*firebase-adminsdk*.json
+server/opsiva-*.json

@@ -3,6 +3,7 @@ import { Agency } from '../models/Agency.js';
 import { RefreshToken } from '../models/RefreshToken.js';
 import { generateToken } from '../middleware/authMiddleware.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
+import { uploadToCloudinary } from '../services/cloudinaryService.js';
 
 
 /**
@@ -152,15 +153,27 @@ export const updateAvatar = asyncHandler(async (req, res) => {
     return res.status(400).json({ success: false, error: 'Avatar data is required.' });
   }
 
+  let avatarUrl = avatar || null;
+  if (avatar && typeof avatar === 'string' && avatar.startsWith('data:image')) {
+    try {
+      const uploaded = await uploadToCloudinary(avatar, {
+        folder: 'fleetos/avatars'
+      });
+      avatarUrl = uploaded.secure_url;
+    } catch (err) {
+      console.warn('Cloudinary avatar upload failed, saving raw:', err.message);
+    }
+  }
+
   const user = await User.findByIdAndUpdate(
     req.user._id,
-    { avatar: avatar || null },
+    { avatar: avatarUrl },
     { new: true }
   );
 
   res.status(200).json({
     success: true,
-    message: avatar ? 'Avatar updated successfully.' : 'Avatar removed.',
+    message: avatarUrl ? 'Avatar updated successfully.' : 'Avatar removed.',
     avatar: user.avatar
   });
 });
