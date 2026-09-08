@@ -11,6 +11,7 @@ import { MainLayout } from './components/layout/MainLayout';
 import './styles/globals.css';
 
 export const App: React.FC = () => {
+  console.log("check cicd deploy works or not!");
   return (
     <BrowserRouter>
       <ThemeProvider>
