@@ -22,9 +22,11 @@ chmod 600 /srv/apps/cabs/server/.env.production
 
 **Full file:**
 
+> **THANOS port:** Opsiva BACKEND uses 5000–5005 and 8080. KABPRO API uses **5002** — must match `scripts/thanos/nginx-kabpro-production.conf` (`proxy_pass`).
+
 ```env
 NODE_ENV=production
-PORT=5000
+PORT=5002
 
 MONGO_URI=mongodb+srv://USER:PASSWORD@cluster.mongodb.net/kabpro?retryWrites=true&w=majority
 
