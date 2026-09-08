@@ -120,51 +120,134 @@ export const initialVehicles = [
 export const initialDrivers = [
   {
     id: 'd1',
-    name: 'Rahul Sharma',
+    name: 'Anil Kumar',
     phone: '+91 98765 43210',
     address: 'Flat 402, Green Park, New Delhi',
     emergencyContact: '+91 98111 22334',
     licenseNumber: 'DL-0420180092341',
     driverType: 'Full Time',
-    assignedVehicle: 'DL01AB1234',
+    assignedVehicle: 'DL 1C AB 1234',
     joiningDate: '12 Jan 2023',
-    status: 'On duty'
-  },
-  {
-    id: 'd4',
-    name: 'Ramesh Chand',
-    phone: '+91 98112 77889',
-    address: 'Civil Lines, Dehradun, Uttarakhand',
-    emergencyContact: '+91 98112 00112',
-    licenseNumber: 'UK-0720170044556',
-    driverType: 'Full Time',
-    assignedVehicle: 'UK 07 TD 7555',
-    joiningDate: '15 Mar 2022',
+    monthlySalary: 18000,
     status: 'On duty'
   },
   {
     id: 'd2',
-    name: 'Vikas Kumar',
-    phone: '+91 97123 88990',
-    address: 'H-12, Sector 15, Rohini, Delhi',
-    emergencyContact: '+91 99223 34455',
-    licenseNumber: 'DL-1020190045612',
-    driverType: 'Contract',
-    assignedVehicle: 'DL02CD5678',
-    joiningDate: '04 Jun 2022',
-    status: 'On duty'
-  },
-  {
-    id: 'd3',
     name: 'Suresh Yadav',
     phone: '+91 98990 11223',
     address: 'Village Badarpur, South Delhi',
     emergencyContact: '+91 97880 55667',
     licenseNumber: 'DL-0720210087654',
-    driverType: 'Part Time',
-    assignedVehicle: 'DL03EF9012',
+    driverType: 'Full Time',
+    assignedVehicle: 'DL 8C CD 5566',
     joiningDate: '19 Sep 2024',
-    status: 'Off duty'
+    monthlySalary: 19500,
+    status: 'On duty'
+  },
+  {
+    id: 'd3',
+    name: 'Mohd. Rafiq',
+    phone: '+91 97123 88990',
+    address: 'H-12, Sector 15, Rohini, Delhi',
+    emergencyContact: '+91 99223 34455',
+    licenseNumber: 'DL-1020190045612',
+    driverType: 'Full Time',
+    assignedVehicle: 'DL 4C EF 7788',
+    joiningDate: '04 Jun 2022',
+    monthlySalary: 17200,
+    status: 'On duty'
+  },
+  {
+    id: 'd4',
+    name: 'Vikram Bisht',
+    phone: '+91 98112 77889',
+    address: 'Civil Lines, Dehradun, Uttarakhand',
+    emergencyContact: '+91 98112 00112',
+    licenseNumber: 'UK-0720170044556',
+    driverType: 'Full Time',
+    assignedVehicle: 'DL 2C GH 9900',
+    joiningDate: '15 Mar 2022',
+    monthlySalary: 21000,
+    status: 'On duty'
+  },
+  {
+    id: 'd5',
+    name: 'Devendra Rana',
+    phone: '+91 98101 44556',
+    address: 'Sector 22, Noida, UP',
+    emergencyContact: '+91 98101 99887',
+    licenseNumber: 'UP-1620200055443',
+    driverType: 'Full Time',
+    assignedVehicle: 'DL 5C IJ 1122',
+    joiningDate: '10 Feb 2023',
+    monthlySalary: 16500,
+    status: 'On duty'
+  },
+  {
+    id: 'd6',
+    name: 'Naresh Pal',
+    phone: '+91 98711 33221',
+    address: 'Dwarka Mor, New Delhi',
+    emergencyContact: '+91 98711 88990',
+    licenseNumber: 'DL-0920220033221',
+    driverType: 'Full Time',
+    assignedVehicle: 'DL 6C KL 3344',
+    joiningDate: '01 Aug 2023',
+    monthlySalary: 15800,
+    status: 'On duty'
+  }
+];
+
+export const initialDriverAdvances = [
+  {
+    driverId: 'd1',
+    driverName: 'Anil Kumar',
+    amount: 2500,
+    date: '2026-09-01',
+    paymentMode: 'Cash',
+    reason: 'Emergency Medical Advance',
+    status: 'ACTIVE'
+  },
+  {
+    driverId: 'd3',
+    driverName: 'Mohd. Rafiq',
+    amount: 6000,
+    date: '2026-09-02',
+    paymentMode: 'UPI',
+    reason: 'Festival Family Advance',
+    status: 'ACTIVE'
+  },
+  {
+    driverId: 'd6',
+    driverName: 'Naresh Pal',
+    amount: 1000,
+    date: '2026-09-03',
+    paymentMode: 'Cash',
+    reason: 'Travel Advance',
+    status: 'ACTIVE'
+  }
+];
+
+export const initialDriverPenalties = [
+  {
+    driverId: 'd1',
+    driverName: 'Anil Kumar',
+    vehicle: 'DL 1C AB 1234',
+    challanNumber: 'CH-DL-2026-8812',
+    amount: 1200,
+    date: '2026-09-04',
+    reason: 'Speeding on Ring Road',
+    status: 'ACTIVE'
+  },
+  {
+    driverId: 'd4',
+    driverName: 'Vikram Bisht',
+    vehicle: 'DL 2C GH 9900',
+    challanNumber: 'CH-DL-2026-4491',
+    amount: 800,
+    date: '2026-09-05',
+    reason: 'Improper Parking Zone',
+    status: 'ACTIVE'
   }
 ];
 

@@ -21,10 +21,11 @@ import {
   DocumentCompliance,
   MaintenanceRecord,
   ToastNotification,
-  ToastType
+  ToastType,
+  DriverPayrollItem
 } from '../types/fleet';
 
-export type DriverSubTab = 'list' | 'attendance' | 'expenses';
+export type DriverSubTab = 'list' | 'attendance' | 'expenses' | 'payroll';
 export type DepartmentSubTab = 'contracts' | 'duty-logs' | 'billing' | 'weekend-billing' | 'payments';
 
 export interface AlertItem {
@@ -56,6 +57,7 @@ export interface FleetContextType {
   driverSubTab: DriverSubTab;
   setDriverSubTab: (tab: DriverSubTab) => void;
   drivers: Driver[];
+  fetchLiveDrivers: () => Promise<Driver[]>;
   addDriver: (driver: Omit<Driver, 'id'>) => Promise<{ success: boolean; driver?: Driver; error?: string } | void> | void;
   updateDriverStatus: (id: string, status: 'On duty' | 'Off duty') => Promise<void>;
   updateDriver: (id: string, data: Partial<Driver>) => Promise<{ success: boolean; driver?: Driver; error?: string }>;
@@ -72,6 +74,23 @@ export interface FleetContextType {
   updateDriverExpense: (id: string, data: Partial<DriverExpenseItem>) => Promise<{ success: boolean; data?: DriverExpenseItem; error?: string }>;
   updateDriverExpenseStatus: (id: string, status: 'Approved' | 'Pending' | 'Paid') => Promise<{ success: boolean; data?: DriverExpenseItem; error?: string }>;
   deleteDriverExpense: (id: string) => Promise<{ success: boolean; error?: string }>;
+
+  // Driver payroll
+  payrollItems: DriverPayrollItem[];
+  isPayrollLoading: boolean;
+  selectedPayrollMonth: string;
+  setSelectedPayrollMonth: (month: string) => void;
+  fetchPayrollSummary: (month?: string) => Promise<void>;
+  giveDriverAdvance: (data: { driverId: string; amount: number; date?: string; paymentMode?: string; reason?: string; remarks?: string }) => Promise<{ success: boolean; error?: string }>;
+  updateDriverAdvance: (id: string, data: Partial<{ amount: number; date: string; paymentMode: string; reason: string; remarks: string }>) => Promise<{ success: boolean; error?: string }>;
+  deleteDriverAdvance: (id: string) => Promise<{ success: boolean; error?: string }>;
+  addDriverPenalty: (data: { driverId: string; amount: number; date?: string; challanNumber?: string; reason: string; vehicle?: string }) => Promise<{ success: boolean; error?: string }>;
+  updateDriverPenalty: (id: string, data: Partial<{ amount: number; date: string; challanNumber: string; reason: string; vehicle: string }>) => Promise<{ success: boolean; error?: string }>;
+  deleteDriverPenalty: (id: string) => Promise<{ success: boolean; error?: string }>;
+  settleDriverSalary: (data: { driverId: string; month?: string; paymentMode?: string; paymentDate?: string; remarks?: string }) => Promise<{ success: boolean; error?: string }>;
+  unsettleDriverSalary: (data: { driverId: string; month?: string }) => Promise<{ success: boolean; error?: string }>;
+  deletePayrollSettlement: (id: string) => Promise<{ success: boolean; error?: string }>;
+  fetchDriverPayrollDetail: (driverId: string, month?: string) => Promise<{ success: boolean; data?: any; error?: string }>;
 
   // Department subtabs & actions
   departmentSubTab: DepartmentSubTab;

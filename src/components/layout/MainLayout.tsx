@@ -15,6 +15,7 @@ import { ComplianceView } from '../modules/compliance/ComplianceView';
 import { MaintenanceView } from '../modules/maintenance/MaintenanceView';
 import { NotificationsView } from '../modules/notifications/NotificationsView';
 import { ProfileView } from '../modules/profile/ProfileView';
+import { ReportIssueView } from '../modules/reports/ReportIssueView';
 import { ErrorBoundary } from '../common/ErrorBoundary';
 import { ToastContainer } from '../common/ToastContainer';
 import { useAuth } from '../../context/AuthContext';
@@ -88,6 +89,7 @@ export const MainLayout: React.FC = () => {
               <Route path="/drivers/list" element={<DriversView />} />
               <Route path="/drivers/attendance" element={<DriversView />} />
               <Route path="/drivers/expenses" element={<DriversView />} />
+              <Route path="/drivers/payroll" element={<DriversView />} />
 
               {/* Departments & Subtabs */}
               <Route path="/departments" element={<Navigate to="/departments/contracts" replace />} />
@@ -114,9 +116,11 @@ export const MainLayout: React.FC = () => {
               <Route path="/compliance" element={<ComplianceView />} />
               <Route path="/maintenance" element={<MaintenanceView />} />
 
-              {/* Notifications & Profile */}
+              {/* Notifications, Profile & Reports */}
               <Route path="/notifications" element={<NotificationsView />} />
               <Route path="/profile" element={<ProfileView />} />
+              <Route path="/report" element={<ReportIssueView />} />
+              <Route path="/reports" element={<ReportIssueView />} />
 
               {/* Fallback */}
               <Route path="*" element={<Navigate to="/dashboard" replace />} />

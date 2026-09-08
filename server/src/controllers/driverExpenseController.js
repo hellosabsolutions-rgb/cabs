@@ -179,34 +179,36 @@ export const getDriverExpenseAnalytics = asyncHandler(async (req, res) => {
       };
     });
 
-    // Driver-wise Annual Breakdown
-    const driverTotals = drivers.map(d => {
-      const dRecords = records.filter(
-        r => r.driverId === d._id.toString() || r.driverName.toLowerCase() === d.name.toLowerCase()
-      );
+    // Driver-wise Annual Breakdown (only drivers with entries)
+    const driverTotals = drivers
+      .map(d => {
+        const dRecords = records.filter(
+          r => r.driverId === d._id.toString() || r.driverName.toLowerCase() === d.name.toLowerCase()
+        );
 
-      let dTotal = 0;
-      let dPaid = 0;
-      let dPending = 0;
+        let dTotal = 0;
+        let dPaid = 0;
+        let dPending = 0;
 
-      dRecords.forEach(r => {
-        const amt = Number(r.amount) || 0;
-        dTotal += amt;
-        if (r.status === 'Paid') dPaid += amt;
-        else dPending += amt;
-      });
+        dRecords.forEach(r => {
+          const amt = Number(r.amount) || 0;
+          dTotal += amt;
+          if (r.status === 'Paid') dPaid += amt;
+          else dPending += amt;
+        });
 
-      return {
-        driverId: d._id.toString(),
-        driverName: d.name,
-        vehicle: d.assignedVehicle,
-        driverType: d.driverType,
-        totalAmount: dTotal,
-        paidAmount: dPaid,
-        pendingAmount: dPending,
-        transactionCount: dRecords.length
-      };
-    });
+        return {
+          driverId: d._id.toString(),
+          driverName: d.name,
+          vehicle: d.assignedVehicle,
+          driverType: d.driverType,
+          totalAmount: dTotal,
+          paidAmount: dPaid,
+          pendingAmount: dPending,
+          transactionCount: dRecords.length
+        };
+      })
+      .filter(d => d.transactionCount > 0);
 
     let overallTotal = 0;
     let overallPaid = 0;
@@ -272,48 +274,50 @@ export const getDriverExpenseAnalytics = asyncHandler(async (req, res) => {
     else miscTotal += amt;
   });
 
-  // Driver-wise Monthly Breakdown
-  const driverTotals = drivers.map(d => {
-    const dRecords = records.filter(
-      r => r.driverId === d._id.toString() || r.driverName.toLowerCase() === d.name.toLowerCase()
-    );
+  // Driver-wise Monthly Breakdown (only drivers with entries)
+  const driverTotals = drivers
+    .map(d => {
+      const dRecords = records.filter(
+        r => r.driverId === d._id.toString() || r.driverName.toLowerCase() === d.name.toLowerCase()
+      );
 
-    let dTotal = 0;
-    let dPaid = 0;
-    let dPending = 0;
-    let dBata = 0;
-    let dNightHalt = 0;
-    let dAdvance = 0;
+      let dTotal = 0;
+      let dPaid = 0;
+      let dPending = 0;
+      let dBata = 0;
+      let dNightHalt = 0;
+      let dAdvance = 0;
 
-    dRecords.forEach(r => {
-      const amt = Number(r.amount) || 0;
-      dTotal += amt;
-      if (r.status === 'Paid') dPaid += amt;
-      else dPending += amt;
+      dRecords.forEach(r => {
+        const amt = Number(r.amount) || 0;
+        dTotal += amt;
+        if (r.status === 'Paid') dPaid += amt;
+        else dPending += amt;
 
-      if (r.category === 'Daily Bata / Food') dBata += amt;
-      else if (r.category === 'Night Halt Allowance' || r.category === 'Overtime') dNightHalt += amt;
-      else if (r.category === 'Advance Payout') dAdvance += amt;
-    });
+        if (r.category === 'Daily Bata / Food') dBata += amt;
+        else if (r.category === 'Night Halt Allowance' || r.category === 'Overtime') dNightHalt += amt;
+        else if (r.category === 'Advance Payout') dAdvance += amt;
+      });
 
-    return {
-      driverId: d._id.toString(),
-      driverName: d.name,
-      vehicle: d.assignedVehicle,
-      driverType: d.driverType,
-      totalAmount: dTotal,
-      paidAmount: dPaid,
-      pendingAmount: dPending,
-      bataAmount: dBata,
-      nightHaltAmount: dNightHalt,
-      advanceAmount: dAdvance,
-      transactionCount: dRecords.length,
-      records: dRecords.map(r => ({
-        ...r,
-        id: r._id.toString()
-      }))
-    };
-  });
+      return {
+        driverId: d._id.toString(),
+        driverName: d.name,
+        vehicle: d.assignedVehicle,
+        driverType: d.driverType,
+        totalAmount: dTotal,
+        paidAmount: dPaid,
+        pendingAmount: dPending,
+        bataAmount: dBata,
+        nightHaltAmount: dNightHalt,
+        advanceAmount: dAdvance,
+        transactionCount: dRecords.length,
+        records: dRecords.map(r => ({
+          ...r,
+          id: r._id.toString()
+        }))
+      };
+    })
+    .filter(d => d.transactionCount > 0);
 
   // Driver specific summary if filtered
   const driverFilter = req.query.driverId || req.query.driverName || req.query.driver;

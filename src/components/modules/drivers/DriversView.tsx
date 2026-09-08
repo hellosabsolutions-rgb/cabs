@@ -6,8 +6,9 @@ import { AddDriverModal } from './AddDriverModal';
 import { EditDriverModal } from './EditDriverModal';
 import { DriverAttendanceView } from './DriverAttendanceView';
 import { DriverExpensesView } from './DriverExpensesView';
+import { DriverPayrollView } from './DriverPayrollView';
 import { Driver, DriverType } from '../../../types/fleet';
-import { Users, CalendarCheck, Receipt, MapPin, Trash2, Power, Edit2, ChevronDown } from 'lucide-react';
+import { Users, CalendarCheck, Receipt, MapPin, Trash2, Power, Edit2, ChevronDown, Banknote } from 'lucide-react';
 import { SkeletonCard, SkeletonTable } from '../../common/Skeleton';
 import { Pagination } from '../../common/Pagination';
 import { usePagination } from '../../../hooks/usePagination';
@@ -20,6 +21,7 @@ export const DriversView: React.FC = () => {
     setDriverSubTab,
     attendanceRecords,
     driverExpenses,
+    payrollItems,
     isLoading,
     updateDriverStatus,
     deleteDriver
@@ -123,6 +125,17 @@ export const DriversView: React.FC = () => {
           Driver expenses
           <span className="subtab-counter">
             ₹{totalExpenseSum.toLocaleString('en-IN')}
+          </span>
+        </button>
+
+        <button
+          className={`subtab-btn ${driverSubTab === 'payroll' ? 'active' : ''}`}
+          onClick={() => setDriverSubTab('payroll')}
+        >
+          <Banknote size={16} />
+          Driver payroll
+          <span className="subtab-counter">
+            {payrollItems.length}
           </span>
         </button>
       </div>
@@ -356,6 +369,8 @@ export const DriversView: React.FC = () => {
       {driverSubTab === 'attendance' && <DriverAttendanceView />}
 
       {driverSubTab === 'expenses' && <DriverExpensesView />}
+
+      {driverSubTab === 'payroll' && <DriverPayrollView />}
     </div>
   );
 };

@@ -26,6 +26,7 @@ export const EditDriverModal: React.FC<EditDriverModalProps> = ({ isOpen, onClos
   const [driverType, setDriverType] = useState<DriverType>('Full Time');
   const [assignedVehicle, setAssignedVehicle] = useState('—');
   const [status, setStatus] = useState<'On duty' | 'Off duty'>('On duty');
+  const [monthlySalary, setMonthlySalary] = useState('');
   const [joiningDate, setJoiningDate] = useState('');
 
   // Photos
@@ -51,6 +52,7 @@ export const EditDriverModal: React.FC<EditDriverModalProps> = ({ isOpen, onClos
       setDriverType(driver.driverType || 'Full Time');
       setAssignedVehicle(driver.assignedVehicle || '—');
       setStatus(driver.status || 'On duty');
+      setMonthlySalary(driver.monthlySalary !== undefined ? String(driver.monthlySalary) : '');
       setJoiningDate(driver.joiningDate || '');
       setPhotoPreview(driver.photo || null);
       setLicensePhotoPreview(driver.licensePhoto || null);
@@ -129,7 +131,8 @@ export const EditDriverModal: React.FC<EditDriverModalProps> = ({ isOpen, onClos
         driverType,
         assignedVehicle: assignedVehicle || '—',
         joiningDate: joiningDate || driver.joiningDate,
-        status
+        status,
+        monthlySalary: monthlySalary ? Number(monthlySalary) : 0
       });
 
       if (res && !res.success) {
@@ -416,16 +419,31 @@ export const EditDriverModal: React.FC<EditDriverModalProps> = ({ isOpen, onClos
               </div>
             </div>
 
-            {/* Joining Date */}
-            <div className="form-group" style={{ marginBottom: 0 }}>
-              <label className="form-label">Joining Date</label>
-              <input
-                type="text"
-                className="form-input"
-                placeholder="e.g. 12 Jan 2024"
-                value={joiningDate}
-                onChange={e => setJoiningDate(e.target.value)}
-              />
+            {/* Monthly Salary & Joining Date */}
+            <div className="form-row-2">
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label">Driver Monthly Salary (₹)</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="500"
+                  className="form-input"
+                  placeholder="e.g. 18000"
+                  value={monthlySalary}
+                  onChange={e => setMonthlySalary(e.target.value)}
+                />
+              </div>
+
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label">Joining Date</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="e.g. 12 Jan 2024"
+                  value={joiningDate}
+                  onChange={e => setJoiningDate(e.target.value)}
+                />
+              </div>
             </div>
           </div>
 

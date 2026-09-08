@@ -229,6 +229,13 @@ export const DriverExpensesView: React.FC = () => {
     return driverExpenses.filter(r => r.date === selectedDate);
   }, [driverExpenses, selectedDate]);
 
+  // Drivers who have actual recorded expenses on the selected date
+  const dailyDriversWithEntries = useMemo(() => {
+    const names = Array.from(new Set(dailyExpenses.map(e => e.driverName).filter(Boolean)));
+    names.sort();
+    return names;
+  }, [dailyExpenses]);
+
   const filteredDailyExpenses = useMemo(() => {
     return dailyExpenses.filter(item => {
       const matchSearch =
@@ -275,6 +282,7 @@ export const DriverExpensesView: React.FC = () => {
       y++;
     }
     setSelectedMonth(`${y}-${String(m).padStart(2, '0')}`);
+    setDriverFilter('All');
   };
 
   const formattedMonthLabel = useMemo(() => {
@@ -286,6 +294,13 @@ export const DriverExpensesView: React.FC = () => {
   const monthlyExpenses = useMemo(() => {
     return driverExpenses.filter(r => r.date && r.date.startsWith(selectedMonth));
   }, [driverExpenses, selectedMonth]);
+
+  // Drivers who have actual recorded expenses in the selected month
+  const monthlyDriversWithEntries = useMemo(() => {
+    const names = Array.from(new Set(monthlyExpenses.map(e => e.driverName).filter(Boolean)));
+    names.sort();
+    return names;
+  }, [monthlyExpenses]);
 
   const filteredMonthlyExpenses = useMemo(() => {
     return monthlyExpenses.filter(item => {
@@ -432,6 +447,10 @@ export const DriverExpensesView: React.FC = () => {
     }
 
     return list.filter((d: any) => {
+      // User requirement: Detail only appears on actual entry. If no entry for driver in this month, do not show them.
+      if (!d.transactionCount || d.transactionCount <= 0 || (d.totalAmount || 0) <= 0) {
+        return false;
+      }
       const matchSearch =
         d.driverName.toLowerCase().includes(searchQuery.toLowerCase()) ||
         (d.vehicle && d.vehicle.toLowerCase().includes(searchQuery.toLowerCase()));
@@ -678,10 +697,10 @@ export const DriverExpensesView: React.FC = () => {
                   onChange={e => setDriverFilter(e.target.value)}
                   title="Filter by driver"
                 >
-                  <option value="All">All Drivers</option>
-                  {drivers.map(d => (
-                    <option key={d.id} value={d.name}>
-                      {d.name}
+                  <option value="All">All Drivers {dailyDriversWithEntries.length > 0 ? `(${dailyDriversWithEntries.length})` : ''}</option>
+                  {dailyDriversWithEntries.map(name => (
+                    <option key={name} value={name}>
+                      {name}
                     </option>
                   ))}
                 </select>
@@ -939,10 +958,10 @@ export const DriverExpensesView: React.FC = () => {
                     onChange={e => setDriverFilter(e.target.value)}
                     title="Filter by driver"
                   >
-                    <option value="All">All Drivers</option>
-                    {drivers.map(d => (
-                      <option key={d.id} value={d.name}>
-                        {d.name}
+                    <option value="All">All Drivers {monthlyDriversWithEntries.length > 0 ? `(${monthlyDriversWithEntries.length})` : ''}</option>
+                    {monthlyDriversWithEntries.map(name => (
+                      <option key={name} value={name}>
+                        {name}
                       </option>
                     ))}
                   </select>
@@ -1153,10 +1172,10 @@ export const DriverExpensesView: React.FC = () => {
                     onChange={e => setDriverFilter(e.target.value)}
                     title="Filter by driver"
                   >
-                    <option value="All">All Drivers</option>
-                    {drivers.map(d => (
-                      <option key={d.id} value={d.name}>
-                        {d.name}
+                    <option value="All">All Drivers {monthlyDriversWithEntries.length > 0 ? `(${monthlyDriversWithEntries.length})` : ''}</option>
+                    {monthlyDriversWithEntries.map(name => (
+                      <option key={name} value={name}>
+                        {name}
                       </option>
                     ))}
                   </select>

@@ -25,6 +25,7 @@ export const AddDriverModal: React.FC<AddDriverModalProps> = ({ isOpen, onClose 
   const [driverType, setDriverType] = useState<DriverType>('Full Time');
   const [assignedVehicle, setAssignedVehicle] = useState(vehicles[0]?.registrationNumber || 'DL01AB1234');
   const [status, setStatus] = useState<'On duty' | 'Off duty'>('On duty');
+  const [monthlySalary, setMonthlySalary] = useState('');
   const [joiningDate, setJoiningDate] = useState(() => new Date().toISOString().split('T')[0]);
 
   // Photo uploads
@@ -119,7 +120,8 @@ export const AddDriverModal: React.FC<AddDriverModalProps> = ({ isOpen, onClose 
         driverType,
         assignedVehicle: assignedVehicle || '—',
         joiningDate: formattedDate,
-        status
+        status,
+        monthlySalary: monthlySalary ? Number(monthlySalary) : undefined
       });
 
       if (res && !res.success) {
@@ -414,12 +416,28 @@ export const AddDriverModal: React.FC<AddDriverModalProps> = ({ isOpen, onClose 
               </div>
             </div>
 
-            <div className="form-group" style={{ marginBottom: 0 }}>
-              <label className="form-label">Joining Date</label>
-              <DatePicker
-                value={joiningDate}
-                onChange={d => setJoiningDate(d)}
-              />
+            {/* Salary & Joining Date */}
+            <div className="form-row-2">
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label">Driver Monthly Salary (₹)</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="500"
+                  className="form-input"
+                  placeholder="e.g. 18000"
+                  value={monthlySalary}
+                  onChange={e => setMonthlySalary(e.target.value)}
+                />
+              </div>
+
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label">Joining Date</label>
+                <DatePicker
+                  value={joiningDate}
+                  onChange={d => setJoiningDate(d)}
+                />
+              </div>
             </div>
           </div>
 
