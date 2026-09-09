@@ -61,9 +61,45 @@ jobs:
         env:
           REPO_ROOT: /srv/apps/cabs
         run: |
-          PORT=$(grep -E '^PORT=' "${REPO_ROOT}/server/.env.production" 2>/dev/null | cut -d= -f2 | tr -d ' \r' || true)
+          set -euo pipefail
+          ENV_FILE="${REPO_ROOT}/server/.env.production"
+          PORT=""
+          if [[ -f "${ENV_FILE}" ]]; then
+            PORT="$(grep -E '^PORT=' "${ENV_FILE}" | head -1 | cut -d= -f2- | tr -d ' \r\"' || true)"
+          fi
           PORT="${PORT:-5002}"
-          echo "==> Direct API health (port ${PORT})"
-          curl -sf "http://127.0.0.1:${PORT}/api/health" | grep -q '"success"'
-          echo "==> nginx + Host header (api-kabpro.opsiva.in)"
-          curl -sf -H "Host: api-kabpro.opsiva.in" http://127.0.0.1/api/health | grep -q '"success"'
+
+          echo "==> Smoke: direct API http://127.0.0.1:${PORT}/api/health"
+          BODY=""
+          OK=0
+          for i in $(seq 1 20); do
+            BODY="$(curl -sS "http://127.0.0.1:${PORT}/api/health" || true)"
+            if echo "${BODY}" | grep -q '"status":"online"'; then
+              echo "${BODY}"
+              OK=1
+              break
+            fi
+            echo "  attempt ${i}: not ready yet — ${BODY:-no response}"
+            sleep 2
+          done
+          if [[ "${OK}" -ne 1 ]]; then
+            echo "ERROR: direct health check failed"
+            pm2 describe kabpro-api 2>/dev/null || true
+            pm2 logs kabpro-api --lines 40 --nostream 2>/dev/null || true
+            ss -tlnp | grep -E ":${PORT}\\b" || true
+            exit 1
+          fi
+
+          echo "==> Smoke: nginx Host api-kabpro.opsiva.in"
+          NGX="$(curl -sS -H "Host: api-kabpro.opsiva.in" http://127.0.0.1/api/health || true)"
+          echo "${NGX}"
+          echo "${NGX}" | grep -q '"status":"online"'
+
+          echo "==> Smoke: public https://api-kabpro.opsiva.in/api/health"
+          PUB="$(curl -sS --max-time 15 https://api-kabpro.opsiva.in/api/health || true)"
+          echo "${PUB}"
+          if ! echo "${PUB}" | grep -q '"status":"online"'; then
+            echo "WARN: public URL check failed (tunnel/DNS) — local checks passed"
+          fi
+
+          echo "==> Smoke OK"
