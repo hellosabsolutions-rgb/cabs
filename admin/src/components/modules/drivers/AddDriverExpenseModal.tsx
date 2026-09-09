@@ -159,7 +159,7 @@ export const AddDriverExpenseModal: React.FC<AddDriverExpenseModalProps> = ({
                 vehicles: vehicles.map(v => v.registrationNumber),
                 drivers: drivers.map(d => d.name)
               }}
-              placeholder="Speak driver expense (e.g. 'Rahul Sharma Daily Bata 500 DL01AB1234')"
+              placeholder="Speak driver expense (e.g. 'Daily Bata 500 Food allowance')"
               onApplyParsedData={(data) => {
                 if (data.driverName) {
                   const matched = drivers.find(d => d.name.toLowerCase().includes(data.driverName.toLowerCase()));

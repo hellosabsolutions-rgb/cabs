@@ -305,7 +305,7 @@ export const FuelLogsView: React.FC = () => {
                         </span>
                       </div>
                       <div style={{ fontSize: '12px', color: 'var(--text-faint)', marginTop: '2px' }}>
-                        {v.model || 'Commercial Vehicle'} · Default Driver: <b>{v.assignedDriver || 'Rahul Sharma'}</b> · Odometer: <b>{v.odometer ? `${v.odometer.toLocaleString('en-IN')} km` : '42,000 km'}</b>
+                        {v.model || 'Commercial Vehicle'} · Default Driver: <b>{v.assignedDriver || 'Unassigned'}</b> · Odometer: <b>{v.odometer ? `${v.odometer.toLocaleString('en-IN')} km` : '0 km'}</b>
                       </div>
                     </div>
                   </div>

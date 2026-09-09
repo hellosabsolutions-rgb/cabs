@@ -23,41 +23,41 @@ export const AddDutyLogModal: React.FC<AddDutyLogModalProps> = ({
   );
   const [date, setDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [selectedContractId, setSelectedContractId] = useState(departmentContracts[0]?.id || '');
-  const [driverName, setDriverName] = useState(drivers[0]?.name || 'Rahul Sharma');
-  const [startKm, setStartKm] = useState('45345');
-  const [endKm, setEndKm] = useState('45475');
+  const [driverName, setDriverName] = useState(drivers[0]?.name || '');
+  const [startKm, setStartKm] = useState('');
+  const [endKm, setEndKm] = useState('');
   const [startTime, setStartTime] = useState('08:30 AM');
   const [endTime, setEndTime] = useState('07:30 PM');
-  const [totalHours, setTotalHours] = useState('11.0');
-  const [tollParkingAmount, setTollParkingAmount] = useState('240');
+  const [totalHours, setTotalHours] = useState('');
+  const [tollParkingAmount, setTollParkingAmount] = useState('');
   
   // Fuel expense fields
-  const [fuelAmount, setFuelAmount] = useState('2400');
-  const [fuelLitres, setFuelLitres] = useState('25.5');
+  const [fuelAmount, setFuelAmount] = useState('');
+  const [fuelLitres, setFuelLitres] = useState('');
   const [fuelBillName, setFuelBillName] = useState('');
   const [fuelBillPreview, setFuelBillPreview] = useState<string | null>(null);
 
-  // Missing Log Book Fields (Image 1 fields)
-  const [logBookPageNo, setLogBookPageNo] = useState('122');
-  const [month, setMonth] = useState('August 2026');
-  const [journeyFrom, setJourneyFrom] = useState('GSON');
-  const [journeyTo, setJourneyTo] = useState('Jogiwala to GSON');
-  const [purposeOfJourney, setPurposeOfJourney] = useState('for office duty');
-  const [headOfAccount, setHeadOfAccount] = useState('PWD Office Duty');
+  // Log Book Fields
+  const [logBookPageNo, setLogBookPageNo] = useState('');
+  const [month, setMonth] = useState('');
+  const [journeyFrom, setJourneyFrom] = useState('');
+  const [journeyTo, setJourneyTo] = useState('');
+  const [purposeOfJourney, setPurposeOfJourney] = useState('');
+  const [headOfAccount, setHeadOfAccount] = useState('');
   const [motorOilUsed, setMotorOilUsed] = useState('None');
   const [mOilLitres, setMOilLitres] = useState('');
-  const [officerName, setOfficerName] = useState('Er. R. K. Singhal');
-  const [officerDesignation, setOfficerDesignation] = useState('Executive Engineer (Civil)');
+  const [officerName, setOfficerName] = useState('');
+  const [officerDesignation, setOfficerDesignation] = useState('');
   const [officerSignatureStatus, setOfficerSignatureStatus] = useState<'Signed' | 'Pending' | 'Exempt'>('Signed');
   const [driverSignatureStatus, setDriverSignatureStatus] = useState<'Signed' | 'Pending'>('Signed');
 
   // Weekend Trip Specific Fields
-  const [tripDestination, setTripDestination] = useState('Delhi to Jaipur (Weekend Round Trip)');
-  const [tripFare, setTripFare] = useState('14500');
-  const [driverBata, setDriverBata] = useState('1200');
+  const [tripDestination, setTripDestination] = useState('');
+  const [tripFare, setTripFare] = useState('');
+  const [driverBata, setDriverBata] = useState('');
 
-  // Sat-Sun / Weekend Off-Duty Package Billing (Image 2 Bill)
-  const [packageBasePrice, setPackageBasePrice] = useState('2255');
+  // Sat-Sun / Weekend Off-Duty Package Billing
+  const [packageBasePrice, setPackageBasePrice] = useState('');
   const [packageFreeKm, setPackageFreeKm] = useState('80');
   const [extraKmRate, setExtraKmRate] = useState('14');
   const [weekendGstRate, setWeekendGstRate] = useState('5');
@@ -355,7 +355,7 @@ export const AddDutyLogModal: React.FC<AddDutyLogModalProps> = ({
                 drivers: drivers.map(d => d.name),
                 departments: departmentContracts.map(c => c.departmentName)
               }}
-              placeholder="Speak duty info (e.g. 'Rahul Sharma start 45300 end 45600 toll 200 fuel 2500')"
+              placeholder="Speak duty info (e.g. 'Duty start 45300 end 45600 toll 200 fuel 2500')"
               onApplyParsedData={(data) => {
                 if (data.driverName) setDriverName(data.driverName);
                 if (data.vehicle) {

@@ -121,7 +121,7 @@ export const EditFastagModal: React.FC<EditFastagModalProps> = ({
                   {vehicleReg}
                 </div>
                 <div style={{ fontSize: '11px', color: 'var(--text-faint)' }}>
-                  {currentVehicle.model || currentVehicle.type} · Driver: {currentVehicle.assignedDriver || 'Driver'}
+                  {currentVehicle.model || currentVehicle.type} · Driver: {currentVehicle.assignedDriver || 'Unassigned'}
                 </div>
               </div>
               <span className={`tag ${currentVehicle.type === 'Department' ? 'dept' : 'trip'}`} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>

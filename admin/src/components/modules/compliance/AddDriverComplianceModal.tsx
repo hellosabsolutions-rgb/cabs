@@ -45,12 +45,12 @@ export const AddDriverComplianceModal: React.FC<AddDriverComplianceModalProps> =
   const { isClosing, handleClose } = useModalAnimation(onClose);
 
   const [driverName, setDriverName] = useState(
-    preselectedDriver || drivers[0]?.name || 'Rahul Sharma'
+    preselectedDriver || drivers[0]?.name || ''
   );
   const [documentName, setDocumentName] = useState<DriverDocType>('Driving licence');
   const [licenseNumber, setLicenseNumber] = useState('');
   const [category, setCategory] = useState('Transport / Commercial (LMV-TR)');
-  const [issuingRto, setIssuingRto] = useState('Delhi Transport Authority (RTO)');
+  const [issuingRto, setIssuingRto] = useState('');
   const [issueDate, setIssueDate] = useState(() => {
     const d = new Date();
     d.setFullYear(d.getFullYear() - 3);
@@ -212,7 +212,7 @@ export const AddDriverComplianceModal: React.FC<AddDriverComplianceModalProps> =
             <MinimalVoiceFiller
               formType="driver"
               context={{ drivers: drivers.map(d => d.name) }}
-              placeholder="Speak compliance doc info (e.g. 'Rahul Sharma Driving Licence DL0420180092341')"
+              placeholder="Speak compliance doc info (e.g. 'Driving Licence DL0420180092341')"
               onApplyParsedData={(data) => {
                 if (data.name) {
                   const matched = drivers.find(d => d.name.toLowerCase().includes(data.name.toLowerCase()));

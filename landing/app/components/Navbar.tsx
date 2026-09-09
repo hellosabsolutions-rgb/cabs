@@ -57,7 +57,7 @@ export function Navbar() {
 
         <div className="hidden md:flex items-center gap-3">
           <a
-            href="#inquiry"
+            href="https://kabpro.pro"
             className="text-sm text-muted hover:text-foreground transition-colors"
           >
             Sign in
@@ -93,6 +93,15 @@ export function Navbar() {
                 </a>
               </li>
             ))}
+            <li>
+              <a
+                href="https://kabpro.pro"
+                onClick={() => setMobileOpen(false)}
+                className="text-muted hover:text-foreground transition-colors text-base"
+              >
+                Sign in
+              </a>
+            </li>
             <li>
               <a
                 href="#cta"

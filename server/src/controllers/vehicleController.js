@@ -84,21 +84,21 @@ export const onboardVehicle = asyncHandler(async (req, res) => {
   }
 
   // 2. Computed Financials & Meta
-  const calcRev = Number(revenue) || (type === 'Department' ? 85000 : 110000);
-  const calcExp = Number(expense) || 45000;
+  const calcRev = typeof revenue !== 'undefined' && revenue !== null ? Number(revenue) : 0;
+  const calcExp = typeof expense !== 'undefined' && expense !== null ? Number(expense) : 0;
   const calcProfit = calcRev - calcExp;
 
   const finalAssignedTo =
     assignedTo ||
     (type === 'Department'
-      ? departmentName || 'Public Works Department (PWD)'
-      : hubStand || 'Delhi NCR Stand');
+      ? departmentName || 'Unassigned Department'
+      : hubStand || 'Fleet Hub');
 
   const finalMeta =
     meta ||
     (type === 'Department'
       ? `${departmentName || finalAssignedTo} Contract Duty`
-      : `Trip · ${hubStand || finalAssignedTo}`);
+      : `Stand · ${hubStand || finalAssignedTo}`);
 
   // Helper to upload document or photo to Cloudinary
   const uploadDoc = async (val, folder = 'fleetos/vehicles') => {

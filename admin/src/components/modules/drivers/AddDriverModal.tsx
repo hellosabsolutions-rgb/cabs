@@ -171,7 +171,7 @@ export const AddDriverModal: React.FC<AddDriverModalProps> = ({ isOpen, onClose 
             <MinimalVoiceFiller
               formType="driver"
               context={{ vehicles: vehicles.map(v => v.registrationNumber) }}
-              placeholder="Speak driver details (e.g. 'Driver Rajesh Sharma phone 9876543210 Full Time DL01AB1234')"
+              placeholder="Speak driver details (e.g. 'Driver phone 9876543210 Full Time')"
               onApplyParsedData={(data) => {
                 if (data.name) setName(data.name);
                 if (data.phone) setPhone(data.phone);

@@ -248,7 +248,7 @@ export const VoiceFormFiller: React.FC<VoiceFormFillerProps> = ({
             )}
             {!transcript && !interimTranscript && isListening && (
               <span style={{ color: 'var(--text-faint)' }}>
-                Speak now... e.g. "Vehicle number DL01AB1234, Model Innova, Fuel Diesel, Driver Rahul Sharma, 7 seater"
+                Speak now... e.g. "Vehicle number DL01AB1234, Model Innova, Fuel Diesel, 7 seater"
               </span>
             )}
           </div>
@@ -359,7 +359,7 @@ export const VoiceFormFiller: React.FC<VoiceFormFillerProps> = ({
       {/* Helpful Hint when idle */}
       {!isListening && !transcript && (
         <div style={{ fontSize: '11px', color: 'var(--text-faint)', lineHeight: 1.35 }}>
-          💡 <em>Example: "Vehicle number DL 01 AB 1234, Model Innova Crysta, Fuel Diesel, Driver Rahul Sharma, 7 seater"</em>
+          💡 <em>Example: "Vehicle number DL 01 AB 1234, Model Innova Crysta, Fuel Diesel, 7 seater"</em>
         </div>
       )}
     </div>

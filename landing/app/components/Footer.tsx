@@ -11,6 +11,7 @@ const footerLinks = {
     { label: 'Features', href: '#features' },
     { label: 'Pricing', href: '#pricing' },
     { label: 'FAQ', href: '#faq' },
+    { label: 'Sign in', href: 'https://kabpro.pro' },
     { label: 'Documentation', href: '#' },
   ],
   Company: [

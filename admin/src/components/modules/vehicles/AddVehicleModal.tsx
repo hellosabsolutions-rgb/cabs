@@ -50,16 +50,16 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
   const { drivers, departmentContracts, addVehicle } = useFleet();
 
   const [registrationNumber, setRegistrationNumber] = useState('');
-  const [model, setModel] = useState('Toyota Innova Crysta');
+  const [model, setModel] = useState('');
   const [type, setType] = useState<VehicleType>(defaultType);
-  const [departmentName, setDepartmentName] = useState('Public Works Department (PWD)');
-  const [hubStand, setHubStand] = useState('Delhi NCR Booking Stand');
-  const [assignedDriver, setAssignedDriver] = useState(drivers[0]?.name || 'Rahul Sharma');
+  const [departmentName, setDepartmentName] = useState('');
+  const [hubStand, setHubStand] = useState('');
+  const [assignedDriver, setAssignedDriver] = useState(drivers[0]?.name || '');
   const [fuelType, setFuelType] = useState<NonNullable<Vehicle['fuelType']>>('Diesel');
-  const [seatingCapacity, setSeatingCapacity] = useState('7');
-  const [odometer, setOdometer] = useState('35000');
+  const [seatingCapacity, setSeatingCapacity] = useState('4');
+  const [odometer, setOdometer] = useState('');
   const [status, setStatus] = useState<VehicleStatus>('Running');
-  const [fastagBalance, setFastagBalance] = useState('2500');
+  const [fastagBalance, setFastagBalance] = useState('');
   const [gpsImei, setGpsImei] = useState(() => `IMEI-86${Math.floor(Math.random() * 900000000 + 100000000)}`);
 
   // -------------------------------------------------------------
@@ -206,13 +206,13 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
         assignedTo: finalAssignedTo,
         departmentName: type === 'Department' ? departmentName.trim() : (departmentName.trim() || undefined),
         status,
-        revenue: type === 'Department' ? 85000 : 110000,
-        expense: 45000,
-        profit: type === 'Department' ? 40000 : 65000,
-        meta: type === 'Department' ? `${departmentName} Contract duty` : `Booking · ${hubStand}`,
+        revenue: 0,
+        expense: 0,
+        profit: 0,
+        meta: type === 'Department' ? (departmentName.trim() ? `${departmentName.trim()} Contract duty` : 'Department cab') : (hubStand.trim() ? `Stand · ${hubStand.trim()}` : 'Trip cab'),
         fuelType,
         seatingCapacity: Number(seatingCapacity) || 5,
-        assignedDriver: assignedDriver !== 'Unassigned' ? assignedDriver : undefined,
+        assignedDriver: (assignedDriver && assignedDriver !== 'Unassigned') ? assignedDriver : undefined,
         odometer: Number(odometer) || 0,
         fastagBalance: Number(fastagBalance) || 0,
         gpsImei: gpsImei.trim(),
@@ -298,7 +298,7 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
                 vehicles: [],
                 drivers: drivers.map(d => d.name)
               }}
-              placeholder="Speak vehicle info (e.g. 'DL01AB1234 Innova Crysta Diesel PWD Rahul Sharma')"
+              placeholder="Speak vehicle info (e.g. 'DL01AB1234 Innova Crysta Diesel PWD')"
               onApplyParsedData={(data) => handleApplyVoiceData(data as any)}
             />
 
