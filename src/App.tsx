@@ -8,6 +8,7 @@ import { FleetProvider } from './context/FleetContext';
 import { NotificationProvider } from './context/NotificationContext';
 import { NotificationToast } from './components/common/NotificationToast';
 import { ModalAnimationController } from './components/common/ModalAnimationController';
+import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { MainLayout } from './components/layout/MainLayout';
 import './styles/globals.css';
 
@@ -22,7 +23,9 @@ export const App: React.FC = () => {
             <AgencyProvider>
               <FleetProvider>
                 <NotificationProvider>
-                  <MainLayout />
+                  <ErrorBoundary fallbackTitle="FleetOS Interface Error">
+                    <MainLayout />
+                  </ErrorBoundary>
                   <NotificationToast />
                   <ModalAnimationController />
                 </NotificationProvider>

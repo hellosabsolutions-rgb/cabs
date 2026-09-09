@@ -47,11 +47,19 @@ const start = async () => {
     }, 3000).unref();
   };
 
-  process.on('SIGTERM', () => handleGracefulShutdown('SIGTERM'));
-  process.on('SIGINT', () => handleGracefulShutdown('SIGINT'));
-};
+    process.on('SIGTERM', () => handleGracefulShutdown('SIGTERM'));
+    process.on('SIGINT', () => handleGracefulShutdown('SIGINT'));
+  };
 
-start().catch((err) => {
-  console.error('❌ Failed to start server:', err.message);
-  process.exit(1);
-});
+  process.on('unhandledRejection', (reason, promise) => {
+    console.error('💥 [Server Process] Unhandled Promise Rejection:', reason);
+  });
+
+  process.on('uncaughtException', (err) => {
+    console.error('💥 [Server Process] Uncaught Exception:', err);
+  });
+
+  start().catch((err) => {
+    console.error('❌ Failed to start server:', err.message);
+    process.exit(1);
+  });
