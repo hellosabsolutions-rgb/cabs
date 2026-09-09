@@ -3,6 +3,7 @@ import { Vehicle } from '../models/Vehicle.js';
 import { Driver } from '../models/Driver.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import { createCrudController } from './crudFactory.js';
+import { uploadToCloudinary } from '../services/cloudinaryService.js';
 import mongoose from 'mongoose';
 
 // Base CRUD controller for fallback
@@ -218,6 +219,22 @@ export const createContract = asyncHandler(async (req, res) => {
     return d.toISOString().split('T')[0];
   })();
 
+  let docUrl = documentFile || null;
+  if (documentFile && documentFile.startsWith('data:')) {
+    try {
+      const isPdf = documentFile.startsWith('data:application/pdf');
+      const uploadRes = await uploadToCloudinary(documentFile, {
+        folder: 'fleetos/contracts',
+        resource_type: isPdf ? 'raw' : 'auto'
+      });
+      if (uploadRes && uploadRes.secure_url) {
+        docUrl = uploadRes.secure_url;
+      }
+    } catch (uploadErr) {
+      console.warn('Contract document upload to Cloudinary failed, using raw string:', uploadErr.message);
+    }
+  }
+
   // 3. Create contract document
   const newContract = await DepartmentContract.create({
     contractNumber: cleanContractNumber,
@@ -234,7 +251,7 @@ export const createContract = asyncHandler(async (req, res) => {
     startDate: cleanStartDate,
     endDate: cleanEndDate,
     status: status || 'Active',
-    documentFile: documentFile || null
+    documentFile: docUrl
   });
 
   // 4. Cross-Entity Synchronization
@@ -311,6 +328,21 @@ export const updateContract = asyncHandler(async (req, res) => {
   ];
 
   const oldVehicle = contract.vehicle;
+
+  if (req.body.documentFile && req.body.documentFile.startsWith('data:')) {
+    try {
+      const isPdf = req.body.documentFile.startsWith('data:application/pdf');
+      const uploadRes = await uploadToCloudinary(req.body.documentFile, {
+        folder: 'fleetos/contracts',
+        resource_type: isPdf ? 'raw' : 'auto'
+      });
+      if (uploadRes && uploadRes.secure_url) {
+        req.body.documentFile = uploadRes.secure_url;
+      }
+    } catch (uploadErr) {
+      console.warn('Contract document upload warning in updateContract:', uploadErr.message);
+    }
+  }
 
   allowedUpdates.forEach(field => {
     if (req.body[field] !== undefined) {

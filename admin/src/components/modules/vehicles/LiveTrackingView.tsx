@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useFleet } from '../../../context/FleetContext';
 import { Radio, Navigation, Battery, Cpu, ShieldCheck, Zap, PowerOff } from 'lucide-react';
 
@@ -19,110 +19,37 @@ interface VehicleTelemetry {
   fuelPercent: number;
 }
 
-const mockTelemetryData: Record<string, VehicleTelemetry> = {
-  DL01AB1234: {
-    id: 'v1',
-    reg: 'DL01AB1234',
-    model: 'Toyota Innova Crysta',
-    driver: 'Rahul Sharma',
-    speed: 48,
-    ignition: true,
-    status: 'Moving',
-    location: 'Ring Road Flyover near ITO, New Delhi',
-    coordinates: '28.6289° N, 77.2412° E',
-    distanceToday: 135,
-    battery: '13.4V (Healthy)',
-    satellites: 18,
-    lastPing: 'Just now (1s ago)',
-    fuelPercent: 78
-  },
-  DL02CD5678: {
-    id: 'v2',
-    reg: 'DL02CD5678',
-    model: 'Maruti Ertiga ZXi',
-    driver: 'Vikas Kumar',
-    speed: 74,
-    ignition: true,
-    status: 'Moving',
-    location: 'NH-44 Highway near Murthal, Haryana',
-    coordinates: '28.9833° N, 77.0667° E',
-    distanceToday: 190,
-    battery: '13.6V (Healthy)',
-    satellites: 20,
-    lastPing: '2s ago',
-    fuelPercent: 62
-  },
-  DL03EF9012: {
-    id: 'v3',
-    reg: 'DL03EF9012',
-    model: 'Mahindra Scorpio-N',
-    driver: 'Suresh Yadav',
-    speed: 0,
-    ignition: false,
-    status: 'Parked',
-    location: 'Ludhiana Central Transport Stand, Punjab',
-    coordinates: '30.9010° N, 75.8573° E',
-    distanceToday: 24,
-    battery: '12.8V (Normal)',
-    satellites: 14,
-    lastPing: '15s ago',
-    fuelPercent: 88
-  },
-  DL05KL4432: {
-    id: 'v5',
-    reg: 'DL05KL4432',
-    model: 'Tata Tigor EV / CNG',
-    driver: 'Vikas Kumar',
-    speed: 0,
-    ignition: true,
-    status: 'Idling',
-    location: 'Delhi Jal Nigam Wazirabad Plant Gate, Delhi',
-    coordinates: '28.7180° N, 77.2310° E',
-    distanceToday: 110,
-    battery: '13.1V (Healthy)',
-    satellites: 16,
-    lastPing: '4s ago',
-    fuelPercent: 54
-  },
-  DL07GH2211: {
-    id: 'v4',
-    reg: 'DL07GH2211',
-    model: 'Maruti Dzire Tour S',
-    driver: 'Sunil Verma',
-    speed: 0,
-    ignition: false,
-    status: 'Offline',
-    location: 'Authorized Workshop Yard, Okhla Phase 2',
-    coordinates: '28.5355° N, 77.2710° E',
-    distanceToday: 0,
-    battery: '12.4V (Standby)',
-    satellites: 0,
-    lastPing: '35m ago (Workshop mode)',
-    fuelPercent: 35
-  }
-};
+const mockTelemetryData: Record<string, VehicleTelemetry> = {};
 
 export const LiveTrackingView: React.FC = () => {
   const { vehicles } = useFleet();
-  const [selectedReg, setSelectedReg] = useState<string>('DL01AB1234');
+  const [selectedReg, setSelectedReg] = useState<string>(vehicles[0]?.registrationNumber || '');
   const [activeTab, setActiveTab] = useState<'all' | 'moving' | 'idling' | 'parked'>('all');
 
-  const selectedVehicle = mockTelemetryData[selectedReg] || {
-    id: 'v1',
-    reg: selectedReg,
-    model: 'Fleet Vehicle',
-    driver: 'Assigned Driver',
-    speed: 42,
-    ignition: true,
-    status: 'Moving',
-    location: 'Delhi NCR Inner Ring Road',
+  useEffect(() => {
+    if (!selectedReg && vehicles.length > 0) {
+      setSelectedReg(vehicles[0].registrationNumber);
+    }
+  }, [vehicles, selectedReg]);
+
+  const fallbackVehicle: VehicleTelemetry = {
+    id: vehicles[0]?.id || 'v1',
+    reg: selectedReg || vehicles[0]?.registrationNumber || 'N/A',
+    model: vehicles[0]?.model || 'Fleet Vehicle',
+    driver: vehicles[0]?.assignedDriver || 'Assigned Driver',
+    speed: 0,
+    ignition: false,
+    status: 'Parked',
+    location: 'Standby Yard',
     coordinates: '28.6139° N, 77.2090° E',
-    distanceToday: 88,
-    battery: '13.2V (Healthy)',
-    satellites: 16,
-    lastPing: 'Just now',
-    fuelPercent: 70
+    distanceToday: 0,
+    battery: '12.8V',
+    satellites: 12,
+    lastPing: 'Live',
+    fuelPercent: 100
   };
+
+  const selectedVehicle: VehicleTelemetry = (selectedReg && mockTelemetryData[selectedReg]) || fallbackVehicle;
 
   const getStatusColor = (status: VehicleTelemetry['status']) => {
     switch (status) {
@@ -165,6 +92,18 @@ export const LiveTrackingView: React.FC = () => {
     if (activeTab === 'parked') return v.status === 'Parked';
     return true;
   });
+
+  if (vehicles.length === 0) {
+    return (
+      <div style={{ textAlign: 'center', padding: '60px 20px', background: 'var(--surface-2)', borderRadius: '12px', border: '1px solid var(--border)' }}>
+        <Navigation size={42} style={{ color: 'var(--accent)', opacity: 0.5, marginBottom: '14px' }} />
+        <h3 style={{ color: 'var(--text)', fontSize: '17px', fontWeight: 600, marginBottom: '8px' }}>No Fleet Vehicles Registered</h3>
+        <p style={{ color: 'var(--text-dim)', fontSize: '13px', maxWidth: '420px', margin: '0 auto' }}>
+          Add vehicles in the Vehicles tab to track their live telemetry, GPS location, and ignition status.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>

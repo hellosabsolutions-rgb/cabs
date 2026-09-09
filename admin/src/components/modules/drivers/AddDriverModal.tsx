@@ -23,7 +23,7 @@ export const AddDriverModal: React.FC<AddDriverModalProps> = ({ isOpen, onClose 
   const [licenseNumber, setLicenseNumber] = useState('');
   const [licenseExpiry, setLicenseExpiry] = useState('');
   const [driverType, setDriverType] = useState<DriverType>('Full Time');
-  const [assignedVehicle, setAssignedVehicle] = useState(vehicles[0]?.registrationNumber || 'DL01AB1234');
+  const [assignedVehicle, setAssignedVehicle] = useState(vehicles[0]?.registrationNumber || '');
   const [status, setStatus] = useState<'On duty' | 'Off duty'>('On duty');
   const [monthlySalary, setMonthlySalary] = useState('');
   const [joiningDate, setJoiningDate] = useState(() => new Date().toISOString().split('T')[0]);

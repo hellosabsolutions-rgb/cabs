@@ -2,6 +2,13 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { socketManager } from '../services/socket';
 import { api } from '../services/api';
 import { useAuth } from './AuthContext';
+import {
+  isPushSupported,
+  getPushPermissionState,
+  requestPushPermissionAndGetToken,
+  unregisterPushToken,
+  setupForegroundPushListener
+} from '../services/pushNotificationService';
 
 export type NotificationCategory =
   | 'compliance'
@@ -40,6 +47,12 @@ interface NotificationContextType {
   deleteNotification: (id: string) => Promise<void>;
   clearAll: () => Promise<void>;
   refreshNotifications: () => Promise<void>;
+  // Push Notification state & actions
+  isPushSupported: boolean;
+  pushPermission: NotificationPermission;
+  isPushEnabled: boolean;
+  enablePush: () => Promise<{ success: boolean; error?: string }>;
+  disablePush: () => Promise<void>;
 }
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
@@ -51,6 +64,78 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const [isConnected, setIsConnected] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [activeToast, setActiveToast] = useState<NotificationItem | null>(null);
+
+  // Push notification state
+  const [isPushSupportedState] = useState<boolean>(() => isPushSupported());
+  const [pushPermission, setPushPermission] = useState<NotificationPermission>(() => getPushPermissionState());
+  const [isPushEnabled, setIsPushEnabled] = useState<boolean>(() => {
+    return (
+      isPushSupported() &&
+      getPushPermissionState() === 'granted' &&
+      Boolean(localStorage.getItem('fleetos_fcm_token'))
+    );
+  });
+
+  // Enable push notifications
+  const enablePush = useCallback(async () => {
+    const res = await requestPushPermissionAndGetToken();
+    setPushPermission(getPushPermissionState());
+    if (res.success) {
+      setIsPushEnabled(true);
+      return { success: true };
+    }
+    setIsPushEnabled(false);
+    return { success: false, error: res.error };
+  }, []);
+
+  // Disable push notifications
+  const disablePush = useCallback(async () => {
+    await unregisterPushToken();
+    setIsPushEnabled(false);
+  }, []);
+
+  // Auto-sync token if permission is already granted
+  useEffect(() => {
+    if (isAuthenticated && user && pushPermission === 'granted') {
+      requestPushPermissionAndGetToken().then((res) => {
+        if (res.success) setIsPushEnabled(true);
+      });
+    }
+  }, [isAuthenticated, user, pushPermission]);
+
+  // Listen for foreground push messages
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    let unsub: (() => void) | null = null;
+    setupForegroundPushListener((payload) => {
+      const formatted: NotificationItem = {
+        id: (payload.data?.id as string) || `fcm-${Date.now()}`,
+        category: (payload.data?.category as any) || 'system',
+        priority: (payload.data?.priority as any) || 'info',
+        title: payload.notification?.title || (payload.data?.title as string) || 'FleetOS Alert',
+        message:
+          payload.notification?.body ||
+          (payload.data?.body as string) ||
+          (payload.data?.message as string) ||
+          '',
+        isRead: false,
+        link: (payload.data?.link as string) || null,
+        metadata: payload.data || {},
+        createdAt: new Date().toISOString()
+      };
+
+      setNotifications((prev) => [formatted, ...prev.filter((n) => n.id !== formatted.id)]);
+      setUnreadCount((prev) => prev + 1);
+      setActiveToast(formatted);
+    }).then((cleanup) => {
+      unsub = cleanup;
+    });
+
+    return () => {
+      if (unsub) unsub();
+    };
+  }, [isAuthenticated]);
 
   const dismissToast = useCallback(() => {
     setActiveToast(null);
@@ -271,6 +356,11 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         deleteNotification,
         clearAll,
         refreshNotifications,
+        isPushSupported: isPushSupportedState,
+        pushPermission,
+        isPushEnabled,
+        enablePush,
+        disablePush,
       }}
     >
       {children}

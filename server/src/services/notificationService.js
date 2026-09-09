@@ -1,6 +1,7 @@
 import { Notification } from '../models/Notification.js';
 import { User } from '../models/User.js';
 import { emitToUser, emitToAgency } from './socketService.js';
+import { sendPushToUser, sendPushToAgency } from './fcmService.js';
 
 /**
  * NotificationService
@@ -103,11 +104,30 @@ const drain = async () => {
       // Emit to personal room
       if (notif.userId) {
         emitToUser(notif.userId.toString(), 'notification:new', payload);
+        // Dispatch Firebase Web Push Notification to user's registered devices
+        sendPushToUser(notif.userId.toString(), {
+          title: notif.title,
+          body: notif.message,
+          data: notif.metadata || {},
+          link: notif.link || '/notifications',
+          category: notif.category,
+          priority: notif.priority
+        }).catch((err) => console.warn('[FCM] Push send failed for user:', err.message));
       }
 
       // Also emit to agency room (for fleet-wide events)
       if (notif.agencyId) {
         emitToAgency(notif.agencyId.toString(), 'notification:agency', payload);
+        if (!notif.userId) {
+          sendPushToAgency(notif.agencyId.toString(), {
+            title: notif.title,
+            body: notif.message,
+            data: notif.metadata || {},
+            link: notif.link || '/notifications',
+            category: notif.category,
+            priority: notif.priority
+          }).catch((err) => console.warn('[FCM] Push send failed for agency:', err.message));
+        }
       }
     }
   } catch (err) {

@@ -27,7 +27,7 @@ export const AddDriverExpenseModal: React.FC<AddDriverExpenseModalProps> = ({
   const { drivers, vehicles, addDriverExpense } = useFleet();
 
   const [selectedDriverId, setSelectedDriverId] = useState(drivers[0]?.id || '');
-  const [vehicle, setVehicle] = useState(vehicles[0]?.registrationNumber || 'DL01AB1234');
+  const [vehicle, setVehicle] = useState(vehicles[0]?.registrationNumber || '');
   const [date, setDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [category, setCategory] = useState<DriverExpenseCategory>('Daily Bata / Food');
   const [amount, setAmount] = useState('');
@@ -43,7 +43,7 @@ export const AddDriverExpenseModal: React.FC<AddDriverExpenseModalProps> = ({
   useEffect(() => {
     if (drivers.length > 0 && !selectedDriverId) {
       setSelectedDriverId(drivers[0].id);
-      setVehicle(drivers[0].assignedVehicle || 'DL01AB1234');
+      setVehicle(drivers[0].assignedVehicle || '');
     }
   }, [drivers, selectedDriverId]);
 

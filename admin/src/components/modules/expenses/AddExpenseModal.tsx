@@ -26,10 +26,10 @@ export const AddExpenseModal: React.FC<AddExpenseModalProps> = ({
   const { vehicles, drivers, addExpense } = useFleet();
 
   const [date, setDate] = useState(() => new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }));
-  const [vehicle, setVehicle] = useState(vehicles[0]?.registrationNumber || 'DL01AB1234');
+  const [vehicle, setVehicle] = useState(vehicles[0]?.registrationNumber || '');
   const [category, setCategory] = useState<ExpenseRecord['category']>(defaultCategory);
   const [amount, setAmount] = useState('');
-  const [linkedTo, setLinkedTo] = useState('Department duty');
+  const [linkedTo, setLinkedTo] = useState('');
   const [litres, setLitres] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
 

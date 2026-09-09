@@ -1,4 +1,5 @@
 import { Notification } from '../models/Notification.js';
+import { User } from '../models/User.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import { emitToUser } from '../services/socketService.js';
 
@@ -187,3 +188,91 @@ export const sendTestNotification = asyncHandler(async (req, res) => {
     message: 'Test notification enqueued and scheduled for real-time delivery.'
   });
 });
+
+/**
+ * @desc    Register FCM device push token for the current user
+ * @route   POST /api/notifications/fcm-token
+ * @access  Private
+ */
+export const registerFcmToken = asyncHandler(async (req, res) => {
+  const { token, device = 'web' } = req.body;
+  if (!token) {
+    return res.status(400).json({ success: false, error: 'FCM token is required' });
+  }
+
+  const user = await User.findById(req.user._id);
+  if (!user) {
+    return res.status(404).json({ success: false, error: 'User not found' });
+  }
+
+  if (!user.fcmTokens) user.fcmTokens = [];
+
+  const existingIdx = user.fcmTokens.findIndex((t) => t.token === token);
+  if (existingIdx >= 0) {
+    user.fcmTokens[existingIdx].updatedAt = new Date();
+    user.fcmTokens[existingIdx].device = device;
+  } else {
+    user.fcmTokens.push({ token, device, updatedAt: new Date() });
+  }
+
+  await user.save();
+
+  res.status(200).json({
+    success: true,
+    message: 'FCM device token registered successfully',
+    tokenCount: user.fcmTokens.length
+  });
+});
+
+/**
+ * @desc    Unregister FCM device push token
+ * @route   DELETE /api/notifications/fcm-token
+ * @access  Private
+ */
+export const unregisterFcmToken = asyncHandler(async (req, res) => {
+  const { token } = req.body;
+  if (!token) {
+    return res.status(400).json({ success: false, error: 'FCM token is required' });
+  }
+
+  await User.findByIdAndUpdate(req.user._id, {
+    $pull: { fcmTokens: { token } }
+  });
+
+  res.status(200).json({
+    success: true,
+    message: 'FCM device token unregistered successfully'
+  });
+});
+
+/**
+ * @desc    Send a direct FCM test push notification to user's registered devices
+ * @route   POST /api/notifications/test-push
+ * @access  Private
+ */
+export const sendDirectTestPush = asyncHandler(async (req, res) => {
+  const { sendPushToUser } = await import('../services/fcmService.js');
+  const user = await User.findById(req.user._id).select('fcmTokens name').lean();
+
+  if (!user || !user.fcmTokens || user.fcmTokens.length === 0) {
+    return res.status(400).json({
+      success: false,
+      error: 'No push tokens registered for this user. Please enable browser push notifications first.'
+    });
+  }
+
+  const result = await sendPushToUser(req.user._id.toString(), {
+    title: '🔔 Test Web Push Notification',
+    body: `Hello ${user.name || 'Fleet Manager'}! Firebase Cloud Messaging Web Push is working live on FleetOS.`,
+    link: '/notifications',
+    category: 'system',
+    priority: 'critical'
+  });
+
+  res.status(200).json({
+    success: true,
+    message: 'Test push notification sent via Firebase Cloud Messaging!',
+    result
+  });
+});
+

@@ -4,6 +4,8 @@ import { Compliance } from '../models/Compliance.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import { createCrudController } from './crudFactory.js';
 import { calculateExpiryMeta } from './complianceController.js';
+import { emitDriverAdded } from '../services/notificationEmitter.js';
+import { uploadToCloudinary } from '../services/cloudinaryService.js';
 import mongoose from 'mongoose';
 
 // Base CRUD controller for drivers
@@ -91,15 +93,40 @@ export const createDriver = asyncHandler(async (req, res) => {
 
   const cleanJoiningDate = joiningDate || new Date().toISOString().split('T')[0];
 
+  // Upload driver photo and license document to Cloudinary if provided as base64
+  let finalPhoto = photo || null;
+  if (photo && typeof photo === 'string' && photo.startsWith('data:image')) {
+    try {
+      const uploaded = await uploadToCloudinary(photo, { folder: 'fleetos/drivers' });
+      finalPhoto = uploaded.secure_url;
+    } catch (err) {
+      console.warn('Cloudinary driver photo upload failed, saving raw:', err.message);
+    }
+  }
+
+  let finalLicensePhoto = licensePhoto || null;
+  if (licensePhoto && typeof licensePhoto === 'string' && licensePhoto.startsWith('data:')) {
+    try {
+      const isPdf = licensePhoto.startsWith('data:application/pdf');
+      const uploaded = await uploadToCloudinary(licensePhoto, {
+        folder: 'fleetos/compliance',
+        resource_type: isPdf ? 'raw' : 'auto'
+      });
+      finalLicensePhoto = uploaded.secure_url;
+    } catch (err) {
+      console.warn('Cloudinary license upload failed, saving raw:', err.message);
+    }
+  }
+
   // 3. Create driver document
   const driver = await Driver.create({
     name: cleanName,
     phone: cleanPhone,
-    photo: photo || null,
+    photo: finalPhoto,
     address: address ? address.trim() : undefined,
     emergencyContact: emergencyContact ? emergencyContact.trim() : undefined,
     licenseNumber: licenseNumber ? licenseNumber.trim().toUpperCase() : undefined,
-    licensePhoto: licensePhoto || null,
+    licensePhoto: finalLicensePhoto,
     licenseExpiry: licenseExpiry || undefined,
     driverType: driverType || 'Full Time',
     assignedVehicle: cleanVehicle,
@@ -149,6 +176,12 @@ export const createDriver = asyncHandler(async (req, res) => {
       console.warn('Could not auto-create driver compliance document:', cErr.message);
     }
   }
+
+  emitDriverAdded({
+    userId: req.user?._id,
+    agencyId: req.user?.currentAgency || agencyId,
+    driver
+  });
 
   res.status(201).json({
     success: true,

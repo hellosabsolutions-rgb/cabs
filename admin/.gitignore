@@ -15,6 +15,10 @@ npm-debug.log*
 
 # .env.production is committed (public VITE_* URLs only)
 
+# Firebase / Google Cloud service account JSON (never commit)
+*firebase-adminsdk*.json
+opsiva-*.json
+
 # Editor / OS
 .DS_Store
 .vscode/*

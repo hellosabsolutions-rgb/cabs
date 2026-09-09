@@ -22,9 +22,21 @@ const userSchema = new mongoose.Schema(
     },
     password: {
       type: String,
-      required: [true, 'Password is required'],
+      required: function () {
+        return !this.googleId;
+      },
       minlength: [6, 'Password must be at least 6 characters'],
       select: false // Never return password in queries by default
+    },
+    googleId: {
+      type: String,
+      sparse: true,
+      index: true
+    },
+    authProvider: {
+      type: String,
+      enum: ['local', 'google'],
+      default: 'local'
     },
     role: {
       type: String,
@@ -63,6 +75,13 @@ const userSchema = new mongoose.Schema(
       financial: { type: Boolean, default: true },
       bookings: { type: Boolean, default: true }
     },
+    fcmTokens: [
+      {
+        token: { type: String, required: true },
+        device: { type: String, default: 'web' },
+        updatedAt: { type: Date, default: Date.now }
+      }
+    ],
     lastLoginAt: {
       type: Date,
       default: null
@@ -85,7 +104,7 @@ const userSchema = new mongoose.Schema(
 
 // Encrypt password before saving
 userSchema.pre('save', async function (next) {
-  if (!this.isModified('password')) {
+  if (!this.password || !this.isModified('password')) {
     return next();
   }
   const salt = await bcrypt.genSalt(10);

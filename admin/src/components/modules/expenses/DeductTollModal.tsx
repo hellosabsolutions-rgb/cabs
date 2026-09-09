@@ -28,10 +28,10 @@ export const DeductTollModal: React.FC<DeductTollModalProps> = ({
   const { vehicles, addFastagTransaction } = useFleet();
 
   const [vehicleReg, setVehicleReg] = useState(
-    preselectedVehicle || vehicles[0]?.registrationNumber || 'DL01AB1234'
+    preselectedVehicle || vehicles[0]?.registrationNumber || ''
   );
-  const [tollPlaza, setTollPlaza] = useState('Kherki Daula Toll Plaza (NH-48)');
-  const [amount, setAmount] = useState('150');
+  const [tollPlaza, setTollPlaza] = useState('');
+  const [amount, setAmount] = useState('');
   const [date, setDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [time, setTime] = useState(() => {
     const d = new Date();

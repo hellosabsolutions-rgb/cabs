@@ -171,9 +171,9 @@ export const TripVehiclesView: React.FC = () => {
                         <div
                           className="cell-truncate"
                           style={{ fontWeight: 500 }}
-                          title={v.assignedDriver || 'Vikas Kumar'}
+                          title={v.assignedDriver || 'Unassigned'}
                         >
-                          {v.assignedDriver || 'Vikas Kumar'}
+                          {v.assignedDriver || 'Unassigned'}
                         </div>
                         <div style={{ fontSize: '10.5px', color: 'var(--text-faint)', whiteSpace: 'nowrap' }}>Commercial Pilot</div>
                       </div>
@@ -181,7 +181,7 @@ export const TripVehiclesView: React.FC = () => {
 
                     <td>
                       <div style={{ fontSize: '12px' }}>
-                        {v.odometer ? `${v.odometer.toLocaleString('en-IN')} km` : '61,200 km'}
+                        {v.odometer ? `${v.odometer.toLocaleString('en-IN')} km` : '0 km'}
                       </div>
                       <div style={{ fontSize: '10.5px', color: 'var(--text-dim)', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '3px' }}>
                         <Fuel size={11} /> {v.fuelType || 'Diesel'}

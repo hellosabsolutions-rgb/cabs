@@ -4,6 +4,8 @@ import { TripType, PaymentMode, VehicleAvailabilityResult } from '../../../types
 import { Navigation, ArrowRight, RotateCcw, Calendar, AlertTriangle, CheckCircle2, User, Phone, IndianRupee, Car, Clock } from 'lucide-react';
 import { MinimalVoiceFiller } from '../../common/MinimalVoiceFiller';
 import { DatePicker } from '../../common/DatePicker';
+import { LocationAutocompleteInput, LocationSuggestion } from '../../common/LocationAutocompleteInput';
+import { RouteMapViewer } from '../../common/RouteMapViewer';
 
 interface AddBookingModalProps {
   isOpen: boolean;
@@ -34,28 +36,32 @@ export const AddBookingModal: React.FC<AddBookingModalProps> = ({
 
   // 2. VEHICLE & DRIVER (STEP 2 - Selected according to available cars on that date)
   const [vehicleReg, setVehicleReg] = useState(prefillVehicle || '');
-  const [driverName, setDriverName] = useState(drivers[0]?.name || 'Vikas Kumar');
-  const [startOdometer, setStartOdometer] = useState('61200');
+  const [driverName, setDriverName] = useState(drivers[0]?.name || '');
+  const [startOdometer, setStartOdometer] = useState('');
 
-  // 3. TRIP TYPE & ROUTE
+  // 3. TRIP TYPE & ROUTE (with Live Autocomplete & Map Coordinates)
   const [tripType, setTripType] = useState<TripType>('Round Trip');
-  const [pickupLocation, setPickupLocation] = useState('Delhi Airport (IGI T3)');
-  const [dropLocation, setDropLocation] = useState('Chandigarh Sector 17');
+  const [pickupLocation, setPickupLocation] = useState('');
+  const [dropLocation, setDropLocation] = useState('');
+  const [pickupCoords, setPickupCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [dropCoords, setDropCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [calculatedDistanceKm, setCalculatedDistanceKm] = useState<number | null>(null);
+  const [calculatedDurationText, setCalculatedDurationText] = useState<string>('');
 
   // 4. CLIENT / PASSENGER DETAILS
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
 
   // 5. PRICING & ADVANCE PAYMENT
-  const [totalFare, setTotalFare] = useState('18000');
-  const [advanceAmount, setAdvanceAmount] = useState('5000');
+  const [totalFare, setTotalFare] = useState('');
+  const [advanceAmount, setAdvanceAmount] = useState('');
   const [advanceMode, setAdvanceMode] = useState<PaymentMode>('UPI');
 
   // Expenses estimates
-  const [fuelCost, setFuelCost] = useState('3500');
-  const [fastagCost, setFastagCost] = useState('650');
-  const [driverBata, setDriverBata] = useState('1200');
-  const [otherExpenses, setOtherExpenses] = useState('100');
+  const [fuelCost, setFuelCost] = useState('');
+  const [fastagCost, setFastagCost] = useState('');
+  const [driverBata, setDriverBata] = useState('');
+  const [otherExpenses, setOtherExpenses] = useState('');
   const [notes, setNotes] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
 
@@ -117,6 +123,61 @@ export const AddBookingModal: React.FC<AddBookingModalProps> = ({
       }
     }
   }, [vehicleReg, vehicles, drivers]);
+
+  const handleSelectPickup = (loc: LocationSuggestion) => {
+    setPickupLocation(loc.fullName);
+    setPickupCoords({ lat: loc.lat, lng: loc.lng });
+  };
+
+  const handleSelectDrop = (loc: LocationSuggestion) => {
+    setDropLocation(loc.fullName);
+    setDropCoords({ lat: loc.lat, lng: loc.lng });
+  };
+
+  const handleSwapLocations = () => {
+    const prevPickupLoc = pickupLocation;
+    const prevDropLoc = dropLocation;
+    const prevPickupC = pickupCoords;
+    const prevDropC = dropCoords;
+
+    setPickupLocation(prevDropLoc);
+    setDropLocation(prevPickupLoc);
+    setPickupCoords(prevDropC);
+    setDropCoords(prevPickupC);
+  };
+
+  // Debounced auto-geocode when user types text manually
+  useEffect(() => {
+    if (!pickupLocation || pickupLocation.trim().length < 3) return;
+    const timer = setTimeout(() => {
+      fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(pickupLocation.trim())}&limit=1&lat=28.6139&lon=77.2090`)
+        .then(r => r.json())
+        .then(d => {
+          if (d?.features?.[0]?.geometry?.coordinates) {
+            const [lng, lat] = d.features[0].geometry.coordinates;
+            setPickupCoords({ lat, lng });
+          }
+        })
+        .catch(() => {});
+    }, 550);
+    return () => clearTimeout(timer);
+  }, [pickupLocation]);
+
+  useEffect(() => {
+    if (!dropLocation || dropLocation.trim().length < 3) return;
+    const timer = setTimeout(() => {
+      fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(dropLocation.trim())}&limit=1&lat=28.6139&lon=77.2090`)
+        .then(r => r.json())
+        .then(d => {
+          if (d?.features?.[0]?.geometry?.coordinates) {
+            const [lng, lat] = d.features[0].geometry.coordinates;
+            setDropCoords({ lat, lng });
+          }
+        })
+        .catch(() => {});
+    }, 550);
+    return () => clearTimeout(timer);
+  }, [dropLocation]);
 
   // Keyboard escape
   useEffect(() => {
@@ -209,7 +270,8 @@ export const AddBookingModal: React.FC<AddBookingModalProps> = ({
       customerPhone: customerPhone.trim() || undefined,
       pickupLocation: pickupLocation.trim(),
       dropLocation: dropLocation.trim(),
-      route: `${pickupLocation.trim()} → ${dropLocation.trim()}`,
+      route: `${pickupLocation.trim()} → ${dropLocation.trim()}${calculatedDistanceKm ? ` (${calculatedDistanceKm} km)` : ''}`,
+      totalKmRun: calculatedDistanceKm || 0,
       startDate,
       startTime,
       endDate: endDate || startDate,
@@ -565,31 +627,40 @@ export const AddBookingModal: React.FC<AddBookingModalProps> = ({
               </div>
             </div>
 
-            {/* Pickup & Drop Route */}
-            <div className="form-row-2">
-              <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label">Pickup Location *</label>
-                <input
-                  type="text"
-                  className="form-input"
-                  value={pickupLocation}
-                  onChange={e => setPickupLocation(e.target.value)}
-                  placeholder="e.g. Delhi Airport (IGI T3)"
-                  required
-                />
-              </div>
-              <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label">Drop Location *</label>
-                <input
-                  type="text"
-                  className="form-input"
-                  value={dropLocation}
-                  onChange={e => setDropLocation(e.target.value)}
-                  placeholder="e.g. Chandigarh Sector 17"
-                  required
-                />
-              </div>
+            {/* Pickup & Drop Route Autocomplete Inputs */}
+            <div className="form-row-2" style={{ alignItems: 'flex-start', position: 'relative', zIndex: 10 }}>
+              <LocationAutocompleteInput
+                label="Pickup Location *"
+                value={pickupLocation}
+                onChange={setPickupLocation}
+                onSelectLocation={handleSelectPickup}
+                placeholder="Search pickup city, airport, landmark..."
+                required
+                iconColor="#16a34a"
+              />
+              <LocationAutocompleteInput
+                label="Drop Location *"
+                value={dropLocation}
+                onChange={setDropLocation}
+                onSelectLocation={handleSelectDrop}
+                placeholder="Search drop city, station, hotel..."
+                required
+                iconColor="#ef4444"
+              />
             </div>
+
+            {/* Interactive Live Route Map & Distance Tracker */}
+            <RouteMapViewer
+              pickupCoords={pickupCoords}
+              dropCoords={dropCoords}
+              pickupName={pickupLocation}
+              dropName={dropLocation}
+              onRouteCalculated={(info) => {
+                setCalculatedDistanceKm(info.distanceKm);
+                setCalculatedDurationText(info.durationText);
+              }}
+              onSwapLocations={handleSwapLocations}
+            />
 
             {/* ========================================================================= */}
             {/* STEP 4: PASSENGER & CLIENT DETAILS                                        */}

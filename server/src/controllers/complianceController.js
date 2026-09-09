@@ -2,6 +2,8 @@ import { Compliance } from '../models/Compliance.js';
 import { Vehicle } from '../models/Vehicle.js';
 import { Driver } from '../models/Driver.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
+import { emitDocumentUploaded } from '../services/notificationEmitter.js';
+import { uploadToCloudinary } from '../services/cloudinaryService.js';
 import mongoose from 'mongoose';
 
 /**
@@ -441,6 +443,20 @@ export const createComplianceDoc = asyncHandler(async (req, res) => {
 
   const meta = calculateExpiryMeta(expiryDate);
 
+  let finalDocPhoto = documentPhoto || null;
+  if (documentPhoto && typeof documentPhoto === 'string' && documentPhoto.startsWith('data:')) {
+    try {
+      const isPdf = documentPhoto.startsWith('data:application/pdf');
+      const uploaded = await uploadToCloudinary(documentPhoto, {
+        folder: 'fleetos/compliance',
+        resource_type: isPdf ? 'raw' : 'auto'
+      });
+      finalDocPhoto = uploaded.secure_url;
+    } catch (cErr) {
+      console.warn('Cloudinary compliance upload failed, saving raw:', cErr.message);
+    }
+  }
+
   const newDoc = await Compliance.create({
     entityName: entityName.trim(),
     entityType,
@@ -449,7 +465,7 @@ export const createComplianceDoc = asyncHandler(async (req, res) => {
     issueDate: issueDate || undefined,
     expiryDate: expiryDate || '',
     issuingAuthority: issuingAuthority ? issuingAuthority.trim() : undefined,
-    documentPhoto: documentPhoto || null,
+    documentPhoto: finalDocPhoto,
     notes: notes ? notes.trim() : undefined,
     expiryLabel: meta.expiryLabel,
     statusType: meta.statusType,
@@ -458,6 +474,13 @@ export const createComplianceDoc = asyncHandler(async (req, res) => {
 
   const obj = newDoc.toObject();
   obj.id = obj._id.toString();
+
+  emitDocumentUploaded({
+    userId: req.user?._id,
+    agencyId: req.user?.currentAgency,
+    entityName: entityName.trim(),
+    documentName: documentName.trim()
+  });
 
   res.status(201).json({
     success: true,
@@ -494,11 +517,25 @@ export const updateComplianceDoc = asyncHandler(async (req, res) => {
     'notes'
   ];
 
-  allowed.forEach(field => {
+  for (const field of allowed) {
     if (req.body[field] !== undefined) {
-      doc[field] = req.body[field];
+      if (field === 'documentPhoto' && typeof req.body.documentPhoto === 'string' && req.body.documentPhoto.startsWith('data:')) {
+        try {
+          const isPdf = req.body.documentPhoto.startsWith('data:application/pdf');
+          const uploaded = await uploadToCloudinary(req.body.documentPhoto, {
+            folder: 'fleetos/compliance',
+            resource_type: isPdf ? 'raw' : 'auto'
+          });
+          doc.documentPhoto = uploaded.secure_url;
+        } catch (cErr) {
+          console.warn('Cloudinary compliance update upload failed:', cErr.message);
+          doc.documentPhoto = req.body.documentPhoto;
+        }
+      } else {
+        doc[field] = req.body[field];
+      }
     }
-  });
+  }
 
   if (req.body.expiryDate !== undefined) {
     const meta = calculateExpiryMeta(req.body.expiryDate);

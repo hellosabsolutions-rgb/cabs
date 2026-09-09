@@ -68,14 +68,18 @@ export const MainLayout: React.FC = () => {
         className={`sidebar-backdrop ${mobileSidebarOpen ? 'visible' : ''}`}
         onClick={() => setMobileSidebarOpen(false)}
       />
-      <Sidebar
-        isOpen={mobileSidebarOpen}
-        onCloseMobile={() => setMobileSidebarOpen(false)}
-      />
+      <ErrorBoundary fallbackTitle="Navigation Menu Error">
+        <Sidebar
+          isOpen={mobileSidebarOpen}
+          onCloseMobile={() => setMobileSidebarOpen(false)}
+        />
+      </ErrorBoundary>
       <div className="main">
-        <Topbar onToggleMobileSidebar={() => setMobileSidebarOpen(prev => !prev)} />
+        <ErrorBoundary fallbackTitle="Header Bar Error">
+          <Topbar onToggleMobileSidebar={() => setMobileSidebarOpen(prev => !prev)} />
+        </ErrorBoundary>
         <main className="content">
-          <ErrorBoundary key={location.pathname}>
+          <ErrorBoundary key={location.pathname} resetKey={location.pathname} fallbackTitle="Error Loading View">
             <Routes>
               {/* Dashboard */}
               <Route path="/" element={<Navigate to="/dashboard" replace />} />

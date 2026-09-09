@@ -46,7 +46,14 @@ export async function apiRequest<T = any>(endpoint: string, options: RequestOpti
   try {
     response = await fetch(`${BASE_URL}${endpoint}`, config);
   } catch (networkError: any) {
-    throw new Error(networkError.message || 'Network connection failed.');
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      throw new Error('You are currently offline. Please check your internet connection.');
+    }
+    throw new Error(
+      networkError.message?.includes('Failed to fetch')
+        ? 'Cannot connect to FleetOS server (http://localhost:5001). Please ensure backend is running.'
+        : networkError.message || 'Network connection error.'
+    );
   }
 
   // Handle 401 Unauthorized with Refresh Token rotation
@@ -133,7 +140,18 @@ export async function apiRequest<T = any>(endpoint: string, options: RequestOpti
   const result = await response.json().catch(() => ({}));
 
   if (!response.ok) {
-    throw new Error(result.error || `Request failed with status ${response.status}`);
+    let errorMsg = result.error || result.message;
+    if (!errorMsg) {
+      if (response.status === 400) errorMsg = 'Invalid request data submitted.';
+      else if (response.status === 403) errorMsg = 'Permission denied for this operation.';
+      else if (response.status === 404) errorMsg = 'Requested resource was not found.';
+      else if (response.status === 409) errorMsg = 'Conflict: Record with identical information already exists.';
+      else if (response.status === 413) errorMsg = 'File size is too large (max 10MB allowed).';
+      else if (response.status === 429) errorMsg = 'Too many requests. Please wait a moment and try again.';
+      else if (response.status === 503) errorMsg = 'Fleet service or database is temporarily unavailable.';
+      else errorMsg = `Server error (${response.status}). Please try again.`;
+    }
+    throw new Error(errorMsg);
   }
 
   return result as T;

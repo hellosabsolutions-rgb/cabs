@@ -6,7 +6,10 @@ import {
   markAllRead,
   deleteNotification,
   deleteAllNotifications,
-  sendTestNotification
+  sendTestNotification,
+  registerFcmToken,
+  unregisterFcmToken,
+  sendDirectTestPush
 } from '../controllers/notificationController.js';
 import { protect } from '../middleware/authMiddleware.js';
 
@@ -26,6 +29,24 @@ router.get('/', getNotifications);
   * @desc    Send a test notification through queue and socket
   */
 router.post('/test', sendTestNotification);
+
+/**
+ * @route   POST /api/notifications/test-push
+ * @desc    Send a direct FCM Web Push notification to registered device tokens
+ */
+router.post('/test-push', sendDirectTestPush);
+
+/**
+ * @route   POST /api/notifications/fcm-token
+ * @desc    Register FCM device push token for authenticated user
+ */
+router.post('/fcm-token', registerFcmToken);
+
+/**
+ * @route   DELETE /api/notifications/fcm-token
+ * @desc    Unregister FCM device push token
+ */
+router.delete('/fcm-token', unregisterFcmToken);
 
 /**
  * @route   GET /api/notifications/unread-count

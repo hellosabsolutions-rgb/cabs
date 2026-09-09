@@ -36,6 +36,15 @@ PUBLIC_API_URL=https://api-kabpro.opsiva.in
 
 JWT_SECRET=your-long-random-secret-min-32-chars
 ACCESS_TOKEN_EXPIRE=15m
+
+GOOGLE_CLIENT_ID=546992458715-dbhmfbb7bj36h6sfm2m4l8qjisdmd491.apps.googleusercontent.com
+
+CLOUDINARY_CLOUD_NAME=your-cloud-name
+CLOUDINARY_API_KEY=your-api-key
+CLOUDINARY_API_SECRET=your-api-secret
+
+# Firebase Admin JSON on disk (gitignored) — optional path override
+FIREBASE_SERVICE_ACCOUNT_PATH=/srv/apps/cabs/server/opsiva-e1ee5-firebase-adminsdk-fbsvc-0cb51d6e01.json
 ```
 
 After edit:
@@ -57,6 +66,8 @@ VITE_API_URL=https://api-kabpro.opsiva.in/api
 VITE_SOCKET_URL=https://api-kabpro.opsiva.in
 VITE_APP_URL=https://admin-kabpro.opsiva.in
 VITE_LANDING_URL=https://kabpro.opsiva.in
+VITE_GOOGLE_CLIENT_ID=546992458715-dbhmfbb7bj36h6sfm2m4l8qjisdmd491.apps.googleusercontent.com
+# Plus VITE_FIREBASE_* (see admin/.env.production) for FCM push
 ```
 
 CI bakes these on every build. Local prod build: `cd admin && npm run build`.

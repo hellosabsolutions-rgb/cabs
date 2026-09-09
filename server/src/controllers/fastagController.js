@@ -2,6 +2,8 @@ import { FastagTransaction } from '../models/FastagTransaction.js';
 import { Vehicle } from '../models/Vehicle.js';
 import { Expense } from '../models/Expense.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
+import { emitFastagRecharged, emitLowFastagBalance } from '../services/notificationEmitter.js';
+import { uploadToCloudinary } from '../services/cloudinaryService.js';
 
 /**
  * @desc    Get all FASTag transactions with search & filtering
@@ -193,7 +195,22 @@ export const rechargeWallet = asyncHandler(async (req, res) => {
     hour12: true
   });
 
-  // 2. Create FASTag Transaction
+  // 2. Upload proof slip to Cloudinary if provided as base64
+  let finalProofSlip = proofSlip || null;
+  if (proofSlip && typeof proofSlip === 'string' && proofSlip.startsWith('data:')) {
+    try {
+      const isPdf = proofSlip.startsWith('data:application/pdf');
+      const uploaded = await uploadToCloudinary(proofSlip, {
+        folder: 'fleetos/receipts',
+        resource_type: isPdf ? 'raw' : 'auto'
+      });
+      finalProofSlip = uploaded.secure_url;
+    } catch (err) {
+      console.warn('Cloudinary fastag proof upload failed, saving raw:', err.message);
+    }
+  }
+
+  // 3. Create FASTag Transaction
   const transaction = await FastagTransaction.create({
     vehicle: vehicle ? vehicle.registrationNumber : targetReg,
     tagId: vehicle?.fastagTagId || `34161FA${targetReg.slice(-4)}`,
@@ -206,8 +223,15 @@ export const rechargeWallet = asyncHandler(async (req, res) => {
     lane: `${paymentMode} Topup`,
     transactionRef: `REC-${Date.now().toString().slice(-8)}`,
     linkedDutyOrTrip: note || 'Fleet Wallet Topup',
-    proofSlip: proofSlip || null,
+    proofSlip: finalProofSlip,
     status: 'Successful'
+  });
+
+  emitFastagRecharged({
+    userId: req.user?._id,
+    agencyId: req.user?.currentAgency,
+    vehicleReg: targetReg,
+    amount: rechargeNum
   });
 
   res.status(201).json({
@@ -310,6 +334,15 @@ export const deductToll = asyncHandler(async (req, res) => {
     });
   } catch (expErr) {
     console.warn('Could not auto-create Expense entry for toll deduction:', expErr);
+  }
+
+  if (newBalance < 500) {
+    emitLowFastagBalance({
+      userId: req.user?._id,
+      agencyId: req.user?.currentAgency,
+      vehicleReg: targetReg,
+      balance: newBalance
+    });
   }
 
   res.status(201).json({

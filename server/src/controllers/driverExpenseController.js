@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import { DriverExpense } from '../models/DriverExpense.js';
 import { Driver } from '../models/Driver.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
+import { uploadToCloudinary } from '../services/cloudinaryService.js';
 
 /**
  * @desc    Get driver expenses with filtering, date/month/year search, pagination
@@ -479,6 +480,22 @@ export const createDriverExpense = asyncHandler(async (req, res) => {
     }
   }
 
+  let receiptUrl = receipt || null;
+  if (receipt && receipt.startsWith('data:')) {
+    try {
+      const isPdf = receipt.startsWith('data:application/pdf');
+      const uploadRes = await uploadToCloudinary(receipt, {
+        folder: 'fleetos/driver-expenses',
+        resource_type: isPdf ? 'raw' : 'auto'
+      });
+      if (uploadRes && uploadRes.secure_url) {
+        receiptUrl = uploadRes.secure_url;
+      }
+    } catch (uploadErr) {
+      console.warn('Receipt upload to Cloudinary failed, saving raw receipt:', uploadErr.message);
+    }
+  }
+
   const expense = await DriverExpense.create({
     driverId: resolvedDriverId,
     driverName: resolvedDriverName,
@@ -488,7 +505,7 @@ export const createDriverExpense = asyncHandler(async (req, res) => {
     amount: Number(amount),
     status: status || 'Paid',
     remarks: remarks || '',
-    receipt: receipt || null
+    receipt: receiptUrl
   });
 
   res.status(201).json({
@@ -508,6 +525,21 @@ export const createDriverExpense = asyncHandler(async (req, res) => {
  */
 export const updateDriverExpense = asyncHandler(async (req, res) => {
   const { id } = req.params;
+
+  if (req.body.receipt && req.body.receipt.startsWith('data:')) {
+    try {
+      const isPdf = req.body.receipt.startsWith('data:application/pdf');
+      const uploadRes = await uploadToCloudinary(req.body.receipt, {
+        folder: 'fleetos/driver-expenses',
+        resource_type: isPdf ? 'raw' : 'auto'
+      });
+      if (uploadRes && uploadRes.secure_url) {
+        req.body.receipt = uploadRes.secure_url;
+      }
+    } catch (uploadErr) {
+      console.warn('Cloudinary upload warning on updateDriverExpense:', uploadErr.message);
+    }
+  }
 
   const query = mongoose.Types.ObjectId.isValid(id) ? { _id: id } : { id };
   const updated = await DriverExpense.findOneAndUpdate(

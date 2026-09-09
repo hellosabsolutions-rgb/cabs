@@ -7,6 +7,7 @@ import { Pagination } from '../../common/Pagination';
 import { usePagination } from '../../../hooks/usePagination';
 import {
   Bell,
+  BellRing,
   ShieldAlert,
   Wrench,
   Truck,
@@ -26,6 +27,7 @@ import {
   Radio,
   ExternalLink
 } from 'lucide-react';
+import { sendDirectTestPush } from '../../../services/pushNotificationService';
 
 type NotifCategory = 'all' | 'compliance' | 'maintenance' | 'fleet' | 'financial' | 'bookings' | 'system';
 
@@ -94,12 +96,20 @@ export const NotificationsView: React.FC = () => {
     deleteNotification: deleteBackendNotification,
     clearAll: clearBackendAll,
     refreshNotifications,
+    isPushSupported,
+    pushPermission,
+    isPushEnabled,
+    enablePush,
+    disablePush
   } = useNotifications();
 
   const [activeCategory, setActiveCategory] = useState<NotifCategory>('all');
   const [localReadIds, setLocalReadIds] = useState<Set<string>>(new Set());
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
   const [isSendingTest, setIsSendingTest] = useState<boolean>(false);
+  const [isEnablingPush, setIsEnablingPush] = useState<boolean>(false);
+  const [isSendingPushTest, setIsSendingPushTest] = useState<boolean>(false);
+  const [pushStatusMessage, setPushStatusMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   const getCategoryDefaultRoute = (category: string): string => {
     switch (category) {
@@ -291,6 +301,72 @@ export const NotificationsView: React.FC = () => {
     }
   };
 
+  // Enable Push Notifications
+  const handleEnablePush = async () => {
+    setIsEnablingPush(true);
+    setPushStatusMessage(null);
+    try {
+      const res = await enablePush();
+      if (res.success) {
+        setPushStatusMessage({
+          type: 'success',
+          text: 'Push notifications successfully activated on this browser!'
+        });
+      } else {
+        setPushStatusMessage({
+          type: 'error',
+          text: res.error || 'Failed to enable push notifications.'
+        });
+      }
+    } catch (err: any) {
+      setPushStatusMessage({
+        type: 'error',
+        text: err.message || 'Could not enable push notifications.'
+      });
+    } finally {
+      setIsEnablingPush(false);
+      setTimeout(() => setPushStatusMessage(null), 7000);
+    }
+  };
+
+  // Disable Push Notifications
+  const handleDisablePush = async () => {
+    await disablePush();
+    setPushStatusMessage({
+      type: 'success',
+      text: 'Push notifications have been disabled for this device.'
+    });
+    setTimeout(() => setPushStatusMessage(null), 5000);
+  };
+
+  // Dispatch direct native OS Push Notification via Firebase Cloud Messaging
+  const handleSendDirectPushTest = async () => {
+    setIsSendingPushTest(true);
+    setPushStatusMessage(null);
+    try {
+      const res = await sendDirectTestPush();
+      if (res.success) {
+        setPushStatusMessage({
+          type: 'success',
+          text: 'FCM push notification sent! Check your desktop/OS notification tray.'
+        });
+      } else {
+        setPushStatusMessage({
+          type: 'error',
+          text: res.error || 'Failed to trigger test push.'
+        });
+      }
+    } catch (err: any) {
+      setPushStatusMessage({
+        type: 'error',
+        text: err.message || 'Error triggering test push.'
+      });
+    } finally {
+      setTimeout(() => setIsSendingPushTest(false), 600);
+      setTimeout(() => setPushStatusMessage(null), 6000);
+    }
+  };
+
   const PriorityIcon = ({ priority }: { priority: NotificationPriority }) => {
     const cfg = PRIORITY_CONFIG[priority];
     if (priority === 'critical') return <AlertCircle size={13} color={cfg.color} />;
@@ -314,18 +390,7 @@ export const NotificationsView: React.FC = () => {
 
             {/* Socket Live Presence Badge */}
             <div
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '3px 10px',
-                borderRadius: '16px',
-                fontSize: '11px',
-                fontWeight: 600,
-                background: isConnected ? 'rgba(16, 185, 129, 0.12)' : 'rgba(245, 158, 11, 0.12)',
-                color: isConnected ? '#10b981' : '#f59e0b',
-                border: `1px solid ${isConnected ? 'rgba(16, 185, 129, 0.25)' : 'rgba(245, 158, 11, 0.25)'}`
-              }}
+              className={`notif-pill-socket ${isConnected ? 'online' : 'offline'}`}
               title={isConnected ? 'Real-time WebSocket connected' : 'Connecting to Socket.IO...'}
             >
               <span
@@ -339,25 +404,63 @@ export const NotificationsView: React.FC = () => {
               />
               {isConnected ? 'Socket.IO Live' : 'Connecting...'}
             </div>
+
+            {/* FCM Push Notification Badge */}
+            {isPushSupported && (
+              <div
+                className={`notif-pill-push ${
+                  isPushEnabled ? 'active' : pushPermission === 'denied' ? 'blocked' : 'inactive'
+                }`}
+                title={
+                  isPushEnabled
+                    ? 'Firebase Web Push Notifications Active'
+                    : pushPermission === 'denied'
+                    ? 'Notifications blocked in browser settings'
+                    : 'Web Push Notifications Available'
+                }
+              >
+                <span
+                  style={{
+                    width: '6px',
+                    height: '6px',
+                    borderRadius: '50%',
+                    background: isPushEnabled
+                      ? '#f97316'
+                      : pushPermission === 'denied'
+                      ? '#ef4444'
+                      : '#9ca3af',
+                    boxShadow: isPushEnabled ? '0 0 6px #f97316' : 'none'
+                  }}
+                />
+                {isPushEnabled ? 'FCM Push Live' : pushPermission === 'denied' ? 'Push Blocked' : 'Push Off'}
+              </div>
+            )}
           </div>
           <p className="notif-page-sub">
             Real-time fleet operations, bookings queue, compliance alerts, and financial logs
           </p>
         </div>
 
-        <div className="notif-header-actions" style={{ display: 'flex', gap: '8px' }}>
+        <div className="notif-header-actions" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+          {/* Test Native OS Push Notification Button */}
+          {isPushEnabled && (
+            <button
+              className="notif-btn-push-test"
+              onClick={handleSendDirectPushTest}
+              disabled={isSendingPushTest}
+              title="Send a real Firebase Web Push notification to your desktop OS"
+            >
+              <BellRing size={14} className={isSendingPushTest ? 'spin-loader' : ''} />
+              {isSendingPushTest ? 'Dispatching Push...' : 'Test OS Push'}
+            </button>
+          )}
+
           {/* Test Realtime Event Button */}
           <button
-            className="notif-action-btn"
+            className="notif-btn-realtime-test"
             onClick={handleSendTestNotification}
             disabled={isSendingTest}
             title="Trigger a live Socket.IO event"
-            style={{
-              background: 'linear-gradient(135deg, rgba(22, 135, 245, 0.15), rgba(144, 97, 249, 0.15))',
-              borderColor: 'var(--accent)',
-              color: 'var(--accent)',
-              fontWeight: 600
-            }}
           >
             <Zap size={14} className={isSendingTest ? 'spin-loader' : ''} />
             {isSendingTest ? 'Dispatching...' : 'Test Realtime Alert'}
@@ -389,6 +492,111 @@ export const NotificationsView: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {/* Push Notification Status Banner */}
+      {isPushSupported && (
+        <div
+          className={`notif-push-banner ${
+            isPushEnabled ? 'active' : pushPermission === 'denied' ? 'blocked' : 'inactive'
+          }`}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flex: '1 1 320px' }}>
+            <div
+              style={{
+                width: '40px',
+                height: '40px',
+                borderRadius: '10px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                background: isPushEnabled
+                  ? 'rgba(249, 115, 22, 0.15)'
+                  : pushPermission === 'denied'
+                  ? 'rgba(239, 68, 68, 0.15)'
+                  : 'rgba(22, 135, 245, 0.15)',
+                color: isPushEnabled ? '#f97316' : pushPermission === 'denied' ? '#ef4444' : 'var(--accent)',
+                flexShrink: 0
+              }}
+            >
+              <BellRing size={20} />
+            </div>
+            <div>
+              <div style={{ fontWeight: 600, fontSize: '13.5px', color: 'var(--text)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                {isPushEnabled
+                  ? 'Firebase Web Push Notifications are Live'
+                  : pushPermission === 'denied'
+                  ? 'Push Notifications Blocked in Browser'
+                  : 'Enable Desktop & Mobile Push Notifications'}
+                {isPushEnabled && (
+                  <span style={{ fontSize: '11px', padding: '1px 7px', borderRadius: '10px', background: 'rgba(16, 185, 129, 0.15)', color: '#10b981', fontWeight: 600 }}>
+                    Connected
+                  </span>
+                )}
+              </div>
+              <p style={{ margin: '2px 0 0 0', fontSize: '12px', color: 'var(--text-dim)', lineHeight: 1.4 }}>
+                {isPushEnabled
+                  ? 'You will receive instant native notifications for bookings, compliance renewals, vehicle maintenance, and FASTag low balance even when the tab is backgrounded.'
+                  : pushPermission === 'denied'
+                  ? 'Notifications are blocked. Click the lock/tune icon beside the URL in your browser address bar and switch Notifications to "Allow".'
+                  : 'Get instant system alerts for VIP bookings, expiring vehicle documents, low FASTag wallet balance, and driver logs.'}
+              </p>
+              {pushStatusMessage && (
+                <div
+                  style={{
+                    marginTop: '6px',
+                    fontSize: '12px',
+                    fontWeight: 500,
+                    color: pushStatusMessage.type === 'success' ? '#10b981' : '#ef4444'
+                  }}
+                >
+                  {pushStatusMessage.text}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+            {isPushEnabled ? (
+              <>
+                <button
+                  className="notif-btn-push-test"
+                  onClick={handleSendDirectPushTest}
+                  disabled={isSendingPushTest}
+                  style={{ fontWeight: 600 }}
+                >
+                  <BellRing size={14} className={isSendingPushTest ? 'spin-loader' : ''} />
+                  {isSendingPushTest ? 'Sending Push...' : 'Send Test Push'}
+                </button>
+                <button
+                  className="notif-action-btn"
+                  onClick={handleDisablePush}
+                  style={{ color: 'var(--text-dim)', padding: '7px 12px' }}
+                  title="Unregister push token on this device"
+                >
+                  Turn Off
+                </button>
+              </>
+            ) : pushPermission !== 'denied' ? (
+              <button
+                className="notif-action-btn"
+                onClick={handleEnablePush}
+                disabled={isEnablingPush}
+                style={{
+                  background: 'linear-gradient(135deg, #1687f5 0%, #9061f9 100%)',
+                  color: '#fff',
+                  border: 'none',
+                  fontWeight: 600,
+                  padding: '8px 16px',
+                  boxShadow: '0 2px 8px rgba(22, 135, 245, 0.25)'
+                }}
+              >
+                <BellRing size={14} className={isEnablingPush ? 'spin-loader' : ''} />
+                {isEnablingPush ? 'Requesting Permission...' : 'Enable Web Push'}
+              </button>
+            ) : null}
+          </div>
+        </div>
+      )}
 
       {/* Category Tabs */}
       <div className="notif-tabs">
