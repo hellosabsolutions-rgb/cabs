@@ -132,7 +132,7 @@ export const LogAttendanceModal: React.FC<LogAttendanceModalProps> = ({
                 vehicles: vehicles.map(v => v.registrationNumber),
                 drivers: drivers.map(d => d.name)
               }}
-              placeholder="Speak attendance (e.g. 'Rahul Sharma Present DL01AB1234 Department Duty')"
+              placeholder="Speak attendance (e.g. 'Driver Present DL01AB1234 Department Duty')"
               onApplyParsedData={(data) => {
                 if (data.driverName) {
                   const matched = drivers.find(d => d.name.toLowerCase().includes(data.driverName.toLowerCase()));

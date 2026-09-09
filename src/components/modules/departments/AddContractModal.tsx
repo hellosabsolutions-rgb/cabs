@@ -145,7 +145,7 @@ export const AddContractModal: React.FC<AddContractModalProps> = ({ isOpen, onCl
                 vehicles: vehicles.map(v => v.registrationNumber),
                 drivers: drivers.map(d => d.name)
               }}
-              placeholder="Speak contract info (e.g. 'Public Works Department DL01AB1234 Rahul Sharma 85000')"
+              placeholder="Speak contract info (e.g. 'Public Works Department monthly rate 85000')"
               onApplyParsedData={(data) => {
                 if (data.departmentName) setDepartmentName(data.departmentName);
                 if (data.vehicle) setVehicle(data.vehicle);

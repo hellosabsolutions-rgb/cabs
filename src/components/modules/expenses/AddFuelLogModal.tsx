@@ -177,7 +177,7 @@ export const AddFuelLogModal: React.FC<AddFuelLogModalProps> = ({
                 vehicles: vehicles.map(v => v.registrationNumber),
                 drivers: drivers.map(d => d.name)
               }}
-              placeholder="Speak fuel refill info (e.g. 'DL01AB1234 Rahul Sharma 35 Litre 3150 Rupees Indian Oil')"
+              placeholder="Speak fuel refill info (e.g. 'Vehicle number 35 Litre 3150 Rupees Indian Oil')"
               onApplyParsedData={(data) => {
                 if (data.vehicle) setVehicle(data.vehicle);
                 if (data.driverName) setDriverName(data.driverName);

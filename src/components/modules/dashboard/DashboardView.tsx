@@ -243,25 +243,31 @@ export const DashboardView: React.FC = () => {
             <span className="dash-pill maint">{summary.maintenanceVehicles} workshop</span>
           </div>
 
-          {liveVehicles.slice(0, 5).map(v => (
-            <div className="status-row" key={v.id}>
-              <div className="status-left">
-                <div
-                  className={`pulse ${
-                    v.status === 'Idle' ? 'idle' : v.status === 'Maintenance' ? 'maint' : ''
-                  }`}
-                />
-                <div>
-                  <div className="status-name">{v.registrationNumber}</div>
-                  <div className="status-meta">
-                    {v.assignedDriver ? `${v.assignedDriver} · ` : ''}
-                    {v.meta || v.assignedTo}
+          {liveVehicles.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '28px 0', color: 'var(--text-muted)', fontSize: '13px' }}>
+              No vehicles in fleet. Onboard a vehicle to track live status.
+            </div>
+          ) : (
+            liveVehicles.slice(0, 5).map(v => (
+              <div className="status-row" key={v.id}>
+                <div className="status-left">
+                  <div
+                    className={`pulse ${
+                      v.status === 'Idle' ? 'idle' : v.status === 'Maintenance' ? 'maint' : ''
+                    }`}
+                  />
+                  <div>
+                    <div className="status-name">{v.registrationNumber}</div>
+                    <div className="status-meta">
+                      {v.assignedDriver ? `${v.assignedDriver} · ` : ''}
+                      {v.meta || v.assignedTo}
+                    </div>
                   </div>
                 </div>
+                <StatusChip status={v.status as any} />
               </div>
-              <StatusChip status={v.status as any} />
-            </div>
-          ))}
+            ))
+          )}
         </div>
 
         <div className="panel">

@@ -99,7 +99,7 @@ export const AddExpenseModal: React.FC<AddExpenseModalProps> = ({
                 vehicles: vehicles.map(v => v.registrationNumber),
                 drivers: drivers.map(d => d.name)
               }}
-              placeholder="Speak expense details (e.g. 'Driver Rahul Sharma 1200 DL01AB1234 Allowance')"
+              placeholder="Speak expense details (e.g. 'Toll 1200 Vehicle number Allowance')"
               onApplyParsedData={(data) => {
                 if (data.category) setCategory(data.category as any);
                 if (data.vehicle) setVehicle(data.vehicle);
