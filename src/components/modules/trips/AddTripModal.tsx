@@ -15,18 +15,18 @@ export const AddTripModal: React.FC<AddTripModalProps> = ({ isOpen, onClose }) =
 
   const [tripType, setTripType] = useState<TripType>('Round Trip');
   const [vehicleReg, setVehicleReg] = useState(
-    vehicles.find(v => v.type === 'Trip-based')?.registrationNumber || vehicles[0]?.registrationNumber || 'DL02CD5678'
+    vehicles.find(v => v.type === 'Trip-based')?.registrationNumber || vehicles[0]?.registrationNumber || ''
   );
-  const [driverName, setDriverName] = useState(drivers[1]?.name || drivers[0]?.name || 'Vikas Kumar');
-  const [pickupLocation, setPickupLocation] = useState('Delhi Airport (IGI T3)');
-  const [dropLocation, setDropLocation] = useState('Chandigarh Sector 17');
-  const [startOdometer, setStartOdometer] = useState('61200');
-  const [fuelLitres, setFuelLitres] = useState('35');
-  const [fuelCost, setFuelCost] = useState('3150');
-  const [fastagCost, setFastagCost] = useState('650');
-  const [driverBata, setDriverBata] = useState('1200');
-  const [otherExpenses, setOtherExpenses] = useState('100');
-  const [revenue, setRevenue] = useState('14500');
+  const [driverName, setDriverName] = useState(drivers[1]?.name || drivers[0]?.name || '');
+  const [pickupLocation, setPickupLocation] = useState('');
+  const [dropLocation, setDropLocation] = useState('');
+  const [startOdometer, setStartOdometer] = useState('');
+  const [fuelLitres, setFuelLitres] = useState('');
+  const [fuelCost, setFuelCost] = useState('');
+  const [fastagCost, setFastagCost] = useState('');
+  const [driverBata, setDriverBata] = useState('');
+  const [otherExpenses, setOtherExpenses] = useState('');
+  const [revenue, setRevenue] = useState('');
   const [startDate, setStartDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [startTime, setStartTime] = useState(() => {
     const d = new Date();

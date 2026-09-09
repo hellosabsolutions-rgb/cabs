@@ -17,19 +17,19 @@ export const AddTollDeductionModal: React.FC<AddTollDeductionModalProps> = ({
 }) => {
   const { vehicles, addFastagTransaction } = useFleet();
 
-  const [vehicleReg, setVehicleReg] = useState(preselectedVehicle || vehicles[0]?.registrationNumber || 'DL01AB1234');
-  const [tollPlaza, setTollPlaza] = useState('Kherki Daula Toll Plaza (Delhi-Gurugram Expy)');
-  const [amount, setAmount] = useState('145');
+  const [vehicleReg, setVehicleReg] = useState(preselectedVehicle || vehicles[0]?.registrationNumber || '');
+  const [tollPlaza, setTollPlaza] = useState('');
+  const [amount, setAmount] = useState('');
   const [date, setDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [time, setTime] = useState(() => {
     const d = new Date();
     return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
   });
-  const [lane, setLane] = useState('Lane 04 (ETC Fastag)');
+  const [lane, setLane] = useState('');
   const [transactionRef, setTransactionRef] = useState(
     () => `TXN-${Math.floor(Math.random() * 9000000 + 1000000)}`
   );
-  const [linkedDutyOrTrip, setLinkedDutyOrTrip] = useState('Official Department Duty');
+  const [linkedDutyOrTrip, setLinkedDutyOrTrip] = useState('');
   const [proofName, setProofName] = useState('');
   const [proofPreview, setProofPreview] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState('');

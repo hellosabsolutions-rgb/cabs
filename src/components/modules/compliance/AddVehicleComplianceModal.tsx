@@ -48,11 +48,11 @@ export const AddVehicleComplianceModal: React.FC<AddVehicleComplianceModalProps>
   const { isClosing, handleClose } = useModalAnimation(onClose);
 
   const [vehicleReg, setVehicleReg] = useState(
-    preselectedVehicle || vehicles[0]?.registrationNumber || 'DL01AB1234'
+    preselectedVehicle || vehicles[0]?.registrationNumber || ''
   );
   const [documentName, setDocumentName] = useState<VehicleDocType>('Insurance');
   const [documentNumber, setDocumentNumber] = useState('');
-  const [issuingAuthority, setIssuingAuthority] = useState('ICICI Lombard GIC Ltd');
+  const [issuingAuthority, setIssuingAuthority] = useState('');
   const [issueDate, setIssueDate] = useState(() => {
     const d = new Date();
     d.setFullYear(d.getFullYear() - 1);

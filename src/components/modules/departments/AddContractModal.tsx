@@ -18,13 +18,13 @@ export const AddContractModal: React.FC<AddContractModalProps> = ({ isOpen, onCl
   const [departmentName, setDepartmentName] = useState('');
   const [contactPerson, setContactPerson] = useState('');
   const [phone, setPhone] = useState('');
-  const [vehicle, setVehicle] = useState(vehicles[0]?.registrationNumber || 'DL01AB1234');
-  const [driverName, setDriverName] = useState(drivers[0]?.name || 'Rahul Sharma');
+  const [vehicle, setVehicle] = useState(vehicles[0]?.registrationNumber || '');
+  const [driverName, setDriverName] = useState(drivers[0]?.name || '');
   const [monthlyBaseAmount, setMonthlyBaseAmount] = useState('');
-  const [includedKmPerMonth, setIncludedKmPerMonth] = useState('2500');
-  const [includedHoursPerMonth, setIncludedHoursPerMonth] = useState('300');
-  const [extraKmRate, setExtraKmRate] = useState('14');
-  const [extraHourRate, setExtraHourRate] = useState('120');
+  const [includedKmPerMonth, setIncludedKmPerMonth] = useState('');
+  const [includedHoursPerMonth, setIncludedHoursPerMonth] = useState('');
+  const [extraKmRate, setExtraKmRate] = useState('');
+  const [extraHourRate, setExtraHourRate] = useState('');
   const [startDate, setStartDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [endDate, setEndDate] = useState(() => {
     const d = new Date();

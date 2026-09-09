@@ -172,8 +172,8 @@ export const AddDutyLogModal: React.FC<AddDutyLogModalProps> = ({
       return;
     }
 
-    const deptName = selectedContract?.departmentName || 'Public Works Department (PWD)';
-    const vehicleReg = selectedContract?.vehicle || 'DL01AB1234';
+    const deptName = selectedContract?.departmentName || '';
+    const vehicleReg = selectedContract?.vehicle || vehicles[0]?.registrationNumber || '';
 
     if (dutyType === 'Weekend / Off-Duty Trip') {
       const generatedTripSlip = `TRIP-WKND-${Math.floor(Math.random() * 9000 + 1000)}`;

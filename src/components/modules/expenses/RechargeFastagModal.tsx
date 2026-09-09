@@ -17,8 +17,8 @@ export const RechargeFastagModal: React.FC<RechargeFastagModalProps> = ({
 }) => {
   const { vehicles, rechargeFastag } = useFleet();
 
-  const [vehicleReg, setVehicleReg] = useState(preselectedVehicle || vehicles[0]?.registrationNumber || 'DL01AB1234');
-  const [amount, setAmount] = useState('2000');
+  const [vehicleReg, setVehicleReg] = useState(preselectedVehicle || vehicles[0]?.registrationNumber || '');
+  const [amount, setAmount] = useState('');
   const [paymentMode, setPaymentMode] = useState('UPI / GPay');
   const [proofName, setProofName] = useState('');
   const [proofPreview, setProofPreview] = useState<string | null>(null);

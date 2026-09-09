@@ -10,12 +10,11 @@ import { Paperclip } from 'lucide-react';
 import { SkeletonCard, SkeletonTable } from '../../common/Skeleton';
 import { DatePicker } from '../../common/DatePicker';
 
-const vehicleOptions = ['DL01AB1234', 'DL02CD5678', 'DL03EF9012', 'DL07GH2211', 'DL05KL4432'];
-
 export const MaintenanceView: React.FC = () => {
-  const { maintenanceRecords, addMaintenanceRecord, updateMaintenanceStatus, searchQuery, isLoading } = useFleet();
+  const { vehicles, maintenanceRecords, addMaintenanceRecord, updateMaintenanceStatus, searchQuery, isLoading } = useFleet();
+  const vehicleOptions = vehicles.map(v => v.registrationNumber);
 
-  const [mVehicle, setMVehicle] = useState('DL01AB1234');
+  const [mVehicle, setMVehicle] = useState(vehicles[0]?.registrationNumber || '');
   const [mType, setMType] = useState<MaintenanceType>('Service');
   const [mTyreCount, setMTyreCount] = useState<string>('');
   const [mDate, setMDate] = useState<string>('');
@@ -24,7 +23,7 @@ export const MaintenanceView: React.FC = () => {
   const [mNotes, setMNotes] = useState<string>('');
   const [errorMsg, setErrorMsg] = useState<string>('');
 
-  const [summaryVehicle, setSummaryVehicle] = useState<string>('DL01AB1234');
+  const [summaryVehicle, setSummaryVehicle] = useState<string>(vehicles[0]?.registrationNumber || '');
 
   const filteredRecords = maintenanceRecords.filter(r =>
     r.vehicle.toLowerCase().includes(searchQuery.toLowerCase()) ||

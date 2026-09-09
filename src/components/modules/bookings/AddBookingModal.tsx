@@ -36,21 +36,15 @@ export const AddBookingModal: React.FC<AddBookingModalProps> = ({
 
   // 2. VEHICLE & DRIVER (STEP 2 - Selected according to available cars on that date)
   const [vehicleReg, setVehicleReg] = useState(prefillVehicle || '');
-  const [driverName, setDriverName] = useState(drivers[0]?.name || 'Vikas Kumar');
-  const [startOdometer, setStartOdometer] = useState('61200');
+  const [driverName, setDriverName] = useState(drivers[0]?.name || '');
+  const [startOdometer, setStartOdometer] = useState('');
 
   // 3. TRIP TYPE & ROUTE (with Live Autocomplete & Map Coordinates)
   const [tripType, setTripType] = useState<TripType>('Round Trip');
-  const [pickupLocation, setPickupLocation] = useState('Delhi Airport (IGI T3)');
-  const [dropLocation, setDropLocation] = useState('Chandigarh Sector 17');
-  const [pickupCoords, setPickupCoords] = useState<{ lat: number; lng: number } | null>({
-    lat: 28.5562,
-    lng: 77.1000 // Delhi Airport default
-  });
-  const [dropCoords, setDropCoords] = useState<{ lat: number; lng: number } | null>({
-    lat: 30.7398,
-    lng: 76.7827 // Chandigarh Sector 17 default
-  });
+  const [pickupLocation, setPickupLocation] = useState('');
+  const [dropLocation, setDropLocation] = useState('');
+  const [pickupCoords, setPickupCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [dropCoords, setDropCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [calculatedDistanceKm, setCalculatedDistanceKm] = useState<number | null>(null);
   const [calculatedDurationText, setCalculatedDurationText] = useState<string>('');
 
@@ -59,15 +53,15 @@ export const AddBookingModal: React.FC<AddBookingModalProps> = ({
   const [customerPhone, setCustomerPhone] = useState('');
 
   // 5. PRICING & ADVANCE PAYMENT
-  const [totalFare, setTotalFare] = useState('18000');
-  const [advanceAmount, setAdvanceAmount] = useState('5000');
+  const [totalFare, setTotalFare] = useState('');
+  const [advanceAmount, setAdvanceAmount] = useState('');
   const [advanceMode, setAdvanceMode] = useState<PaymentMode>('UPI');
 
   // Expenses estimates
-  const [fuelCost, setFuelCost] = useState('3500');
-  const [fastagCost, setFastagCost] = useState('650');
-  const [driverBata, setDriverBata] = useState('1200');
-  const [otherExpenses, setOtherExpenses] = useState('100');
+  const [fuelCost, setFuelCost] = useState('');
+  const [fastagCost, setFastagCost] = useState('');
+  const [driverBata, setDriverBata] = useState('');
+  const [otherExpenses, setOtherExpenses] = useState('');
   const [notes, setNotes] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
 

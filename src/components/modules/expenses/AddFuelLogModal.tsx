@@ -19,19 +19,19 @@ export const AddFuelLogModal: React.FC<AddFuelLogModalProps> = ({
 }) => {
   const { vehicles, drivers, addFuelLog } = useFleet();
 
-  const [vehicle, setVehicle] = useState(preselectedVehicle || vehicles[0]?.registrationNumber || 'DL01AB1234');
-  const [driverName, setDriverName] = useState(drivers[0]?.name || 'Rahul Sharma');
+  const [vehicle, setVehicle] = useState(preselectedVehicle || vehicles[0]?.registrationNumber || '');
+  const [driverName, setDriverName] = useState(drivers[0]?.name || '');
   const [date, setDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [time, setTime] = useState(() => {
     const d = new Date();
     return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
   });
-  const [odometer, setOdometer] = useState('45400');
+  const [odometer, setOdometer] = useState('');
   const [fuelType, setFuelType] = useState<FuelLogEntry['fuelType']>('Diesel');
-  const [litres, setLitres] = useState('35.0');
-  const [ratePerLitre, setRatePerLitre] = useState('89.62');
-  const [totalCost, setTotalCost] = useState('3137');
-  const [stationName, setStationName] = useState('Indian Oil Corporation (Ring Road)');
+  const [litres, setLitres] = useState('');
+  const [ratePerLitre, setRatePerLitre] = useState('');
+  const [totalCost, setTotalCost] = useState('');
+  const [stationName, setStationName] = useState('');
   const [paymentMode, setPaymentMode] = useState<FuelLogEntry['paymentMode']>('Fleet Card');
   const [notes, setNotes] = useState('');
 

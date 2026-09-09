@@ -27,24 +27,6 @@ import {
   DriverPayrollItem,
   DashboardStatsData
 } from '../types/fleet';
-import {
-  initialVehicles,
-  initialDrivers,
-  initialDriverAttendance,
-  initialDriverExpenses,
-  initialDepartmentContracts,
-  initialDailyDutyLogs,
-  initialMonthlyBills,
-  initialDepartmentPayments,
-  initialFuelLogs,
-  initialFastagTransactions,
-  initialContracts,
-  initialTrips,
-  initialExpenses,
-  vehicleComplianceDocs,
-  driverComplianceDocs,
-  initialMaintenanceRecords
-} from '../data/mockFleetData';
 
 interface PageHeaderInfo {
   title: string;
@@ -83,27 +65,27 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [departmentSubTab, setDepartmentSubTab] = useState<DepartmentSubTab>('contracts');
   const [expenseSubTab, setExpenseSubTab] = useState<'fuel' | 'fastag' | 'all'>('fastag');
   
-  const [vehicles, setVehicles] = useState<Vehicle[]>(initialVehicles);
-  const [drivers, setDrivers] = useState<Driver[]>(initialDrivers);
-  const [attendanceRecords, setAttendanceRecords] = useState<DriverAttendance[]>(initialDriverAttendance);
-  const [driverExpenses, setDriverExpenses] = useState<DriverExpenseItem[]>(initialDriverExpenses);
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [drivers, setDrivers] = useState<Driver[]>([]);
+  const [attendanceRecords, setAttendanceRecords] = useState<DriverAttendance[]>([]);
+  const [driverExpenses, setDriverExpenses] = useState<DriverExpenseItem[]>([]);
   
-  const [departmentContracts, setDepartmentContracts] = useState<DepartmentContract[]>(initialDepartmentContracts);
-  const [dailyDutyLogs, setDailyDutyLogs] = useState<DailyDutyLog[]>(initialDailyDutyLogs);
-  const [monthlyBills, setMonthlyBills] = useState<MonthlyDepartmentBill[]>(initialMonthlyBills);
+  const [departmentContracts, setDepartmentContracts] = useState<DepartmentContract[]>([]);
+  const [dailyDutyLogs, setDailyDutyLogs] = useState<DailyDutyLog[]>([]);
+  const [monthlyBills, setMonthlyBills] = useState<MonthlyDepartmentBill[]>([]);
   const [activeGstRate, setActiveGstRate] = useState<number>(5);
   const [activeGstType, setActiveGstType] = useState<'CGST_SGST' | 'IGST'>('CGST_SGST');
-  const [departmentPayments, setDepartmentPayments] = useState<DepartmentPayment[]>(initialDepartmentPayments);
-  const [fuelLogs, setFuelLogs] = useState<FuelLogEntry[]>(initialFuelLogs);
-  const [fastagTransactions, setFastagTransactions] = useState<FastagTransaction[]>(initialFastagTransactions);
+  const [departmentPayments, setDepartmentPayments] = useState<DepartmentPayment[]>([]);
+  const [fuelLogs, setFuelLogs] = useState<FuelLogEntry[]>([]);
+  const [fastagTransactions, setFastagTransactions] = useState<FastagTransaction[]>([]);
   
-  const [contracts] = useState<ContractDepartment[]>(initialContracts);
-  const [trips, setTrips] = useState<TripFinancial[]>(initialTrips);
-  const [expenses, setExpenses] = useState<ExpenseRecord[]>(initialExpenses);
-  const [vehicleCompliance, setVehicleCompliance] = useState<DocumentCompliance[]>(vehicleComplianceDocs);
-  const [driverCompliance, setDriverCompliance] = useState<DocumentCompliance[]>(driverComplianceDocs);
+  const [contracts] = useState<ContractDepartment[]>([]);
+  const [trips, setTrips] = useState<TripFinancial[]>([]);
+  const [expenses, setExpenses] = useState<ExpenseRecord[]>([]);
+  const [vehicleCompliance, setVehicleCompliance] = useState<DocumentCompliance[]>([]);
+  const [driverCompliance, setDriverCompliance] = useState<DocumentCompliance[]>([]);
   
-  const [maintenanceRecords, setMaintenanceRecords] = useState<MaintenanceRecord[]>(initialMaintenanceRecords);
+  const [maintenanceRecords, setMaintenanceRecords] = useState<MaintenanceRecord[]>([]);
 
   const [dashboardStats, setDashboardStats] = useState<DashboardStatsData | null>(null);
   const [isLoadingDashboard, setIsLoadingDashboard] = useState<boolean>(false);
@@ -224,11 +206,11 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const fetchLiveVehicles = async () => {
     try {
       const res = await api.get('/vehicles?limit=100');
-      if (res.success && Array.isArray(res.data) && res.data.length > 0) {
+      if (res && res.success && Array.isArray(res.data)) {
         setVehicles(res.data);
       }
     } catch (err) {
-      console.warn('Backend vehicles API not reachable, using local fleet cache.', err);
+      console.warn('Backend vehicles API not reachable:', err);
     }
   };
 
@@ -245,9 +227,9 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         return liveDrivers;
       }
     } catch (err) {
-      console.warn('Backend drivers API not reachable, using local driver cache.', err);
+      console.warn('Backend drivers API not reachable:', err);
     }
-    return drivers;
+    return [];
   };
 
   // Fetch contracts from live backend API
@@ -264,7 +246,7 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         if (qStr) endpoint += `&${qStr}`;
       }
       const res = await api.get(endpoint);
-      if (res.success && Array.isArray(res.data) && res.data.length > 0) {
+      if (res && res.success && Array.isArray(res.data)) {
         setDepartmentContracts(
           res.data.map((item: any) => ({
             ...item,
@@ -273,7 +255,7 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         );
       }
     } catch (err) {
-      console.warn('Backend contracts API not reachable, using local contracts cache.', err);
+      console.warn('Backend contracts API not reachable:', err);
     }
   };
 
@@ -281,16 +263,12 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const fetchLiveCompliance = async () => {
     try {
       const res = await api.get('/compliance/expiry');
-      if (res.success && res.data) {
-        if (Array.isArray(res.data.vehicleDocs) && res.data.vehicleDocs.length > 0) {
-          setVehicleCompliance(res.data.vehicleDocs);
-        }
-        if (Array.isArray(res.data.driverDocs) && res.data.driverDocs.length > 0) {
-          setDriverCompliance(res.data.driverDocs);
-        }
+      if (res && res.success && res.data) {
+        setVehicleCompliance(Array.isArray(res.data.vehicleDocs) ? res.data.vehicleDocs : []);
+        setDriverCompliance(Array.isArray(res.data.driverDocs) ? res.data.driverDocs : []);
       }
     } catch (err) {
-      console.warn('Backend compliance API not reachable, using local compliance cache.', err);
+      console.warn('Backend compliance API not reachable:', err);
     }
   };
 
@@ -313,19 +291,11 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
 
       const res = await api.get(endpoint);
-      if (res.success && Array.isArray(res.data)) {
-        setAttendanceRecords(prev => {
-          const newMap = new Map();
-          res.data.forEach((item: DriverAttendance) => {
-            const key = item.id || `${item.driverId}_${item.date}`;
-            newMap.set(key, item);
-          });
-          const kept = prev.filter(p => !newMap.has(p.id) && !newMap.has(`${p.driverId}_${p.date}`));
-          return [...res.data, ...kept];
-        });
+      if (res && res.success && Array.isArray(res.data)) {
+        setAttendanceRecords(res.data);
       }
     } catch (err) {
-      console.warn('Backend attendance API not reachable, using local attendance cache.', err);
+      console.warn('Backend attendance API not reachable:', err);
     }
   };
 
@@ -353,18 +323,11 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
 
       const res = await api.get(endpoint);
-      if (res.success && Array.isArray(res.data)) {
-        setDriverExpenses(prev => {
-          const newMap = new Map();
-          res.data.forEach((item: DriverExpenseItem) => {
-            newMap.set(item.id, item);
-          });
-          const kept = prev.filter(p => !newMap.has(p.id));
-          return [...res.data, ...kept];
-        });
+      if (res && res.success && Array.isArray(res.data)) {
+        setDriverExpenses(res.data);
       }
     } catch (err) {
-      console.warn('Backend driver expenses API not reachable, using local cache.', err);
+      console.warn('Backend driver expenses API not reachable:', err);
     }
   };
 
@@ -379,7 +342,7 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (q) url += `?${q}`;
 
       const res = await api.get(url);
-      if (res && res.success && Array.isArray(res.data) && res.data.length > 0) {
+      if (res && res.success && Array.isArray(res.data)) {
         setTrips(res.data.map((item: any) => ({
           ...item,
           id: item.id || item._id,
@@ -391,7 +354,7 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         })));
       }
     } catch (err) {
-      console.warn('Backend bookings API not reachable, using local cache.', err);
+      console.warn('Backend bookings API not reachable:', err);
     }
   };
 
@@ -410,14 +373,14 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         if (qStr) endpoint += `&${qStr}`;
       }
       const res = await api.get(endpoint);
-      if (res.success && Array.isArray(res.data) && res.data.length > 0) {
+      if (res && res.success && Array.isArray(res.data)) {
         setDailyDutyLogs(res.data.map((item: any) => ({
           ...item,
           id: item.id || item._id
         })));
       }
     } catch (err) {
-      console.warn('Backend daily duty logs API not reachable, using local cache.', err);
+      console.warn('Backend daily duty logs API not reachable:', err);
     }
   };
 
@@ -434,7 +397,7 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         if (qStr) endpoint += `&${qStr}`;
       }
       const res = await api.get(endpoint);
-      if (res.success && Array.isArray(res.data) && res.data.length > 0) {
+      if (res && res.success && Array.isArray(res.data)) {
         setFastagTransactions(
           res.data.map((item: any) => ({
             ...item,
@@ -443,7 +406,7 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         );
       }
     } catch (err) {
-      console.warn('Backend FASTag API not reachable, using local cached transactions.', err);
+      console.warn('Backend FASTag API not reachable:', err);
     }
   };
 
@@ -460,7 +423,7 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         if (qStr) endpoint += `&${qStr}`;
       }
       const res = await api.get(endpoint);
-      if (res.success && Array.isArray(res.data) && res.data.length > 0) {
+      if (res && res.success && Array.isArray(res.data)) {
         setMonthlyBills(
           res.data.map((item: any) => ({
             ...item,
@@ -469,7 +432,7 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         );
       }
     } catch (err) {
-      console.warn('Backend bills API not reachable, using local cached monthly bills.', err);
+      console.warn('Backend bills API not reachable:', err);
     }
   };
 
