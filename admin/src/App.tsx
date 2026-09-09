@@ -16,26 +16,36 @@ const GOOGLE_CLIENT_ID =
   import.meta.env.VITE_GOOGLE_CLIENT_ID ||
   '546992458715-dbhmfbb7bj36h6sfm2m4l8qjisdmd491.apps.googleusercontent.com';
 
+/** Providers that must always wrap the app (order matters). */
+const AppTree: React.FC = () => (
+  <BrowserRouter>
+    <ThemeProvider>
+      <AuthProvider>
+        <AgencyProvider>
+          <FleetProvider>
+            <NotificationProvider>
+              <ErrorBoundary fallbackTitle="KABPRO interface error">
+                <MainLayout />
+              </ErrorBoundary>
+              <NotificationToast />
+              <ModalAnimationController />
+            </NotificationProvider>
+          </FleetProvider>
+        </AgencyProvider>
+      </AuthProvider>
+    </ThemeProvider>
+  </BrowserRouter>
+);
+
 export const App: React.FC = () => {
+  // Google OAuth provider only when client id exists — avoids hard crash
+  if (!GOOGLE_CLIENT_ID) {
+    return <AppTree />;
+  }
+
   return (
     <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
-      <BrowserRouter>
-        <ThemeProvider>
-          <AuthProvider>
-            <AgencyProvider>
-              <FleetProvider>
-                <NotificationProvider>
-                  <ErrorBoundary fallbackTitle="FleetOS Interface Error">
-                    <MainLayout />
-                  </ErrorBoundary>
-                  <NotificationToast />
-                  <ModalAnimationController />
-                </NotificationProvider>
-              </FleetProvider>
-            </AgencyProvider>
-          </AuthProvider>
-        </ThemeProvider>
-      </BrowserRouter>
+      <AppTree />
     </GoogleOAuthProvider>
   );
 };

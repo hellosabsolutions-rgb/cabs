@@ -28,6 +28,7 @@ import {
 
 export type DriverSubTab = 'list' | 'attendance' | 'expenses' | 'payroll';
 export type DepartmentSubTab = 'contracts' | 'duty-logs' | 'billing' | 'weekend-billing' | 'payments';
+export type ExpenseSubTab = 'fastag' | 'fuel' | 'all';
 
 export interface AlertItem {
   type: 'soon' | 'late';

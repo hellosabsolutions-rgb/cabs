@@ -8,9 +8,93 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    /* Boot shell — shown until React mounts; avoids blank white crash screen */
+    html, body { margin: 0; min-height: 100%; background: #f4f7fb; font-family: Poppins, system-ui, sans-serif; }
+    #root:empty::before {
+      content: '';
+      display: block;
+      min-height: 100vh;
+    }
+    #boot-fallback {
+      position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+      background: #f4f7fb; z-index: 99999; color: #0f172a; text-align: center; padding: 24px;
+    }
+    #boot-fallback[hidden] { display: none !important; }
+    #boot-fallback .card {
+      max-width: 420px; background: #fff; border: 1px solid #e2e8f0; border-radius: 12px;
+      padding: 28px 24px; box-shadow: 0 8px 30px rgba(15, 23, 42, 0.08);
+    }
+    #boot-fallback h1 { font-size: 18px; margin: 0 0 8px; }
+    #boot-fallback p { font-size: 13px; color: #64748b; margin: 0 0 16px; line-height: 1.5; }
+    #boot-fallback button {
+      appearance: none; border: 0; border-radius: 8px; padding: 10px 16px; cursor: pointer;
+      background: #1687F5; color: #fff; font-weight: 600; font-size: 13px;
+    }
+    #boot-fallback .spin {
+      width: 28px; height: 28px; margin: 0 auto 14px; border: 3px solid #dbeafe;
+      border-top-color: #1687F5; border-radius: 50%; animation: boot-spin .7s linear infinite;
+    }
+    @keyframes boot-spin { to { transform: rotate(360deg); } }
+  </style>
 </head>
 <body>
+  <div id="boot-fallback" role="status" aria-live="polite">
+    <div class="card">
+      <div class="spin" id="boot-spinner"></div>
+      <h1 id="boot-title">Loading KABPRO…</h1>
+      <p id="boot-msg">Starting the fleet dashboard.</p>
+      <button type="button" id="boot-reload" hidden onclick="location.reload(true)">Reload app</button>
+    </div>
+  </div>
   <div id="root"></div>
+  <script>
+    (function () {
+      var fallback = document.getElementById('boot-fallback');
+      var title = document.getElementById('boot-title');
+      var msg = document.getElementById('boot-msg');
+      var reload = document.getElementById('boot-reload');
+      var spinner = document.getElementById('boot-spinner');
+      var failed = false;
+
+      function showFatal(message) {
+        if (failed) return;
+        failed = true;
+        if (spinner) spinner.style.display = 'none';
+        if (title) title.textContent = 'KABPRO failed to load';
+        if (msg) msg.textContent = message || 'A startup error occurred. Hard-reload usually fixes a stale deploy cache.';
+        if (reload) reload.hidden = false;
+        if (fallback) fallback.hidden = false;
+      }
+
+      window.__kabproHideBoot = function () {
+        if (fallback && !failed) fallback.hidden = true;
+      };
+
+      window.addEventListener('error', function (e) {
+        var text = (e && (e.message || (e.error && e.error.message))) || '';
+        if (/createContext|Cannot read properties of undefined|Failed to fetch dynamically imported module|Loading chunk/i.test(text)) {
+          showFatal(text);
+        }
+      });
+
+      window.addEventListener('unhandledrejection', function (e) {
+        var reason = e && e.reason;
+        var text = (reason && (reason.message || String(reason))) || '';
+        if (/createContext|Failed to fetch dynamically imported module|Loading chunk/i.test(text)) {
+          showFatal(text);
+        }
+      });
+
+      // If React never mounts (chunk crash), surface UI after 12s
+      setTimeout(function () {
+        var root = document.getElementById('root');
+        if (root && !root.hasChildNodes()) {
+          showFatal('The app did not start in time. Clear cache or hard-reload (Ctrl+Shift+R).');
+        }
+      }, 12000);
+    })();
+  </script>
   <script type="module" src="/src/main.tsx"></script>
 </body>
 </html>
