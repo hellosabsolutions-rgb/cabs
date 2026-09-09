@@ -1,3 +1,4 @@
+import './loadEnv.js';
 import { initializeApp, cert, getApps, getApp } from 'firebase-admin/app';
 import { getMessaging } from 'firebase-admin/messaging';
 import path from 'path';
@@ -6,33 +7,55 @@ import fs from 'fs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+const serverRoot = path.resolve(__dirname, '../..');
 
 /**
  * Resolve Firebase Admin service account JSON.
- * Prefer FIREBASE_SERVICE_ACCOUNT_PATH, else look for opsiva-*-firebase-adminsdk-*.json in server/.
+ * Order: FIREBASE_SERVICE_ACCOUNT_PATH → FIREBASE_SERVICE_ACCOUNT_FILE → auto-discover in server/
  */
 function resolveServiceAccountPath() {
   if (process.env.FIREBASE_SERVICE_ACCOUNT_PATH) {
     return path.resolve(process.env.FIREBASE_SERVICE_ACCOUNT_PATH);
   }
 
-  const serverRoot = path.resolve(__dirname, '../..');
-  const configuredName = process.env.FIREBASE_SERVICE_ACCOUNT_FILE;
+  const configuredName = process.env.FIREBASE_SERVICE_ACCOUNT_FILE?.trim();
   if (configuredName) {
     return path.resolve(serverRoot, configuredName);
   }
 
-  // Default filename used by Opsiva project (gitignored)
-  return path.resolve(serverRoot, 'opsiva-e1ee5-firebase-adminsdk-fbsvc-0cb51d6e01.json');
+  try {
+    const matches = fs
+      .readdirSync(serverRoot)
+      .filter(
+        (name) =>
+          name.endsWith('.json') &&
+          (name.includes('firebase-adminsdk') || name.startsWith('opsiva-'))
+      )
+      .sort();
+
+    if (matches.length > 0) {
+      return path.resolve(serverRoot, matches[0]);
+    }
+  } catch {
+    // fall through
+  }
+
+  return null;
 }
 
 const serviceAccountPath = resolveServiceAccountPath();
 
 let firebaseApp = null;
 let messaging = null;
+let firebaseStatus = {
+  ready: false,
+  projectId: null,
+  file: null,
+  error: null
+};
 
 try {
-  if (fs.existsSync(serviceAccountPath)) {
+  if (serviceAccountPath && fs.existsSync(serviceAccountPath)) {
     const serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, 'utf8'));
 
     const existingApps = getApps();
@@ -41,18 +64,36 @@ try {
         credential: cert(serviceAccount),
         projectId: serviceAccount.project_id
       });
-      console.log(`🔥 [Firebase Admin] Initialized successfully for project: ${serviceAccount.project_id}`);
     } else {
       firebaseApp = getApp();
     }
 
     messaging = getMessaging(firebaseApp);
+    firebaseStatus = {
+      ready: true,
+      projectId: serviceAccount.project_id || null,
+      file: path.basename(serviceAccountPath),
+      error: null
+    };
   } else {
-    console.warn(`⚠️ [Firebase Admin] Service account file not found at: ${serviceAccountPath}`);
-    console.warn('   Set FIREBASE_SERVICE_ACCOUNT_PATH or place the JSON in server/ (gitignored).');
+    firebaseStatus = {
+      ready: false,
+      projectId: null,
+      file: null,
+      error: 'Service account JSON not found in server/'
+    };
   }
 } catch (error) {
-  console.error('❌ [Firebase Admin] Initialization failed:', error.message);
+  firebaseStatus = {
+    ready: false,
+    projectId: null,
+    file: serviceAccountPath ? path.basename(serviceAccountPath) : null,
+    error: error.message
+  };
+}
+
+export function getFirebaseStatus() {
+  return { ...firebaseStatus };
 }
 
 export { firebaseApp, messaging };

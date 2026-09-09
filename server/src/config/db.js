@@ -32,6 +32,7 @@ export const connectDB = async () => {
     });
 
     console.log(`✅ MongoDB Connected: ${conn.connection.host}/${conn.connection.name}`);
+    // Detailed boot summary is printed by startupBanner in server.js
 
     mongoose.connection.on('error', err => {
       console.error('❌ MongoDB connection error:', err);

@@ -1,28 +1,29 @@
-# KABPRO — THANOS production deployment
+# KABPRO — THANOS production deploy & update
 
-**Domains (opsiva.in — hyphen first-level, Cloudflare Universal SSL):**
+**Domains (opsiva.in):**
 
-| App | URL |
-|-----|-----|
-| API | `https://api-kabpro.opsiva.in` |
-| Admin | `https://admin-kabpro.opsiva.in` |
-| Landing | `https://kabpro.opsiva.in` |
+| App | URL | Process / path |
+|-----|-----|----------------|
+| API | `https://api-kabpro.opsiva.in` | PM2 `kabpro-api` · port **5002** |
+| Admin | `https://admin-kabpro.opsiva.in` | Static `admin/dist` via nginx |
+| Landing | `https://kabpro.opsiva.in` | Separate (not in this CI) |
+
+Repo root on server: **`/srv/apps/cabs`**
 
 ---
 
-## 1. Server `.env.production` (THANOS — secrets, never commit)
+## A. One-time server setup (first deploy only)
 
-Create on server:
+### 1. Secrets — `server/.env.production` (never commit)
 
 ```bash
-cp /srv/apps/cabs/server/.env.production.example /srv/apps/cabs/server/.env.production
-nano /srv/apps/cabs/server/.env.production
-chmod 600 /srv/apps/cabs/server/.env.production
+cd /srv/apps/cabs/server
+cp .env.production.example .env.production
+nano .env.production
+chmod 600 .env.production
 ```
 
-**Full file:**
-
-> **THANOS port:** Opsiva BACKEND uses 5000–5005 and 8080. KABPRO API uses **5002** — must match `scripts/thanos/nginx-kabpro-production.conf` (`proxy_pass`).
+Fill at least:
 
 ```env
 NODE_ENV=production
@@ -34,87 +35,31 @@ CORS_ORIGINS=https://admin-kabpro.opsiva.in,https://kabpro.opsiva.in
 CLIENT_URL=https://admin-kabpro.opsiva.in
 PUBLIC_API_URL=https://api-kabpro.opsiva.in
 
-JWT_SECRET=your-long-random-secret-min-32-chars
+JWT_SECRET=<long-random-32+-chars>
 ACCESS_TOKEN_EXPIRE=15m
 
 GOOGLE_CLIENT_ID=546992458715-dbhmfbb7bj36h6sfm2m4l8qjisdmd491.apps.googleusercontent.com
 
-CLOUDINARY_CLOUD_NAME=your-cloud-name
-CLOUDINARY_API_KEY=your-api-key
-CLOUDINARY_API_SECRET=your-api-secret
+CLOUDINARY_CLOUD_NAME=<your-cloud>
+CLOUDINARY_API_KEY=<your-key>
+CLOUDINARY_API_SECRET=<your-secret>
 
-# Firebase Admin JSON on disk (gitignored) — optional path override
-FIREBASE_SERVICE_ACCOUNT_PATH=/srv/apps/cabs/server/opsiva-e1ee5-firebase-adminsdk-fbsvc-0cb51d6e01.json
+# Firebase Admin JSON (copy file to server; gitignored)
+FIREBASE_SERVICE_ACCOUNT_FILE=opsiva-e1ee5-firebase-adminsdk-fbsvc-0a08b2b878.json
+# or absolute:
+# FIREBASE_SERVICE_ACCOUNT_PATH=/srv/apps/cabs/server/opsiva-e1ee5-firebase-adminsdk-fbsvc-0a08b2b878.json
 ```
 
-After edit:
+### 2. Firebase Admin JSON on THANOS
 
 ```bash
-pm2 restart kabpro-api --update-env
-pm2 logs kabpro-api --lines 10
-# Expect: CORS origins: https://admin-kabpro.opsiva.in, https://kabpro.opsiva.in
+# From your laptop (example) — do NOT commit this file
+scp server/opsiva-e1ee5-firebase-adminsdk-fbsvc-0a08b2b878.json \
+  user@thanos:/srv/apps/cabs/server/
+chmod 600 /srv/apps/cabs/server/opsiva-e1ee5-firebase-adminsdk-*.json
 ```
 
----
-
-## 2. Admin `.env.production` (committed — public URLs)
-
-Already in repo at `admin/.env.production`:
-
-```env
-VITE_API_URL=https://api-kabpro.opsiva.in/api
-VITE_SOCKET_URL=https://api-kabpro.opsiva.in
-VITE_APP_URL=https://admin-kabpro.opsiva.in
-VITE_LANDING_URL=https://kabpro.opsiva.in
-VITE_GOOGLE_CLIENT_ID=546992458715-dbhmfbb7bj36h6sfm2m4l8qjisdmd491.apps.googleusercontent.com
-# Plus VITE_FIREBASE_* (see admin/.env.production) for FCM push
-```
-
-CI bakes these on every build. Local prod build: `cd admin && npm run build`.
-
----
-
-## 3. Landing `.env.production`
-
-```env
-NEXT_PUBLIC_SITE_URL=https://kabpro.opsiva.in
-NEXT_PUBLIC_API_URL=https://api-kabpro.opsiva.in/api
-NEXT_PUBLIC_ADMIN_URL=https://admin-kabpro.opsiva.in
-```
-
-Deploy landing separately (PM2 on THANOS port 3001 or Vercel with same env vars).
-
-```bash
-cd /srv/apps/cabs/landing
-npm ci && npm run build
-NODE_ENV=production pm2 start npm --name kabpro-landing -- start
-pm2 save
-```
-
----
-
-## 4. CORS verification
-
-```bash
-# Admin origin — must return Access-Control-Allow-Origin
-curl -sI -X OPTIONS https://api-kabpro.opsiva.in/api/auth/isLogin \
-  -H "Origin: https://admin-kabpro.opsiva.in" \
-  -H "Access-Control-Request-Method: GET" | grep -i access-control
-
-# Landing origin
-curl -sI -X OPTIONS https://api-kabpro.opsiva.in/api/health \
-  -H "Origin: https://kabpro.opsiva.in" \
-  -H "Access-Control-Request-Method: GET" | grep -i access-control
-
-# Blocked origin — should NOT echo random domain
-curl -sI -X OPTIONS https://api-kabpro.opsiva.in/api/health \
-  -H "Origin: https://evil.example.com" \
-  -H "Access-Control-Request-Method: GET" | grep -i access-control-allow-origin
-```
-
----
-
-## 5. nginx (all three hostnames → 127.0.0.1:80)
+### 3. nginx
 
 ```bash
 sudo cp /srv/apps/cabs/scripts/thanos/nginx-kabpro-production.conf \
@@ -123,19 +68,7 @@ sudo ln -sf /etc/nginx/sites-available/kabpro-production /etc/nginx/sites-enable
 sudo nginx -t && sudo systemctl reload nginx
 ```
 
-Local test:
-
-```bash
-curl -sS -H "Host: api-kabpro.opsiva.in" http://127.0.0.1/api/health
-curl -sS -H "Host: admin-kabpro.opsiva.in" http://127.0.0.1/ | head -3
-curl -sS -o /dev/null -w "%{http_code}\n" -H "Host: kabpro.opsiva.in" http://127.0.0.1/
-```
-
----
-
-## 6. Cloudflare Tunnel public hostnames
-
-Zero Trust → Tunnels → add:
+### 4. Cloudflare Tunnel hostnames
 
 | Subdomain | Service |
 |-----------|---------|
@@ -143,22 +76,121 @@ Zero Trust → Tunnels → add:
 | `admin-kabpro` | `http://127.0.0.1:80` |
 | `kabpro` | `http://127.0.0.1:80` |
 
-DNS must be **Tunnel / Proxied** (not A record to old EC2).
+SSL: **Full (strict)** · Always HTTPS on.
 
-SSL: **Full (strict)**, **Always Use HTTPS** on.
+### 5. First PM2 start (if not via CI yet)
+
+```bash
+cd /srv/apps/cabs/server
+npm ci --omit=dev
+NODE_ENV=production pm2 start src/server.js --name kabpro-api --cwd /srv/apps/cabs/server
+pm2 save
+pm2 logs kabpro-api --lines 40
+```
+
+Expect the **KABPRO** banner with green Firebase + Cloudinary + MongoDB.
 
 ---
 
-## 7. CI/CD (admin + server)
+## B. Normal update (what to do after code changes)
 
-Push to `main` → self-hosted runner builds admin with production URLs → publishes to `/srv/apps/cabs` → `pm2 restart kabpro-api`.
+### Preferred: push to `main` (CI)
 
-Landing is **not** in CI — deploy manually or add later.
+1. Push/merge to **`main`** (paths under `admin/**`, `server/**`, or workflow).
+2. Self-hosted runner on THANOS runs **Deploy production**:
+   - builds admin with production `VITE_*`
+   - rsyncs `admin/dist` + `server/` to `/srv/apps/cabs`
+   - `npm ci --omit=dev` in server
+   - `pm2 restart kabpro-api --update-env`
+   - health smoke on port **5002**
+
+**You do not need to seed anything.** No dummy data is deployed.
+
+### After CI, verify on THANOS
+
+```bash
+pm2 status
+pm2 logs kabpro-api --lines 50 --nostream
+
+# Expect banner: Firebase ready · Cloudinary ok · MongoDB connected
+curl -sS http://127.0.0.1:5002/api/health
+curl -sS -H "Host: api-kabpro.opsiva.in" http://127.0.0.1/api/health
+curl -sS -o /dev/null -w "%{http_code}\n" -H "Host: admin-kabpro.opsiva.in" http://127.0.0.1/
+```
+
+### Manual update (if CI skipped)
+
+```bash
+cd /srv/apps/cabs
+git fetch origin && git checkout main && git pull origin main
+
+# Admin
+cd /srv/apps/cabs/admin
+npm ci --include=dev
+npm run build   # uses admin/.env.production
+
+# Server deps
+cd /srv/apps/cabs/server
+npm ci --omit=dev
+NODE_ENV=production pm2 restart kabpro-api --update-env
+# or first time:
+# NODE_ENV=production pm2 start src/server.js --name kabpro-api --cwd /srv/apps/cabs/server
+pm2 save
+```
+
+### When you change **env / secrets** only
+
+```bash
+nano /srv/apps/cabs/server/.env.production
+# keep Firebase JSON file in place
+NODE_ENV=production pm2 restart kabpro-api --update-env
+pm2 logs kabpro-api --lines 30
+```
+
+### When you rotate Firebase service account
+
+1. Copy new `*firebase-adminsdk*.json` into `/srv/apps/cabs/server/`
+2. Update `FIREBASE_SERVICE_ACCOUNT_FILE` (or `PATH`) in `.env.production`
+3. `pm2 restart kabpro-api --update-env`
+
+### When you change Cloudinary / Google client
+
+1. Update `.env.production` (`CLOUDINARY_*`, `GOOGLE_CLIENT_ID`)
+2. If Google client ID changes, also update `admin/.env.production` → `VITE_GOOGLE_CLIENT_ID` and **rebuild admin** (push to main or manual build)
+3. Restart API
 
 ---
 
-## Cookie notes
+## C. Checklist — what must exist on THANOS after this update
 
-- Auth uses **Bearer JWT** in localStorage (not cross-domain cookies).
-- Do **not** set `CF_COOKIE_DOMAIN=.opsiva.in` — conflicts with other Opsiva apps.
-- Socket.IO uses same CORS list as REST API.
+| Item | Required |
+|------|----------|
+| `/srv/apps/cabs/server/.env.production` | Yes — Mongo, JWT, CORS, Cloudinary, Google, Firebase path |
+| Firebase Admin JSON in `server/` | Yes — for FCM push |
+| `admin/dist` built with prod URLs | Yes — CI or manual |
+| PM2 `kabpro-api` on **5002** | Yes |
+| nginx `kabpro-production` | Yes |
+| Cloudflare tunnel hostnames | Yes |
+| Seed / dummy DB data | **No** — removed from codebase |
+| `npm run seed` | **Removed** — do not run |
+
+---
+
+## D. CORS / smoke checks
+
+```bash
+curl -sI -X OPTIONS https://api-kabpro.opsiva.in/api/auth/isLogin \
+  -H "Origin: https://admin-kabpro.opsiva.in" \
+  -H "Access-Control-Request-Method: GET" | grep -i access-control
+
+curl -sS https://api-kabpro.opsiva.in/api/health
+```
+
+---
+
+## E. Notes
+
+- Auth is **Bearer JWT** (localStorage), not shared cookies across opsiva apps.
+- Admin public Firebase web keys live in committed `admin/.env.production` (client-safe).
+- Server service-account JSON and Cloudinary secret stay **only** on THANOS.
+- Empty production DB is expected until real users/agencies are created in the admin UI.

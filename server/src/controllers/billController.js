@@ -2,189 +2,6 @@ import { MonthlyBill } from '../models/MonthlyBill.js';
 import { DailyDutyLog } from '../models/DailyDutyLog.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
 
-// Initial seed bills for auto-population if DB is empty
-const defaultSeedBills = [
-  {
-    billNumber: 'INV-2026-08-PWD',
-    departmentName: 'Public Works Department (PWD)',
-    vehicle: 'DL01AB1234',
-    billingMonth: '2026-08',
-    baseContractAmount: 53755,
-    dutyStartDate: '2026-08-01',
-    dutyEndDate: '2026-08-31',
-    totalKmRun: 2300,
-    extraKmCost: 1500,
-    extraHoursCost: 0,
-    extraDriverAllowance: 0,
-    fuelAvgKmpl: 10,
-    fuelLitresUsed: 230,
-    fuelRatePerLitre: 88.33,
-    fuelCost: 20316,
-    nightCount: 5,
-    nightRate: 300,
-    nightCost: 1500,
-    tollParkingCost: 320,
-    subtotal: 75891,
-    gstRate: 5,
-    gstType: 'CGST_SGST',
-    gstTaxableOn: 'TOTAL',
-    gstAmount: 3795,
-    cgstAmount: 1898,
-    sgstAmount: 1897,
-    igstAmount: 0,
-    partyGstin: '07AAAGB1234F1Z5',
-    totalBill: 79686,
-    paidAmount: 0,
-    balanceDue: 79686,
-    status: 'Sent',
-    dueDate: '2026-09-15',
-    invoicePdf: 'invoice_pwd_aug2026.pdf'
-  },
-  {
-    billNumber: 'INV-2026-07-PWD',
-    departmentName: 'Public Works Department (PWD)',
-    vehicle: 'DL01AB1234',
-    billingMonth: '2026-07',
-    baseContractAmount: 53755,
-    dutyStartDate: '2026-07-01',
-    dutyEndDate: '2026-07-31',
-    totalKmRun: 2100,
-    extraKmCost: 1200,
-    extraHoursCost: 0,
-    extraDriverAllowance: 0,
-    fuelAvgKmpl: 10,
-    fuelLitresUsed: 210,
-    fuelRatePerLitre: 88.33,
-    fuelCost: 18549,
-    nightCount: 3,
-    nightRate: 300,
-    nightCost: 900,
-    tollParkingCost: 250,
-    subtotal: 74654,
-    gstRate: 5,
-    gstType: 'CGST_SGST',
-    gstTaxableOn: 'TOTAL',
-    gstAmount: 3733,
-    cgstAmount: 1867,
-    sgstAmount: 1866,
-    igstAmount: 0,
-    partyGstin: '07AAAGB1234F1Z5',
-    totalBill: 78387,
-    paidAmount: 78387,
-    balanceDue: 0,
-    status: 'Paid',
-    dueDate: '2026-08-15',
-    invoicePdf: 'invoice_pwd_jul2026.pdf'
-  },
-  {
-    billNumber: 'INV-2026-08-DJN',
-    departmentName: 'Delhi Jal Nigam (DJN)',
-    vehicle: 'DL05KL4432',
-    billingMonth: '2026-08',
-    baseContractAmount: 78000,
-    dutyStartDate: '2026-08-01',
-    dutyEndDate: '2026-08-31',
-    totalKmRun: 2800,
-    extraKmCost: 3200,
-    extraHoursCost: 1500,
-    extraDriverAllowance: 500,
-    fuelAvgKmpl: 12,
-    fuelLitresUsed: 233.3,
-    fuelRatePerLitre: 88.33,
-    fuelCost: 20607,
-    nightCount: 2,
-    nightRate: 300,
-    nightCost: 600,
-    tollParkingCost: 450,
-    subtotal: 104257,
-    gstRate: 5,
-    gstType: 'CGST_SGST',
-    gstTaxableOn: 'TOTAL',
-    gstAmount: 5213,
-    cgstAmount: 2607,
-    sgstAmount: 2606,
-    igstAmount: 0,
-    partyGstin: '07DJND0099Z1ZX',
-    totalBill: 109470,
-    paidAmount: 109470,
-    balanceDue: 0,
-    status: 'Paid',
-    dueDate: '2026-09-10',
-    invoicePdf: 'invoice_djn_aug2026.pdf'
-  },
-  {
-    billNumber: 'INV-2026-08-DHS',
-    departmentName: 'Directorate of Health Services',
-    vehicle: 'DL03XY9012',
-    billingMonth: '2026-08',
-    baseContractAmount: 62000,
-    dutyStartDate: '2026-08-01',
-    dutyEndDate: '2026-08-31',
-    totalKmRun: 2500,
-    extraKmCost: 2400,
-    extraHoursCost: 1650,
-    extraDriverAllowance: 0,
-    fuelAvgKmpl: 11,
-    fuelLitresUsed: 227.3,
-    fuelRatePerLitre: 88.33,
-    fuelCost: 20077,
-    nightCount: 4,
-    nightRate: 300,
-    nightCost: 1200,
-    tollParkingCost: 500,
-    subtotal: 87827,
-    gstRate: 5,
-    gstType: 'CGST_SGST',
-    gstTaxableOn: 'TOTAL',
-    gstAmount: 4391,
-    cgstAmount: 2196,
-    sgstAmount: 2195,
-    igstAmount: 0,
-    partyGstin: '07DHSB5511A1ZZ',
-    totalBill: 92218,
-    paidAmount: 0,
-    balanceDue: 92218,
-    status: 'Pending',
-    dueDate: '2026-09-20',
-    invoicePdf: 'invoice_dhs_aug2026.pdf',
-    billType: 'Monthly Tender Rent'
-  },
-  {
-    billNumber: '3454',
-    billType: 'Weekend / Off-Duty Cash Memo',
-    departmentName: 'Director Horticulture Mission',
-    vehicle: 'UK07TE9755',
-    billingMonth: '2026-07',
-    dutyStartDate: '2026-07-31',
-    dutyEndDate: '2026-07-31',
-    baseContractAmount: 2255,
-    packageFreeKm: 80,
-    extraKmRate: 14,
-    totalKmRun: 169,
-    extraKmCost: 1246,
-    extraHoursCost: 0,
-    fuelCost: 0,
-    tollParkingCost: 0,
-    subtotal: 3501,
-    gstRate: 5,
-    gstType: 'CGST_SGST',
-    gstTaxableOn: 'TOTAL',
-    gstAmount: 112,
-    cgstAmount: 56,
-    sgstAmount: 56,
-    igstAmount: 0,
-    partyGstin: '05AAAGB1234F1Z5',
-    totalBill: 3613,
-    paidAmount: 3613,
-    balanceDue: 0,
-    status: 'Paid',
-    dueDate: '2026-08-10',
-    journeyFrom: 'D.Dun Ranipokhari',
-    journeyTo: 'Vikasnagar & Local to D.Dun',
-    invoicePdf: 'cashmemo_3454_horticulture.pdf'
-  }
-];
-
 /**
  * Helper to compute tax and totals for a bill
  */
@@ -245,7 +62,7 @@ export const calculateBillFinancials = (data) => {
   };
 };
 
-// @desc    Get all monthly bills (with auto-seed if empty)
+// @desc    Get all monthly bills
 // @route   GET /api/bills
 export const getBills = asyncHandler(async (req, res) => {
   let queryObj = {};
@@ -271,20 +88,7 @@ export const getBills = asyncHandler(async (req, res) => {
     ];
   }
 
-  let count = await MonthlyBill.countDocuments(queryObj);
-
-  // Auto-seed dummy bills in development only when DB is empty
-  if (
-    process.env.NODE_ENV !== 'production' &&
-    count === 0 &&
-    Object.keys(queryObj).length === 0
-  ) {
-    const totalInDb = await MonthlyBill.countDocuments({});
-    if (totalInDb === 0) {
-      await MonthlyBill.insertMany(defaultSeedBills);
-      count = await MonthlyBill.countDocuments(queryObj);
-    }
-  }
+  const count = await MonthlyBill.countDocuments(queryObj);
 
   const bills = await MonthlyBill.find(queryObj)
     .sort({ createdAt: -1, billingMonth: -1 })

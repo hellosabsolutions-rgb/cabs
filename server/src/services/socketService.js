@@ -160,7 +160,7 @@ export const initSocket = (httpServer) => {
     socket.on('disconnect', () => {});
   });
 
-  console.log('🔌 Socket.IO initialized — namespaces: /notifications, /chat, /tracking');
+  // Boot status shown by startupBanner
   return io;
 };
 
