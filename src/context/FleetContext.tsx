@@ -676,6 +676,110 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
+  const updateVehicle = async (id: string, updatedData: Partial<Vehicle>): Promise<{ success: boolean; error?: string }> => {
+    try {
+      let savedVehicle: Vehicle | null = null;
+      try {
+        const res = await api.put(`/vehicles/${id}`, updatedData);
+        if (res && res.data) {
+          savedVehicle = {
+            ...res.data,
+            id: res.data._id || res.data.id || id
+          };
+        }
+      } catch (apiErr: any) {
+        console.warn('API update failed, applying locally', apiErr);
+      }
+
+      setVehicles(prev =>
+        prev.map(v => {
+          if (v.id === id) {
+            return savedVehicle || { ...v, ...updatedData };
+          }
+          return v;
+        })
+      );
+
+      // Also update compliance records if compliance dates changed
+      if (
+        updatedData.rcExpiry !== undefined ||
+        updatedData.insuranceExpiry !== undefined ||
+        updatedData.pollutionExpiry !== undefined ||
+        updatedData.permitExpiry !== undefined ||
+        updatedData.authExpiry !== undefined
+      ) {
+        const calcMeta = (expDate?: string) => {
+          if (!expDate) return { statusType: 'ok' as const, daysLeft: 365, expiryLabel: 'Valid' };
+          const exp = new Date(expDate);
+          const now = new Date();
+          const diff = Math.ceil((exp.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+          if (isNaN(diff)) return { statusType: 'ok' as const, daysLeft: 365, expiryLabel: 'Valid' };
+          if (diff < 0) return { statusType: 'late' as const, daysLeft: diff, expiryLabel: `Expired ${Math.abs(diff)}d ago` };
+          if (diff <= 30) return { statusType: 'soon' as const, daysLeft: diff, expiryLabel: `Expires in ${diff}d` };
+          return { statusType: 'ok' as const, daysLeft: diff, expiryLabel: `Valid (${diff}d left)` };
+        };
+
+        const targetVehicle = vehicles.find(v => v.id === id);
+        const reg = updatedData.registrationNumber || targetVehicle?.registrationNumber || '';
+
+        setVehicleCompliance(prev =>
+          prev.map(c => {
+            if (c.entityName === reg) {
+              if (c.documentName === 'RC' && updatedData.rcExpiry) {
+                const meta = calcMeta(updatedData.rcExpiry);
+                return { ...c, expiryDate: updatedData.rcExpiry, documentPhoto: updatedData.rcPhoto !== undefined ? updatedData.rcPhoto : c.documentPhoto, ...meta };
+              }
+              if (c.documentName === 'Insurance' && updatedData.insuranceExpiry) {
+                const meta = calcMeta(updatedData.insuranceExpiry);
+                return { ...c, expiryDate: updatedData.insuranceExpiry, documentPhoto: updatedData.insurancePhoto !== undefined ? updatedData.insurancePhoto : c.documentPhoto, ...meta };
+              }
+              if ((c.documentName === 'PUC' || c.documentName === 'Pollution') && updatedData.pollutionExpiry) {
+                const meta = calcMeta(updatedData.pollutionExpiry);
+                return { ...c, expiryDate: updatedData.pollutionExpiry, documentPhoto: updatedData.pollutionPhoto !== undefined ? updatedData.pollutionPhoto : c.documentPhoto, ...meta };
+              }
+              if (c.documentName === 'Permit' && updatedData.permitExpiry) {
+                const meta = calcMeta(updatedData.permitExpiry);
+                return { ...c, expiryDate: updatedData.permitExpiry, documentPhoto: updatedData.permitPhoto !== undefined ? updatedData.permitPhoto : c.documentPhoto, ...meta };
+              }
+              if (c.documentName === 'Auth' && updatedData.authExpiry) {
+                const meta = calcMeta(updatedData.authExpiry);
+                return { ...c, expiryDate: updatedData.authExpiry, documentPhoto: updatedData.authPhoto !== undefined ? updatedData.authPhoto : c.documentPhoto, ...meta };
+              }
+            }
+            return c;
+          })
+        );
+      }
+
+      showToast('success', `Vehicle ${updatedData.registrationNumber || ''} details updated successfully.`, 'Vehicle Updated');
+      fetchLiveDashboardStats();
+      return { success: true };
+    } catch (err: any) {
+      console.error('Failed to update vehicle', err);
+      showToast('error', err.message || 'Failed to update vehicle.', 'Update Failed');
+      return { success: false, error: err.message };
+    }
+  };
+
+  const deleteVehicle = async (id: string): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const vToDelete = vehicles.find(v => v.id === id);
+      setVehicles(prev => prev.filter(v => v.id !== id));
+      showToast('info', `Vehicle ${vToDelete?.registrationNumber || ''} removed from fleet.`, 'Vehicle Deleted');
+      try {
+        await api.delete(`/vehicles/${id}`);
+      } catch (e) {
+        console.warn('Backend delete vehicle failed', e);
+      }
+      fetchLiveDashboardStats();
+      return { success: true };
+    } catch (err: any) {
+      console.error('Failed to delete vehicle', err);
+      showToast('error', err.message || 'Failed to delete vehicle.', 'Error');
+      return { success: false, error: err.message };
+    }
+  };
+
   const addFuelLog = (entryData: Omit<FuelLogEntry, 'id'>) => {
     try {
       if (!entryData.vehicle || !entryData.litres || !entryData.totalCost) {
@@ -2606,6 +2710,8 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setVehicleSubTab,
         vehicles,
         addVehicle,
+        updateVehicle,
+        deleteVehicle,
         updateVehicleStatus,
         switchVehicleMode,
         drivers,

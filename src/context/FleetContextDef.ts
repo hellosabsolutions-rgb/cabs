@@ -143,6 +143,8 @@ export interface FleetContextType {
   setVehicleSubTab: (tab: VehicleSubTab) => void;
   vehicles: Vehicle[];
   addVehicle: (vehicle: Omit<Vehicle, 'id'>) => Promise<{ success: boolean; vehicle?: Vehicle; error?: string } | void> | void;
+  updateVehicle: (id: string, updatedData: Partial<Vehicle>) => Promise<{ success: boolean; error?: string }>;
+  deleteVehicle: (id: string) => Promise<{ success: boolean; error?: string }>;
   updateVehicleStatus: (id: string, status: VehicleStatus) => void;
   switchVehicleMode: (id: string, mode: VehicleType) => void;
 

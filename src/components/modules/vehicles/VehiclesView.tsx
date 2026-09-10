@@ -4,17 +4,19 @@ import { StatCard } from '../../common/StatCard';
 import { StatusChip } from '../../common/StatusChip';
 import { StatusDropdown } from '../../common/StatusDropdown';
 import { AddVehicleModal } from './AddVehicleModal';
+import { EditVehicleModal } from './EditVehicleModal';
 import { VehicleAvailabilityModal } from '../bookings/VehicleAvailabilityModal';
 import { Vehicle, VehicleStatus, VehicleType } from '../../../types/fleet';
-import { Truck, Briefcase, Building2, Plus, FileText, RotateCcw, MapPin, Fuel, AlertTriangle, Shield, Wind, FileCheck, Award, Eye, Calendar } from 'lucide-react';
+import { Truck, Briefcase, Building2, Plus, FileText, RotateCcw, MapPin, Fuel, AlertTriangle, Shield, Wind, FileCheck, Award, Eye, Calendar, Edit2, Trash2 } from 'lucide-react';
 import { SkeletonCard, SkeletonTable } from '../../common/Skeleton';
 
 export const VehiclesView: React.FC = () => {
-  const { vehicles, searchQuery, updateVehicleStatus, switchVehicleMode, isLoading } = useFleet();
+  const { vehicles, searchQuery, updateVehicleStatus, switchVehicleMode, deleteVehicle, isLoading } = useFleet();
 
   const [typeFilter, setTypeFilter] = useState<'All' | VehicleType>('All');
   const [statusFilter, setStatusFilter] = useState<string>('All');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [editingVehicle, setEditingVehicle] = useState<Vehicle | null>(null);
   const [isAvailabilityModalOpen, setIsAvailabilityModalOpen] = useState(false);
   const [viewRc, setViewRc] = useState<string | null>(null);
   const [selectedVehicleDocs, setSelectedVehicleDocs] = useState<Vehicle | null>(null);
@@ -193,12 +195,13 @@ export const VehiclesView: React.FC = () => {
                 <th>FASTag Balance</th>
                 <th>Vehicle Status</th>
                 <th>Compliance (5 Docs)</th>
+                <th style={{ textAlign: 'right', paddingRight: '16px' }}>Actions</th>
               </tr>
             </thead>
             <tbody>
               {filteredVehicles.length === 0 ? (
                 <tr>
-                  <td colSpan={8} style={{ textAlign: 'center', color: 'var(--text-faint)', padding: '30px 0' }}>
+                  <td colSpan={9} style={{ textAlign: 'center', color: 'var(--text-faint)', padding: '30px 0' }}>
                     No vehicles found matching your filter. Click "+ Add Vehicle" to register one.
                   </td>
                 </tr>
@@ -208,8 +211,23 @@ export const VehiclesView: React.FC = () => {
                     {/* Registration & Model */}
                     <td>
                       <div>
-                        <div style={{ fontWeight: 700, color: 'var(--text)', letterSpacing: '0.5px', fontSize: '13.5px', whiteSpace: 'nowrap' }}>
-                          {v.registrationNumber}
+                        <div
+                          onClick={() => setEditingVehicle(v)}
+                          style={{
+                            fontWeight: 700,
+                            color: 'var(--text)',
+                            letterSpacing: '0.5px',
+                            fontSize: '13.5px',
+                            whiteSpace: 'nowrap',
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '5px'
+                          }}
+                          title="Click to edit vehicle details"
+                        >
+                          <span>{v.registrationNumber}</span>
+                          <Edit2 size={11} color="var(--accent)" style={{ opacity: 0.7 }} />
                         </div>
                         <div
                           className="cell-truncate-md"
@@ -285,21 +303,21 @@ export const VehiclesView: React.FC = () => {
                       </div>
                     </td>
 
-                    {/* Assigned Department / Stand (Konse Department Mai Lagi Hai) */}
+                    {/* Assigned Department / Fleet Category */}
                     <td>
                       <div style={{ maxWidth: '200px' }}>
                         <div
                           className="truncate-flex"
                           style={{ fontWeight: 600, color: 'var(--text)' }}
-                          title={v.departmentName || v.assignedTo || 'Unassigned'}
+                          title={v.type === 'Department' ? (v.departmentName || v.assignedTo || 'Department Contract') : 'Booking / Rental Fleet'}
                         >
                           {v.type === 'Department' ? (
                             <Building2 size={13} color="#ffcc4d" style={{ flexShrink: 0 }} />
                           ) : (
-                            <MapPin size={13} color="#38bdf8" style={{ flexShrink: 0 }} />
+                            <Briefcase size={13} color="#38bdf8" style={{ flexShrink: 0 }} />
                           )}
                           <span className="text-truncate">
-                            {v.departmentName || v.assignedTo || 'Unassigned'}
+                            {v.type === 'Department' ? (v.departmentName || v.assignedTo || 'Department Contract') : 'Booking / Rental Fleet'}
                           </span>
                         </div>
                         {v.type === 'Department' && (
@@ -311,13 +329,13 @@ export const VehiclesView: React.FC = () => {
                             Govt Tender Contract
                           </div>
                         )}
-                        {v.type === 'Trip-based' && v.assignedTo && v.assignedTo !== v.departmentName && (
+                        {v.type !== 'Department' && (
                           <div
                             className="cell-truncate"
                             style={{ fontSize: '10.5px', color: 'var(--text-dim)', marginTop: '2px' }}
-                            title={`Base: ${v.assignedTo}`}
+                            title="Available for Bookings"
                           >
-                            Base: {v.assignedTo}
+                            Available for Bookings
                           </div>
                         )}
                       </div>
@@ -344,7 +362,7 @@ export const VehiclesView: React.FC = () => {
                     {/* Odometer & Fuel */}
                     <td>
                       <div style={{ fontSize: '12px' }}>
-                        {v.odometer ? `${v.odometer.toLocaleString('en-IN')} km` : '42,000 km'}
+                        {v.odometer !== undefined && v.odometer !== null ? `${Number(v.odometer).toLocaleString('en-IN')} km` : '0 km'}
                       </div>
                       <div style={{ fontSize: '10.5px', color: 'var(--text-dim)', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '3px' }}>
                         <Fuel size={11} /> {v.fuelType || 'Diesel'}
@@ -421,6 +439,54 @@ export const VehiclesView: React.FC = () => {
                         );
                       })()}
                     </td>
+                    {/* Actions: Edit & Delete */}
+                    <td style={{ textAlign: 'right', paddingRight: '16px' }}>
+                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                        <button
+                          type="button"
+                          className="btn-secondary"
+                          style={{
+                            fontSize: '11px',
+                            padding: '4px 8px',
+                            borderRadius: '6px',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            cursor: 'pointer',
+                            color: 'var(--accent)',
+                            borderColor: 'var(--border)'
+                          }}
+                          onClick={() => setEditingVehicle(v)}
+                          title="Edit vehicle specifications, driver & documents"
+                        >
+                          <Edit2 size={12} />
+                          <span>Edit</span>
+                        </button>
+                        <button
+                          type="button"
+                          className="btn-secondary"
+                          style={{
+                            fontSize: '11px',
+                            padding: '4px 8px',
+                            borderRadius: '6px',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            cursor: 'pointer',
+                            color: 'var(--danger)',
+                            borderColor: 'rgba(255, 92, 92, 0.25)'
+                          }}
+                          onClick={() => {
+                            if (window.confirm(`Are you sure you want to remove vehicle ${v.registrationNumber} from fleet?`)) {
+                              deleteVehicle(v.id);
+                            }
+                          }}
+                          title="Delete vehicle from fleet"
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      </div>
+                    </td>
                   </tr>
                 ))
               )}
@@ -434,6 +500,13 @@ export const VehiclesView: React.FC = () => {
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
         defaultType={typeFilter !== 'All' ? typeFilter : 'Trip-based'}
+      />
+
+      {/* Edit Vehicle Modal Form */}
+      <EditVehicleModal
+        isOpen={Boolean(editingVehicle)}
+        onClose={() => setEditingVehicle(null)}
+        vehicle={editingVehicle}
       />
 
       {/* 5 Compliance Documents Viewer Modal */}

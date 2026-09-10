@@ -3,17 +3,19 @@ import { useFleet } from '../../../context/FleetContext';
 import { StatCard } from '../../common/StatCard';
 import { StatusChip } from '../../common/StatusChip';
 import { AddVehicleModal } from './AddVehicleModal';
+import { EditVehicleModal } from './EditVehicleModal';
 import { Vehicle, VehicleStatus } from '../../../types/fleet';
-import { Building2, Briefcase, Fuel, FileText, Shield, Wind, FileCheck, Award, Eye, ChevronDown, CheckCircle2, Clock, Wrench } from 'lucide-react';
+import { Building2, Briefcase, Fuel, FileText, Shield, Wind, FileCheck, Award, Eye, ChevronDown, CheckCircle2, Clock, Wrench, Edit2, Trash2 } from 'lucide-react';
 import { Pagination } from '../../common/Pagination';
 import { usePagination } from '../../../hooks/usePagination';
 
 export const AllVehiclesView: React.FC = () => {
-  const { vehicles, searchQuery, updateVehicleStatus } = useFleet();
+  const { vehicles, searchQuery, updateVehicleStatus, deleteVehicle } = useFleet();
 
   const [statusFilter, setStatusFilter] = useState<string>('All');
   const [typeFilter, setTypeFilter] = useState<string>('All');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingVehicle, setEditingVehicle] = useState<Vehicle | null>(null);
   const [viewRc, setViewRc] = useState<string | null>(null);
   const [selectedVehicleDocs, setSelectedVehicleDocs] = useState<Vehicle | null>(null);
 
@@ -271,18 +273,19 @@ export const AllVehiclesView: React.FC = () => {
               <tr>
                 <th>Registration & Model</th>
                 <th>Operation Type</th>
-                <th>Assigned Client / Hub</th>
+                <th>Assigned Client / Category</th>
                 <th>Designated Driver</th>
                 <th>Odometer & Fuel</th>
                 <th>FASTag Balance</th>
                 <th>Status (Click Toggle)</th>
                 <th>Compliance (5 Docs)</th>
+                <th style={{ textAlign: 'right', paddingRight: '16px' }}>Actions</th>
               </tr>
             </thead>
             <tbody>
               {paginatedVehicles.length === 0 ? (
                 <tr>
-                  <td colSpan={8} style={{ textAlign: 'center', color: 'var(--text-faint)', padding: '30px 0' }}>
+                  <td colSpan={9} style={{ textAlign: 'center', color: 'var(--text-faint)', padding: '30px 0' }}>
                     No vehicles found. Click "+ Add vehicle" to register one.
                   </td>
                 </tr>
@@ -291,8 +294,21 @@ export const AllVehiclesView: React.FC = () => {
                   <tr key={v.id}>
                     <td>
                       <div>
-                        <div style={{ fontWeight: 600, color: 'var(--text)', letterSpacing: '0.5px' }}>
-                          {v.registrationNumber}
+                        <div
+                          onClick={() => setEditingVehicle(v)}
+                          style={{
+                            fontWeight: 600,
+                            color: 'var(--text)',
+                            letterSpacing: '0.5px',
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '5px'
+                          }}
+                          title="Click to edit vehicle details"
+                        >
+                          <span>{v.registrationNumber}</span>
+                          <Edit2 size={11} color="var(--accent)" style={{ opacity: 0.7 }} />
                         </div>
                         <div className="cell-truncate-md" title={v.model || (v.type === 'Department' ? 'Executive Sedan' : 'Commercial MPV')} style={{ fontSize: '11px', color: 'var(--text-faint)', marginTop: '2px' }}>
                           {v.model || (v.type === 'Department' ? 'Executive Sedan' : 'Commercial MPV')}
@@ -340,7 +356,7 @@ export const AllVehiclesView: React.FC = () => {
 
                     <td>
                       <span style={{ fontWeight: 600, color: 'var(--accent)', fontSize: '12.5px' }}>
-                        ₹{v.fastagBalance ? v.fastagBalance.toLocaleString('en-IN') : '2,450'}
+                        ₹{(v.fastagBalance || 0).toLocaleString('en-IN')}
                       </span>
                     </td>
 
@@ -386,6 +402,55 @@ export const AllVehiclesView: React.FC = () => {
                         );
                       })()}
                     </td>
+
+                    {/* Actions: Edit & Delete */}
+                    <td style={{ textAlign: 'right', paddingRight: '16px' }}>
+                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                        <button
+                          type="button"
+                          className="btn-secondary"
+                          style={{
+                            fontSize: '11px',
+                            padding: '4px 8px',
+                            borderRadius: '6px',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            cursor: 'pointer',
+                            color: 'var(--accent)',
+                            borderColor: 'var(--border)'
+                          }}
+                          onClick={() => setEditingVehicle(v)}
+                          title="Edit vehicle specifications, driver & documents"
+                        >
+                          <Edit2 size={12} />
+                          <span>Edit</span>
+                        </button>
+                        <button
+                          type="button"
+                          className="btn-secondary"
+                          style={{
+                            fontSize: '11px',
+                            padding: '4px 8px',
+                            borderRadius: '6px',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            cursor: 'pointer',
+                            color: 'var(--danger)',
+                            borderColor: 'rgba(255, 92, 92, 0.25)'
+                          }}
+                          onClick={() => {
+                            if (window.confirm(`Are you sure you want to remove vehicle ${v.registrationNumber} from fleet?`)) {
+                              deleteVehicle(v.id);
+                            }
+                          }}
+                          title="Delete vehicle from fleet"
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      </div>
+                    </td>
                   </tr>
                 ))
               )}
@@ -406,6 +471,13 @@ export const AllVehiclesView: React.FC = () => {
       <AddVehicleModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
+      />
+
+      {/* Edit Vehicle Modal */}
+      <EditVehicleModal
+        isOpen={Boolean(editingVehicle)}
+        onClose={() => setEditingVehicle(null)}
+        vehicle={editingVehicle}
       />
 
       {/* 5 Compliance Documents Viewer Modal */}

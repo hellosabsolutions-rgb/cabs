@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import { Vehicle } from '../models/Vehicle.js';
 import { Compliance } from '../models/Compliance.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
@@ -91,14 +92,14 @@ export const onboardVehicle = asyncHandler(async (req, res) => {
   const finalAssignedTo =
     assignedTo ||
     (type === 'Department'
-      ? departmentName || 'Unassigned Department'
-      : hubStand || 'Fleet Hub');
+      ? departmentName || 'Department Contract'
+      : departmentName || 'Booking Fleet');
 
   const finalMeta =
     meta ||
     (type === 'Department'
       ? `${departmentName || finalAssignedTo} Contract Duty`
-      : `Stand · ${hubStand || finalAssignedTo}`);
+      : 'Booking / Rental duty');
 
   // Helper to upload document or photo to Cloudinary
   const uploadDoc = async (val, folder = 'fleetos/vehicles') => {
@@ -303,7 +304,88 @@ export const onboardVehicle = asyncHandler(async (req, res) => {
   });
 });
 
+/**
+ * @desc    Update vehicle details with optional Cloudinary uploads & sync
+ * @route   PUT /api/vehicles/:id
+ * @access  Private / Admin
+ */
+export const updateVehicle = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const isMongoId = mongoose.Types.ObjectId.isValid(id);
+  const query = isMongoId ? { _id: id } : { id };
+
+  const existing = await Vehicle.findOne(query);
+  if (!existing) {
+    return res.status(404).json({
+      success: false,
+      error: `Vehicle not found with ID ${id}`
+    });
+  }
+
+  const updateData = { ...req.body };
+
+  // Helper to upload document or photo to Cloudinary
+  const uploadDoc = async (val, folder = 'fleetos/vehicles') => {
+    if (!val || typeof val !== 'string' || !val.startsWith('data:')) return val || null;
+    try {
+      const isPdf = val.startsWith('data:application/pdf');
+      const uploaded = await uploadToCloudinary(val, {
+        folder,
+        resource_type: isPdf ? 'raw' : 'auto'
+      });
+      return uploaded.secure_url;
+    } catch (e) {
+      console.warn(`Cloudinary upload failed for ${folder}:`, e.message);
+      return val;
+    }
+  };
+
+  // If new base64 photos provided, upload to Cloudinary
+  if (updateData.vehiclePhoto && typeof updateData.vehiclePhoto === 'string' && updateData.vehiclePhoto.startsWith('data:')) {
+    updateData.vehiclePhoto = await uploadDoc(updateData.vehiclePhoto, 'fleetos/vehicles');
+  }
+  if (updateData.rcPhoto && typeof updateData.rcPhoto === 'string' && updateData.rcPhoto.startsWith('data:')) {
+    updateData.rcPhoto = await uploadDoc(updateData.rcPhoto, 'fleetos/compliance');
+  }
+  if (updateData.insurancePhoto && typeof updateData.insurancePhoto === 'string' && updateData.insurancePhoto.startsWith('data:')) {
+    updateData.insurancePhoto = await uploadDoc(updateData.insurancePhoto, 'fleetos/compliance');
+  }
+  if (updateData.pollutionPhoto && typeof updateData.pollutionPhoto === 'string' && updateData.pollutionPhoto.startsWith('data:')) {
+    updateData.pollutionPhoto = await uploadDoc(updateData.pollutionPhoto, 'fleetos/compliance');
+  }
+  if (updateData.permitPhoto && typeof updateData.permitPhoto === 'string' && updateData.permitPhoto.startsWith('data:')) {
+    updateData.permitPhoto = await uploadDoc(updateData.permitPhoto, 'fleetos/compliance');
+  }
+  if (updateData.authPhoto && typeof updateData.authPhoto === 'string' && updateData.authPhoto.startsWith('data:')) {
+    updateData.authPhoto = await uploadDoc(updateData.authPhoto, 'fleetos/compliance');
+  }
+
+  if (updateData.registrationNumber) {
+    updateData.registrationNumber = updateData.registrationNumber.trim().toUpperCase().replace(/\s+/g, '');
+  }
+
+  if (updateData.type === 'Department') {
+    if (updateData.departmentName) {
+      updateData.assignedTo = updateData.departmentName.trim();
+    }
+  } else if (updateData.type === 'Trip-based') {
+    updateData.assignedTo = updateData.departmentName?.trim() || 'Booking Fleet';
+  }
+
+  const updated = await Vehicle.findOneAndUpdate(query, updateData, {
+    new: true,
+    runValidators: true
+  });
+
+  res.status(200).json({
+    success: true,
+    message: `Vehicle ${updated.registrationNumber} updated successfully!`,
+    data: updated
+  });
+});
+
 export const vehicleController = {
   ...baseVehicleController,
-  create: onboardVehicle
+  create: onboardVehicle,
+  update: updateVehicle
 };

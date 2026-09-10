@@ -53,7 +53,6 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
   const [model, setModel] = useState('');
   const [type, setType] = useState<VehicleType>(defaultType);
   const [departmentName, setDepartmentName] = useState('');
-  const [hubStand, setHubStand] = useState('');
   const [assignedDriver, setAssignedDriver] = useState(drivers[0]?.name || '');
   const [fuelType, setFuelType] = useState<NonNullable<Vehicle['fuelType']>>('Diesel');
   const [seatingCapacity, setSeatingCapacity] = useState('4');
@@ -192,10 +191,8 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
 
     const finalAssignedTo =
       type === 'Department'
-        ? departmentName.trim()
-        : departmentName.trim() && departmentName !== 'Public Works Department (PWD)'
-        ? `${hubStand.trim()} · ${departmentName.trim()}`
-        : hubStand.trim();
+        ? (departmentName.trim() || 'Department Contract')
+        : 'Booking Fleet';
 
     setIsSubmitting(true);
     try {
@@ -204,12 +201,12 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
         model: model.trim(),
         type,
         assignedTo: finalAssignedTo,
-        departmentName: type === 'Department' ? departmentName.trim() : (departmentName.trim() || undefined),
+        departmentName: type === 'Department' ? departmentName.trim() : undefined,
         status,
         revenue: 0,
         expense: 0,
         profit: 0,
-        meta: type === 'Department' ? (departmentName.trim() ? `${departmentName.trim()} Contract duty` : 'Department cab') : (hubStand.trim() ? `Stand · ${hubStand.trim()}` : 'Trip cab'),
+        meta: type === 'Department' ? (departmentName.trim() ? `${departmentName.trim()} Contract duty` : 'Department cab') : 'Booking / Rental duty',
         fuelType,
         seatingCapacity: Number(seatingCapacity) || 5,
         assignedDriver: (assignedDriver && assignedDriver !== 'Unassigned') ? assignedDriver : undefined,
@@ -251,7 +248,6 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
     if (data.model) setModel(data.model);
     if (data.type) setType(data.type);
     if (data.departmentName) setDepartmentName(data.departmentName);
-    if (data.hubStand) setHubStand(data.hubStand);
     if (data.fuelType) setFuelType(data.fuelType);
     if (data.seatingCapacity) setSeatingCapacity(data.seatingCapacity);
     if (data.assignedDriver) setAssignedDriver(data.assignedDriver);
@@ -349,13 +345,13 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
             </div>
 
             {/* 2. Registration Number & Make / Model */}
-            <div className="form-row-2">
+            <div className="form-row-2" style={{ gap: '14px', marginBottom: '14px' }}>
               <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label">Registration Number (e.g. DL01AB1234) *</label>
+                <label className="form-label" style={{ marginBottom: '6px', fontSize: '12px', fontWeight: 600 }}>Registration Number *</label>
                 <input
                   type="text"
                   className="form-input"
-                  style={{ textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 700 }}
+                  style={{ textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 700, height: '38px' }}
                   placeholder="DL01AB1234"
                   value={registrationNumber}
                   onChange={e => setRegistrationNumber(e.target.value)}
@@ -364,10 +360,11 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
               </div>
 
               <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label">Vehicle Make & Model *</label>
+                <label className="form-label" style={{ marginBottom: '6px', fontSize: '12px', fontWeight: 600 }}>Vehicle Make & Model *</label>
                 <input
                   type="text"
                   className="form-input"
+                  style={{ height: '38px' }}
                   placeholder="e.g. Toyota Innova Crysta 2.4 VX"
                   value={model}
                   onChange={e => setModel(e.target.value)}
@@ -376,8 +373,8 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
               </div>
             </div>
 
-            {/* 3. PROMINENT DEPARTMENT NAME: Department Allocation */}
-            {type === 'Department' ? (
+            {/* Department Name (Only if Department Contract) */}
+            {type === 'Department' && (
               <div
                 style={{
                   background: 'var(--surface-3)',
@@ -386,7 +383,8 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
                   border: '1px solid var(--border)',
                   display: 'flex',
                   flexDirection: 'column',
-                  gap: '8px'
+                  gap: '8px',
+                  marginBottom: '14px'
                 }}
               >
                 <label
@@ -398,7 +396,7 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
                 <input
                   type="text"
                   className="form-input"
-                  style={{ fontWeight: 600, fontSize: '13.5px' }}
+                  style={{ fontWeight: 600, fontSize: '13.5px', height: '38px' }}
                   placeholder="e.g. Public Works Department (PWD), Delhi Jal Nigam..."
                   value={departmentName}
                   onChange={e => setDepartmentName(e.target.value)}
@@ -424,43 +422,15 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
                   ))}
                 </div>
               </div>
-            ) : (
-              <div className="form-row-2">
-                <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <MapPin size={13} /> Assigned Hub / Booking Stand *
-                  </label>
-                  <input
-                    type="text"
-                    className="form-input"
-                    placeholder="e.g. Delhi NCR Booking Stand, Airport Terminal"
-                    value={hubStand}
-                    onChange={e => setHubStand(e.target.value)}
-                    required
-                  />
-                </div>
-
-                <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label">
-                    Attached Department / Corporate Client (Optional)
-                  </label>
-                  <input
-                    type="text"
-                    className="form-input"
-                    placeholder="e.g. PWD Pool or Corporate Client"
-                    value={departmentName === 'Public Works Department (PWD)' ? '' : departmentName}
-                    onChange={e => setDepartmentName(e.target.value)}
-                  />
-                </div>
-              </div>
             )}
 
-            {/* 4. Designated Driver & Fuel Type */}
-            <div className="form-row-2">
+            {/* 3. Designated Driver & Fuel Type */}
+            <div className="form-row-2" style={{ gap: '14px', marginBottom: '14px' }}>
               <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label">Designated Driver</label>
+                <label className="form-label" style={{ marginBottom: '6px', fontSize: '12px', fontWeight: 600 }}>Designated Driver</label>
                 <select
                   className="form-input"
+                  style={{ height: '38px' }}
                   value={assignedDriver}
                   onChange={e => setAssignedDriver(e.target.value)}
                 >
@@ -474,9 +444,10 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
               </div>
 
               <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label">Fuel Type</label>
+                <label className="form-label" style={{ marginBottom: '6px', fontSize: '12px', fontWeight: 600 }}>Fuel Type</label>
                 <select
                   className="form-input"
+                  style={{ height: '38px' }}
                   value={fuelType}
                   onChange={e => setFuelType(e.target.value as NonNullable<Vehicle['fuelType']>)}
                 >
@@ -489,12 +460,13 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
               </div>
             </div>
 
-            {/* 5. Seating Capacity & Odometer */}
-            <div className="form-row-2">
+            {/* 4. Seating Capacity & Odometer */}
+            <div className="form-row-2" style={{ gap: '14px', marginBottom: '14px' }}>
               <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label">Seating Capacity</label>
+                <label className="form-label" style={{ marginBottom: '6px', fontSize: '12px', fontWeight: 600 }}>Seating Capacity</label>
                 <select
                   className="form-input"
+                  style={{ height: '38px' }}
                   value={seatingCapacity}
                   onChange={e => setSeatingCapacity(e.target.value)}
                 >
@@ -507,11 +479,12 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
               </div>
 
               <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label">Current Odometer (KM)</label>
+                <label className="form-label" style={{ marginBottom: '6px', fontSize: '12px', fontWeight: 600 }}>Current Odometer (KM)</label>
                 <input
                   type="number"
                   min="0"
                   className="form-input"
+                  style={{ height: '38px' }}
                   placeholder="e.g. 35000"
                   value={odometer}
                   onChange={e => setOdometer(e.target.value)}
@@ -519,12 +492,13 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
               </div>
             </div>
 
-            {/* 6. Status & FASTag Balance */}
-            <div className="form-row-2">
+            {/* 5. Status & FASTag Balance */}
+            <div className="form-row-2" style={{ gap: '14px', marginBottom: '14px' }}>
               <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label">Current Vehicle Status</label>
+                <label className="form-label" style={{ marginBottom: '6px', fontSize: '12px', fontWeight: 600 }}>Current Vehicle Status</label>
                 <select
                   className="form-input"
+                  style={{ height: '38px' }}
                   value={status}
                   onChange={e => setStatus(e.target.value as VehicleStatus)}
                 >
@@ -537,11 +511,12 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
               </div>
 
               <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label">FASTag Starting Balance (₹)</label>
+                <label className="form-label" style={{ marginBottom: '6px', fontSize: '12px', fontWeight: 600 }}>FASTag Starting Balance (₹)</label>
                 <input
                   type="number"
                   min="0"
                   className="form-input"
+                  style={{ height: '38px' }}
                   placeholder="e.g. 2500"
                   value={fastagBalance}
                   onChange={e => setFastagBalance(e.target.value)}
@@ -549,13 +524,14 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
               </div>
             </div>
 
-            {/* 7. GPS IMEI & Vehicle Photo */}
-            <div className="form-row-2">
+            {/* 6. GPS IMEI & Vehicle Photo */}
+            <div className="form-row-2" style={{ gap: '14px', marginBottom: '14px' }}>
               <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label">GPS Device IMEI / Telematics ID</label>
+                <label className="form-label" style={{ marginBottom: '6px', fontSize: '12px', fontWeight: 600 }}>GPS Device IMEI / Telematics ID</label>
                 <input
                   type="text"
                   className="form-input"
+                  style={{ height: '38px' }}
                   placeholder="e.g. IMEI-86776347168"
                   value={gpsImei}
                   onChange={e => setGpsImei(e.target.value)}
@@ -563,7 +539,7 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
               </div>
 
               <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label">Vehicle Photo / Document (Image or PDF)</label>
+                <label className="form-label" style={{ marginBottom: '6px', fontSize: '12px', fontWeight: 600 }}>Vehicle Photo / Document</label>
                 <input
                   type="file"
                   ref={photoInputRef}

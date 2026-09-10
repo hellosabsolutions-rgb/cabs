@@ -19,7 +19,7 @@ const vehicleSchema = new mongoose.Schema(
     },
     assignedTo: {
       type: String,
-      required: [true, 'Assigned department or stand is required'],
+      default: 'Fleet Pool',
       trim: true
     },
     departmentName: {
