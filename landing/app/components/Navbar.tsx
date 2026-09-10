@@ -10,6 +10,9 @@ const links = [
   { label: 'Contact', href: '#inquiry' },
 ];
 
+const ADMIN_URL =
+  process.env.NEXT_PUBLIC_ADMIN_URL?.replace(/\/$/, '') || 'https://admin.kabpro.pro';
+
 export function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -57,7 +60,7 @@ export function Navbar() {
 
         <div className="hidden md:flex items-center gap-3">
           <a
-            href="https://kabpro.pro"
+            href={ADMIN_URL}
             className="text-sm text-muted hover:text-foreground transition-colors"
           >
             Sign in
@@ -95,7 +98,7 @@ export function Navbar() {
             ))}
             <li>
               <a
-                href="https://kabpro.pro"
+                href={ADMIN_URL}
                 onClick={() => setMobileOpen(false)}
                 className="text-muted hover:text-foreground transition-colors text-base"
               >

@@ -39,10 +39,10 @@ jobs:
       - name: Build admin dashboard
         working-directory: admin
         env:
-          VITE_API_URL: https://api-kabpro.opsiva.in/api
-          VITE_SOCKET_URL: https://api-kabpro.opsiva.in
-          VITE_APP_URL: https://admin-kabpro.opsiva.in
-          VITE_LANDING_URL: https://kabpro.opsiva.in
+          VITE_API_URL: https://api.kabpro.pro/api
+          VITE_SOCKET_URL: https://api.kabpro.pro
+          VITE_APP_URL: https://admin.kabpro.pro
+          VITE_LANDING_URL: https://kabpro.pro
           # Also loaded from admin/.env.production (Google + Firebase public client keys)
         run: |
           npm ci --include=dev
@@ -91,13 +91,13 @@ jobs:
             exit 1
           fi
 
-          echo "==> Smoke: nginx Host api-kabpro.opsiva.in"
-          NGX="$(curl -sS -H "Host: api-kabpro.opsiva.in" http://127.0.0.1/api/health || true)"
+          echo "==> Smoke: nginx Host api.kabpro.pro"
+          NGX="$(curl -sS -H "Host: api.kabpro.pro" http://127.0.0.1/api/health || true)"
           echo "${NGX}"
           echo "${NGX}" | grep -q '"status":"online"'
 
-          echo "==> Smoke: public https://api-kabpro.opsiva.in/api/health"
-          PUB="$(curl -sS --max-time 15 https://api-kabpro.opsiva.in/api/health || true)"
+          echo "==> Smoke: public https://api.kabpro.pro/api/health"
+          PUB="$(curl -sS --max-time 15 https://api.kabpro.pro/api/health || true)"
           echo "${PUB}"
           if ! echo "${PUB}" | grep -q '"status":"online"'; then
             echo "WARN: public URL check failed (tunnel/DNS) — local checks passed"

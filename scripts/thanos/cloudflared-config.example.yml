@@ -1,10 +1,27 @@
-# Add to /etc/cloudflared/config.yml on THANOS (merge with existing tunnel ingress)
+# Cloudflare Tunnel ingress for KABPRO on THANOS
+# Prefer REUSING the existing opsiva/thanos tunnel — do NOT create a second tunnel
+# unless you need full isolation. One cloudflared process can serve many domains.
+#
+# Merge these hostname rules into /etc/cloudflared/config.yml (same tunnel UUID).
+# Order matters: specific hostnames first, catch-all 404 last.
 
 ingress:
+  # ── kabpro.pro (primary) ───────────────────────────────────────────────────
+  - hostname: api.kabpro.pro
+    service: http://127.0.0.1:80
+  - hostname: admin.kabpro.pro
+    service: http://127.0.0.1:80
+  - hostname: kabpro.pro
+    service: http://127.0.0.1:80
+  - hostname: www.kabpro.pro
+    service: http://127.0.0.1:80
+
+  # ── opsiva.in (legacy — keep until DNS cutover complete) ───────────────────
   - hostname: api-kabpro.opsiva.in
     service: http://127.0.0.1:80
   - hostname: admin-kabpro.opsiva.in
     service: http://127.0.0.1:80
   - hostname: kabpro.opsiva.in
     service: http://127.0.0.1:80
+
   - service: http_status:404

@@ -6,12 +6,15 @@ import {
 } from '@phosphor-icons/react/dist/ssr';
 import Link from 'next/link';
 
+const ADMIN_URL =
+  process.env.NEXT_PUBLIC_ADMIN_URL?.replace(/\/$/, '') || 'https://admin.kabpro.pro';
+
 const footerLinks = {
   Product: [
     { label: 'Features', href: '#features' },
     { label: 'Pricing', href: '#pricing' },
     { label: 'FAQ', href: '#faq' },
-    { label: 'Sign in', href: 'https://kabpro.pro' },
+    { label: 'Sign in', href: ADMIN_URL },
     { label: 'Documentation', href: '#' },
   ],
   Company: [

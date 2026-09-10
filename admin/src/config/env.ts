@@ -10,11 +10,11 @@ export const API_URL = API_BASE.replace(/\/$/, '');
 
 export const LANDING_URL =
   import.meta.env.VITE_LANDING_URL?.replace(/\/$/, '') ||
-  'https://kabpro.opsiva.in';
+  'https://kabpro.pro';
 
 export const APP_URL =
   import.meta.env.VITE_APP_URL?.replace(/\/$/, '') ||
-  (import.meta.env.DEV ? 'http://localhost:3000' : 'https://admin-kabpro.opsiva.in');
+  (import.meta.env.DEV ? 'http://localhost:3000' : 'https://admin.kabpro.pro');
 
 export function getSocketBaseUrl(): string {
   if (import.meta.env.VITE_SOCKET_URL) {

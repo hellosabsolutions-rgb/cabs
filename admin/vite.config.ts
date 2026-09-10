@@ -97,7 +97,12 @@ export default defineConfig(({ mode }) => {
     preview: {
       port: 3000,
       host: '127.0.0.1',
-      allowedHosts: ['admin-kabpro.opsiva.in', 'localhost', '127.0.0.1'],
+      allowedHosts: [
+        'admin.kabpro.pro',
+        'admin-kabpro.opsiva.in',
+        'localhost',
+        '127.0.0.1'
+      ],
     },
   };
 });
