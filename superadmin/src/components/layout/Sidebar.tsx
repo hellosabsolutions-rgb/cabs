@@ -165,7 +165,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </div>
         </div>
 
-        {/* Users */}
+        {/* Users & Health */}
         <div className="sa-nav-group">
           <button
             type="button"
@@ -180,6 +180,29 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </svg>
             Users
           </button>
+          <div className="sa-nav-sub">
+            <button
+              type="button"
+              className={`sa-nav-item ${activeView === 'user-health' ? 'active' : ''}`}
+              onClick={() => onNavigate('user-health')}
+              title="Users going quiet — 15+ days inactive"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+              </svg>
+              User Health
+              <span
+                className="sa-nav-badge"
+                style={{
+                  background: 'rgba(228, 87, 46, 0.2)',
+                  color: 'var(--sa-coral)',
+                  fontWeight: 800
+                }}
+              >
+                6
+              </span>
+            </button>
+          </div>
         </div>
 
         {/* Analytics */}
@@ -269,10 +292,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
       {/* Internal Staff Profile Footer */}
       <div className="sa-sidebar-foot">
-        <div className="sa-foot-user">
+        <div
+          className="sa-foot-user"
+          onClick={() => onNavigate('profile')}
+          style={{ cursor: 'pointer', flex: 1, overflow: 'hidden' }}
+          title="View Admin Profile"
+        >
           <div className="sa-avatar">{user?.avatar || 'SA'}</div>
-          <div>
-            <div className="sa-foot-name">{user?.name || 'Aarav Mehta'}</div>
+          <div style={{ minWidth: 0, overflow: 'hidden' }}>
+            <div className="sa-foot-name" style={{ whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>{user?.name || 'Aarav Mehta'}</div>
             <div className="sa-foot-role">{user?.role || 'Super Admin'}</div>
           </div>
         </div>

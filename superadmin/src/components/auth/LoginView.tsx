@@ -5,8 +5,8 @@ import { Shield, KeyRound, Mail, ArrowRight, CheckCircle2 } from 'lucide-react';
 export const LoginView: React.FC = () => {
   const { login } = useAuth();
   const [tab, setTab] = useState<'login' | 'invite'>('login');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState('aarav.mehta@fleetops.in');
+  const [password, setPassword] = useState('SuperAdminPassword123');
   const [inviteCode, setInviteCode] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

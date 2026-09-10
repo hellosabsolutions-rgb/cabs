@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Sidebar } from './layout/Sidebar';
 import { Topbar } from './layout/Topbar';
+import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
+import { Shield, KeyRound, LogOut, User, Mail, Phone, CheckCircle2, Lock, Sparkles, Activity } from 'lucide-react';
 
 // SVG Chart Helpers matching super-admin.html
 function renderSparkline(values: number[] = [10, 20, 15, 25], color = 'var(--sa-blue)') {
@@ -82,6 +84,8 @@ function renderSvgBarChart(values: number[], color: string, w = 640, h = 160, va
 }
 
 export const Console: React.FC = () => {
+  const { user, logout } = useAuth();
+
   // Navigation State
   const [activeView, setActiveView] = useState('dashboard');
   const [activeSubTab, setActiveSubTab] = useState('plans');
@@ -131,7 +135,50 @@ export const Console: React.FC = () => {
     support: { title: 'Support', crumb: 'Tickets and feedback from businesses' },
     notifications: { title: 'Notifications', crumb: 'System-level alerts' },
     audit: { title: 'Audit Logs', crumb: 'Every action taken on the platform' },
-    settings: { title: 'Settings', crumb: 'Platform configuration & Team invitations' }
+    settings: { title: 'Settings', crumb: 'Platform configuration & Team invitations' },
+    profile: { title: 'Admin Profile', crumb: 'Account credentials, security & session management' },
+    'user-health': { title: 'User Health', crumb: 'Users going quiet — 15+ days since last login' }
+  };
+
+  // User Health State (Users going quiet / inactive 15+ days)
+  const [userHealthFilter, setUserHealthFilter] = useState<'all' | 'Healthy' | 'At risk' | 'Dormant'>('all');
+  const [userHealthSearch, setUserHealthSearch] = useState('');
+  const [nudgedUsers, setNudgedUsers] = useState<Record<string, boolean>>({});
+  const [nudgeNotification, setNudgeNotification] = useState<string | null>(null);
+
+  const initialUserHealthData = [
+    { id: 'uh-1', name: 'Manish Yadav', email: 'manish@highwaykings.in', initials: 'MY', business: 'Highway Kings', role: 'Owner', signedUp: '30 Apr 2025', lastLogin: '41 days ago', daysInactive: 41, health: 'Dormant' as const },
+    { id: 'uh-2', name: 'Ritu Sharma', email: 'ritu@skylinerides.in', initials: 'RS', business: 'Skyline Rides', role: 'Owner', signedUp: '01 Jul 2025', lastLogin: '25 days ago', daysInactive: 25, health: 'Dormant' as const },
+    { id: 'uh-3', name: 'Meenal Joshi', email: 'meenal@primemovers.in', initials: 'MJ', business: 'Prime Movers', role: 'Manager', signedUp: '02 Sep 2025', lastLogin: '22 days ago', daysInactive: 22, health: 'Dormant' as const },
+    { id: 'uh-4', name: 'Farhan Sheikh', email: 'farhan@coastalcabs.in', initials: 'FS', business: 'Coastal Cabs', role: 'Manager', signedUp: '12 Oct 2025', lastLogin: '19 days ago', daysInactive: 19, health: 'Dormant' as const },
+    { id: 'uh-5', name: 'Priya Nair', email: 'priya@goride.in', initials: 'PN', business: 'GoRide Logistics', role: 'Owner', signedUp: '09 Feb 2025', lastLogin: '18 days ago', daysInactive: 18, health: 'Dormant' as const },
+    { id: 'uh-6', name: 'Karan Bhatia', email: 'karan@northline.in', initials: 'KB', business: 'Northline Transport', role: 'Owner', signedUp: '14 Dec 2025', lastLogin: '16 days ago', daysInactive: 16, health: 'Dormant' as const },
+    { id: 'uh-7', name: 'Ajay Kulkarni', email: 'ajay@abctravels.in', initials: 'AK', business: 'ABC Travels', role: 'Manager', signedUp: '20 Feb 2025', lastLogin: '1 day ago', daysInactive: 1, health: 'Healthy' as const },
+    { id: 'uh-8', name: 'Suresh Iyer', email: 'suresh@metrocabs.in', initials: 'SI', business: 'Metro Cabs Co.', role: 'Owner', signedUp: '22 Nov 2025', lastLogin: '1 day ago', daysInactive: 1, health: 'Healthy' as const },
+    { id: 'uh-9', name: 'Rahul Sharma', email: 'rahul@abctravels.in', initials: 'RS', business: 'ABC Travels', role: 'Owner', signedUp: '12 Jan 2025', lastLogin: '2 hours ago', daysInactive: 0, health: 'Healthy' as const },
+    { id: 'uh-10', name: 'Neha Kapoor', email: 'neha@speedway.co', initials: 'NK', business: 'Speedway Fleet', role: 'Owner', signedUp: '03 Mar 2025', lastLogin: '14 minutes ago', daysInactive: 0, health: 'Healthy' as const },
+    { id: 'uh-11', name: 'Vikram Singh', email: 'vikram@primemovers.in', initials: 'VS', business: 'Prime Movers', role: 'Owner', signedUp: '19 Aug 2025', lastLogin: '3 days ago', daysInactive: 3, health: 'Healthy' as const },
+    { id: 'uh-12', name: 'Deepa Reddy', email: 'deepa@urbanwheels.in', initials: 'DR', business: 'Urban Wheels', role: 'Owner', signedUp: '17 Jun 2025', lastLogin: '4 days ago', daysInactive: 4, health: 'Healthy' as const },
+    { id: 'uh-13', name: 'Arjun Menon', email: 'arjun@coastalcabs.in', initials: 'AM', business: 'Coastal Cabs', role: 'Owner', signedUp: '05 Sep 2025', lastLogin: '5 days ago', daysInactive: 5, health: 'Healthy' as const },
+    { id: 'uh-14', name: 'Sanjay Verma', email: 'sanjay@metrocabs.in', initials: 'SV', business: 'Metro Cabs Co.', role: 'Manager', signedUp: '15 Dec 2025', lastLogin: '2 days ago', daysInactive: 2, health: 'Healthy' as const },
+    { id: 'uh-15', name: 'Kavita Desai', email: 'kavita@speedway.co', initials: 'KD', business: 'Speedway Fleet', role: 'Manager', signedUp: '18 May 2025', lastLogin: '6 days ago', daysInactive: 6, health: 'Healthy' as const }
+  ];
+
+  const filteredUserHealth = useMemo(() => {
+    const q = userHealthSearch.toLowerCase().trim();
+    return initialUserHealthData.filter(u => {
+      const matchFilter = userHealthFilter === 'all' || u.health === userHealthFilter;
+      const matchQ = !q || u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q) || u.business.toLowerCase().includes(q);
+      return matchFilter && matchQ;
+    });
+  }, [userHealthFilter, userHealthSearch]);
+
+  const handleSendNudge = (u: any) => {
+    setNudgedUsers(prev => ({ ...prev, [u.id]: true }));
+    setNudgeNotification(`Re-engagement nudge successfully sent to ${u.name} (${u.email})!`);
+    setTimeout(() => {
+      setNudgeNotification(null);
+    }, 4500);
   };
 
   useEffect(() => {
@@ -295,6 +342,15 @@ export const Console: React.FC = () => {
         }}
       />
 
+      {/* MOBILE SIDEBAR BACKDROP */}
+      {mobileSidebarOpen && (
+        <div
+          className="sa-sidebar-backdrop"
+          onClick={() => setMobileSidebarOpen(false)}
+          title="Close Navigation"
+        />
+      )}
+
       {/* MAIN BODY */}
       <div className="sa-main">
         <Topbar
@@ -304,6 +360,7 @@ export const Console: React.FC = () => {
           onSearchChange={setSearchQuery}
           onToggleMobileSidebar={() => setMobileSidebarOpen(prev => !prev)}
           onNotificationClick={() => handleNavigate('notifications')}
+          onProfileClick={() => handleNavigate('profile')}
         />
 
         <div className="sa-content">
@@ -1117,6 +1174,319 @@ export const Console: React.FC = () => {
             </div>
           )}
 
+          {/* ============ 6B. USER HEALTH VIEW ============ */}
+          {activeView === 'user-health' && (
+            <div className="sa-view">
+              {/* Nudge Confirmation Toast */}
+              {nudgeNotification && (
+                <div
+                  style={{
+                    background: 'rgba(14, 165, 160, 0.12)',
+                    border: '1px solid var(--sa-teal)',
+                    color: 'var(--sa-teal)',
+                    padding: '11px 16px',
+                    borderRadius: '8px',
+                    marginBottom: '16px',
+                    fontSize: '13px',
+                    fontWeight: 600,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    boxShadow: '0 4px 12px rgba(14, 165, 160, 0.15)'
+                  }}
+                >
+                  <CheckCircle2 size={16} />
+                  <span>{nudgeNotification}</span>
+                </div>
+              )}
+
+              {/* 4 KPI Summary Cards */}
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(4, 1fr)',
+                  gap: '16px',
+                  marginBottom: '20px'
+                }}
+                className="sa-stat-strip"
+              >
+                <div
+                  className="sa-card"
+                  style={{
+                    padding: '18px 20px',
+                    borderRadius: '14px',
+                    background: 'var(--sa-card)',
+                    border: '1px solid var(--sa-border)'
+                  }}
+                >
+                  <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--sa-text-faint)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                    TOTAL USERS
+                  </div>
+                  <div style={{ fontSize: '26px', fontWeight: 800, marginTop: '8px', color: 'var(--sa-text)' }}>
+                    {initialUserHealthData.length}
+                  </div>
+                </div>
+
+                <div
+                  className="sa-card"
+                  style={{
+                    padding: '18px 20px',
+                    borderRadius: '14px',
+                    background: 'var(--sa-card)',
+                    border: '1px solid var(--sa-border)'
+                  }}
+                >
+                  <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--sa-text-faint)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                    HEALTHY (0-7D)
+                  </div>
+                  <div style={{ fontSize: '26px', fontWeight: 800, marginTop: '8px', color: 'var(--sa-teal)' }}>
+                    {initialUserHealthData.filter(u => u.health === 'Healthy').length}
+                  </div>
+                </div>
+
+                <div
+                  className="sa-card"
+                  style={{
+                    padding: '18px 20px',
+                    borderRadius: '14px',
+                    background: 'var(--sa-card)',
+                    border: '1px solid var(--sa-border)'
+                  }}
+                >
+                  <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--sa-text-faint)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                    AT RISK (8-15D)
+                  </div>
+                  <div style={{ fontSize: '26px', fontWeight: 800, marginTop: '8px', color: 'var(--sa-amber)' }}>
+                    {initialUserHealthData.filter(u => u.health === 'At risk').length}
+                  </div>
+                </div>
+
+                <div
+                  className="sa-card"
+                  style={{
+                    padding: '18px 20px',
+                    borderRadius: '14px',
+                    background: 'var(--sa-card)',
+                    border: '1px solid var(--sa-border)'
+                  }}
+                >
+                  <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--sa-text-faint)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                    DORMANT (16D+)
+                  </div>
+                  <div style={{ fontSize: '26px', fontWeight: 800, marginTop: '8px', color: 'var(--sa-coral)' }}>
+                    {initialUserHealthData.filter(u => u.health === 'Dormant').length}
+                  </div>
+                </div>
+              </div>
+
+              {/* Filter Pills and Search Bar */}
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  flexWrap: 'wrap',
+                  gap: '12px',
+                  marginBottom: '18px'
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                  {[
+                    { id: 'all', label: 'All' },
+                    { id: 'Healthy', label: 'Healthy (0-7d)' },
+                    { id: 'At risk', label: 'At risk (8-15d)' },
+                    { id: 'Dormant', label: 'Dormant (16d+)' }
+                  ].map(tab => {
+                    const isActive = userHealthFilter === tab.id;
+                    return (
+                      <button
+                        key={tab.id}
+                        type="button"
+                        onClick={() => setUserHealthFilter(tab.id as any)}
+                        style={{
+                          padding: '7px 16px',
+                          borderRadius: '20px',
+                          border: isActive ? 'none' : '1px solid var(--sa-border)',
+                          background: isActive ? 'var(--sa-ink)' : 'var(--sa-card)',
+                          color: isActive ? '#fff' : 'var(--sa-text-muted)',
+                          fontWeight: 700,
+                          fontSize: '12.5px',
+                          cursor: 'pointer',
+                          boxShadow: isActive ? 'var(--sa-shadow-sm)' : 'none',
+                          transition: 'all 0.15s ease'
+                        }}
+                      >
+                        {tab.label}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    background: 'var(--sa-card)',
+                    border: '1px solid var(--sa-border)',
+                    borderRadius: '20px',
+                    padding: '7px 14px',
+                    width: '270px'
+                  }}
+                >
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#7C8AA8" strokeWidth="2" strokeLinecap="round">
+                    <circle cx="11" cy="11" r="7" />
+                    <path d="m21 21-4.3-4.3" />
+                  </svg>
+                  <input
+                    type="text"
+                    placeholder="Search user or business..."
+                    value={userHealthSearch}
+                    onChange={e => setUserHealthSearch(e.target.value)}
+                    style={{
+                      border: 'none',
+                      background: 'none',
+                      outline: 'none',
+                      fontSize: '12.5px',
+                      width: '100%',
+                      color: 'var(--sa-text)'
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Table Card */}
+              <div className="sa-card">
+                <div className="sa-table-wrap">
+                  <table className="sa-table">
+                    <thead>
+                      <tr>
+                        <th>USER</th>
+                        <th>BUSINESS</th>
+                        <th>ROLE</th>
+                        <th>SIGNED UP</th>
+                        <th>LAST LOGIN</th>
+                        <th>DAYS INACTIVE</th>
+                        <th>HEALTH</th>
+                        <th style={{ textAlign: 'right' }}>ACTION</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredUserHealth.map((u) => {
+                        const isDormant = u.health === 'Dormant';
+                        const isAtRisk = u.health === 'At risk';
+                        const isNudged = nudgedUsers[u.id];
+
+                        return (
+                          <tr key={u.id}>
+                            <td>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                <div
+                                  style={{
+                                    width: 32,
+                                    height: 32,
+                                    borderRadius: '8px',
+                                    background: 'rgba(47, 111, 237, 0.1)',
+                                    color: 'var(--sa-blue)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    fontSize: '11.5px',
+                                    fontWeight: 800,
+                                    flexShrink: 0
+                                  }}
+                                >
+                                  {u.initials}
+                                </div>
+                                <div>
+                                  <div style={{ fontWeight: 700, fontSize: '13px', color: 'var(--sa-text)' }}>{u.name}</div>
+                                  <div style={{ fontSize: '11px', color: '#7C8AA8' }}>{u.email}</div>
+                                </div>
+                              </div>
+                            </td>
+                            <td style={{ fontWeight: 600, color: 'var(--sa-text)' }}>{u.business}</td>
+                            <td>{u.role}</td>
+                            <td style={{ color: '#7C8AA8', fontSize: '12.5px' }}>{u.signedUp}</td>
+                            <td style={{ color: '#7C8AA8', fontSize: '12.5px' }}>{u.lastLogin}</td>
+                            <td>
+                              <span
+                                style={{
+                                  fontWeight: 800,
+                                  fontSize: '13px',
+                                  color: isDormant ? 'var(--sa-coral)' : isAtRisk ? 'var(--sa-amber)' : 'var(--sa-teal)'
+                                }}
+                              >
+                                {u.daysInactive}d
+                              </span>
+                            </td>
+                            <td>
+                              <span
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '5px',
+                                  padding: '3px 10px',
+                                  borderRadius: '12px',
+                                  fontSize: '11.5px',
+                                  fontWeight: 700,
+                                  background: isDormant
+                                    ? 'rgba(228, 87, 46, 0.1)'
+                                    : isAtRisk
+                                    ? 'rgba(245, 166, 35, 0.1)'
+                                    : 'rgba(14, 165, 160, 0.1)',
+                                  color: isDormant
+                                    ? 'var(--sa-coral)'
+                                    : isAtRisk
+                                    ? 'var(--sa-amber)'
+                                    : 'var(--sa-teal)',
+                                  border: `1px solid ${
+                                    isDormant
+                                      ? 'rgba(228, 87, 46, 0.25)'
+                                      : isAtRisk
+                                      ? 'rgba(245, 166, 35, 0.25)'
+                                      : 'rgba(14, 165, 160, 0.25)'
+                                  }`
+                                }}
+                              >
+                                <span>●</span> {u.health}
+                              </span>
+                            </td>
+                            <td style={{ textAlign: 'right' }}>
+                              <button
+                                type="button"
+                                onClick={() => handleSendNudge(u)}
+                                disabled={isNudged}
+                                style={{
+                                  padding: '5px 14px',
+                                  borderRadius: '20px',
+                                  border: '1px solid var(--sa-border)',
+                                  background: isNudged ? 'rgba(14, 165, 160, 0.1)' : 'transparent',
+                                  color: isNudged ? 'var(--sa-teal)' : 'var(--sa-text)',
+                                  fontWeight: 600,
+                                  fontSize: '12px',
+                                  cursor: isNudged ? 'default' : 'pointer',
+                                  transition: 'all 0.15s ease'
+                                }}
+                                onMouseEnter={e => {
+                                  if (!isNudged) e.currentTarget.style.background = 'rgba(0,0,0,0.04)';
+                                }}
+                                onMouseLeave={e => {
+                                  if (!isNudged) e.currentTarget.style.background = 'transparent';
+                                }}
+                              >
+                                {isNudged ? 'Nudged ✓' : 'Send nudge'}
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* ============ 7. ANALYTICS VIEW ============ */}
           {activeView === 'analytics' && (
             <div className="sa-view">
@@ -1590,6 +1960,287 @@ export const Console: React.FC = () => {
                       </div>
                     </div>
                   )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ============ 12. ADMIN PROFILE VIEW ============ */}
+          {activeView === 'profile' && (
+            <div className="sa-view">
+              {/* Profile Top Banner Card */}
+              <div
+                className="sa-card"
+                style={{
+                  padding: '24px 28px',
+                  marginBottom: '20px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  flexWrap: 'wrap',
+                  gap: '20px',
+                  background: 'linear-gradient(135deg, rgba(47, 111, 237, 0.08) 0%, rgba(124, 92, 252, 0.06) 100%), var(--sa-card)',
+                  border: '1px solid var(--sa-border)'
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+                  <div
+                    style={{
+                      width: 68,
+                      height: 68,
+                      borderRadius: '50%',
+                      background: 'linear-gradient(135deg, var(--sa-blue), var(--sa-violet))',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: '#fff',
+                      fontSize: '24px',
+                      fontWeight: 800,
+                      boxShadow: '0 4px 14px rgba(47, 111, 237, 0.35)',
+                      border: '3px solid rgba(255,255,255,0.1)'
+                    }}
+                  >
+                    {user?.avatar || 'SA'}
+                  </div>
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                      <h2 style={{ margin: 0, fontSize: '22px', fontWeight: 800, color: 'var(--sa-text)' }}>
+                        {user?.name || 'Aarav Mehta'}
+                      </h2>
+                      <span className="sa-badge sa-badge-active" style={{ fontSize: '11px', padding: '3px 8px' }}>
+                        <Shield size={12} style={{ marginRight: 4 }} /> Root Super Admin
+                      </span>
+                      <span className="sa-badge" style={{ background: 'rgba(14, 165, 160, 0.15)', color: 'var(--sa-teal)', border: '1px solid rgba(14, 165, 160, 0.3)', fontSize: '11px', padding: '3px 8px' }}>
+                        Tier 0 Authority
+                      </span>
+                    </div>
+                    <div style={{ marginTop: '6px', display: 'flex', alignItems: 'center', gap: '16px', color: '#7C8AA8', fontSize: '13px', flexWrap: 'wrap' }}>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                        <Mail size={14} /> {user?.email || 'aarav.mehta@fleetops.in'}
+                      </span>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                        <Phone size={14} /> +91 98765 43210
+                      </span>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                        <CheckCircle2 size={14} color="var(--sa-teal)" /> Authenticated
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Primary Logout Button on Profile Top */}
+                <button
+                  type="button"
+                  onClick={logout}
+                  className="sa-btn"
+                  style={{
+                    background: 'var(--sa-coral)',
+                    color: '#fff',
+                    padding: '10px 20px',
+                    borderRadius: '8px',
+                    fontWeight: 700,
+                    fontSize: '13.5px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    boxShadow: '0 4px 12px rgba(228, 87, 46, 0.3)',
+                    border: 'none',
+                    cursor: 'pointer'
+                  }}
+                  title="Sign out of Super Admin"
+                >
+                  <LogOut size={16} />
+                  <span>Logout / Sign Out</span>
+                </button>
+              </div>
+
+              {/* 2 Column Details Grid */}
+              <div className="sa-row-2">
+                {/* Left Column: Hardcoded Sign-in Credentials */}
+                <div className="sa-card">
+                  <div className="sa-card-head">
+                    <div>
+                      <div className="sa-card-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <KeyRound size={16} color="var(--sa-blue)" /> Sign-in Credentials (Pre-filled)
+                      </div>
+                      <div className="sa-card-sub">
+                        Hardcoded in login screen inputs for instant 1-click access
+                      </div>
+                    </div>
+                    <span className="sa-badge sa-badge-active">Hardcoded</span>
+                  </div>
+
+                  <div className="sa-card-body" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    <div
+                      style={{
+                        padding: '12px 14px',
+                        background: 'rgba(47, 111, 237, 0.07)',
+                        border: '1px solid rgba(47, 111, 237, 0.2)',
+                        borderRadius: '8px',
+                        fontSize: '12.5px',
+                        color: 'var(--sa-text)',
+                        lineHeight: 1.6
+                      }}
+                    >
+                      <strong style={{ color: 'var(--sa-blue)' }}>Notice:</strong> As requested, the Super Admin login inputs are hardcoded with these exact credentials. When you click logout, you will see them automatically populated in the sign-in fields.
+                    </div>
+
+                    <div className="sa-field">
+                      <label style={{ fontSize: '11.5px', fontWeight: 700, textTransform: 'uppercase', color: '#7C8AA8', letterSpacing: '0.5px' }}>
+                        Super Admin Email (Hardcoded)
+                      </label>
+                      <div style={{ display: 'flex', gap: '8px', marginTop: '6px' }}>
+                        <input
+                          type="text"
+                          readOnly
+                          value="aarav.mehta@fleetops.in"
+                          className="sa-input mono"
+                          style={{ background: 'rgba(255,255,255,0.03)', fontWeight: 600, flex: 1, padding: '9px 12px' }}
+                        />
+                        <button
+                          type="button"
+                          className="sa-btn sa-btn-outline"
+                          onClick={() => {
+                            navigator.clipboard.writeText('aarav.mehta@fleetops.in');
+                            alert('Copied email to clipboard!');
+                          }}
+                        >
+                          Copy
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="sa-field">
+                      <label style={{ fontSize: '11.5px', fontWeight: 700, textTransform: 'uppercase', color: '#7C8AA8', letterSpacing: '0.5px' }}>
+                        Master Password (Hardcoded)
+                      </label>
+                      <div style={{ display: 'flex', gap: '8px', marginTop: '6px' }}>
+                        <input
+                          type="text"
+                          readOnly
+                          value="SuperAdminPassword123"
+                          className="sa-input mono"
+                          style={{ background: 'rgba(255,255,255,0.03)', fontWeight: 600, flex: 1, padding: '9px 12px' }}
+                        />
+                        <button
+                          type="button"
+                          className="sa-btn sa-btn-outline"
+                          onClick={() => {
+                            navigator.clipboard.writeText('SuperAdminPassword123');
+                            alert('Copied password to clipboard!');
+                          }}
+                        >
+                          Copy
+                        </button>
+                      </div>
+                    </div>
+
+                    <div style={{ borderTop: '1px solid var(--sa-border)', paddingTop: '14px', marginTop: '4px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ fontSize: '12px', color: '#7C8AA8' }}>
+                        Input Autofill State: <b style={{ color: 'var(--sa-teal)' }}>Ready in Login Form</b>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={logout}
+                        className="sa-btn sa-btn-outline"
+                        style={{ color: 'var(--sa-coral)', borderColor: 'rgba(228, 87, 46, 0.4)' }}
+                      >
+                        Sign Out & Go to Login
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Right Column: Platform Authority & Permissions */}
+                <div className="sa-card">
+                  <div className="sa-card-head">
+                    <div>
+                      <div className="sa-card-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <Shield size={16} color="var(--sa-teal)" /> Root Authority & Capabilities
+                      </div>
+                      <div className="sa-card-sub">Global administrative governance controls</div>
+                    </div>
+                    <span className="sa-badge" style={{ background: 'rgba(124, 92, 252, 0.15)', color: 'var(--sa-violet)', border: '1px solid rgba(124, 92, 252, 0.3)' }}>
+                      SuperAdmin
+                    </span>
+                  </div>
+
+                  <div className="sa-card-body" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', padding: '10px 12px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px', border: '1px solid var(--sa-border)' }}>
+                      <CheckCircle2 size={16} color="var(--sa-teal)" style={{ marginTop: 2, flexShrink: 0 }} />
+                      <div>
+                        <div style={{ fontWeight: 700, fontSize: '13px', color: 'var(--sa-text)' }}>42+ Business Fleet Governance</div>
+                        <div style={{ fontSize: '11.5px', color: '#7C8AA8' }}>Activate, suspend, trial-extend, and manage multi-tenant agencies.</div>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', padding: '10px 12px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px', border: '1px solid var(--sa-border)' }}>
+                      <CheckCircle2 size={16} color="var(--sa-teal)" style={{ marginTop: 2, flexShrink: 0 }} />
+                      <div>
+                        <div style={{ fontWeight: 700, fontSize: '13px', color: 'var(--sa-text)' }}>Financial & Billing Overrides</div>
+                        <div style={{ fontSize: '11.5px', color: '#7C8AA8' }}>Manage subscription tiers, payment gateways, and issue manual refunds.</div>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', padding: '10px 12px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px', border: '1px solid var(--sa-border)' }}>
+                      <CheckCircle2 size={16} color="var(--sa-teal)" style={{ marginTop: 2, flexShrink: 0 }} />
+                      <div>
+                        <div style={{ fontWeight: 700, fontSize: '13px', color: 'var(--sa-text)' }}>Staff & Team Invitation Dispatch</div>
+                        <div style={{ fontSize: '11.5px', color: '#7C8AA8' }}>Invite internal operations managers, billing officers, and analysts.</div>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', padding: '10px 12px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px', border: '1px solid var(--sa-border)' }}>
+                      <CheckCircle2 size={16} color="var(--sa-teal)" style={{ marginTop: 2, flexShrink: 0 }} />
+                      <div>
+                        <div style={{ fontWeight: 700, fontSize: '13px', color: 'var(--sa-text)' }}>Audit Trail & Security Telemetry</div>
+                        <div style={{ fontSize: '11.5px', color: '#7C8AA8' }}>Inspect all mutations across businesses, users, and platform settings.</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Bottom Security & Logout Card */}
+              <div
+                className="sa-card"
+                style={{
+                  marginTop: '16px',
+                  padding: '20px 24px',
+                  border: '1px solid rgba(228, 87, 46, 0.3)',
+                  background: 'linear-gradient(135deg, rgba(228, 87, 46, 0.05) 0%, rgba(0, 0, 0, 0) 100%), var(--sa-card)'
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+                  <div>
+                    <div style={{ fontSize: '15px', fontWeight: 800, color: 'var(--sa-coral)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <Lock size={16} /> Security Session & Sign Out
+                    </div>
+                    <div style={{ fontSize: '12.5px', color: '#7C8AA8', marginTop: '4px', maxWidth: '650px' }}>
+                      Ending your session will remove your active token from localStorage and take you to the Super Admin login page. You can instantly sign back in anytime since the login credentials are hardcoded into the form.
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={logout}
+                    className="sa-btn"
+                    style={{
+                      background: 'var(--sa-coral)',
+                      color: '#fff',
+                      padding: '11px 24px',
+                      borderRadius: '8px',
+                      fontWeight: 700,
+                      fontSize: '13.5px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      border: 'none',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <LogOut size={16} />
+                    <span>Sign Out of Super Admin</span>
+                  </button>
                 </div>
               </div>
             </div>

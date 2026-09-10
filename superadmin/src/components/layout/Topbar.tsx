@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { User, LogOut, Shield } from 'lucide-react';
 
 interface TopbarProps {
   title: string;
@@ -8,6 +9,7 @@ interface TopbarProps {
   onSearchChange: (q: string) => void;
   onToggleMobileSidebar: () => void;
   onNotificationClick: () => void;
+  onProfileClick?: () => void;
 }
 
 export const Topbar: React.FC<TopbarProps> = ({
@@ -16,9 +18,22 @@ export const Topbar: React.FC<TopbarProps> = ({
   searchQuery,
   onSearchChange,
   onToggleMobileSidebar,
-  onNotificationClick
+  onNotificationClick,
+  onProfileClick
 }) => {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   return (
     <div className="sa-topbar">
@@ -54,8 +69,107 @@ export const Topbar: React.FC<TopbarProps> = ({
         </svg>
       </button>
 
-      <div className="sa-topbar-avatar" title={user?.email || 'Super Admin'}>
-        {user?.avatar || 'SA'}
+      {/* User Avatar with Profile Dropdown */}
+      <div style={{ position: 'relative' }} ref={dropdownRef}>
+        <div
+          className="sa-topbar-avatar"
+          style={{ cursor: 'pointer' }}
+          onClick={() => setDropdownOpen(prev => !prev)}
+          title={user?.email || 'Super Admin'}
+        >
+          {user?.avatar || 'SA'}
+        </div>
+
+        {dropdownOpen && (
+          <div
+            style={{
+              position: 'absolute',
+              top: '44px',
+              right: '0',
+              width: '230px',
+              background: 'var(--sa-card)',
+              border: '1px solid var(--sa-border)',
+              borderRadius: '10px',
+              boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+              padding: '12px',
+              zIndex: 100,
+              color: 'var(--sa-text)'
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', paddingBottom: '10px', borderBottom: '1px solid var(--sa-border)' }}>
+              <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--sa-blue)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '12px' }}>
+                {user?.avatar || 'SA'}
+              </div>
+              <div style={{ overflow: 'hidden' }}>
+                <div style={{ fontSize: '13px', fontWeight: 700, whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                  {user?.name || 'Aarav Mehta'}
+                </div>
+                <div style={{ fontSize: '11px', color: '#7C8AA8', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                  {user?.email || 'aarav.mehta@fleetops.in'}
+                </div>
+              </div>
+            </div>
+
+            <div style={{ paddingTop: '8px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <button
+                type="button"
+                onClick={() => {
+                  setDropdownOpen(false);
+                  if (onProfileClick) onProfileClick();
+                }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  width: '100%',
+                  padding: '8px 10px',
+                  borderRadius: '6px',
+                  background: 'transparent',
+                  border: 'none',
+                  color: 'var(--sa-text)',
+                  fontSize: '12.5px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  textAlign: 'left'
+                }}
+                onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.06)')}
+                onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+              >
+                <User size={14} />
+                <span>Admin Profile</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setDropdownOpen(false);
+                  logout();
+                }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  width: '100%',
+                  padding: '8px 10px',
+                  borderRadius: '6px',
+                  background: 'rgba(228, 87, 46, 0.1)',
+                  border: '1px solid rgba(228, 87, 46, 0.25)',
+                  color: 'var(--sa-coral)',
+                  fontSize: '12.5px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                  marginTop: '4px'
+                }}
+                onMouseEnter={e => (e.currentTarget.style.background = 'rgba(228, 87, 46, 0.2)')}
+                onMouseLeave={e => (e.currentTarget.style.background = 'rgba(228, 87, 46, 0.1)')}
+              >
+                <LogOut size={14} />
+                <span>Sign Out</span>
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
