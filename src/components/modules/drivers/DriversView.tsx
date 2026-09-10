@@ -3,7 +3,7 @@ import { useFleet } from '../../../context/FleetContext';
 import { StatCard } from '../../common/StatCard';
 import { AddDriverModal } from './AddDriverModal';
 import { EditDriverModal } from './EditDriverModal';
-import { DriverDetailModal } from './DriverDetailModal';
+import { DriverDetailView } from './DriverDetailView';
 import { DriverAttendanceView } from './DriverAttendanceView';
 import { DriverExpensesView } from './DriverExpensesView';
 import { DriverPayrollView } from './DriverPayrollView';
@@ -175,7 +175,10 @@ export const DriversView: React.FC = () => {
       <div className="subtab-nav">
         <button
           className={`subtab-btn ${driverSubTab === 'list' ? 'active' : ''}`}
-          onClick={() => setDriverSubTab('list')}
+          onClick={() => {
+            setDriverSubTab('list');
+            setSelectedDriverForDetail(null);
+          }}
         >
           <Users size={16} />
           Driver list
@@ -184,7 +187,10 @@ export const DriversView: React.FC = () => {
 
         <button
           className={`subtab-btn ${driverSubTab === 'attendance' ? 'active' : ''}`}
-          onClick={() => setDriverSubTab('attendance')}
+          onClick={() => {
+            setDriverSubTab('attendance');
+            setSelectedDriverForDetail(null);
+          }}
         >
           <CalendarCheck size={16} />
           Attendance
@@ -195,7 +201,10 @@ export const DriversView: React.FC = () => {
 
         <button
           className={`subtab-btn ${driverSubTab === 'expenses' ? 'active' : ''}`}
-          onClick={() => setDriverSubTab('expenses')}
+          onClick={() => {
+            setDriverSubTab('expenses');
+            setSelectedDriverForDetail(null);
+          }}
         >
           <Receipt size={16} />
           Driver expenses
@@ -206,7 +215,10 @@ export const DriversView: React.FC = () => {
 
         <button
           className={`subtab-btn ${driverSubTab === 'payroll' ? 'active' : ''}`}
-          onClick={() => setDriverSubTab('payroll')}
+          onClick={() => {
+            setDriverSubTab('payroll');
+            setSelectedDriverForDetail(null);
+          }}
         >
           <Banknote size={16} />
           Driver payroll
@@ -218,6 +230,20 @@ export const DriversView: React.FC = () => {
 
       {/* Sub-view Content */}
       {driverSubTab === 'list' && (
+        selectedDriverForDetail ? (
+          <>
+            <DriverDetailView
+              driver={drivers.find(d => d.id === selectedDriverForDetail.id) || selectedDriverForDetail}
+              onBack={() => setSelectedDriverForDetail(null)}
+              onEdit={drv => setEditingDriver(drv)}
+            />
+            <EditDriverModal
+              isOpen={!!editingDriver}
+              driver={editingDriver}
+              onClose={() => setEditingDriver(null)}
+            />
+          </>
+        ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           {/* Quick Roster Stats */}
           <div className="stats-grid">
@@ -741,17 +767,8 @@ export const DriversView: React.FC = () => {
             driver={editingDriver}
             onClose={() => setEditingDriver(null)}
           />
-
-          <DriverDetailModal
-            isOpen={!!selectedDriverForDetail}
-            driver={selectedDriverForDetail}
-            onClose={() => setSelectedDriverForDetail(null)}
-            onEdit={drv => {
-              setSelectedDriverForDetail(null);
-              setEditingDriver(drv);
-            }}
-          />
         </div>
+        )
       )}
 
       {driverSubTab === 'attendance' && <DriverAttendanceView />}

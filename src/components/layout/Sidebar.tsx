@@ -271,7 +271,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onCloseMobile }) => {
             onClick={onCloseMobile}
           >
             <ShieldAlert />
-            Vehicle & driver docs
+            Documents
             {totalAlerts > 0 && <span className="badge">{totalAlerts}</span>}
           </NavLink>
           <NavLink
