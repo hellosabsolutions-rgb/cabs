@@ -43,17 +43,30 @@ All point to **nginx on port 80** (not directly to 5002/3001). nginx routes by `
 
 4. Save. Cloudflare creates DNS CNAME → tunnel automatically when the zone uses Cloudflare nameservers.
 
-### Option B — edit `/etc/cloudflared/config.yml` on THANOS
+### Option B — edit `/etc/cloudflared/config.yml` on THANOS (or use helper script)
 
-Merge hostnames from `scripts/thanos/cloudflared-config.example.yml`, then:
+Repo files:
+
+- Full template: `scripts/thanos/cloudflared-config.example.yml`
+- Apply helper (merge hostnames + validate + restart):
 
 ```bash
+# After git pull on THANOS / or from CI-published tree:
+sudo bash /srv/apps/cabs/scripts/thanos/apply-cloudflared-kabpro.sh --dry-run
+sudo bash /srv/apps/cabs/scripts/thanos/apply-cloudflared-kabpro.sh
+```
+
+Manual merge:
+
+```bash
+sudo cp /etc/cloudflared/config.yml /etc/cloudflared/backups/config.yml.$(date +%Y%m%d-%H%M%S)
 sudo nano /etc/cloudflared/config.yml
 # add api.kabpro.pro / admin.kabpro.pro / kabpro.pro / www.kabpro.pro → http://127.0.0.1:80
+# KEEP your existing opsiva / other hostnames
+# catch-all "service: http_status:404" must stay LAST
 
-sudo cloudflared tunnel ingress validate
+sudo cloudflared tunnel ingress validate --config /etc/cloudflared/config.yml
 sudo systemctl restart cloudflared
-# or: sudo systemctl restart cloudflared.service
 sudo systemctl status cloudflared --no-pager
 ```
 

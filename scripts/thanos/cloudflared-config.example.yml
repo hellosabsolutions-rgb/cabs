@@ -1,27 +1,78 @@
-# Cloudflare Tunnel ingress for KABPRO on THANOS
-# Prefer REUSING the existing opsiva/thanos tunnel — do NOT create a second tunnel
-# unless you need full isolation. One cloudflared process can serve many domains.
+# =============================================================================
+# KABPRO — Cloudflare Tunnel config (THANOS)
+# =============================================================================
+# Copy / merge into the EXISTING tunnel config on the server:
+#   /etc/cloudflared/config.yml
 #
-# Merge these hostname rules into /etc/cloudflared/config.yml (same tunnel UUID).
-# Order matters: specific hostnames first, catch-all 404 last.
+# Do NOT create a second tunnel for kabpro.pro — reuse the same tunnel-id and
+# credentials already used for opsiva.in.
+#
+# Placeholders (fill from your current working config):
+#   <TUNNEL_UUID>     → same UUID as opsiva tunnel
+#   <CREDENTIALS>     → usually /etc/cloudflared/<TUNNEL_UUID>.json
+#
+# Apply on THANOS:
+#   sudo cp /srv/apps/cabs/scripts/thanos/cloudflared-config.example.yml /tmp/kabpro-tunnel.yml
+#   # OR run:  bash scripts/thanos/apply-cloudflared-kabpro.sh
+#   sudo cloudflared tunnel ingress validate --config /etc/cloudflared/config.yml
+#   sudo systemctl restart cloudflared
+# =============================================================================
+
+tunnel: <TUNNEL_UUID>
+credentials-file: /etc/cloudflared/<TUNNEL_UUID>.json
+
+# Optional but recommended
+logfile: /var/log/cloudflared.log
+loglevel: info
+
+# Keep any existing originRequest defaults from your opsiva config if present
+# originRequest:
+#   connectTimeout: 30s
+#   noTLSVerify: false
 
 ingress:
-  # ── kabpro.pro (primary) ───────────────────────────────────────────────────
+  # ── kabpro.pro (PRIMARY) ───────────────────────────────────────────────────
+  # All go to local nginx :80 — nginx routes by Host header
   - hostname: api.kabpro.pro
     service: http://127.0.0.1:80
+    originRequest:
+      httpHostHeader: api.kabpro.pro
+
   - hostname: admin.kabpro.pro
     service: http://127.0.0.1:80
-  - hostname: kabpro.pro
-    service: http://127.0.0.1:80
+    originRequest:
+      httpHostHeader: admin.kabpro.pro
+
   - hostname: www.kabpro.pro
     service: http://127.0.0.1:80
+    originRequest:
+      httpHostHeader: www.kabpro.pro
 
-  # ── opsiva.in (legacy — keep until DNS cutover complete) ───────────────────
+  - hostname: kabpro.pro
+    service: http://127.0.0.1:80
+    originRequest:
+      httpHostHeader: kabpro.pro
+
+  # ── opsiva.in (LEGACY — remove after cutover) ──────────────────────────────
   - hostname: api-kabpro.opsiva.in
     service: http://127.0.0.1:80
+    originRequest:
+      httpHostHeader: api-kabpro.opsiva.in
+
   - hostname: admin-kabpro.opsiva.in
     service: http://127.0.0.1:80
+    originRequest:
+      httpHostHeader: admin-kabpro.opsiva.in
+
   - hostname: kabpro.opsiva.in
     service: http://127.0.0.1:80
+    originRequest:
+      httpHostHeader: kabpro.opsiva.in
 
+  # ── Keep your OTHER existing opsiva / apps hostnames ABOVE this catch-all ──
+  # Example (do not delete your real routes when merging):
+  # - hostname: api.opsiva.in
+  #   service: http://127.0.0.1:8080
+
+  # Catch-all MUST be last
   - service: http_status:404

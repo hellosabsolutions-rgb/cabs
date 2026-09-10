@@ -70,13 +70,23 @@ sudo nginx -t && sudo systemctl reload nginx
 
 ### 4. Cloudflare Tunnel
 
-Reuse the **existing** THANOS tunnel. Add public hostnames → `http://127.0.0.1:80` for:
+Reuse the **existing** THANOS tunnel. Do **not** create a second tunnel.
 
-- `api.kabpro.pro`
-- `admin.kabpro.pro`
-- `kabpro.pro`
-- `www.kabpro.pro`
+**UI:** Zero Trust → Tunnels → existing tunnel → Public Hostname → add:
 
+- `api.kabpro.pro` → `http://127.0.0.1:80`
+- `admin.kabpro.pro` → `http://127.0.0.1:80`
+- `kabpro.pro` → `http://127.0.0.1:80`
+- `www.kabpro.pro` → `http://127.0.0.1:80`
+
+**CLI helper on THANOS** (merges into `/etc/cloudflared/config.yml`):
+
+```bash
+sudo bash /srv/apps/cabs/scripts/thanos/apply-cloudflared-kabpro.sh --dry-run
+sudo bash /srv/apps/cabs/scripts/thanos/apply-cloudflared-kabpro.sh
+```
+
+Template: `scripts/thanos/cloudflared-config.example.yml`  
 Full steps: **`DOMAIN-KABPRO-PRO.md`**.
 
 SSL: **Full (strict)** · Always HTTPS on.

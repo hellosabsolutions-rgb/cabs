@@ -7,12 +7,19 @@ WORKSPACE="${GITHUB_WORKSPACE:-$(pwd)}"
 
 echo "==> Publishing KABPRO to ${REPO_ROOT}"
 
-mkdir -p "${REPO_ROOT}/admin" "${REPO_ROOT}/server"
+mkdir -p "${REPO_ROOT}/admin" "${REPO_ROOT}/server" "${REPO_ROOT}/scripts/thanos"
 
 # ── Admin SPA ────────────────────────────────────────────────────────────────
 if [[ -d "${WORKSPACE}/admin/dist" ]]; then
   echo "==> Admin dist"
   rsync -a --delete "${WORKSPACE}/admin/dist/" "${REPO_ROOT}/admin/dist/"
+fi
+
+# ── THANOS helper scripts (nginx / cloudflared) ──────────────────────────────
+if [[ -d "${WORKSPACE}/scripts/thanos" ]]; then
+  echo "==> scripts/thanos"
+  rsync -a "${WORKSPACE}/scripts/thanos/" "${REPO_ROOT}/scripts/thanos/"
+  chmod +x "${REPO_ROOT}/scripts/thanos/"*.sh 2>/dev/null || true
 fi
 
 # ── Server (source + built deps stay in server/) ─────────────────────────────
