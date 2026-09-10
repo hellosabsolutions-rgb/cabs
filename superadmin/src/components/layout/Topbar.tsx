@@ -1,6 +1,7 @@
 import React from 'react';
+import { useAuth } from '../../context/AuthContext';
 
-interface SuperTopbarProps {
+interface TopbarProps {
   title: string;
   crumb: string;
   searchQuery: string;
@@ -9,7 +10,7 @@ interface SuperTopbarProps {
   onNotificationClick: () => void;
 }
 
-export const SuperTopbar: React.FC<SuperTopbarProps> = ({
+export const Topbar: React.FC<TopbarProps> = ({
   title,
   crumb,
   searchQuery,
@@ -17,6 +18,8 @@ export const SuperTopbar: React.FC<SuperTopbarProps> = ({
   onToggleMobileSidebar,
   onNotificationClick
 }) => {
+  const { user } = useAuth();
+
   return (
     <div className="sa-topbar">
       <button type="button" className="sa-hamburger" onClick={onToggleMobileSidebar}>
@@ -51,8 +54,8 @@ export const SuperTopbar: React.FC<SuperTopbarProps> = ({
         </svg>
       </button>
 
-      <div className="sa-topbar-avatar" title="Super Admin Account">
-        SA
+      <div className="sa-topbar-avatar" title={user?.email || 'Super Admin'}>
+        {user?.avatar || 'SA'}
       </div>
     </div>
   );

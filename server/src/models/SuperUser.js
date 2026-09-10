@@ -17,12 +17,12 @@ const superUserSchema = new mongoose.Schema(
     },
     password: {
       type: String,
-      required: true,
+      required: false,
       select: false
     },
     role: {
       type: String,
-      enum: ['Super Admin', 'Admin', 'Support Specialist', 'Operations Manager'],
+      enum: ['Super Admin', 'Admin', 'Support Specialist', 'Operations Manager', 'Read Only'],
       default: 'Super Admin'
     },
     phone: {
@@ -36,6 +36,15 @@ const superUserSchema = new mongoose.Schema(
     isActive: {
       type: Boolean,
       default: true
+    },
+    inviteCode: {
+      type: String,
+      default: null
+    },
+    inviteStatus: {
+      type: String,
+      enum: ['active', 'invited', 'expired'],
+      default: 'active'
     },
     lastLogin: {
       type: Date,

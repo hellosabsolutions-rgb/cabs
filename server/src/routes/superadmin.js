@@ -10,10 +10,18 @@ import {
   getUsers,
   getAnalytics,
   getSupport,
-  getAuditLogs
+  getAuditLogs,
+  loginSuperUser,
+  inviteTeamMember,
+  getTeamMembers
 } from '../controllers/superadminController.js';
 
 const router = express.Router();
+
+// 0. Internal Team Auth & Invites
+router.post('/auth/login', loginSuperUser);
+router.post('/auth/invite', inviteTeamMember);
+router.get('/team', getTeamMembers);
 
 // 1. Dashboard
 router.get('/dashboard/stats', getDashboardStats);
@@ -43,3 +51,4 @@ router.get('/support', getSupport);
 router.get('/audit', getAuditLogs);
 
 export default router;
+

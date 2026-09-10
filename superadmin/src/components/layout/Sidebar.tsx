@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
+import { useAuth } from '../../context/AuthContext';
+import { LogOut } from 'lucide-react';
 
-interface SuperSidebarProps {
+interface SidebarProps {
   activeView: string;
   onNavigate: (view: string, options?: { tab?: string; filter?: string }) => void;
   isOpen: boolean;
@@ -13,13 +15,13 @@ interface SuperSidebarProps {
   };
 }
 
-export const SuperSidebar: React.FC<SuperSidebarProps> = ({
+export const Sidebar: React.FC<SidebarProps> = ({
   activeView,
   onNavigate,
   isOpen,
-  onClose,
   counts = { businesses: 42, activeSubs: 38, tickets: 6, notifs: 4 }
 }) => {
+  const { user, logout } = useAuth();
   const [clock, setClock] = useState('--:--:--');
 
   useEffect(() => {
@@ -224,7 +226,7 @@ export const SuperSidebar: React.FC<SuperSidebarProps> = ({
           </div>
         </div>
 
-        {/* System & Audit */}
+        {/* Notifications & Audit */}
         <div className="sa-nav-group">
           <button
             type="button"
@@ -267,11 +269,16 @@ export const SuperSidebar: React.FC<SuperSidebarProps> = ({
 
       {/* Internal Staff Profile Footer */}
       <div className="sa-sidebar-foot">
-        <div className="sa-avatar">SA</div>
-        <div>
-          <div className="sa-foot-name">Aarav Mehta</div>
-          <div className="sa-foot-role">Super Admin</div>
+        <div className="sa-foot-user">
+          <div className="sa-avatar">{user?.avatar || 'SA'}</div>
+          <div>
+            <div className="sa-foot-name">{user?.name || 'Aarav Mehta'}</div>
+            <div className="sa-foot-role">{user?.role || 'Super Admin'}</div>
+          </div>
         </div>
+        <button type="button" className="sa-logout-btn" onClick={logout} title="Sign Out">
+          <LogOut size={15} />
+        </button>
       </div>
     </aside>
   );
