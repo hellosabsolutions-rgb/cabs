@@ -23,6 +23,7 @@ import { useAgency } from '../../context/AgencyContext';
 import { LoginView } from '../modules/auth/LoginView';
 import { AgencyOnboardingView } from '../modules/agency/AgencyOnboardingView';
 import { CabLoadingScreen } from '../common/CabLoadingScreen';
+import { SuperAdminConsole } from '../modules/superadmin/SuperAdminConsole';
 
 export const MainLayout: React.FC = () => {
   const { activePage } = useFleet();
@@ -30,6 +31,16 @@ export const MainLayout: React.FC = () => {
   const { isAuthenticated, isLoading: authLoading, isDashboardOpening } = useAuth();
   const { currentAgency, agencies, isLoading: agencyLoading } = useAgency();
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+
+  // If viewing SuperAdmin Console
+  if (location.pathname.startsWith('/superadmin')) {
+    return (
+      <ErrorBoundary fallbackTitle="SuperAdmin Console Error">
+        <SuperAdminConsole />
+        <ToastContainer />
+      </ErrorBoundary>
+    );
+  }
 
   // If verifying authentication session, agency loading on boot, or user just logged in opening the dashboard
   if (authLoading || (isAuthenticated && agencyLoading) || isDashboardOpening) {

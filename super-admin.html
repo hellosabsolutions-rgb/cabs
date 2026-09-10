@@ -1,0 +1,1463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FleetOps — Super Admin Console</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#0B1220;
+  --ink-soft:#161F32;
+  --ink-softer:#1F2A42;
+  --paper:#F3F5F8;
+  --card:#FFFFFF;
+  --border:#E3E6EC;
+  --border-soft:#ECEEF2;
+  --text:#12161C;
+  --text-muted:#5B6472;
+  --text-faint:#9399A6;
+  --blue:#2F6FED;
+  --blue-soft:#EAF1FE;
+  --teal:#0EA5A0;
+  --teal-soft:#E1F6F4;
+  --amber:#F5A623;
+  --amber-soft:#FDF2DF;
+  --coral:#E4572E;
+  --coral-soft:#FCE7E1;
+  --violet:#7C5CFC;
+  --violet-soft:#EFEBFF;
+  --radius:10px;
+  --radius-lg:14px;
+  --shadow-sm:0 1px 2px rgba(11,18,32,0.06);
+  --shadow-md:0 6px 20px rgba(11,18,32,0.08);
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{
+  font-family:'Manrope',sans-serif;
+  background:var(--paper);
+  color:var(--text);
+  font-size:14px;
+  line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+}
+.mono{font-family:'JetBrains Mono',monospace;}
+a{color:inherit;text-decoration:none;}
+button{font-family:inherit;cursor:pointer;}
+::selection{background:var(--blue-soft);}
+
+/* ---------- Layout ---------- */
+.app{display:flex;min-height:100vh;}
+
+/* ---------- Sidebar ---------- */
+.sidebar{
+  width:252px;
+  min-width:252px;
+  background:var(--ink);
+  color:#B9C2D6;
+  display:flex;
+  flex-direction:column;
+  position:sticky;
+  top:0;
+  height:100vh;
+  overflow-y:auto;
+  z-index:40;
+  background-image:
+    radial-gradient(circle at 20px 20px, rgba(255,255,255,0.035) 1px, transparent 1px);
+  background-size:14px 14px;
+}
+.sidebar::-webkit-scrollbar{width:6px;}
+.sidebar::-webkit-scrollbar-thumb{background:var(--ink-softer);border-radius:4px;}
+
+.brand{
+  display:flex;align-items:center;gap:10px;
+  padding:20px 18px 16px 18px;
+  border-bottom:1px solid rgba(255,255,255,0.06);
+}
+.brand-mark{
+  width:32px;height:32px;border-radius:9px;
+  background:linear-gradient(135deg,var(--blue),var(--teal));
+  display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;
+}
+.brand-mark svg{width:17px;height:17px;}
+.brand-name{color:#fff;font-weight:800;font-size:15px;letter-spacing:0.2px;}
+.brand-sub{font-size:10.5px;color:#7C8AA8;font-weight:600;letter-spacing:0.6px;text-transform:uppercase;margin-top:1px;}
+
+.sys-status{
+  margin:14px 18px 6px 18px;
+  padding:9px 11px;
+  background:rgba(255,255,255,0.04);
+  border:1px solid rgba(255,255,255,0.07);
+  border-radius:8px;
+  display:flex;align-items:center;gap:8px;
+}
+.pulse-dot{width:7px;height:7px;border-radius:50%;background:var(--teal);position:relative;flex-shrink:0;}
+.pulse-dot::after{
+  content:'';position:absolute;inset:-4px;border-radius:50%;
+  border:1px solid var(--teal);opacity:0.6;
+  animation:pulse 2.2s ease-out infinite;
+}
+@keyframes pulse{0%{transform:scale(0.5);opacity:0.7;}100%{transform:scale(1.8);opacity:0;}}
+.sys-status-text{font-size:11px;color:#9AA6BC;}
+.sys-status-text b{color:#DCE3F0;font-weight:700;}
+.sys-clock{margin-left:auto;font-size:10.5px;color:#7C8AA8;}
+
+nav.nav{padding:12px 10px 24px 10px;flex:1;}
+.nav-group{margin-bottom:4px;}
+.nav-label{
+  font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;
+  color:#59647F;padding:14px 10px 6px 10px;
+}
+.nav-item{
+  display:flex;align-items:center;gap:10px;
+  padding:9px 10px;margin:1px 0;border-radius:8px;
+  font-size:13.5px;font-weight:600;color:#AEB8CC;
+  cursor:pointer;transition:background .12s,color .12s;
+  position:relative;
+}
+.nav-item svg{width:16px;height:16px;flex-shrink:0;opacity:0.85;}
+.nav-item:hover{background:rgba(255,255,255,0.045);color:#EDF1F8;}
+.nav-item.active{background:var(--blue);color:#fff;}
+.nav-item.active svg{opacity:1;}
+.nav-badge{
+  margin-left:auto;font-size:10px;font-weight:700;
+  background:rgba(255,255,255,0.12);color:#DCE3F0;
+  padding:1px 6px;border-radius:20px;
+}
+.nav-item.active .nav-badge{background:rgba(255,255,255,0.25);color:#fff;}
+.nav-sub{padding-left:26px;display:flex;flex-direction:column;}
+.nav-sub .nav-item{font-weight:500;font-size:12.8px;padding:7px 10px;}
+
+.sidebar-foot{
+  padding:14px 18px;border-top:1px solid rgba(255,255,255,0.06);
+  display:flex;align-items:center;gap:10px;
+}
+.avatar{
+  width:30px;height:30px;border-radius:8px;background:var(--violet);
+  display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:12px;flex-shrink:0;
+}
+.foot-name{font-size:12.5px;font-weight:700;color:#E4E9F3;}
+.foot-role{font-size:10.5px;color:#7C8AA8;}
+
+/* ---------- Main ---------- */
+.main{flex:1;min-width:0;display:flex;flex-direction:column;}
+.topbar{
+  height:62px;flex-shrink:0;
+  background:var(--card);
+  border-bottom:1px solid var(--border);
+  display:flex;align-items:center;
+  padding:0 24px;gap:16px;
+  position:sticky;top:0;z-index:30;
+}
+.hamburger{display:none;background:none;border:none;padding:6px;}
+.hamburger svg{width:20px;height:20px;}
+.page-title{font-size:17px;font-weight:800;letter-spacing:-0.2px;}
+.page-crumb{font-size:12px;color:var(--text-faint);margin-top:1px;}
+.search-box{
+  margin-left:auto;
+  display:flex;align-items:center;gap:8px;
+  background:var(--paper);border:1px solid var(--border);
+  border-radius:8px;padding:7px 12px;width:280px;
+}
+.search-box svg{width:15px;height:15px;color:var(--text-faint);flex-shrink:0;}
+.search-box input{border:none;background:none;outline:none;font-size:13px;width:100%;font-family:inherit;color:var(--text);}
+.icon-btn{
+  width:36px;height:36px;border-radius:8px;border:1px solid var(--border);
+  background:var(--card);display:flex;align-items:center;justify-content:center;
+  position:relative;flex-shrink:0;
+}
+.icon-btn svg{width:16px;height:16px;color:var(--text-muted);}
+.icon-btn .dot{
+  position:absolute;top:6px;right:6px;width:7px;height:7px;border-radius:50%;
+  background:var(--coral);border:1.5px solid var(--card);
+}
+.topbar-avatar{
+  width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,var(--blue),var(--violet));
+  display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:12.5px;flex-shrink:0;
+}
+
+.content{padding:24px;max-width:1440px;width:100%;margin:0 auto;}
+.view{display:none;}
+.view.active{display:block;animation:fadein .18s ease;}
+@keyframes fadein{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:translateY(0);}}
+
+/* ---------- KPI cards ---------- */
+.kpi-grid{
+  display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:22px;
+}
+.kpi-card{
+  background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);
+  padding:16px 16px 14px 16px;position:relative;overflow:hidden;
+}
+.kpi-top{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px;}
+.kpi-label{font-size:11px;font-weight:700;color:var(--text-faint);text-transform:uppercase;letter-spacing:0.5px;}
+.kpi-icon{width:26px;height:26px;border-radius:7px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.kpi-icon svg{width:13px;height:13px;}
+.kpi-value{font-family:'JetBrains Mono',monospace;font-size:24px;font-weight:700;letter-spacing:-0.5px;}
+.kpi-delta{font-size:11px;font-weight:700;margin-top:6px;display:flex;align-items:center;gap:4px;}
+.kpi-delta.up{color:var(--teal);}
+.kpi-delta.down{color:var(--coral);}
+.kpi-delta span{color:var(--text-faint);font-weight:500;}
+.spark{width:100%;height:26px;margin-top:8px;display:block;}
+
+/* ---------- Generic layout helpers ---------- */
+.row-2{display:grid;grid-template-columns:1.5fr 1fr;gap:16px;margin-bottom:16px;}
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);}
+.card-head{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:16px 18px;border-bottom:1px solid var(--border-soft);
+}
+.card-title{font-size:14.5px;font-weight:800;}
+.card-sub{font-size:11.5px;color:var(--text-faint);margin-top:2px;font-weight:500;}
+.card-body{padding:16px 18px;}
+.link-btn{font-size:12px;font-weight:700;color:var(--blue);}
+
+/* ---------- Buttons ---------- */
+.btn{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:8px 14px;border-radius:8px;font-size:12.5px;font-weight:700;
+  border:1px solid var(--border);background:var(--card);color:var(--text);
+}
+.btn svg{width:13px;height:13px;}
+.btn-primary{background:var(--blue);border-color:var(--blue);color:#fff;}
+.btn-ghost{background:transparent;border-color:transparent;color:var(--text-muted);}
+.btn-sm{padding:5px 10px;font-size:11.5px;}
+
+/* ---------- Tabs ---------- */
+.tabbar{display:flex;gap:4px;border-bottom:1px solid var(--border);margin-bottom:18px;}
+.tab{
+  padding:9px 4px;margin-right:20px;font-size:13px;font-weight:700;color:var(--text-faint);
+  border-bottom:2px solid transparent;cursor:pointer;
+}
+.tab.active{color:var(--ink);border-bottom-color:var(--blue);}
+.tab .cnt{font-family:'JetBrains Mono',monospace;font-size:10.5px;margin-left:4px;color:var(--text-faint);}
+
+/* ---------- Filters row ---------- */
+.filters-row{display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap;}
+.chip{
+  padding:6px 12px;border-radius:20px;font-size:12px;font-weight:700;
+  border:1px solid var(--border);background:var(--card);color:var(--text-muted);
+}
+.chip.active{background:var(--ink);border-color:var(--ink);color:#fff;}
+.filters-row .search-box{width:220px;}
+.filters-row .btn{margin-left:auto;}
+
+/* ---------- Tables ---------- */
+.table-wrap{overflow-x:auto;}
+table{width:100%;border-collapse:collapse;font-size:13px;}
+thead th{
+  text-align:left;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.4px;
+  color:var(--text-faint);padding:10px 14px;border-bottom:1px solid var(--border);white-space:nowrap;
+}
+tbody td{padding:12px 14px;border-bottom:1px solid var(--border-soft);white-space:nowrap;}
+tbody tr{transition:background .1s;}
+tbody tr.clickable{cursor:pointer;}
+tbody tr.clickable:hover{background:var(--paper);}
+.cell-main{font-weight:700;color:var(--text);}
+.cell-sub{font-size:11.5px;color:var(--text-faint);margin-top:1px;}
+.cell-num{font-family:'JetBrains Mono',monospace;}
+
+.badge{
+  display:inline-flex;align-items:center;gap:5px;
+  padding:3px 9px;border-radius:20px;font-size:11px;font-weight:700;
+}
+.badge::before{content:'';width:6px;height:6px;border-radius:50%;}
+.badge-active{background:var(--teal-soft);color:#0B7A76;}
+.badge-active::before{background:var(--teal);}
+.badge-trial{background:var(--amber-soft);color:#A16207;}
+.badge-trial::before{background:var(--amber);}
+.badge-expired{background:var(--coral-soft);color:#B23D22;}
+.badge-expired::before{background:var(--coral);}
+.badge-suspended{background:#EDEFF3;color:#5B6472;}
+.badge-suspended::before{background:#8A93A3;}
+.badge-open{background:var(--coral-soft);color:#B23D22;}
+.badge-open::before{background:var(--coral);}
+.badge-progress{background:var(--amber-soft);color:#A16207;}
+.badge-progress::before{background:var(--amber);}
+.badge-resolved{background:var(--teal-soft);color:#0B7A76;}
+.badge-resolved::before{background:var(--teal);}
+.badge-critical{background:var(--ink);color:#fff;}
+.badge-critical::before{background:var(--coral);}
+.badge-success{background:var(--teal-soft);color:#0B7A76;}
+.badge-success::before{background:var(--teal);}
+.badge-failed{background:var(--coral-soft);color:#B23D22;}
+.badge-failed::before{background:var(--coral);}
+.badge-pending{background:var(--amber-soft);color:#A16207;}
+.badge-pending::before{background:var(--amber);}
+
+.avatar-sm{
+  width:28px;height:28px;border-radius:7px;background:var(--blue-soft);color:var(--blue);
+  display:inline-flex;align-items:center;justify-content:center;font-weight:800;font-size:11px;margin-right:9px;flex-shrink:0;
+  vertical-align:middle;
+}
+.name-flex{display:flex;align-items:center;}
+
+.pagination{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;font-size:12px;color:var(--text-faint);}
+.pagination .btn{padding:5px 10px;}
+
+/* ---------- Progress bars ---------- */
+.usage-row{display:flex;align-items:center;gap:10px;margin-bottom:12px;}
+.usage-label{font-size:12px;font-weight:700;width:80px;flex-shrink:0;color:var(--text-muted);}
+.usage-bar{flex:1;height:7px;border-radius:4px;background:var(--border-soft);overflow:hidden;}
+.usage-fill{height:100%;border-radius:4px;background:var(--blue);}
+.usage-val{font-family:'JetBrains Mono',monospace;font-size:11.5px;color:var(--text-faint);width:56px;text-align:right;flex-shrink:0;}
+
+/* ---------- Business Detail ---------- */
+.detail-head{display:flex;align-items:flex-start;gap:16px;margin-bottom:20px;}
+.detail-logo{
+  width:56px;height:56px;border-radius:12px;background:linear-gradient(135deg,var(--violet),var(--blue));
+  display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:20px;flex-shrink:0;
+}
+.detail-title{font-size:20px;font-weight:800;letter-spacing:-0.3px;}
+.detail-meta{font-size:12.5px;color:var(--text-faint);margin-top:3px;}
+.back-link{display:flex;align-items:center;gap:6px;font-size:12.5px;font-weight:700;color:var(--text-muted);margin-bottom:14px;cursor:pointer;}
+.back-link svg{width:14px;height:14px;}
+
+.stat-strip{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px;}
+.stat-box{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;}
+.stat-box .lbl{font-size:11px;color:var(--text-faint);font-weight:700;text-transform:uppercase;letter-spacing:0.4px;}
+.stat-box .val{font-family:'JetBrains Mono',monospace;font-size:20px;font-weight:700;margin-top:5px;}
+
+.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:2px 26px;}
+.info-item{padding:9px 0;border-bottom:1px solid var(--border-soft);}
+.info-item .k{font-size:11px;color:var(--text-faint);font-weight:700;text-transform:uppercase;letter-spacing:0.3px;}
+.info-item .v{font-size:13.5px;font-weight:700;margin-top:2px;}
+
+.activity-item{display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--border-soft);}
+.activity-item:last-child{border-bottom:none;}
+.activity-dot{width:7px;height:7px;border-radius:50%;background:var(--blue);margin-top:6px;flex-shrink:0;}
+.activity-text{font-size:12.8px;font-weight:600;}
+.activity-time{font-size:11px;color:var(--text-faint);margin-top:1px;}
+
+/* ---------- Plan cards ---------- */
+.plan-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:22px;}
+.plan-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:22px;position:relative;}
+.plan-card.featured{border-color:var(--blue);box-shadow:0 0 0 3px var(--blue-soft);}
+.plan-tag{position:absolute;top:-11px;left:22px;background:var(--blue);color:#fff;font-size:10.5px;font-weight:700;padding:3px 10px;border-radius:20px;}
+.plan-name{font-size:15px;font-weight:800;}
+.plan-price{font-family:'JetBrains Mono',monospace;font-size:28px;font-weight:700;margin:10px 0 2px 0;}
+.plan-price span{font-size:12px;color:var(--text-faint);font-weight:600;font-family:'Manrope',sans-serif;}
+.plan-active-count{font-size:11.5px;color:var(--text-faint);margin-bottom:14px;}
+.plan-feat{display:flex;align-items:center;gap:8px;font-size:12.8px;font-weight:600;padding:6px 0;color:var(--text-muted);}
+.plan-feat svg{width:14px;height:14px;color:var(--teal);flex-shrink:0;}
+.plan-actions{display:flex;gap:8px;margin-top:16px;}
+
+/* ---------- Analytics charts ---------- */
+.chart-box{width:100%;height:220px;}
+.legend{display:flex;gap:16px;margin-top:10px;flex-wrap:wrap;}
+.legend-item{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--text-muted);font-weight:600;}
+.legend-dot{width:8px;height:8px;border-radius:2px;}
+
+/* ---------- Notifications ---------- */
+.notif-item{display:flex;gap:12px;padding:14px 18px;border-bottom:1px solid var(--border-soft);}
+.notif-item:last-child{border-bottom:none;}
+.notif-icon{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.notif-icon svg{width:16px;height:16px;}
+.notif-title{font-size:13px;font-weight:700;}
+.notif-desc{font-size:12px;color:var(--text-muted);margin-top:2px;}
+.notif-time{font-size:11px;color:var(--text-faint);margin-top:4px;}
+
+/* ---------- Audit log ---------- */
+.audit-item{display:flex;gap:14px;padding:14px 0;border-bottom:1px solid var(--border-soft);position:relative;}
+.audit-item:last-child{border-bottom:none;}
+.audit-time{width:150px;flex-shrink:0;font-family:'JetBrains Mono',monospace;font-size:11.5px;color:var(--text-faint);padding-top:2px;}
+.audit-line{width:2px;background:var(--border);position:relative;flex-shrink:0;}
+.audit-line::before{content:'';position:absolute;top:2px;left:-3px;width:8px;height:8px;border-radius:50%;background:var(--blue);}
+.audit-text{font-size:13px;font-weight:600;}
+.audit-text b{font-weight:800;}
+.audit-actor{font-size:11.5px;color:var(--text-faint);margin-top:2px;}
+
+/* ---------- Settings ---------- */
+.settings-grid{display:grid;grid-template-columns:220px 1fr;gap:24px;}
+.settings-nav{display:flex;flex-direction:column;gap:2px;}
+.settings-nav .s-item{padding:9px 12px;border-radius:8px;font-size:13px;font-weight:700;color:var(--text-muted);cursor:pointer;}
+.settings-nav .s-item.active{background:var(--blue-soft);color:var(--blue);}
+.form-row{margin-bottom:16px;}
+.form-row label{display:block;font-size:12px;font-weight:700;color:var(--text-muted);margin-bottom:6px;}
+.form-row input,.form-row select{
+  width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;color:var(--text);background:var(--paper);
+}
+.form-2col{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.toggle-row{display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--border-soft);}
+.toggle-row:last-child{border-bottom:none;}
+.toggle-row .t-title{font-size:13px;font-weight:700;}
+.toggle-row .t-desc{font-size:11.5px;color:var(--text-faint);margin-top:2px;}
+.switch{width:38px;height:22px;border-radius:20px;background:var(--border);position:relative;flex-shrink:0;cursor:pointer;}
+.switch.on{background:var(--teal);}
+.switch::after{content:'';position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:#fff;transition:left .15s;box-shadow:var(--shadow-sm);}
+.switch.on::after{left:18px;}
+
+/* ---------- Empty / misc ---------- */
+.section-title{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-faint);margin:0 0 12px 0;}
+.mb-22{margin-bottom:22px;}
+
+/* ---------- Responsive ---------- */
+@media (max-width:1180px){
+  .kpi-grid{grid-template-columns:repeat(3,1fr);}
+  .row-2{grid-template-columns:1fr;}
+  .plan-grid{grid-template-columns:1fr;}
+  .stat-strip{grid-template-columns:repeat(2,1fr);}
+}
+@media (max-width:840px){
+  .sidebar{position:fixed;left:-260px;transition:left .18s;box-shadow:var(--shadow-md);}
+  .sidebar.open{left:0;}
+  .hamburger{display:flex;}
+  .kpi-grid{grid-template-columns:repeat(2,1fr);}
+  .search-box{display:none;}
+  .settings-grid{grid-template-columns:1fr;}
+  .info-grid{grid-template-columns:1fr;}
+}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ============ SIDEBAR ============ -->
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <div class="brand-mark">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l2-6h6l2 6h4"/><circle cx="7.5" cy="16.5" r="2.5"/><circle cx="16.5" cy="16.5" r="2.5"/></svg>
+      </div>
+      <div>
+        <div class="brand-name">FleetOps</div>
+        <div class="brand-sub">Super Admin</div>
+      </div>
+    </div>
+
+    <div class="sys-status">
+      <span class="pulse-dot"></span>
+      <span class="sys-status-text">All systems <b>operational</b></span>
+      <span class="sys-clock mono" id="sysClock">--:--:--</span>
+    </div>
+
+    <nav class="nav">
+      <div class="nav-group">
+        <div class="nav-item active" data-view="dashboard">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
+          Dashboard
+        </div>
+      </div>
+
+      <div class="nav-group">
+        <div class="nav-label">Businesses</div>
+        <div class="nav-item" data-view="businesses" data-filter="all">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/><path d="M9 9h.01M9 13h.01M15 9h.01M15 13h.01"/></svg>
+          All Businesses <span class="nav-badge">42</span>
+        </div>
+        <div class="nav-sub">
+          <div class="nav-item" data-view="businesses" data-filter="Active">Active</div>
+          <div class="nav-item" data-view="businesses" data-filter="Trial">Trial</div>
+          <div class="nav-item" data-view="businesses" data-filter="Expired">Expired</div>
+          <div class="nav-item" data-view="businesses" data-filter="Suspended">Suspended</div>
+        </div>
+      </div>
+
+      <div class="nav-group">
+        <div class="nav-label">Subscriptions</div>
+        <div class="nav-item" data-view="subscriptions" data-tab="plans">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2.5"/><path d="M2 10h20"/></svg>
+          Plans
+        </div>
+        <div class="nav-sub">
+          <div class="nav-item" data-view="subscriptions" data-tab="active">Active Subscriptions</div>
+          <div class="nav-item" data-view="subscriptions" data-tab="expiring">Expiring Soon</div>
+          <div class="nav-item" data-view="subscriptions" data-tab="cancelled">Cancelled</div>
+        </div>
+      </div>
+
+      <div class="nav-group">
+        <div class="nav-label">Payments</div>
+        <div class="nav-item" data-view="payments" data-tab="transactions">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1v22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+          Transactions
+        </div>
+        <div class="nav-sub">
+          <div class="nav-item" data-view="payments" data-tab="revenue">Revenue</div>
+          <div class="nav-item" data-view="payments" data-tab="failed">Failed Payments</div>
+          <div class="nav-item" data-view="payments" data-tab="refunds">Refunds</div>
+        </div>
+      </div>
+
+      <div class="nav-group">
+        <div class="nav-item" data-view="users">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          Users
+        </div>
+      </div>
+
+      <div class="nav-group">
+        <div class="nav-label">Analytics</div>
+        <div class="nav-item" data-view="analytics" data-tab="usage">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>
+          Platform Usage
+        </div>
+        <div class="nav-sub">
+          <div class="nav-item" data-view="analytics" data-tab="growth">Business Growth</div>
+          <div class="nav-item" data-view="analytics" data-tab="revenue-a">Revenue Analytics</div>
+        </div>
+      </div>
+
+      <div class="nav-group">
+        <div class="nav-label">Support</div>
+        <div class="nav-item" data-view="support" data-tab="tickets">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          Tickets <span class="nav-badge">6</span>
+        </div>
+        <div class="nav-sub">
+          <div class="nav-item" data-view="support" data-tab="feedback">Feedback</div>
+        </div>
+      </div>
+
+      <div class="nav-group">
+        <div class="nav-item" data-view="notifications">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+          Notifications <span class="nav-badge">4</span>
+        </div>
+        <div class="nav-item" data-view="audit">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+          Audit Logs
+        </div>
+        <div class="nav-item" data-view="settings">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          Settings
+        </div>
+      </div>
+    </nav>
+
+    <div class="sidebar-foot">
+      <div class="avatar">SA</div>
+      <div>
+        <div class="foot-name">Aarav Mehta</div>
+        <div class="foot-role">Super Admin</div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ============ MAIN ============ -->
+  <div class="main">
+    <div class="topbar">
+      <button class="hamburger" id="hamburger"><svg viewBox="0 0 24 24" fill="none" stroke="var(--text)" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg></button>
+      <div>
+        <div class="page-title" id="pageTitle">Dashboard</div>
+        <div class="page-crumb" id="pageCrumb">Overview of the whole platform</div>
+      </div>
+      <div class="search-box">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+        <input type="text" placeholder="Search businesses, users, tickets…">
+      </div>
+      <button class="icon-btn"><span class="dot"></span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></button>
+      <div class="topbar-avatar">SA</div>
+    </div>
+
+    <div class="content">
+
+      <!-- ============ DASHBOARD ============ -->
+      <section class="view active" id="view-dashboard">
+        <div class="kpi-grid" id="kpiGrid"></div>
+
+        <div class="row-2">
+          <div class="card">
+            <div class="card-head">
+              <div><div class="card-title">Revenue trend</div><div class="card-sub">Monthly recurring revenue, last 12 months</div></div>
+              <div class="link-btn" data-goto="analytics" data-tab="revenue-a">View analytics →</div>
+            </div>
+            <div class="card-body">
+              <svg class="chart-box" id="revChart" viewBox="0 0 640 220" preserveAspectRatio="none"></svg>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-head">
+              <div><div class="card-title">Recent activity</div><div class="card-sub">Latest platform events</div></div>
+            </div>
+            <div class="card-body" id="dashActivity" style="max-height:266px;overflow-y:auto;"></div>
+          </div>
+        </div>
+
+        <div class="row-2">
+          <div class="card">
+            <div class="card-head">
+              <div><div class="card-title">New businesses this month</div><div class="card-sub">Sign-ups by week</div></div>
+            </div>
+            <div class="card-body">
+              <svg class="chart-box" style="height:160px" id="signupChart" viewBox="0 0 640 160" preserveAspectRatio="none"></svg>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-head">
+              <div><div class="card-title">Expiring soon</div><div class="card-sub">Subscriptions renewing within 7 days</div></div>
+              <div class="link-btn" data-goto="subscriptions" data-tab="expiring">View all →</div>
+            </div>
+            <div class="card-body" id="dashExpiring" style="max-height:200px;overflow-y:auto;"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ BUSINESSES LIST ============ -->
+      <section class="view" id="view-businesses">
+        <div class="filters-row">
+          <div class="chip active" data-status="all">All <span class="mono" id="cnt-all"></span></div>
+          <div class="chip" data-status="Active">Active</div>
+          <div class="chip" data-status="Trial">Trial</div>
+          <div class="chip" data-status="Expired">Expired</div>
+          <div class="chip" data-status="Suspended">Suspended</div>
+          <div class="search-box" style="margin-left:10px;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+            <input type="text" id="bizSearch" placeholder="Search business or owner…">
+          </div>
+          <button class="btn btn-primary"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Add Business</button>
+        </div>
+        <div class="card">
+          <div class="table-wrap">
+            <table>
+              <thead><tr>
+                <th>Business</th><th>Plan</th><th>Status</th><th>Vehicles</th><th>Drivers</th><th>Users</th><th>Expiry</th><th>Last Login</th>
+              </tr></thead>
+              <tbody id="bizTableBody"></tbody>
+            </table>
+          </div>
+          <div class="pagination"><span id="bizCountLabel"></span><div style="display:flex;gap:6px;"><button class="btn btn-sm">Prev</button><button class="btn btn-sm">Next</button></div></div>
+        </div>
+      </section>
+
+      <!-- ============ BUSINESS DETAIL ============ -->
+      <section class="view" id="view-biz-detail">
+        <div class="back-link" data-goto="businesses"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>Back to Businesses</div>
+
+        <div class="detail-head">
+          <div class="detail-logo" id="bd-logo">AT</div>
+          <div style="flex:1;">
+            <div class="detail-title" id="bd-name">ABC Travels</div>
+            <div class="detail-meta" id="bd-meta">Rahul Sharma · Mumbai, MH · Registered 12 Jan 2025</div>
+          </div>
+          <span class="badge badge-active" id="bd-status">Active</span>
+          <button class="btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>Edit</button>
+          <button class="btn" style="color:var(--coral);">Suspend</button>
+        </div>
+
+        <div class="stat-strip">
+          <div class="stat-box"><div class="lbl">Vehicles</div><div class="val" id="bd-vehicles">18</div></div>
+          <div class="stat-box"><div class="lbl">Drivers</div><div class="val" id="bd-drivers">21</div></div>
+          <div class="stat-box"><div class="lbl">Users</div><div class="val" id="bd-users">5</div></div>
+          <div class="stat-box"><div class="lbl">Monthly bill</div><div class="val" id="bd-amount">₹1,999</div></div>
+        </div>
+
+        <div class="row-2">
+          <div class="card">
+            <div class="card-head"><div class="card-title">Business details</div></div>
+            <div class="card-body">
+              <div class="info-grid" id="bd-info"></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-head"><div class="card-title">Subscription</div><span class="badge badge-active" id="bd-sub-status">Active</span></div>
+            <div class="card-body">
+              <div class="info-item" style="border:none;padding-top:0;"><div class="k">Plan</div><div class="v" id="bd-plan">Professional</div></div>
+              <div class="info-grid" style="margin-top:4px;">
+                <div class="info-item"><div class="k">Started</div><div class="v" id="bd-start">01 Aug 2026</div></div>
+                <div class="info-item"><div class="k">Renews</div><div class="v" id="bd-renew">01 Sep 2026</div></div>
+                <div class="info-item"><div class="k">Billing</div><div class="v">Monthly</div></div>
+                <div class="info-item"><div class="k">Auto renew</div><div class="v">ON</div></div>
+              </div>
+              <div style="margin-top:16px;">
+                <div class="section-title" style="margin-bottom:10px;">Usage this cycle</div>
+                <div class="usage-row"><div class="usage-label">Vehicles</div><div class="usage-bar"><div class="usage-fill" id="bd-usage-v" style="width:72%"></div></div><div class="usage-val" id="bd-usage-v-t">18/25</div></div>
+                <div class="usage-row"><div class="usage-label">Drivers</div><div class="usage-bar"><div class="usage-fill" id="bd-usage-d" style="width:84%"></div></div><div class="usage-val" id="bd-usage-d-t">21/25</div></div>
+                <div class="usage-row"><div class="usage-label">Users</div><div class="usage-bar"><div class="usage-fill" id="bd-usage-u" style="width:50%"></div></div><div class="usage-val" id="bd-usage-u-t">5/10</div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="row-2">
+          <div class="card">
+            <div class="card-head"><div class="card-title">Recent activity</div></div>
+            <div class="card-body" id="bd-activity"></div>
+          </div>
+          <div class="card">
+            <div class="card-head"><div class="card-title">Payment history</div></div>
+            <div class="table-wrap">
+              <table><thead><tr><th>Date</th><th>Amount</th><th>Status</th></tr></thead><tbody id="bd-payments"></tbody></table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ SUBSCRIPTIONS ============ -->
+      <section class="view" id="view-subscriptions">
+        <div class="tabbar" id="subTabs">
+          <div class="tab active" data-sub-tab="plans">Plans</div>
+          <div class="tab" data-sub-tab="active">Active Subscriptions <span class="cnt">38</span></div>
+          <div class="tab" data-sub-tab="expiring">Expiring Soon <span class="cnt">5</span></div>
+          <div class="tab" data-sub-tab="cancelled">Cancelled <span class="cnt">3</span></div>
+        </div>
+
+        <div class="sub-pane" id="sub-plans">
+          <div class="plan-grid" id="planGrid"></div>
+          <button class="btn btn-primary"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Create New Plan</button>
+        </div>
+
+        <div class="sub-pane" id="sub-active" style="display:none;">
+          <div class="card">
+            <div class="table-wrap">
+              <table><thead><tr><th>Business</th><th>Plan</th><th>Billing</th><th>Amount</th><th>Start</th><th>Renewal</th><th>Auto Renew</th></tr></thead>
+              <tbody id="subActiveBody"></tbody></table>
+            </div>
+          </div>
+        </div>
+
+        <div class="sub-pane" id="sub-expiring" style="display:none;">
+          <div class="card">
+            <div class="table-wrap">
+              <table><thead><tr><th>Business</th><th>Plan</th><th>Expiry Date</th><th>Days Left</th><th>Amount</th><th></th></tr></thead>
+              <tbody id="subExpiringBody"></tbody></table>
+            </div>
+          </div>
+        </div>
+
+        <div class="sub-pane" id="sub-cancelled" style="display:none;">
+          <div class="card">
+            <div class="table-wrap">
+              <table><thead><tr><th>Business</th><th>Plan</th><th>Cancelled On</th><th>Reason</th></tr></thead>
+              <tbody id="subCancelledBody"></tbody></table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ PAYMENTS ============ -->
+      <section class="view" id="view-payments">
+        <div class="kpi-grid" style="grid-template-columns:repeat(4,1fr);" id="payKpiGrid"></div>
+
+        <div class="tabbar" id="payTabs">
+          <div class="tab active" data-pay-tab="transactions">Transactions</div>
+          <div class="tab" data-pay-tab="revenue">Revenue</div>
+          <div class="tab" data-pay-tab="failed">Failed Payments <span class="cnt">3</span></div>
+          <div class="tab" data-pay-tab="refunds">Refunds <span class="cnt">2</span></div>
+        </div>
+
+        <div class="pay-pane" id="pay-transactions">
+          <div class="card">
+            <div class="table-wrap">
+              <table><thead><tr><th>Txn ID</th><th>Business</th><th>Amount</th><th>Method</th><th>Date</th><th>Status</th></tr></thead>
+              <tbody id="payTxnBody"></tbody></table>
+            </div>
+          </div>
+        </div>
+
+        <div class="pay-pane" id="pay-revenue" style="display:none;">
+          <div class="card">
+            <div class="card-head"><div class="card-title">Revenue by month</div></div>
+            <div class="card-body"><svg class="chart-box" id="payRevChart" viewBox="0 0 640 220" preserveAspectRatio="none"></svg></div>
+          </div>
+        </div>
+
+        <div class="pay-pane" id="pay-failed" style="display:none;">
+          <div class="card">
+            <div class="table-wrap">
+              <table><thead><tr><th>Business</th><th>Amount</th><th>Reason</th><th>Date</th><th></th></tr></thead>
+              <tbody id="payFailedBody"></tbody></table>
+            </div>
+          </div>
+        </div>
+
+        <div class="pay-pane" id="pay-refunds" style="display:none;">
+          <div class="card">
+            <div class="table-wrap">
+              <table><thead><tr><th>Business</th><th>Amount</th><th>Reason</th><th>Date</th><th>Status</th></tr></thead>
+              <tbody id="payRefundsBody"></tbody></table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ USERS ============ -->
+      <section class="view" id="view-users">
+        <div class="filters-row">
+          <div class="chip active" data-role="all">All</div>
+          <div class="chip" data-role="Owner">Business Owners</div>
+          <div class="chip" data-role="Admin">Admins</div>
+          <div class="chip" data-role="Manager">Managers</div>
+          <div class="chip" data-role="Driver">Drivers</div>
+          <div class="search-box" style="margin-left:10px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg><input type="text" placeholder="Search users…"></div>
+        </div>
+        <div class="card">
+          <div class="table-wrap">
+            <table><thead><tr><th>Name</th><th>Business</th><th>Role</th><th>Email</th><th>Status</th><th>Last Login</th><th>Created</th></tr></thead>
+            <tbody id="usersBody"></tbody></table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ ANALYTICS ============ -->
+      <section class="view" id="view-analytics">
+        <div class="tabbar" id="anaTabs">
+          <div class="tab active" data-ana-tab="usage">Platform Usage</div>
+          <div class="tab" data-ana-tab="growth">Business Growth</div>
+          <div class="tab" data-ana-tab="revenue-a">Revenue Analytics</div>
+        </div>
+
+        <div class="ana-pane" id="ana-usage">
+          <div class="kpi-grid" id="usageKpiGrid"></div>
+          <div class="row-2">
+            <div class="card">
+              <div class="card-head"><div class="card-title">Daily active businesses</div><div class="card-sub">Last 14 days</div></div>
+              <div class="card-body"><svg class="chart-box" id="dabChart" viewBox="0 0 640 200" preserveAspectRatio="none"></svg></div>
+            </div>
+            <div class="card">
+              <div class="card-head"><div class="card-title">Trip volume by type</div></div>
+              <div class="card-body">
+                <div class="usage-row"><div class="usage-label">One-way</div><div class="usage-bar"><div class="usage-fill" style="width:58%;background:var(--blue);"></div></div><div class="usage-val">58%</div></div>
+                <div class="usage-row"><div class="usage-label">Round trip</div><div class="usage-bar"><div class="usage-fill" style="width:31%;background:var(--teal);"></div></div><div class="usage-val">31%</div></div>
+                <div class="usage-row"><div class="usage-label">Rental</div><div class="usage-bar"><div class="usage-fill" style="width:11%;background:var(--amber);"></div></div><div class="usage-val">11%</div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="ana-pane" id="ana-growth" style="display:none;">
+          <div class="card">
+            <div class="card-head"><div class="card-title">New businesses vs churned</div><div class="card-sub">Last 6 months</div></div>
+            <div class="card-body">
+              <svg class="chart-box" id="growthChart" viewBox="0 0 640 240" preserveAspectRatio="none"></svg>
+              <div class="legend">
+                <div class="legend-item"><span class="legend-dot" style="background:var(--blue);"></span>New businesses</div>
+                <div class="legend-item"><span class="legend-dot" style="background:var(--coral);"></span>Churned</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="ana-pane" id="ana-revenue-a" style="display:none;">
+          <div class="card">
+            <div class="card-head"><div class="card-title">MRR growth</div><div class="card-sub">Monthly recurring revenue, ₹ lakhs</div></div>
+            <div class="card-body"><svg class="chart-box" id="mrrChart" viewBox="0 0 640 220" preserveAspectRatio="none"></svg></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ SUPPORT ============ -->
+      <section class="view" id="view-support">
+        <div class="tabbar" id="supTabs">
+          <div class="tab active" data-sup-tab="tickets">Tickets</div>
+          <div class="tab" data-sup-tab="feedback">Feedback</div>
+        </div>
+
+        <div class="sup-pane" id="sup-tickets">
+          <div class="filters-row">
+            <div class="chip active" data-tstatus="all">All</div>
+            <div class="chip" data-tstatus="Open">Open</div>
+            <div class="chip" data-tstatus="In Progress">In Progress</div>
+            <div class="chip" data-tstatus="Resolved">Resolved</div>
+            <div class="chip" data-tstatus="Critical">Critical</div>
+          </div>
+          <div class="card">
+            <div class="table-wrap">
+              <table><thead><tr><th>Ticket</th><th>Business</th><th>Subject</th><th>Priority</th><th>Assigned</th><th>Status</th></tr></thead>
+              <tbody id="ticketsBody"></tbody></table>
+            </div>
+          </div>
+        </div>
+
+        <div class="sup-pane" id="sup-feedback" style="display:none;">
+          <div class="card">
+            <div class="table-wrap">
+              <table><thead><tr><th>Business</th><th>Type</th><th>Message</th><th>Date</th></tr></thead>
+              <tbody id="feedbackBody"></tbody></table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ NOTIFICATIONS ============ -->
+      <section class="view" id="view-notifications">
+        <div class="card" id="notifList"></div>
+      </section>
+
+      <!-- ============ AUDIT LOGS ============ -->
+      <section class="view" id="view-audit">
+        <div class="filters-row">
+          <div class="search-box" style="width:260px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg><input type="text" placeholder="Search actions…"></div>
+          <button class="btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>Export CSV</button>
+        </div>
+        <div class="card">
+          <div class="card-body" id="auditList"></div>
+        </div>
+      </section>
+
+      <!-- ============ SETTINGS ============ -->
+      <section class="view" id="view-settings">
+        <div class="settings-grid">
+          <div class="settings-nav">
+            <div class="s-item active" data-set="general">General</div>
+            <div class="s-item" data-set="notifications">Notifications</div>
+            <div class="s-item" data-set="security">Security</div>
+            <div class="s-item" data-set="billing">Billing Info</div>
+            <div class="s-item" data-set="team">Team Access</div>
+          </div>
+          <div>
+            <div class="card">
+              <div class="card-head"><div class="card-title">Platform settings</div><div class="card-sub">General configuration for the FleetOps platform</div></div>
+              <div class="card-body">
+                <div class="form-2col">
+                  <div class="form-row"><label>Platform name</label><input type="text" value="FleetOps"></div>
+                  <div class="form-row"><label>Support email</label><input type="text" value="support@fleetops.in"></div>
+                  <div class="form-row"><label>Default currency</label><select><option>INR (₹)</option><option>USD ($)</option></select></div>
+                  <div class="form-row"><label>Timezone</label><select><option>Asia/Kolkata (IST)</option></select></div>
+                </div>
+                <div class="section-title" style="margin-top:6px;">Alerts</div>
+                <div class="toggle-row"><div><div class="t-title">Trial ending reminders</div><div class="t-desc">Notify businesses 3 days before trial ends</div></div><div class="switch on"></div></div>
+                <div class="toggle-row"><div><div class="t-title">Payment failure alerts</div><div class="t-desc">Email Super Admin when a payment fails</div></div><div class="switch on"></div></div>
+                <div class="toggle-row"><div><div class="t-title">New business sign-up alert</div><div class="t-desc">Slack notification for every new sign-up</div></div><div class="switch"></div></div>
+                <div style="margin-top:18px;"><button class="btn btn-primary">Save changes</button></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </div>
+</div>
+
+<script>
+/* ======================= MOCK DATA ======================= */
+const businesses = [
+  {id:1,name:"ABC Travels",owner:"Rahul Sharma",email:"rahul@abctravels.in",phone:"+91 98200 11223",type:"Cab Rental",city:"Mumbai, MH",reg:"12 Jan 2025",plan:"Professional",status:"Active",start:"01 Aug 2026",expiry:"01 Sep 2026",vehicles:18,vlimit:25,drivers:21,dlimit:25,users:5,ulimit:10,lastLogin:"2 hours ago",amount:"₹1,999"},
+  {id:2,name:"Speedway Fleet",owner:"Neha Kapoor",email:"neha@speedway.co",phone:"+91 98111 44556",type:"Corporate Fleet",city:"Delhi, DL",reg:"03 Mar 2025",plan:"Enterprise",status:"Active",start:"15 Jul 2026",expiry:"15 Aug 2026",vehicles:64,vlimit:999,drivers:70,dlimit:999,users:14,ulimit:999,lastLogin:"14 minutes ago",amount:"₹8,499"},
+  {id:3,name:"Metro Cabs Co.",owner:"Suresh Iyer",email:"suresh@metrocabs.in",phone:"+91 97022 33441",type:"Cab Rental",city:"Bengaluru, KA",reg:"22 Nov 2025",plan:"Basic",status:"Trial",start:"20 Aug 2026",expiry:"03 Sep 2026",vehicles:4,vlimit:5,drivers:5,dlimit:5,users:2,ulimit:5,lastLogin:"1 day ago",amount:"₹0"},
+  {id:4,name:"GoRide Logistics",owner:"Priya Nair",email:"priya@goride.in",phone:"+91 90012 88774",type:"Logistics",city:"Pune, MH",reg:"09 Feb 2025",plan:"Professional",status:"Expired",start:"01 Jun 2026",expiry:"01 Jul 2026",vehicles:22,vlimit:25,drivers:19,dlimit:25,users:6,ulimit:10,lastLogin:"18 days ago",amount:"₹1,999"},
+  {id:5,name:"Highway Kings",owner:"Manish Yadav",email:"manish@highwaykings.in",phone:"+91 99880 12345",type:"Cab Rental",city:"Jaipur, RJ",reg:"30 Apr 2025",plan:"Basic",status:"Suspended",start:"01 May 2026",expiry:"01 Jun 2026",vehicles:5,vlimit:5,drivers:4,dlimit:5,users:2,ulimit:5,lastLogin:"41 days ago",amount:"₹999"},
+  {id:6,name:"Urban Wheels",owner:"Deepa Reddy",email:"deepa@urbanwheels.in",phone:"+91 98456 22110",type:"Corporate Fleet",city:"Hyderabad, TG",reg:"17 Jun 2025",plan:"Enterprise",status:"Active",start:"10 Aug 2026",expiry:"10 Sep 2026",vehicles:88,vlimit:999,drivers:95,dlimit:999,users:20,ulimit:999,lastLogin:"38 minutes ago",amount:"₹11,999"},
+  {id:7,name:"Coastal Cabs",owner:"Arjun Menon",email:"arjun@coastalcabs.in",phone:"+91 97401 99332",type:"Cab Rental",city:"Kochi, KL",reg:"05 Sep 2025",plan:"Professional",status:"Active",start:"22 Aug 2026",expiry:"28 Aug 2026",vehicles:23,vlimit:25,drivers:24,dlimit:25,users:7,ulimit:10,lastLogin:"5 hours ago",amount:"₹1,999"},
+  {id:8,name:"Northline Transport",owner:"Karan Bhatia",email:"karan@northline.in",phone:"+91 96543 21109",type:"Logistics",city:"Chandigarh, PB",reg:"14 Dec 2025",plan:"Basic",status:"Trial",start:"18 Aug 2026",expiry:"01 Sep 2026",vehicles:3,vlimit:5,drivers:3,dlimit:5,users:1,ulimit:5,lastLogin:"6 hours ago",amount:"₹0"},
+  {id:9,name:"Skyline Rides",owner:"Ritu Sharma",email:"ritu@skylinerides.in",phone:"+91 91234 56780",type:"Cab Rental",city:"Ahmedabad, GJ",reg:"01 Jul 2025",plan:"Professional",status:"Expired",start:"01 Jul 2026",expiry:"31 Jul 2026",vehicles:16,vlimit:25,drivers:15,dlimit:25,users:4,ulimit:10,lastLogin:"25 days ago",amount:"₹1,999"},
+  {id:10,name:"Prime Movers",owner:"Vikram Singh",email:"vikram@primemovers.in",phone:"+91 90909 87654",type:"Corporate Fleet",city:"Lucknow, UP",reg:"19 Aug 2025",plan:"Enterprise",status:"Active",start:"05 Aug 2026",expiry:"05 Sep 2026",vehicles:41,vlimit:999,drivers:45,dlimit:999,users:11,ulimit:999,lastLogin:"1 hour ago",amount:"₹8,499"},
+];
+
+const plans = [
+  {name:"Basic",price:999,vehicles:"5 Vehicles",drivers:"5 Drivers",users:"5 Users",active:9,features:["5 vehicle limit","5 driver limit","Trip & KM tracking","Fuel & FASTag log","Email support"]},
+  {name:"Professional",price:1999,vehicles:"25 Vehicles",drivers:"25 Drivers",users:"10 Users",active:22,features:["25 vehicle limit","25 driver limit","Everything in Basic","Driver expense tracking","Priority support"],featured:true},
+  {name:"Enterprise",price:null,vehicles:"Unlimited Vehicles",drivers:"Unlimited Drivers",users:"Unlimited Users",active:11,features:["Unlimited vehicles & drivers","Everything in Professional","Custom pricing","Dedicated account manager","API access"]},
+];
+
+const activityFeed = [
+  {text:"<b>Urban Wheels</b> added 3 new vehicles",time:"12 minutes ago"},
+  {text:"<b>Metro Cabs Co.</b> started a Basic trial",time:"48 minutes ago"},
+  {text:"Payment received from <b>Speedway Fleet</b> — ₹8,499",time:"1 hour ago"},
+  {text:"<b>Highway Kings</b> account suspended for non-payment",time:"3 hours ago"},
+  {text:"<b>Coastal Cabs</b> upgraded Basic → Professional",time:"5 hours ago"},
+  {text:"<b>GoRide Logistics</b> subscription expired",time:"1 day ago"},
+  {text:"New business <b>Northline Transport</b> signed up",time:"1 day ago"},
+];
+
+const transactions = [
+  {id:"TXN-88213",biz:"Speedway Fleet",amount:"₹8,499",method:"UPI",date:"25 Aug 2026",status:"success"},
+  {id:"TXN-88212",biz:"ABC Travels",amount:"₹1,999",method:"Card",date:"25 Aug 2026",status:"success"},
+  {id:"TXN-88211",biz:"Highway Kings",amount:"₹999",method:"UPI",date:"24 Aug 2026",status:"failed"},
+  {id:"TXN-88210",biz:"Urban Wheels",amount:"₹11,999",method:"Netbanking",date:"24 Aug 2026",status:"success"},
+  {id:"TXN-88209",biz:"Prime Movers",amount:"₹8,499",method:"Card",date:"23 Aug 2026",status:"success"},
+  {id:"TXN-88208",biz:"GoRide Logistics",amount:"₹1,999",method:"UPI",date:"22 Aug 2026",status:"failed"},
+  {id:"TXN-88207",biz:"Coastal Cabs",amount:"₹1,999",method:"Card",date:"22 Aug 2026",status:"success"},
+  {id:"TXN-88206",biz:"Skyline Rides",amount:"₹1,999",method:"UPI",date:"20 Aug 2026",status:"pending"},
+];
+
+const failedPayments = [
+  {biz:"Highway Kings",amount:"₹999",reason:"Insufficient balance",date:"24 Aug 2026"},
+  {biz:"GoRide Logistics",amount:"₹1,999",reason:"Card expired",date:"22 Aug 2026"},
+  {biz:"Skyline Rides",amount:"₹1,999",reason:"Bank declined",date:"19 Aug 2026"},
+];
+
+const refunds = [
+  {biz:"Metro Cabs Co.",amount:"₹999",reason:"Duplicate charge",date:"18 Aug 2026",status:"success"},
+  {biz:"Northline Transport",amount:"₹1,999",reason:"Downgrade adjustment",date:"12 Aug 2026",status:"pending"},
+];
+
+const users = [
+  {name:"Rahul Sharma",biz:"ABC Travels",role:"Owner",email:"rahul@abctravels.in",status:"Active",login:"2 hours ago",created:"12 Jan 2025"},
+  {name:"Neha Kapoor",biz:"Speedway Fleet",role:"Owner",email:"neha@speedway.co",status:"Active",login:"14 minutes ago",created:"03 Mar 2025"},
+  {name:"Ajay Kulkarni",biz:"ABC Travels",role:"Manager",email:"ajay@abctravels.in",status:"Active",login:"1 day ago",created:"20 Feb 2025"},
+  {name:"Suresh Iyer",biz:"Metro Cabs Co.",role:"Owner",email:"suresh@metrocabs.in",status:"Trial",login:"1 day ago",created:"22 Nov 2025"},
+  {name:"Ramesh Kumar",biz:"Speedway Fleet",role:"Driver",email:"ramesh.k@speedway.co",status:"Active",login:"3 hours ago",created:"10 Apr 2025"},
+  {name:"Priya Nair",biz:"GoRide Logistics",role:"Owner",email:"priya@goride.in",status:"Expired",login:"18 days ago",created:"09 Feb 2025"},
+  {name:"Sanjay Verma",biz:"Urban Wheels",role:"Admin",email:"sanjay@urbanwheels.in",status:"Active",login:"38 minutes ago",created:"17 Jun 2025"},
+  {name:"Deepa Reddy",biz:"Urban Wheels",role:"Owner",email:"deepa@urbanwheels.in",status:"Active",login:"38 minutes ago",created:"17 Jun 2025"},
+];
+
+const tickets = [
+  {id:"TCK-4021",biz:"Highway Kings",subject:"Unable to reactivate account",priority:"Critical",assigned:"Ishaan P.",status:"Open"},
+  {id:"TCK-4020",biz:"GoRide Logistics",subject:"Payment not reflecting",priority:"High",assigned:"Meera S.",status:"In Progress"},
+  {id:"TCK-4019",biz:"Coastal Cabs",subject:"FASTag entries missing for 2 vehicles",priority:"Medium",assigned:"Ishaan P.",status:"In Progress"},
+  {id:"TCK-4018",biz:"Metro Cabs Co.",subject:"Trial extension request",priority:"Low",assigned:"Meera S.",status:"Open"},
+  {id:"TCK-4017",biz:"ABC Travels",subject:"Driver expense report export",priority:"Medium",assigned:"Rohan D.",status:"Resolved"},
+  {id:"TCK-4016",biz:"Skyline Rides",subject:"Login OTP not received",priority:"Critical",assigned:"Rohan D.",status:"Critical"},
+];
+
+const feedback = [
+  {biz:"Speedway Fleet",type:"Feature request",msg:"Add bulk vehicle import via Excel",date:"23 Aug 2026"},
+  {biz:"Urban Wheels",type:"Bug report",msg:"Dashboard chart overlaps on tablet view",date:"21 Aug 2026"},
+  {biz:"Prime Movers",type:"Feedback",msg:"Loving the driver expense module, saves us hours",date:"19 Aug 2026"},
+];
+
+const notifications = [
+  {type:"warn",title:"3 subscriptions expiring within 7 days",desc:"Metro Cabs Co., Northline Transport and Skyline Rides need renewal follow-up.",time:"10 minutes ago"},
+  {type:"fail",title:"Payment failed — Highway Kings",desc:"₹999 charge declined due to insufficient balance.",time:"2 hours ago"},
+  {type:"trial",title:"Trial ending soon — Metro Cabs Co.",desc:"Trial converts or expires on 03 Sep 2026.",time:"5 hours ago"},
+  {type:"suspend",title:"Business suspended — Highway Kings",desc:"Auto-suspended after 30 days of non-payment.",time:"1 day ago"},
+];
+
+const auditLogs = [
+  {time:"26 Aug, 3:20 PM",text:"changed <b>ABC Travels</b> plan Basic → Professional",actor:"Aarav Mehta (Super Admin)"},
+  {time:"26 Aug, 1:05 PM",text:"suspended business <b>Highway Kings</b>",actor:"Aarav Mehta (Super Admin)"},
+  {time:"25 Aug, 6:42 PM",text:"processed refund of ₹999 for <b>Metro Cabs Co.</b>",actor:"Meera S. (Admin)"},
+  {time:"25 Aug, 11:15 AM",text:"created new business <b>Northline Transport</b>",actor:"System"},
+  {time:"24 Aug, 9:30 AM",text:"deleted user <b>ajay.old@abctravels.in</b>",actor:"Aarav Mehta (Super Admin)"},
+  {time:"23 Aug, 4:12 PM",text:"updated plan pricing for <b>Professional</b>",actor:"Aarav Mehta (Super Admin)"},
+  {time:"22 Aug, 2:00 PM",text:"logged in from Mumbai, IN",actor:"Aarav Mehta (Super Admin)"},
+];
+
+/* ======================= HELPERS ======================= */
+const statusBadge = s => `<span class="badge badge-${s.toLowerCase()}">${s}</span>`;
+const fmtCount = arr => arr.length;
+
+/* ======================= KPI RENDER ======================= */
+function sparkPath(values,w,h){
+  const max=Math.max(...values), min=Math.min(...values);
+  const step=w/(values.length-1);
+  return values.map((v,i)=>{
+    const x=i*step;
+    const y=h-((v-min)/(max-min||1))*h;
+    return (i===0?'M':'L')+x.toFixed(1)+','+y.toFixed(1);
+  }).join(' ');
+}
+function renderSpark(svgId_or_null, values, color){
+  const w=100,h=26;
+  const d=sparkPath(values,w,h);
+  return `<svg class="spark" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none"><path d="${d}" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+}
+
+const kpis = [
+  {label:"Total Businesses",value:"42",delta:"+5 this mo.",dir:"up",color:"var(--blue)",bg:"var(--blue-soft)",spark:[30,32,33,35,36,38,40,42],icon:'<path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/>'},
+  {label:"Active Businesses",value:"31",delta:"+3 this mo.",dir:"up",color:"var(--teal)",bg:"var(--teal-soft)",spark:[24,25,26,27,28,29,30,31],icon:'<path d="M20 6 9 17l-5-5"/>'},
+  {label:"Trial Businesses",value:"6",delta:"+2 this mo.",dir:"up",color:"var(--amber)",bg:"var(--amber-soft)",spark:[3,4,4,5,4,5,6,6],icon:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/>'},
+  {label:"Expired Businesses",value:"3",delta:"+1 this mo.",dir:"down",color:"var(--coral)",bg:"var(--coral-soft)",spark:[1,1,2,2,1,2,3,3],icon:'<circle cx="12" cy="12" r="9"/><path d="m15 9-6 6M9 9l6 6"/>'},
+  {label:"Suspended",value:"2",delta:"0 this mo.",dir:"down",color:"#8A93A3",bg:"#EDEFF3",spark:[2,2,2,1,2,2,2,2],icon:'<circle cx="12" cy="12" r="9"/><path d="M9 9h6v6H9z"/>'},
+  {label:"Total Users",value:"186",delta:"+14 this mo.",dir:"up",color:"var(--violet)",bg:"var(--violet-soft)",spark:[120,132,140,150,160,170,180,186],icon:'<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>'},
+  {label:"Total Vehicles",value:"612",delta:"+38 this mo.",dir:"up",color:"var(--blue)",bg:"var(--blue-soft)",spark:[480,510,530,550,570,590,600,612],icon:'<path d="M3 12h4l2-6h6l2 6h4"/><circle cx="7.5" cy="16.5" r="2.5"/><circle cx="16.5" cy="16.5" r="2.5"/>'},
+  {label:"Total Drivers",value:"584",delta:"+29 this mo.",dir:"up",color:"var(--teal)",bg:"var(--teal-soft)",spark:[440,470,490,510,530,550,570,584],icon:'<circle cx="12" cy="8" r="4"/><path d="M6 21v-2a6 6 0 0 1 12 0v2"/>'},
+  {label:"MRR",value:"₹8.4L",delta:"+11.2% MoM",dir:"up",color:"var(--teal)",bg:"var(--teal-soft)",spark:[5.1,5.6,6.0,6.5,7.1,7.6,8.0,8.4],icon:'<path d="M12 1v22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>'},
+  {label:"New This Month",value:"5",delta:"vs 3 last mo.",dir:"up",color:"var(--violet)",bg:"var(--violet-soft)",spark:[2,3,2,4,3,4,5,5],icon:'<path d="M12 5v14M5 12h14"/>'},
+];
+
+function kpiCard(k){
+  return `<div class="kpi-card">
+    <div class="kpi-top">
+      <div class="kpi-label">${k.label}</div>
+      <div class="kpi-icon" style="background:${k.bg};color:${k.color};"><svg viewBox="0 0 24 24" fill="none" stroke="${k.color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${k.icon}</svg></div>
+    </div>
+    <div class="kpi-value">${k.value}</div>
+    <div class="kpi-delta ${k.dir}">
+      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">${k.dir==='up'?'<path d="M18 15 12 9 6 15"/>':'<path d="M6 9l6 6 6-6"/>'}</svg>
+      ${k.delta}
+    </div>
+    ${renderSpark(null,k.spark,k.color)}
+  </div>`;
+}
+document.getElementById('kpiGrid').innerHTML = kpis.map(kpiCard).join('');
+
+/* Payments mini KPIs */
+const payKpis = [
+  {label:"Total Revenue",value:"₹42.6L",delta:"+9.4%",dir:"up",color:"var(--teal)",bg:"var(--teal-soft)",spark:[30,33,35,36,38,40,41,42.6],icon:'<path d="M12 1v22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>'},
+  {label:"This Month",value:"₹8.4L",delta:"+11.2%",dir:"up",color:"var(--blue)",bg:"var(--blue-soft)",spark:[5,6,6.5,7,7.5,7.9,8.1,8.4],icon:'<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18"/>'},
+  {label:"Failed Payments",value:"3",delta:"this month",dir:"down",color:"var(--coral)",bg:"var(--coral-soft)",spark:[1,2,1,2,3,2,3,3],icon:'<circle cx="12" cy="12" r="9"/><path d="m15 9-6 6M9 9l6 6"/>'},
+  {label:"Refunds Issued",value:"₹2,998",delta:"2 requests",dir:"down",color:"#8A93A3",bg:"#EDEFF3",spark:[0,0,1,1,1,2,2,2],icon:'<path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/>'},
+];
+document.getElementById('payKpiGrid').innerHTML = payKpis.map(kpiCard).join('');
+
+/* usage analytics kpis */
+const usageKpis = [
+  {label:"Total Trips",value:"18.2K",delta:"+6.1% wow",dir:"up",color:"var(--blue)",bg:"var(--blue-soft)",spark:[12,13,14,15,16,17,17.8,18.2],icon:'<path d="M3 12h4l2-6h6l2 6h4"/><circle cx="7.5" cy="16.5" r="2.5"/><circle cx="16.5" cy="16.5" r="2.5"/>'},
+  {label:"Total Distance",value:"4.6L km",delta:"+8.3% wow",dir:"up",color:"var(--teal)",bg:"var(--teal-soft)",spark:[3.2,3.5,3.8,4.0,4.2,4.4,4.5,4.6],icon:'<path d="M18 20V10M12 20V4M6 20v-6"/>'},
+  {label:"Fuel Entries",value:"9,340",delta:"+4.0% wow",dir:"up",color:"var(--amber)",bg:"var(--amber-soft)",spark:[7000,7400,7900,8200,8600,8900,9100,9340],icon:'<path d="M3 22h12"/><path d="M4 9h8v13H4z"/><path d="M12 12h2a2 2 0 0 1 2 2v4a2 2 0 0 0 2 2"/>'},
+  {label:"FASTag Txns",value:"22,110",delta:"+5.7% wow",dir:"up",color:"var(--violet)",bg:"var(--violet-soft)",spark:[17000,18000,19000,20000,20800,21400,21900,22110],icon:'<rect x="2" y="5" width="20" height="14" rx="2.5"/><path d="M2 10h20"/>'},
+  {label:"Daily Active Biz.",value:"27",delta:"64% of total",dir:"up",color:"var(--blue)",bg:"var(--blue-soft)",spark:[20,21,22,23,24,25,26,27],icon:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/>'},
+];
+document.getElementById('usageKpiGrid').innerHTML = usageKpis.map(kpiCard).join('');
+
+/* ======================= CHARTS (inline SVG) ======================= */
+function lineChart(svgEl, values, color, w, h, fill){
+  const pad=10;
+  const max=Math.max(...values), min=Math.min(...values, 0);
+  const step=(w-pad*2)/(values.length-1);
+  const pts = values.map((v,i)=>{
+    const x=pad+i*step;
+    const y=h-pad-((v-min)/(max-min||1))*(h-pad*2);
+    return [x,y];
+  });
+  const d = pts.map((p,i)=>(i===0?'M':'L')+p[0].toFixed(1)+','+p[1].toFixed(1)).join(' ');
+  const areaD = d + ` L${pts[pts.length-1][0].toFixed(1)},${h-pad} L${pts[0][0].toFixed(1)},${h-pad} Z`;
+  let svg = '';
+  if(fill){
+    svg += `<defs><linearGradient id="grad-${svgEl}" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${color}" stop-opacity="0.25"/><stop offset="100%" stop-color="${color}" stop-opacity="0"/></linearGradient></defs>`;
+    svg += `<path d="${areaD}" fill="url(#grad-${svgEl})" stroke="none"/>`;
+  }
+  svg += `<path d="${d}" fill="none" stroke="${color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>`;
+  pts.forEach(p=>{ svg += `<circle cx="${p[0]}" cy="${p[1]}" r="2.6" fill="${color}"/>`; });
+  return svg;
+}
+function barChart(svgEl, values, color, w, h, label2, values2, color2){
+  const pad=10;
+  const n=values.length;
+  const groupW=(w-pad*2)/n;
+  const barW = values2 ? groupW*0.32 : groupW*0.5;
+  const max=Math.max(...values, ...(values2||[0]));
+  let svg='';
+  values.forEach((v,i)=>{
+    const bh=(v/max)*(h-pad*2);
+    const x = pad + i*groupW + groupW*0.5 - (values2? barW+2 : barW/2);
+    svg += `<rect x="${x.toFixed(1)}" y="${(h-pad-bh).toFixed(1)}" width="${barW.toFixed(1)}" height="${bh.toFixed(1)}" rx="3" fill="${color}"/>`;
+    if(values2){
+      const v2=values2[i];
+      const bh2=(v2/max)*(h-pad*2);
+      const x2 = pad + i*groupW + groupW*0.5 + 2;
+      svg += `<rect x="${x2.toFixed(1)}" y="${(h-pad-bh2).toFixed(1)}" width="${barW.toFixed(1)}" height="${bh2.toFixed(1)}" rx="3" fill="${color2}"/>`;
+    }
+  });
+  return svg;
+}
+
+const revMonths=[4.2,4.6,5.0,5.3,5.8,6.1,6.6,7.0,7.4,7.8,8.0,8.4];
+document.getElementById('revChart').innerHTML = lineChart('rev',revMonths,'#2F6FED',640,220,true);
+document.getElementById('payRevChart').innerHTML = lineChart('payrev',revMonths,'#0EA5A0',640,220,true);
+document.getElementById('mrrChart').innerHTML = lineChart('mrr',revMonths,'#7C5CFC',640,220,true);
+
+const signupWeeks=[3,5,4,7];
+document.getElementById('signupChart').innerHTML = barChart('signup',signupWeeks,'#2F6FED',640,160);
+
+const dabDays=[18,20,19,22,24,23,25,24,26,25,27,26,28,27];
+document.getElementById('dabChart').innerHTML = lineChart('dab',dabDays,'#0EA5A0',640,200,true);
+
+const growthNew=[3,4,2,5,4,5];
+const growthChurn=[1,1,2,1,0,1];
+document.getElementById('growthChart').innerHTML = barChart('growth',growthNew,'#2F6FED',640,240,'churn',growthChurn,'#E4572E');
+
+/* ======================= DASHBOARD FEEDS ======================= */
+document.getElementById('dashActivity').innerHTML = activityFeed.map(a=>`
+  <div class="activity-item"><div class="activity-dot"></div><div><div class="activity-text">${a.text}</div><div class="activity-time">${a.time}</div></div></div>
+`).join('');
+
+const expiringSoon = businesses.filter(b=>b.status==='Active').slice(0,4);
+document.getElementById('dashExpiring').innerHTML = expiringSoon.map(b=>`
+  <div class="activity-item"><div class="activity-dot" style="background:var(--amber);"></div>
+    <div><div class="activity-text">${b.name} — ${b.plan}</div><div class="activity-time">Renews ${b.expiry}</div></div></div>
+`).join('');
+
+/* ======================= BUSINESSES TABLE ======================= */
+let bizFilter = 'all';
+function initials(name){ return name.split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase(); }
+function renderBizTable(){
+  const q = (document.getElementById('bizSearch').value||'').toLowerCase();
+  const filtered = businesses.filter(b=>{
+    const matchStatus = bizFilter==='all' || b.status===bizFilter;
+    const matchQ = b.name.toLowerCase().includes(q) || b.owner.toLowerCase().includes(q);
+    return matchStatus && matchQ;
+  });
+  document.getElementById('bizTableBody').innerHTML = filtered.map(b=>`
+    <tr class="clickable" data-biz-id="${b.id}">
+      <td><div class="name-flex"><span class="avatar-sm">${initials(b.name)}</span><div><div class="cell-main">${b.name}</div><div class="cell-sub">${b.owner} · ${b.city}</div></div></div></td>
+      <td>${b.plan}</td>
+      <td>${statusBadge(b.status)}</td>
+      <td class="cell-num">${b.vehicles}${b.vlimit<999?'/'+b.vlimit:''}</td>
+      <td class="cell-num">${b.drivers}${b.dlimit<999?'/'+b.dlimit:''}</td>
+      <td class="cell-num">${b.users}${b.ulimit<999?'/'+b.ulimit:''}</td>
+      <td class="cell-num">${b.expiry}</td>
+      <td class="cell-sub">${b.lastLogin}</td>
+    </tr>
+  `).join('');
+  document.getElementById('bizCountLabel').textContent = `Showing ${filtered.length} of ${businesses.length} businesses`;
+  document.querySelectorAll('#bizTableBody tr').forEach(tr=>{
+    tr.addEventListener('click', ()=> openBizDetail(parseInt(tr.dataset.bizId)));
+  });
+}
+document.getElementById('cnt-all').textContent = businesses.length;
+document.querySelectorAll('.chip[data-status]').forEach(chip=>{
+  chip.addEventListener('click', ()=>{
+    document.querySelectorAll('.chip[data-status]').forEach(c=>c.classList.remove('active'));
+    chip.classList.add('active');
+    bizFilter = chip.dataset.status;
+    renderBizTable();
+  });
+});
+document.getElementById('bizSearch').addEventListener('input', renderBizTable);
+renderBizTable();
+
+/* ======================= BUSINESS DETAIL ======================= */
+function openBizDetail(id){
+  const b = businesses.find(x=>x.id===id);
+  if(!b) return;
+  document.getElementById('bd-logo').textContent = initials(b.name);
+  document.getElementById('bd-name').textContent = b.name;
+  document.getElementById('bd-meta').textContent = `${b.owner} · ${b.city} · Registered ${b.reg}`;
+  const statusEl = document.getElementById('bd-status');
+  statusEl.className = 'badge badge-'+b.status.toLowerCase();
+  statusEl.textContent = b.status;
+  document.getElementById('bd-vehicles').textContent = b.vehicles;
+  document.getElementById('bd-drivers').textContent = b.drivers;
+  document.getElementById('bd-users').textContent = b.users;
+  document.getElementById('bd-amount').textContent = b.amount;
+  document.getElementById('bd-plan').textContent = b.plan;
+  document.getElementById('bd-start').textContent = b.start;
+  document.getElementById('bd-renew').textContent = b.expiry;
+  const subStatusEl = document.getElementById('bd-sub-status');
+  subStatusEl.className = 'badge badge-'+b.status.toLowerCase();
+  subStatusEl.textContent = b.status;
+
+  const vPct = b.vlimit<999 ? Math.min(100,(b.vehicles/b.vlimit)*100) : 30;
+  const dPct = b.dlimit<999 ? Math.min(100,(b.drivers/b.dlimit)*100) : 30;
+  const uPct = b.ulimit<999 ? Math.min(100,(b.users/b.ulimit)*100) : 30;
+  document.getElementById('bd-usage-v').style.width = vPct+'%';
+  document.getElementById('bd-usage-d').style.width = dPct+'%';
+  document.getElementById('bd-usage-u').style.width = uPct+'%';
+  document.getElementById('bd-usage-v-t').textContent = b.vehicles+'/'+(b.vlimit<999?b.vlimit:'∞');
+  document.getElementById('bd-usage-d-t').textContent = b.drivers+'/'+(b.dlimit<999?b.dlimit:'∞');
+  document.getElementById('bd-usage-u-t').textContent = b.users+'/'+(b.ulimit<999?b.ulimit:'∞');
+
+  document.getElementById('bd-info').innerHTML = `
+    <div class="info-item"><div class="k">Owner name</div><div class="v">${b.owner}</div></div>
+    <div class="info-item"><div class="k">Email</div><div class="v">${b.email}</div></div>
+    <div class="info-item"><div class="k">Phone</div><div class="v">${b.phone}</div></div>
+    <div class="info-item"><div class="k">Business type</div><div class="v">${b.type}</div></div>
+    <div class="info-item"><div class="k">City / State</div><div class="v">${b.city}</div></div>
+    <div class="info-item"><div class="k">Registration date</div><div class="v">${b.reg}</div></div>
+  `;
+  document.getElementById('bd-activity').innerHTML = [
+    {t:`${b.vehicles} vehicles currently on ${b.plan} plan`,time:'Today'},
+    {t:'2 drivers added this week',time:'3 days ago'},
+    {t:`Last login ${b.lastLogin}`,time:b.lastLogin},
+  ].map(a=>`<div class="activity-item"><div class="activity-dot"></div><div><div class="activity-text">${a.t}</div><div class="activity-time">${a.time}</div></div></div>`).join('');
+  document.getElementById('bd-payments').innerHTML = `
+    <tr><td class="cell-sub">${b.expiry}</td><td class="cell-num">${b.amount}</td><td>${statusBadge('Success')}</td></tr>
+    <tr><td class="cell-sub">${b.start}</td><td class="cell-num">${b.amount}</td><td>${statusBadge('Success')}</td></tr>
+  `;
+  goto('biz-detail');
+}
+
+/* ======================= SUBSCRIPTIONS ======================= */
+function planCard(p){
+  return `<div class="plan-card ${p.featured?'featured':''}">
+    ${p.featured?'<div class="plan-tag">Most popular</div>':''}
+    <div class="plan-name">${p.name}</div>
+    <div class="plan-price">${p.price?('₹'+p.price+'<span>/month</span>'):'Custom<span></span>'}</div>
+    <div class="plan-active-count">${p.active} businesses on this plan</div>
+    ${p.features.map(f=>`<div class="plan-feat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>${f}</div>`).join('')}
+    <div class="plan-actions"><button class="btn btn-sm" style="flex:1;">Edit plan</button><button class="btn btn-sm btn-ghost">Deactivate</button></div>
+  </div>`;
+}
+document.getElementById('planGrid').innerHTML = plans.map(planCard).join('');
+
+const activeSubs = businesses.filter(b=>b.status==='Active');
+document.getElementById('subActiveBody').innerHTML = activeSubs.map(b=>`
+  <tr><td class="cell-main">${b.name}</td><td>${b.plan}</td><td>Monthly</td><td class="cell-num">${b.amount}</td><td class="cell-num">${b.start}</td><td class="cell-num">${b.expiry}</td><td>${statusBadge('Active')} ON</td></tr>
+`).join('');
+
+const expiringSubs = businesses.filter(b=>b.status==='Active' || b.status==='Trial').slice(0,5);
+document.getElementById('subExpiringBody').innerHTML = expiringSubs.map(b=>`
+  <tr><td class="cell-main">${b.name}</td><td>${b.plan}</td><td class="cell-num">${b.expiry}</td><td>${statusBadge('Trial')} <span class="cell-num" style="margin-left:6px;">${Math.floor(Math.random()*7)+1}d</span></td><td class="cell-num">${b.amount}</td><td><button class="btn btn-sm">Remind</button></td></tr>
+`).join('');
+
+const cancelledSubs = [
+  {name:"Deccan Drives",plan:"Basic",date:"14 Jul 2026",reason:"Switched to competitor"},
+  {name:"Star Fleet Co.",plan:"Professional",date:"02 Jul 2026",reason:"Business closed"},
+  {name:"Trans India Cabs",plan:"Basic",date:"28 Jun 2026",reason:"Cost concerns"},
+];
+document.getElementById('subCancelledBody').innerHTML = cancelledSubs.map(c=>`
+  <tr><td class="cell-main">${c.name}</td><td>${c.plan}</td><td class="cell-num">${c.date}</td><td class="cell-sub">${c.reason}</td></tr>
+`).join('');
+
+document.querySelectorAll('.tab[data-sub-tab]').forEach(tab=>{
+  tab.addEventListener('click', ()=>switchSubTab(tab.dataset.subTab));
+});
+function switchSubTab(name){
+  document.querySelectorAll('.tab[data-sub-tab]').forEach(t=>t.classList.toggle('active', t.dataset.subTab===name));
+  document.querySelectorAll('.sub-pane').forEach(p=>p.style.display='none');
+  document.getElementById('sub-'+name).style.display='';
+}
+
+/* ======================= PAYMENTS ======================= */
+document.getElementById('payTxnBody').innerHTML = transactions.map(t=>`
+  <tr><td class="cell-num">${t.id}</td><td class="cell-main">${t.biz}</td><td class="cell-num">${t.amount}</td><td>${t.method}</td><td class="cell-num">${t.date}</td><td>${statusBadge(t.status.charAt(0).toUpperCase()+t.status.slice(1))}</td></tr>
+`).join('');
+document.getElementById('payFailedBody').innerHTML = failedPayments.map(f=>`
+  <tr><td class="cell-main">${f.biz}</td><td class="cell-num">${f.amount}</td><td class="cell-sub">${f.reason}</td><td class="cell-num">${f.date}</td><td><button class="btn btn-sm">Retry</button></td></tr>
+`).join('');
+document.getElementById('payRefundsBody').innerHTML = refunds.map(r=>`
+  <tr><td class="cell-main">${r.biz}</td><td class="cell-num">${r.amount}</td><td class="cell-sub">${r.reason}</td><td class="cell-num">${r.date}</td><td>${statusBadge(r.status.charAt(0).toUpperCase()+r.status.slice(1))}</td></tr>
+`).join('');
+
+document.querySelectorAll('.tab[data-pay-tab]').forEach(tab=>{
+  tab.addEventListener('click', ()=>switchPayTab(tab.dataset.payTab));
+});
+function switchPayTab(name){
+  document.querySelectorAll('.tab[data-pay-tab]').forEach(t=>t.classList.toggle('active', t.dataset.payTab===name));
+  document.querySelectorAll('.pay-pane').forEach(p=>p.style.display='none');
+  document.getElementById('pay-'+name).style.display='';
+}
+
+/* ======================= USERS ======================= */
+let userRoleFilter='all';
+function renderUsers(){
+  const filtered = users.filter(u=>userRoleFilter==='all'||u.role===userRoleFilter);
+  document.getElementById('usersBody').innerHTML = filtered.map(u=>`
+    <tr><td><div class="name-flex"><span class="avatar-sm">${initials(u.name)}</span><div class="cell-main">${u.name}</div></div></td>
+    <td>${u.biz}</td><td>${u.role}</td><td class="cell-sub">${u.email}</td><td>${statusBadge(u.status)}</td><td class="cell-sub">${u.login}</td><td class="cell-num">${u.created}</td></tr>
+  `).join('');
+}
+document.querySelectorAll('.chip[data-role]').forEach(chip=>{
+  chip.addEventListener('click', ()=>{
+    document.querySelectorAll('.chip[data-role]').forEach(c=>c.classList.remove('active'));
+    chip.classList.add('active');
+    userRoleFilter = chip.dataset.role;
+    renderUsers();
+  });
+});
+renderUsers();
+
+/* ======================= ANALYTICS TABS ======================= */
+document.querySelectorAll('.tab[data-ana-tab]').forEach(tab=>{
+  tab.addEventListener('click', ()=>switchAnaTab(tab.dataset.anaTab));
+});
+function switchAnaTab(name){
+  document.querySelectorAll('.tab[data-ana-tab]').forEach(t=>t.classList.toggle('active', t.dataset.anaTab===name));
+  document.querySelectorAll('.ana-pane').forEach(p=>p.style.display='none');
+  document.getElementById('ana-'+name).style.display='';
+}
+
+/* ======================= SUPPORT ======================= */
+let ticketFilter='all';
+function renderTickets(){
+  const filtered = tickets.filter(t=>ticketFilter==='all'||t.status===ticketFilter);
+  document.getElementById('ticketsBody').innerHTML = filtered.map(t=>`
+    <tr><td class="cell-num">${t.id}</td><td class="cell-main">${t.biz}</td><td>${t.subject}</td><td>${t.priority}</td><td>${t.assigned}</td><td>${statusBadge(t.status.replace(' ',''))}</td></tr>
+  `.replace('badge-InProgress','badge-progress')).join('');
+}
+document.querySelectorAll('.chip[data-tstatus]').forEach(chip=>{
+  chip.addEventListener('click', ()=>{
+    document.querySelectorAll('.chip[data-tstatus]').forEach(c=>c.classList.remove('active'));
+    chip.classList.add('active');
+    ticketFilter = chip.dataset.tstatus;
+    renderTickets();
+  });
+});
+renderTickets();
+document.getElementById('feedbackBody').innerHTML = feedback.map(f=>`
+  <tr><td class="cell-main">${f.biz}</td><td>${f.type}</td><td class="cell-sub">${f.msg}</td><td class="cell-num">${f.date}</td></tr>
+`).join('');
+document.querySelectorAll('.tab[data-sup-tab]').forEach(tab=>{
+  tab.addEventListener('click', ()=>{
+    document.querySelectorAll('.tab[data-sup-tab]').forEach(t=>t.classList.toggle('active', t===tab));
+    document.querySelectorAll('.sup-pane').forEach(p=>p.style.display='none');
+    document.getElementById('sup-'+tab.dataset.supTab).style.display='';
+  });
+});
+
+/* ======================= NOTIFICATIONS ======================= */
+const notifStyle = {
+  warn:{bg:'var(--amber-soft)',color:'var(--amber)',icon:'<circle cx="12" cy="12" r="9"/><path d="M12 8v5"/><path d="M12 16h.01"/>'},
+  fail:{bg:'var(--coral-soft)',color:'var(--coral)',icon:'<circle cx="12" cy="12" r="9"/><path d="m15 9-6 6M9 9l6 6"/>'},
+  trial:{bg:'var(--blue-soft)',color:'var(--blue)',icon:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/>'},
+  suspend:{bg:'#EDEFF3',color:'#5B6472',icon:'<circle cx="12" cy="12" r="9"/><path d="M9 9h6v6H9z"/>'},
+};
+document.getElementById('notifList').innerHTML = notifications.map(n=>{
+  const s = notifStyle[n.type];
+  return `<div class="notif-item"><div class="notif-icon" style="background:${s.bg};color:${s.color};"><svg viewBox="0 0 24 24" fill="none" stroke="${s.color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${s.icon}</svg></div>
+    <div><div class="notif-title">${n.title}</div><div class="notif-desc">${n.desc}</div><div class="notif-time">${n.time}</div></div></div>`;
+}).join('');
+
+/* ======================= AUDIT LOGS ======================= */
+document.getElementById('auditList').innerHTML = auditLogs.map(a=>`
+  <div class="audit-item"><div class="audit-time">${a.time}</div><div class="audit-line"></div>
+  <div><div class="audit-text">Super Admin ${a.text}</div><div class="audit-actor">${a.actor}</div></div></div>
+`).join('');
+
+/* ======================= NAV / VIEW SWITCHING ======================= */
+const pageMeta = {
+  dashboard:{title:'Dashboard',crumb:'Overview of the whole platform'},
+  businesses:{title:'Businesses',crumb:'All registered businesses on FleetOps'},
+  'biz-detail':{title:'Business details',crumb:'Business → Subscription → Usage'},
+  subscriptions:{title:'Subscriptions',crumb:'Plans, active subscriptions and renewals'},
+  payments:{title:'Payments & Revenue',crumb:'Transactions, revenue and refunds'},
+  users:{title:'Users',crumb:'Everyone with access across businesses'},
+  analytics:{title:'Platform Analytics',crumb:'Usage, growth and revenue trends'},
+  support:{title:'Support',crumb:'Tickets and feedback from businesses'},
+  notifications:{title:'Notifications',crumb:'System-level alerts'},
+  audit:{title:'Audit Logs',crumb:'Every action taken on the platform'},
+  settings:{title:'Settings',crumb:'Platform configuration'},
+};
+function goto(view, opts){
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.getElementById('view-'+view).classList.add('active');
+  document.getElementById('pageTitle').textContent = pageMeta[view].title;
+  document.getElementById('pageCrumb').textContent = pageMeta[view].crumb;
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.toggle('active', n.dataset.view===view));
+  if(opts && opts.subTab) switchSubTab(opts.subTab);
+  if(opts && opts.payTab) switchPayTab(opts.payTab);
+  if(opts && opts.anaTab) switchAnaTab(opts.anaTab);
+  window.scrollTo(0,0);
+  if(window.innerWidth<=840) document.getElementById('sidebar').classList.remove('open');
+}
+document.querySelectorAll('.nav-item[data-view]').forEach(item=>{
+  item.addEventListener('click', ()=>{
+    const view = item.dataset.view;
+    const opts = {};
+    if(item.dataset.tab){
+      if(view==='subscriptions') opts.subTab=item.dataset.tab;
+      if(view==='payments') opts.payTab=item.dataset.tab;
+      if(view==='analytics') opts.anaTab=item.dataset.tab;
+    }
+    if(view==='businesses' && item.dataset.filter){
+      bizFilter = item.dataset.filter;
+      document.querySelectorAll('.chip[data-status]').forEach(c=>c.classList.toggle('active', c.dataset.status===item.dataset.filter));
+      renderBizTable();
+    }
+    goto(view, opts);
+  });
+});
+document.querySelectorAll('[data-goto]').forEach(el=>{
+  el.addEventListener('click', ()=>{
+    const view = el.dataset.goto;
+    const opts = {};
+    if(el.dataset.tab){
+      if(view==='subscriptions') opts.subTab=el.dataset.tab;
+      if(view==='analytics') opts.anaTab=el.dataset.tab;
+    }
+    goto(view, opts);
+  });
+});
+
+/* settings sub-nav (visual only) */
+document.querySelectorAll('.settings-nav .s-item').forEach(item=>{
+  item.addEventListener('click', ()=>{
+    document.querySelectorAll('.settings-nav .s-item').forEach(i=>i.classList.remove('active'));
+    item.classList.add('active');
+  });
+});
+document.querySelectorAll('.switch').forEach(sw=>{
+  sw.addEventListener('click', ()=>sw.classList.toggle('on'));
+});
+
+/* mobile sidebar */
+document.getElementById('hamburger').addEventListener('click', ()=>{
+  document.getElementById('sidebar').classList.toggle('open');
+});
+
+/* live clock */
+function tick(){
+  const d = new Date();
+  document.getElementById('sysClock').textContent = d.toLocaleTimeString('en-IN',{hour12:false});
+}
+tick(); setInterval(tick,1000);
+</script>
+</body>
+</html>

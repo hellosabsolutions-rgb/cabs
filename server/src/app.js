@@ -32,11 +32,14 @@ import notificationRoutes from './routes/notifications.js';
 import payrollRoutes from './routes/payroll.js';
 import reportRoutes from './routes/reports.js';
 import uploadRoutes from './routes/upload.js';
+import superadminRoutes from './routes/superadmin.js';
+import { correlationIdMiddleware } from './middleware/correlationId.js';
 
 const app = express();
 
 // Security HTTP headers
 app.use(helmet());
+app.use(correlationIdMiddleware);
 
 // CORS configuration (allow frontend origin or any during development)
 app.use(
@@ -118,6 +121,7 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/payroll', payrollRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/upload', uploadRoutes);
+app.use('/api/superadmin', superadminRoutes);
 
 // Root route
 app.get('/', (req, res) => {

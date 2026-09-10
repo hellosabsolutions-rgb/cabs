@@ -21,6 +21,7 @@ import {
   BarChart2,
   Bell,
   Settings,
+  ShieldCheck,
   Sun,
   Moon,
   Fuel,
@@ -311,6 +312,15 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onCloseMobile }) => {
           >
             <Settings />
             Profile & Settings
+          </NavLink>
+          <NavLink
+            to="/superadmin"
+            className={navClass('/superadmin')}
+            onClick={onCloseMobile}
+            style={{ color: 'var(--accent, #1687F5)', fontWeight: 700 }}
+          >
+            <ShieldCheck />
+            Super Admin
           </NavLink>
         </div>
       </div>

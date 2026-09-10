@@ -63,6 +63,49 @@ const agencySchema = new mongoose.Schema(
     isDefault: {
       type: Boolean,
       default: false
+    },
+    plan: {
+      type: String,
+      enum: ['Basic', 'Professional', 'Enterprise'],
+      default: 'Professional'
+    },
+    status: {
+      type: String,
+      enum: ['Active', 'Trial', 'Expired', 'Suspended'],
+      default: 'Active',
+      index: true
+    },
+    vlimit: {
+      type: Number,
+      default: 25
+    },
+    dlimit: {
+      type: Number,
+      default: 25
+    },
+    ulimit: {
+      type: Number,
+      default: 10
+    },
+    amount: {
+      type: String,
+      default: '₹1,999'
+    },
+    startDate: {
+      type: String,
+      default: () => new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+    },
+    expiryDate: {
+      type: String,
+      default: () => {
+        const d = new Date();
+        d.setDate(d.getDate() + 30);
+        return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+      }
+    },
+    lastLogin: {
+      type: String,
+      default: 'Just now'
     }
   },
   {
