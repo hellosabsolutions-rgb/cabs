@@ -2,6 +2,7 @@ import crypto from 'crypto';
 import { OAuth2Client } from 'google-auth-library';
 import { User } from '../models/User.js';
 import { RefreshToken } from '../models/RefreshToken.js';
+import { StaffInvitation } from '../models/StaffInvitation.js';
 import {
   generateAccessToken,
   generateRefreshToken,
@@ -12,72 +13,23 @@ import { emitLoginAlert } from '../services/notificationEmitter.js';
 import { parseDeviceInfo } from '../utils/deviceParser.js';
 
 /**
- * @desc    Register a new user
+ * @desc    Register a new user (Restricted - requires invitation or admin setup)
  * @route   POST /api/auth/register
  * @access  Public
  */
 export const register = asyncHandler(async (req, res) => {
-  const { name, email, password, role, phone, rememberMe } = req.body;
+  const { name, email, password, role, phone, rememberMe, inviteCode } = req.body;
 
-  if (!name || !email || !password) {
-    return res.status(400).json({
-      success: false,
-      error: 'Please provide name, email, and password.'
-    });
+  if (inviteCode) {
+    // If inviteCode is supplied, route through invitation acceptance logic
+    req.body.inviteCode = inviteCode;
+    return acceptInvite(req, res);
   }
 
-  // Check if user already exists
-  const existingUser = await User.findOne({ email: email.toLowerCase() });
-  if (existingUser) {
-    return res.status(409).json({
-      success: false,
-      error: 'An account with this email address already exists.'
-    });
-  }
-
-  // Create user
-  const user = await User.create({
-    name: name.trim(),
-    email: email.toLowerCase().trim(),
-    password,
-    role: role || 'admin',
-    phone: phone ? phone.trim() : undefined
-  });
-
-  // Device & Session capture
-  const device = parseDeviceInfo(req);
-  const { rawToken, tokenHash, expiresAt } = generateRefreshToken(Boolean(rememberMe));
-
-  const session = await RefreshToken.create({
-    userId: user._id,
-    tokenHash,
-    device,
-    rememberMe: Boolean(rememberMe),
-    expiresAt,
-    lastActiveAt: new Date()
-  });
-
-  const accessToken = generateAccessToken(user._id, session._id);
-
-  res.status(201).json({
-    success: true,
-    token: accessToken,
-    accessToken,
-    refreshToken: rawToken,
-    session: {
-      id: session._id.toString(),
-      device: session.device,
-      rememberMe: session.rememberMe,
-      expiresAt: session.expiresAt
-    },
-    user: {
-      id: user._id.toString(),
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      phone: user.phone,
-      avatar: user.avatar
-    }
+  // Public signup is disabled - staff onboarding requires email invitation
+  return res.status(403).json({
+    success: false,
+    error: 'Direct registration is disabled. Staff accounts must be activated via an email invitation.'
   });
 });
 
@@ -107,9 +59,25 @@ export const login = asyncHandler(async (req, res) => {
   }
 
   if (!user) {
+    // Check if user has an active pending staff invitation
+    const pendingInvite = await StaffInvitation.findOne({
+      email: cleanEmail,
+      status: 'pending'
+    }).populate('agency', 'name');
+
+    if (pendingInvite) {
+      return res.status(401).json({
+        success: false,
+        error: `You have an invitation to join ${pendingInvite.agency?.name || 'an agency'}! Please activate your staff account below to set your password.`,
+        hasPendingInvite: true,
+        inviteCode: pendingInvite.inviteCode,
+        email: cleanEmail
+      });
+    }
+
     return res.status(401).json({
       success: false,
-      error: 'Invalid credentials. User not found with this email.'
+      error: 'Account not found with this email. Staff access is by email invitation only.'
     });
   }
 
@@ -605,6 +573,179 @@ export const googleLogin = asyncHandler(async (req, res) => {
       phone: user.phone,
       avatar: user.avatar,
       currentAgency: user.currentAgency
+    }
+  });
+});
+
+/**
+ * @desc    Accept staff invitation & create/activate staff account
+ * @route   POST /api/auth/accept-invite
+ * @access  Public
+ */
+export const acceptInvite = asyncHandler(async (req, res) => {
+  const { email, inviteCode, password, name, phone, rememberMe } = req.body;
+
+  if (!email || !inviteCode || !password) {
+    return res.status(400).json({
+      success: false,
+      error: 'Please provide email, invitation code, and password.'
+    });
+  }
+
+  if (password.length < 6) {
+    return res.status(400).json({
+      success: false,
+      error: 'Password must be at least 6 characters long.'
+    });
+  }
+
+  const cleanEmail = email.toLowerCase().trim();
+  const cleanCode = inviteCode.toUpperCase().trim();
+
+  // Find invitation
+  const invitation = await StaffInvitation.findOne({
+    email: cleanEmail,
+    inviteCode: cleanCode,
+    status: 'pending'
+  }).populate('agency');
+
+  if (!invitation) {
+    return res.status(400).json({
+      success: false,
+      error: 'Invalid invitation code or email. Please verify your invitation details.'
+    });
+  }
+
+  // Check expiration
+  if (new Date(invitation.expiresAt) < new Date()) {
+    invitation.status = 'expired';
+    await invitation.save();
+    return res.status(400).json({
+      success: false,
+      error: 'This invitation has expired. Please ask your administrator to send a new invitation.'
+    });
+  }
+
+  // Check if a user with this email already exists
+  let user = await User.findOne({ email: cleanEmail });
+  if (user) {
+    // If user exists, attach agency & role
+    const agencyIdStr = invitation.agency._id.toString();
+    const alreadyLinked = user.agencies.some(aId => aId.toString() === agencyIdStr);
+    if (!alreadyLinked) {
+      user.agencies.push(invitation.agency._id);
+    }
+    user.currentAgency = invitation.agency._id;
+    user.role = invitation.role || 'operator';
+    user.password = password;
+    if (name && name.trim()) user.name = name.trim();
+    if (phone && phone.trim()) user.phone = phone.trim();
+    await user.save();
+  } else {
+    // Create new staff user
+    user = await User.create({
+      name: (name && name.trim()) || invitation.name || cleanEmail.split('@')[0],
+      email: cleanEmail,
+      password,
+      role: invitation.role || 'operator',
+      phone: phone ? phone.trim() : undefined,
+      currentAgency: invitation.agency._id,
+      agencies: [invitation.agency._id]
+    });
+  }
+
+  // Mark invitation as accepted
+  invitation.status = 'accepted';
+  invitation.acceptedAt = new Date();
+  invitation.acceptedUser = user._id;
+  await invitation.save();
+
+  // Capture device & create session
+  const device = parseDeviceInfo(req);
+  const { rawToken, tokenHash, expiresAt } = generateRefreshToken(Boolean(rememberMe));
+
+  const session = await RefreshToken.create({
+    userId: user._id,
+    tokenHash,
+    device,
+    rememberMe: Boolean(rememberMe),
+    expiresAt,
+    lastActiveAt: new Date()
+  });
+
+  const accessToken = generateAccessToken(user._id, session._id);
+
+  res.status(200).json({
+    success: true,
+    message: `Welcome to ${invitation.agency.name}! Your staff account is activated.`,
+    token: accessToken,
+    accessToken,
+    refreshToken: rawToken,
+    session: {
+      id: session._id.toString(),
+      device: session.device,
+      rememberMe: session.rememberMe,
+      expiresAt: session.expiresAt
+    },
+    user: {
+      id: user._id.toString(),
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      phone: user.phone,
+      avatar: user.avatar,
+      currentAgency: invitation.agency._id
+    }
+  });
+});
+
+/**
+ * @desc    Verify invitation code validity and return agency info
+ * @route   GET /api/auth/verify-invite
+ * @access  Public
+ */
+export const verifyInviteCode = asyncHandler(async (req, res) => {
+  const { code, token, email } = req.query;
+
+  if (!code && !token) {
+    return res.status(400).json({
+      success: false,
+      error: 'Please provide an invitation code or token.'
+    });
+  }
+
+  const query = { status: 'pending' };
+  if (code) query.inviteCode = String(code).toUpperCase().trim();
+  if (token) query.inviteToken = String(token).trim();
+  if (email) query.email = String(email).toLowerCase().trim();
+
+  const invitation = await StaffInvitation.findOne(query).populate('agency', 'name businessType logo');
+
+  if (!invitation) {
+    return res.status(404).json({
+      success: false,
+      error: 'Invitation not found or has already been used.'
+    });
+  }
+
+  if (new Date(invitation.expiresAt) < new Date()) {
+    invitation.status = 'expired';
+    await invitation.save();
+    return res.status(400).json({
+      success: false,
+      error: 'This invitation has expired. Please request a new invite from your administrator.'
+    });
+  }
+
+  res.status(200).json({
+    success: true,
+    valid: true,
+    invitation: {
+      email: invitation.email,
+      name: invitation.name,
+      role: invitation.role,
+      inviteCode: invitation.inviteCode,
+      agency: invitation.agency
     }
   });
 });

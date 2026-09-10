@@ -3,6 +3,8 @@ import {
   register,
   login,
   googleLogin,
+  acceptInvite,
+  verifyInviteCode,
   getMe,
   updateProfile,
   updatePassword,
@@ -18,6 +20,8 @@ const router = express.Router();
 
 router.post('/register', register);
 router.post('/login', login);
+router.post('/accept-invite', acceptInvite);
+router.get('/verify-invite', verifyInviteCode);
 router.post('/google', googleLogin);
 router.post('/refresh', refreshTokenHandler);
 router.post('/logout', logout);

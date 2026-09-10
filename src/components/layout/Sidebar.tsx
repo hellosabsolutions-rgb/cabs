@@ -305,8 +305,16 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onCloseMobile }) => {
             {totalAlerts > 0 && <span className="badge">{totalAlerts}</span>}
           </NavLink>
           <NavLink
+            to="/profile?tab=staff"
+            className={`nav-item ${location.pathname === '/profile' && location.search.includes('tab=staff') ? 'active' : ''}`}
+            onClick={onCloseMobile}
+          >
+            <Users />
+            Staff & Team
+          </NavLink>
+          <NavLink
             to="/profile"
-            className={navClass('/profile')}
+            className={location.pathname === '/profile' && !location.search.includes('tab=staff') ? 'nav-item active' : 'nav-item'}
             onClick={onCloseMobile}
           >
             <Settings />

@@ -4002,3 +4002,68 @@ textarea.form-input {
   }
 }
 
+/* ==========================================================================
+   Comprehensive Mobile Responsiveness (Phones & Small Tablets)
+   ========================================================================== */
+@media (max-width: 768px) {
+  /* Responsive Tables */
+  .table-container,
+  .overflow-x-auto,
+  table {
+    max-width: 100%;
+  }
+
+  .table-container,
+  .table-responsive {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    width: 100%;
+  }
+
+  .stat-cards-grid,
+  .stats-grid,
+  .kpi-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 10px !important;
+  }
+
+  /* Main Content Area */
+  .content,
+  .main-content {
+    padding: 14px 12px !important;
+  }
+
+  /* Form layouts */
+  .form-grid-2,
+  .form-row-2,
+  .form-cols-2 {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Filter bars & Tabs */
+  .filter-bar,
+  .filter-chips,
+  .tab-bar,
+  .nav-tabs {
+    overflow-x: auto !important;
+    white-space: nowrap !important;
+    -webkit-overflow-scrolling: touch !important;
+    flex-wrap: nowrap !important;
+    padding-bottom: 6px !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .stat-cards-grid,
+  .stats-grid,
+  .kpi-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .content,
+  .main-content {
+    padding: 10px 8px !important;
+  }
+}
+
+

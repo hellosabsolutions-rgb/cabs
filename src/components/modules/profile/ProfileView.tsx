@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth, DeviceSession } from '../../../context/AuthContext';
 import { useAgency } from '../../../context/AgencyContext';
 import { useTheme } from '../../../context/ThemeContext';
@@ -33,9 +33,15 @@ import {
   Loader2,
   AlertTriangle,
   CheckCircle2,
+  Users,
+  Copy,
+  Trash2,
+  Send,
+  UserPlus,
+  ExternalLink
 } from 'lucide-react';
 
-type ProfileSection = 'account' | 'security' | 'agency' | 'preferences';
+type ProfileSection = 'account' | 'security' | 'agency' | 'staff' | 'preferences';
 
 export const ProfileView: React.FC = () => {
   const {
@@ -230,10 +236,128 @@ export const ProfileView: React.FC = () => {
     }
   };
 
+  // Staff & Team Management State
+  const [staffList, setStaffList] = useState<any[]>([]);
+  const [invitationsList, setInvitationsList] = useState<any[]>([]);
+  const [isLoadingStaff, setIsLoadingStaff] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteName, setInviteName] = useState('');
+  const [inviteRole, setInviteRole] = useState<'manager' | 'operator'>('operator');
+  const [isSendingInvite, setIsSendingInvite] = useState(false);
+  const [inviteSuccessData, setInviteSuccessData] = useState<{ inviteCode: string; inviteLink: string; email: string } | null>(null);
+  const [staffError, setStaffError] = useState('');
+  const [copiedCode, setCopiedCode] = useState<string | null>(null);
+
+  const fetchStaffData = useCallback(async () => {
+    const agencyId = currentAgency?._id || currentAgency?.id;
+    if (!agencyId) return;
+    setIsLoadingStaff(true);
+    setStaffError('');
+    try {
+      const res = await api.get(`/agencies/${agencyId}/staff`);
+      if (res.success) {
+        setStaffList(res.staff || []);
+        setInvitationsList(res.invitations || []);
+      }
+    } catch (err: any) {
+      setStaffError(err.message || 'Failed to load staff list.');
+    } finally {
+      setIsLoadingStaff(false);
+    }
+  }, [currentAgency]);
+
+  useEffect(() => {
+    if (activeSection === 'staff') {
+      fetchStaffData();
+    }
+  }, [activeSection, fetchStaffData]);
+
+  // Support ?tab=staff query parameter
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const tab = params.get('tab');
+      if (tab === 'staff') {
+        setActiveSection('staff');
+      }
+    } catch (e) {}
+  }, []);
+
+  const handleSendInvite = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!inviteEmail.trim()) {
+      setStaffError('Please enter a valid staff email address.');
+      return;
+    }
+    const agencyId = currentAgency?._id || currentAgency?.id;
+    if (!agencyId) return;
+
+    setIsSendingInvite(true);
+    setStaffError('');
+    try {
+      const res = await api.post(`/agencies/${agencyId}/invite`, {
+        email: inviteEmail.trim(),
+        name: inviteName.trim(),
+        role: inviteRole
+      });
+
+      if (res.success && res.invitation) {
+        const fullInviteLink = `${window.location.origin}/?invite=${res.invitation.inviteCode}&email=${encodeURIComponent(res.invitation.email)}`;
+        setInviteSuccessData({
+          inviteCode: res.invitation.inviteCode,
+          inviteLink: fullInviteLink,
+          email: res.invitation.email
+        });
+        setInviteEmail('');
+        setInviteName('');
+        fetchStaffData();
+      } else {
+        setStaffError(res.error || 'Failed to generate invitation.');
+      }
+    } catch (err: any) {
+      setStaffError(err.message || 'Failed to send invitation. Please try again.');
+    } finally {
+      setIsSendingInvite(false);
+    }
+  };
+
+  const handleRevokeInvite = async (inviteId: string) => {
+    const agencyId = currentAgency?._id || currentAgency?.id;
+    if (!agencyId || !window.confirm('Are you sure you want to cancel this pending invitation?')) return;
+    try {
+      const res = await api.delete(`/agencies/${agencyId}/invite/${inviteId}`);
+      if (res.success) {
+        fetchStaffData();
+      }
+    } catch (err: any) {
+      alert(err.message || 'Failed to cancel invitation.');
+    }
+  };
+
+  const handleRemoveStaff = async (userId: string, memberName: string) => {
+    const agencyId = currentAgency?._id || currentAgency?.id;
+    if (!agencyId || !window.confirm(`Are you sure you want to remove ${memberName} from this agency?`)) return;
+    try {
+      const res = await api.delete(`/agencies/${agencyId}/staff/${userId}`);
+      if (res.success) {
+        fetchStaffData();
+      }
+    } catch (err: any) {
+      alert(err.message || 'Failed to remove staff member.');
+    }
+  };
+
+  const copyToClipboard = (text: string, id: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedCode(id);
+    setTimeout(() => setCopiedCode(null), 2500);
+  };
+
   const sections: { id: ProfileSection; label: string; icon: React.ReactNode; desc: string }[] = [
     { id: 'account', label: 'Account', icon: <User size={15} />, desc: 'Personal info & avatar' },
-    { id: 'security', label: 'Security', icon: <Lock size={15} />, desc: 'Password & authentication' },
+    { id: 'security', label: 'Security', icon: <Lock size={15} />, desc: 'Password & multi-device' },
     { id: 'agency', label: 'Agency', icon: <Building2 size={15} />, desc: 'Business details & GST' },
+    { id: 'staff', label: 'Staff & Team', icon: <Users size={15} />, desc: 'Invite staff by email' },
     { id: 'preferences', label: 'Preferences', icon: <Bell size={15} />, desc: 'Theme & notifications' },
   ];
 
@@ -823,6 +947,419 @@ export const ProfileView: React.FC = () => {
                   )}
                 </>
               )}
+            </div>
+          )}
+
+          {/* ── STAFF & TEAM MANAGEMENT ── */}
+          {activeSection === 'staff' && (
+            <div className="profile-section-wrap">
+              <div className="profile-section-head" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div>
+                  <div className="profile-section-title">Staff Members & Invitations</div>
+                  <div className="profile-section-sub">Invite your operations staff and fleet managers by Email ID</div>
+                </div>
+                <button
+                  type="button"
+                  onClick={fetchStaffData}
+                  disabled={isLoadingStaff}
+                  style={{
+                    background: 'var(--surface-2)',
+                    border: '1px solid var(--border)',
+                    borderRadius: '8px',
+                    padding: '7px 12px',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    color: 'var(--text)',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }}
+                >
+                  <RotateCw size={13} className={isLoadingStaff ? 'spin-loader' : ''} />
+                  <span>Refresh</span>
+                </button>
+              </div>
+
+              {/* Stats Overview */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '14px', marginBottom: '22px' }}>
+                <div style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: '12px', padding: '16px' }}>
+                  <div style={{ fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.6px', color: 'var(--text-faint)', marginBottom: '4px' }}>Active Staff</div>
+                  <div style={{ fontSize: '24px', fontWeight: 700, color: 'var(--text)' }}>{staffList.length}</div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-dim)', marginTop: '2px' }}>Authorized agency team</div>
+                </div>
+                <div style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: '12px', padding: '16px' }}>
+                  <div style={{ fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.6px', color: 'var(--text-faint)', marginBottom: '4px' }}>Pending Invitations</div>
+                  <div style={{ fontSize: '24px', fontWeight: 700, color: 'var(--accent)' }}>{invitationsList.length}</div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-dim)', marginTop: '2px' }}>Awaiting staff activation</div>
+                </div>
+              </div>
+
+              {/* Invite Form Card */}
+              <div
+                style={{
+                  background: 'var(--surface)',
+                  border: '1.5px solid var(--border)',
+                  borderRadius: '12px',
+                  padding: '20px 22px',
+                  marginBottom: '26px',
+                  boxShadow: '0 2px 10px rgba(0,0,0,0.03)'
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
+                  <UserPlus size={18} style={{ color: 'var(--accent)' }} />
+                  <span style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text)' }}>Invite New Staff Member</span>
+                </div>
+
+                {staffError && (
+                  <div style={{ background: 'var(--danger-bg)', color: 'var(--danger)', padding: '10px 14px', borderRadius: '8px', fontSize: '13px', marginBottom: '14px' }}>
+                    {staffError}
+                  </div>
+                )}
+
+                {inviteSuccessData && (
+                  <div
+                    style={{
+                      background: 'rgba(34, 197, 94, 0.08)',
+                      border: '1px solid rgba(34, 197, 94, 0.3)',
+                      borderRadius: '10px',
+                      padding: '14px 16px',
+                      marginBottom: '16px'
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#16a34a', fontWeight: 600, fontSize: '13.5px', marginBottom: '6px' }}>
+                      <CheckCircle2 size={17} />
+                      <span>Invitation generated for {inviteSuccessData.email}!</span>
+                    </div>
+                    <div style={{ fontSize: '12.5px', color: 'var(--text-dim)', marginBottom: '10px', lineHeight: 1.4 }}>
+                      Invite Code: <strong style={{ color: 'var(--text)', letterSpacing: '0.6px' }}>{inviteSuccessData.inviteCode}</strong>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                      <input
+                        type="text"
+                        readOnly
+                        value={inviteSuccessData.inviteLink}
+                        style={{
+                          flex: '1 1 280px',
+                          height: '36px',
+                          background: 'var(--surface-2)',
+                          border: '1px solid var(--border)',
+                          borderRadius: '6px',
+                          padding: '0 10px',
+                          fontSize: '12px',
+                          color: 'var(--text)'
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => copyToClipboard(inviteSuccessData.inviteLink, 'latest_invite')}
+                        style={{
+                          height: '36px',
+                          background: copiedCode === 'latest_invite' ? '#16a34a' : 'var(--accent)',
+                          color: '#fff',
+                          border: 'none',
+                          borderRadius: '6px',
+                          padding: '0 14px',
+                          fontSize: '12.5px',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px'
+                        }}
+                      >
+                        {copiedCode === 'latest_invite' ? <Check size={14} /> : <Copy size={14} />}
+                        <span>{copiedCode === 'latest_invite' ? 'Link Copied!' : 'Copy Link'}</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                <form onSubmit={handleSendInvite} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '14px', alignItems: 'flex-end' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12.5px', fontWeight: 500, color: 'var(--text)', marginBottom: '6px' }}>
+                      Staff Work Email *
+                    </label>
+                    <input
+                      type="email"
+                      required
+                      placeholder="colleague@agency.com"
+                      value={inviteEmail}
+                      onChange={e => setInviteEmail(e.target.value)}
+                      style={{
+                        width: '100%',
+                        height: '40px',
+                        padding: '0 12px',
+                        borderRadius: '8px',
+                        border: '1px solid var(--border)',
+                        background: 'var(--surface-2)',
+                        color: 'var(--text)',
+                        fontSize: '13px'
+                      }}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12.5px', fontWeight: 500, color: 'var(--text)', marginBottom: '6px' }}>
+                      Full Name (Optional)
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Vikas Gupta"
+                      value={inviteName}
+                      onChange={e => setInviteName(e.target.value)}
+                      style={{
+                        width: '100%',
+                        height: '40px',
+                        padding: '0 12px',
+                        borderRadius: '8px',
+                        border: '1px solid var(--border)',
+                        background: 'var(--surface-2)',
+                        color: 'var(--text)',
+                        fontSize: '13px'
+                      }}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12.5px', fontWeight: 500, color: 'var(--text)', marginBottom: '6px' }}>
+                      Assigned Role
+                    </label>
+                    <select
+                      value={inviteRole}
+                      onChange={e => setInviteRole(e.target.value as any)}
+                      style={{
+                        width: '100%',
+                        height: '40px',
+                        padding: '0 10px',
+                        borderRadius: '8px',
+                        border: '1px solid var(--border)',
+                        background: 'var(--surface-2)',
+                        color: 'var(--text)',
+                        fontSize: '13px'
+                      }}
+                    >
+                      <option value="operator">Operator (Bookings & Duty Logs)</option>
+                      <option value="manager">Manager (Fleet & Operations)</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <button
+                      type="submit"
+                      disabled={isSendingInvite}
+                      style={{
+                        width: '100%',
+                        height: '40px',
+                        borderRadius: '8px',
+                        border: 'none',
+                        background: 'var(--accent)',
+                        color: '#fff',
+                        fontSize: '13px',
+                        fontWeight: 600,
+                        cursor: isSendingInvite ? 'not-allowed' : 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '8px'
+                      }}
+                    >
+                      {isSendingInvite ? (
+                        <>
+                          <Loader2 size={15} className="spin-loader" />
+                          <span>Generating...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Send size={14} />
+                          <span>Send Invitation</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </form>
+              </div>
+
+              {/* Pending Invitations Section */}
+              <div style={{ marginBottom: '28px' }}>
+                <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text)', marginBottom: '12px' }}>
+                  Pending Invitations ({invitationsList.length})
+                </div>
+
+                {invitationsList.length === 0 ? (
+                  <div style={{ padding: '24px', textAlign: 'center', background: 'var(--surface-2)', borderRadius: '10px', color: 'var(--text-dim)', fontSize: '13px' }}>
+                    No pending invitations. All invited staff members have joined.
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    {invitationsList.map(inv => {
+                      const inviteLink = `${window.location.origin}/?invite=${inv.inviteCode}&email=${encodeURIComponent(inv.email)}`;
+                      return (
+                        <div
+                          key={inv._id || inv.id}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            background: 'var(--surface-2)',
+                            border: '1px solid var(--border)',
+                            borderRadius: '10px',
+                            padding: '12px 16px',
+                            gap: '12px',
+                            flexWrap: 'wrap'
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: '220px' }}>
+                            <div style={{ width: 34, height: 34, borderRadius: '8px', background: 'rgba(22, 135, 245, 0.12)', color: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '13px' }}>
+                              {(inv.name || inv.email)[0].toUpperCase()}
+                            </div>
+                            <div>
+                              <div style={{ fontSize: '13.5px', fontWeight: 600, color: 'var(--text)' }}>
+                                {inv.name ? `${inv.name} (${inv.email})` : inv.email}
+                              </div>
+                              <div style={{ fontSize: '11.5px', color: 'var(--text-dim)', display: 'flex', alignItems: 'center', gap: '8px', marginTop: '2px' }}>
+                                <span style={{ textTransform: 'capitalize', color: 'var(--accent)', fontWeight: 600 }}>{inv.role}</span>
+                                <span>•</span>
+                                <span>Code: <strong>{inv.inviteCode}</strong></span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <button
+                              type="button"
+                              onClick={() => copyToClipboard(inviteLink, inv.inviteCode)}
+                              style={{
+                                background: copiedCode === inv.inviteCode ? '#16a34a' : 'var(--surface)',
+                                border: '1px solid var(--border)',
+                                color: copiedCode === inv.inviteCode ? '#fff' : 'var(--text)',
+                                padding: '6px 12px',
+                                borderRadius: '6px',
+                                fontSize: '12px',
+                                fontWeight: 500,
+                                cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '6px'
+                              }}
+                            >
+                              {copiedCode === inv.inviteCode ? <Check size={13} /> : <Copy size={13} />}
+                              <span>{copiedCode === inv.inviteCode ? 'Copied' : 'Copy Link'}</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => handleRevokeInvite(inv._id || inv.id)}
+                              style={{
+                                background: 'transparent',
+                                border: '1px solid var(--danger)',
+                                color: 'var(--danger)',
+                                padding: '6px 10px',
+                                borderRadius: '6px',
+                                fontSize: '12px',
+                                fontWeight: 500,
+                                cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px'
+                              }}
+                            >
+                              <Trash2 size={13} />
+                              <span>Revoke</span>
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Active Staff Members Section */}
+              <div>
+                <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text)', marginBottom: '12px' }}>
+                  Active Team Members ({staffList.length})
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {staffList.map(member => {
+                    const isSelf = member._id === user?.id || member.id === user?.id;
+                    const isOwner = member.role === 'admin';
+                    return (
+                      <div
+                        key={member._id || member.id}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          background: 'var(--surface-2)',
+                          border: '1px solid var(--border)',
+                          borderRadius: '10px',
+                          padding: '12px 16px',
+                          gap: '12px',
+                          flexWrap: 'wrap'
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                          <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'var(--surface-3)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '13px', color: 'var(--accent)' }}>
+                            {member.name ? member.name.split(' ').map((n: string) => n[0]).slice(0, 2).join('').toUpperCase() : 'ST'}
+                          </div>
+                          <div>
+                            <div style={{ fontSize: '13.5px', fontWeight: 600, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <span>{member.name || member.email}</span>
+                              {isSelf && (
+                                <span style={{ fontSize: '10px', background: 'rgba(22, 135, 245, 0.12)', color: 'var(--accent)', padding: '2px 6px', borderRadius: '4px', fontWeight: 700 }}>YOU</span>
+                              )}
+                            </div>
+                            <div style={{ fontSize: '12px', color: 'var(--text-dim)', marginTop: '2px' }}>
+                              {member.email} {member.phone ? `• ${member.phone}` : ''}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <span
+                            style={{
+                              fontSize: '11.5px',
+                              fontWeight: 600,
+                              textTransform: 'uppercase',
+                              letterSpacing: '0.4px',
+                              padding: '4px 10px',
+                              borderRadius: '6px',
+                              background: member.role === 'admin' ? 'rgba(22, 135, 245, 0.12)' : 'rgba(34, 197, 94, 0.12)',
+                              color: member.role === 'admin' ? 'var(--accent)' : '#16a34a'
+                            }}
+                          >
+                            {member.role || 'Staff'}
+                          </span>
+
+                          {!isSelf && !isOwner && (
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveStaff(member._id || member.id, member.name || member.email)}
+                              style={{
+                                background: 'transparent',
+                                border: '1px solid rgba(241, 91, 74, 0.4)',
+                                color: 'var(--danger)',
+                                padding: '5px 10px',
+                                borderRadius: '6px',
+                                fontSize: '11.5px',
+                                cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px'
+                              }}
+                            >
+                              <Trash2 size={12} />
+                              <span>Remove</span>
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
           )}
 

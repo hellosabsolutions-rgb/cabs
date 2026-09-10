@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useGoogleLogin } from '@react-oauth/google';
 import { useAuth } from '../../../context/AuthContext';
 import { useTheme } from '../../../context/ThemeContext';
+import { api } from '../../../services/api';
 import {
   Mail,
   Lock,
@@ -11,32 +12,77 @@ import {
   EyeOff,
   Loader2,
   Sun,
-  Moon
+  Moon,
+  KeyRound,
+  ShieldCheck,
+  CheckCircle2,
+  ArrowRight,
+  Sparkles,
+  Building2
 } from 'lucide-react';
 
 export const LoginView: React.FC = () => {
-  const { login, register, googleLogin } = useAuth();
+  const { login, acceptStaffInvite, googleLogin } = useAuth();
   const { theme, setTheme } = useTheme();
 
-  const [mode, setMode] = useState<'login' | 'register'>('login');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [mode, setMode] = useState<'login' | 'invite'>('login');
+  const [email, setEmail] = useState('admin@fleetos.com');
+  const [password, setPassword] = useState('admin123');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [inviteCode, setInviteCode] = useState('');
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
+  const [pendingInvitePrompt, setPendingInvitePrompt] = useState<{ email: string; inviteCode?: string } | null>(null);
+  const [verifiedInvite, setVerifiedInvite] = useState<{ email?: string; name?: string; role?: string; agencyName?: string } | null>(null);
+
+  // Check URL query parameters for invitation code or email
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const codeParam = params.get('invite') || params.get('code');
+      const emailParam = params.get('email');
+
+      if (codeParam) {
+        setMode('invite');
+        setInviteCode(codeParam.toUpperCase().trim());
+        if (emailParam) setEmail(emailParam.trim());
+
+        api.get(`/auth/verify-invite?code=${encodeURIComponent(codeParam.trim())}`)
+          .then(res => {
+            if (res.success && res.invitation) {
+              if (res.invitation.email) setEmail(res.invitation.email);
+              if (res.invitation.name) setName(res.invitation.name);
+              setVerifiedInvite({
+                email: res.invitation.email,
+                name: res.invitation.name,
+                role: res.invitation.role,
+                agencyName: res.invitation.agency?.name
+              });
+            }
+          })
+          .catch(() => {});
+      }
+    } catch (e) {
+      // Fallback
+    }
+  }, []);
 
   const triggerGoogleAuth = useGoogleLogin({
     onSuccess: async (tokenResponse) => {
       setErrorMsg('');
+      setSuccessMsg('');
       setIsGoogleLoading(true);
       try {
         const res = await googleLogin({ accessToken: tokenResponse.access_token }, rememberMe);
         if (!res.success) {
-          setErrorMsg(res.error || 'Google Sign-in failed.');
+          setErrorMsg(res.error || 'Google Sign-in failed. If you are staff, please use your email invitation to activate your account first.');
         }
       } catch (err: any) {
         setErrorMsg(err?.message || 'Google Sign-in failed.');
@@ -54,37 +100,88 @@ export const LoginView: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg('');
+    setSuccessMsg('');
 
-    if (!email.trim() || !password.trim()) {
-      setErrorMsg('Please enter both email and password.');
-      return;
-    }
+    if (mode === 'login') {
+      if (!email.trim() || !password.trim()) {
+        setErrorMsg('Please enter both email and password.');
+        return;
+      }
 
-    if (mode === 'register' && !name.trim()) {
-      setErrorMsg('Please enter your full name.');
-      return;
-    }
-
-    setIsSubmitting(true);
-    try {
-      if (mode === 'login') {
+      setIsSubmitting(true);
+      try {
         const res = await login(email.trim(), password, rememberMe);
         if (!res.success) {
+          if (res.hasPendingInvite) {
+            setPendingInvitePrompt({
+              email: email.trim(),
+              inviteCode: res.inviteCode
+            });
+          }
           setErrorMsg(res.error || 'Invalid email or password.');
         }
-      } else {
-        const res = await register(name.trim(), email.trim(), password, phone.trim(), rememberMe);
-        if (!res.success) {
-          setErrorMsg(res.error || 'Failed to create account.');
-        }
+      } finally {
+        setIsSubmitting(false);
       }
-    } finally {
-      setIsSubmitting(false);
+    } else {
+      // Staff Invitation Activation
+      if (!email.trim()) {
+        setErrorMsg('Please enter your staff email address.');
+        return;
+      }
+      if (!inviteCode.trim()) {
+        setErrorMsg('Please enter the invitation code sent to your email.');
+        return;
+      }
+      if (!password.trim()) {
+        setErrorMsg('Please choose a secure password.');
+        return;
+      }
+      if (password.length < 6) {
+        setErrorMsg('Password must be at least 6 characters long.');
+        return;
+      }
+      if (password !== confirmPassword) {
+        setErrorMsg('Passwords do not match. Please re-type your password.');
+        return;
+      }
+
+      setIsSubmitting(true);
+      try {
+        const res = await acceptStaffInvite({
+          email: email.trim(),
+          inviteCode: inviteCode.trim().toUpperCase(),
+          password,
+          name: name.trim() || undefined,
+          phone: phone.trim() || undefined,
+          rememberMe
+        });
+
+        if (res.success) {
+          setSuccessMsg(res.message || 'Account activated successfully! Opening your dashboard...');
+        } else {
+          setErrorMsg(res.error || 'Failed to activate invitation. Please verify your email and code.');
+        }
+      } finally {
+        setIsSubmitting(false);
+      }
     }
   };
 
   const handleForgotPassword = () => {
-    alert('Password reset instructions: Please contact your system administrator to reset your account password.');
+    alert('Password reset: Please contact your agency administrator or supervisor to reset your account password.');
+  };
+
+  const handleActivatePendingInvite = () => {
+    if (pendingInvitePrompt) {
+      setEmail(pendingInvitePrompt.email);
+      if (pendingInvitePrompt.inviteCode) {
+        setInviteCode(pendingInvitePrompt.inviteCode);
+      }
+    }
+    setMode('invite');
+    setErrorMsg('');
+    setPendingInvitePrompt(null);
   };
 
   return (
@@ -99,7 +196,7 @@ export const LoginView: React.FC = () => {
         overflowX: 'hidden'
       }}
     >
-      {/* ──────────────── LEFT PANEL: LOGIN / SIGNUP FORM ──────────────── */}
+      {/* ──────────────── LEFT PANEL: LOGIN / INVITATION FORM ──────────────── */}
       <div
         style={{
           flex: '1 1 50%',
@@ -107,7 +204,7 @@ export const LoginView: React.FC = () => {
           display: 'flex',
           flexDirection: 'column',
           justifyContent: 'space-between',
-          padding: '40px 5vw 32px',
+          padding: '36px 5vw 28px',
           background: 'var(--surface)',
           overflowY: 'auto'
         }}
@@ -119,8 +216,8 @@ export const LoginView: React.FC = () => {
             alignItems: 'center',
             justifyContent: 'space-between',
             width: '100%',
-            maxWidth: '480px',
-            margin: '0 auto 24px'
+            maxWidth: '440px',
+            margin: '0 auto 20px'
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -197,17 +294,23 @@ export const LoginView: React.FC = () => {
           }}
         >
           {/* Welcome Title & Subtitle */}
-          <div style={{ marginBottom: '28px' }}>
+          <div style={{ marginBottom: '22px' }}>
+            {mode === 'invite' && (
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '4px 10px', borderRadius: '20px', background: 'rgba(22, 135, 245, 0.12)', color: 'var(--accent)', fontSize: '11.5px', fontWeight: 600, marginBottom: '10px' }}>
+                <Sparkles size={13} />
+                <span>Staff Onboarding</span>
+              </div>
+            )}
             <h1
               style={{
-                fontSize: '32px',
+                fontSize: '30px',
                 fontWeight: 700,
                 letterSpacing: '-0.6px',
                 color: 'var(--text)',
-                margin: '0 0 8px'
+                margin: '0 0 6px'
               }}
             >
-              {mode === 'login' ? 'Welcome Back!' : 'Create Account'}
+              {mode === 'login' ? 'Welcome Back!' : 'Activate Staff Account'}
             </h1>
             <p
               style={{
@@ -218,10 +321,103 @@ export const LoginView: React.FC = () => {
               }}
             >
               {mode === 'login'
-                ? 'Sign in to access your dashboard and continue managing your fleet operations.'
-                : 'Sign up to manage your vehicles, drivers, bookings, and compliance schedules.'}
+                ? 'Sign in to access your fleet operations dashboard.'
+                : 'Enter your work email and invitation code to set your password and join your agency.'}
             </p>
           </div>
+
+          {/* Verified Invitation Banner if loaded from link */}
+          {mode === 'invite' && verifiedInvite && (
+            <div
+              style={{
+                background: 'rgba(22, 135, 245, 0.08)',
+                border: '1px solid rgba(22, 135, 245, 0.25)',
+                borderRadius: '10px',
+                padding: '12px 14px',
+                marginBottom: '18px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px'
+              }}
+            >
+              <Building2 size={24} style={{ color: 'var(--accent)', flexShrink: 0 }} />
+              <div style={{ fontSize: '12.5px', lineHeight: 1.4 }}>
+                <div style={{ fontWeight: 600, color: 'var(--text)' }}>
+                  Invitation for {verifiedInvite.agencyName || 'Commercial Fleet'}
+                </div>
+                <div style={{ color: 'var(--text-dim)' }}>
+                  Joining role: <strong style={{ color: 'var(--accent)', textTransform: 'capitalize' }}>{verifiedInvite.role || 'Staff Operator'}</strong>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Pending Invite Prompt Banner (if user tried logging in with invited email) */}
+          {pendingInvitePrompt && mode === 'login' && (
+            <div
+              style={{
+                background: 'rgba(245, 158, 11, 0.1)',
+                border: '1px solid rgba(245, 158, 11, 0.35)',
+                borderRadius: '10px',
+                padding: '12px 14px',
+                marginBottom: '18px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '8px'
+              }}
+            >
+              <div style={{ fontSize: '13px', color: '#d97706', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <ShieldCheck size={16} />
+                <span>Pending Invitation Found</span>
+              </div>
+              <div style={{ fontSize: '12.5px', color: 'var(--text-dim)', lineHeight: 1.4 }}>
+                An invitation has been issued for <strong>{pendingInvitePrompt.email}</strong>. Please activate your account to set your password.
+              </div>
+              <button
+                type="button"
+                onClick={handleActivatePendingInvite}
+                style={{
+                  alignSelf: 'flex-start',
+                  background: '#f59e0b',
+                  color: '#ffffff',
+                  border: 'none',
+                  borderRadius: '6px',
+                  padding: '6px 12px',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  marginTop: '2px'
+                }}
+              >
+                <span>Activate Staff Account</span>
+                <ArrowRight size={13} />
+              </button>
+            </div>
+          )}
+
+          {/* Success Message */}
+          {successMsg && (
+            <div
+              style={{
+                background: 'rgba(34, 197, 94, 0.12)',
+                color: '#16a34a',
+                border: '1px solid rgba(34, 197, 94, 0.3)',
+                padding: '11px 14px',
+                borderRadius: '8px',
+                fontSize: '13px',
+                marginBottom: '18px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}
+            >
+              <CheckCircle2 size={16} />
+              <span>{successMsg}</span>
+            </div>
+          )}
 
           {/* Error Message */}
           {errorMsg && (
@@ -233,7 +429,7 @@ export const LoginView: React.FC = () => {
                 padding: '11px 14px',
                 borderRadius: '8px',
                 fontSize: '13px',
-                marginBottom: '20px',
+                marginBottom: '18px',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '8px'
@@ -244,129 +440,19 @@ export const LoginView: React.FC = () => {
           )}
 
           {/* Form */}
-          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
-            {mode === 'register' && (
-              <>
-                <div>
-                  <label
-                    style={{
-                      display: 'block',
-                      fontSize: '13.5px',
-                      fontWeight: 500,
-                      marginBottom: '7px',
-                      color: 'var(--text)'
-                    }}
-                  >
-                    Full Name
-                  </label>
-                  <div style={{ position: 'relative' }}>
-                    <User
-                      size={17}
-                      style={{
-                        position: 'absolute',
-                        left: '14px',
-                        top: '50%',
-                        transform: 'translateY(-50%)',
-                        color: 'var(--text-faint)'
-                      }}
-                    />
-                    <input
-                      type="text"
-                      placeholder="Enter your full name"
-                      value={name}
-                      onChange={e => setName(e.target.value)}
-                      required
-                      style={{
-                        width: '100%',
-                        height: '46px',
-                        padding: '0 14px 0 42px',
-                        borderRadius: '8px',
-                        border: '1.5px solid var(--border)',
-                        background: 'var(--surface)',
-                        color: 'var(--text)',
-                        fontSize: '13.5px',
-                        outline: 'none',
-                        transition: 'border-color 0.2s ease, box-shadow 0.2s ease'
-                      }}
-                      onFocus={e => {
-                        e.target.style.borderColor = 'var(--accent)';
-                        e.target.style.boxShadow = '0 0 0 3px rgba(22, 135, 245, 0.15)';
-                      }}
-                      onBlur={e => {
-                        e.target.style.borderColor = 'var(--border)';
-                        e.target.style.boxShadow = 'none';
-                      }}
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label
-                    style={{
-                      display: 'block',
-                      fontSize: '13.5px',
-                      fontWeight: 500,
-                      marginBottom: '7px',
-                      color: 'var(--text)'
-                    }}
-                  >
-                    Phone Number (Optional)
-                  </label>
-                  <div style={{ position: 'relative' }}>
-                    <Phone
-                      size={17}
-                      style={{
-                        position: 'absolute',
-                        left: '14px',
-                        top: '50%',
-                        transform: 'translateY(-50%)',
-                        color: 'var(--text-faint)'
-                      }}
-                    />
-                    <input
-                      type="tel"
-                      placeholder="Enter phone number"
-                      value={phone}
-                      onChange={e => setPhone(e.target.value)}
-                      style={{
-                        width: '100%',
-                        height: '46px',
-                        padding: '0 14px 0 42px',
-                        borderRadius: '8px',
-                        border: '1.5px solid var(--border)',
-                        background: 'var(--surface)',
-                        color: 'var(--text)',
-                        fontSize: '13.5px',
-                        outline: 'none',
-                        transition: 'border-color 0.2s ease, box-shadow 0.2s ease'
-                      }}
-                      onFocus={e => {
-                        e.target.style.borderColor = 'var(--accent)';
-                        e.target.style.boxShadow = '0 0 0 3px rgba(22, 135, 245, 0.15)';
-                      }}
-                      onBlur={e => {
-                        e.target.style.borderColor = 'var(--border)';
-                        e.target.style.boxShadow = 'none';
-                      }}
-                    />
-                  </div>
-                </div>
-              </>
-            )}
-
-
-            {/* Email Field */}
+          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            {/* Work Email Field */}
             <div>
               <label
                 style={{
                   display: 'block',
-                  fontSize: '13.5px',
+                  fontSize: '13px',
                   fontWeight: 500,
-                  marginBottom: '7px',
+                  marginBottom: '6px',
                   color: 'var(--text)'
                 }}
               >
-                Email
+                {mode === 'invite' ? 'Work Email Address' : 'Email Address'}
               </label>
               <div style={{ position: 'relative' }}>
                 <Mail
@@ -381,13 +467,13 @@ export const LoginView: React.FC = () => {
                 />
                 <input
                   type="email"
-                  placeholder="Enter your email"
+                  placeholder="name@company.com"
                   value={email}
                   onChange={e => setEmail(e.target.value)}
                   required
                   style={{
                     width: '100%',
-                    height: '46px',
+                    height: '44px',
                     padding: '0 14px 0 42px',
                     borderRadius: '8px',
                     border: '1.5px solid var(--border)',
@@ -409,18 +495,172 @@ export const LoginView: React.FC = () => {
               </div>
             </div>
 
+            {/* Extra Fields for Staff Invitation Activation */}
+            {mode === 'invite' && (
+              <>
+                {/* Invitation Code */}
+                <div>
+                  <label
+                    style={{
+                      display: 'block',
+                      fontSize: '13px',
+                      fontWeight: 500,
+                      marginBottom: '6px',
+                      color: 'var(--text)'
+                    }}
+                  >
+                    Invitation Code
+                  </label>
+                  <div style={{ position: 'relative' }}>
+                    <KeyRound
+                      size={17}
+                      style={{
+                        position: 'absolute',
+                        left: '14px',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        color: 'var(--accent)'
+                      }}
+                    />
+                    <input
+                      type="text"
+                      placeholder="e.g. STF-A9F321"
+                      value={inviteCode}
+                      onChange={e => setInviteCode(e.target.value.toUpperCase())}
+                      required
+                      style={{
+                        width: '100%',
+                        height: '44px',
+                        padding: '0 14px 0 42px',
+                        borderRadius: '8px',
+                        border: '1.5px solid var(--border)',
+                        background: 'var(--surface)',
+                        color: 'var(--text)',
+                        fontSize: '13.5px',
+                        fontWeight: 600,
+                        letterSpacing: '0.8px',
+                        outline: 'none',
+                        textTransform: 'uppercase',
+                        transition: 'border-color 0.2s ease, box-shadow 0.2s ease'
+                      }}
+                      onFocus={e => {
+                        e.target.style.borderColor = 'var(--accent)';
+                        e.target.style.boxShadow = '0 0 0 3px rgba(22, 135, 245, 0.18)';
+                      }}
+                      onBlur={e => {
+                        e.target.style.borderColor = 'var(--border)';
+                        e.target.style.boxShadow = 'none';
+                      }}
+                    />
+                  </div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-faint)', marginTop: '4px' }}>
+                    Sent by your agency administrator via email.
+                  </div>
+                </div>
+
+                {/* Full Name */}
+                <div>
+                  <label
+                    style={{
+                      display: 'block',
+                      fontSize: '13px',
+                      fontWeight: 500,
+                      marginBottom: '6px',
+                      color: 'var(--text)'
+                    }}
+                  >
+                    Your Full Name
+                  </label>
+                  <div style={{ position: 'relative' }}>
+                    <User
+                      size={17}
+                      style={{
+                        position: 'absolute',
+                        left: '14px',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        color: 'var(--text-faint)'
+                      }}
+                    />
+                    <input
+                      type="text"
+                      placeholder="e.g. Rahul Sharma"
+                      value={name}
+                      onChange={e => setName(e.target.value)}
+                      required
+                      style={{
+                        width: '100%',
+                        height: '44px',
+                        padding: '0 14px 0 42px',
+                        borderRadius: '8px',
+                        border: '1.5px solid var(--border)',
+                        background: 'var(--surface)',
+                        color: 'var(--text)',
+                        fontSize: '13.5px',
+                        outline: 'none'
+                      }}
+                    />
+                  </div>
+                </div>
+
+                {/* Phone (Optional) */}
+                <div>
+                  <label
+                    style={{
+                      display: 'block',
+                      fontSize: '13px',
+                      fontWeight: 500,
+                      marginBottom: '6px',
+                      color: 'var(--text)'
+                    }}
+                  >
+                    Phone Number (Optional)
+                  </label>
+                  <div style={{ position: 'relative' }}>
+                    <Phone
+                      size={17}
+                      style={{
+                        position: 'absolute',
+                        left: '14px',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        color: 'var(--text-faint)'
+                      }}
+                    />
+                    <input
+                      type="tel"
+                      placeholder="+91 98765 43210"
+                      value={phone}
+                      onChange={e => setPhone(e.target.value)}
+                      style={{
+                        width: '100%',
+                        height: '44px',
+                        padding: '0 14px 0 42px',
+                        borderRadius: '8px',
+                        border: '1.5px solid var(--border)',
+                        background: 'var(--surface)',
+                        color: 'var(--text)',
+                        fontSize: '13.5px',
+                        outline: 'none'
+                      }}
+                    />
+                  </div>
+                </div>
+              </>
+            )}
+
             {/* Password Field */}
             <div>
               <label
                 style={{
                   display: 'block',
-                  fontSize: '13.5px',
+                  fontSize: '13px',
                   fontWeight: 500,
-                  marginBottom: '7px',
+                  marginBottom: '6px',
                   color: 'var(--text)'
                 }}
               >
-                Password
+                {mode === 'invite' ? 'Choose New Password' : 'Password'}
               </label>
               <div style={{ position: 'relative' }}>
                 <Lock
@@ -435,13 +675,13 @@ export const LoginView: React.FC = () => {
                 />
                 <input
                   type={showPassword ? 'text' : 'password'}
-                  placeholder="Enter your password"
+                  placeholder={mode === 'invite' ? 'At least 6 characters' : 'Enter your password'}
                   value={password}
                   onChange={e => setPassword(e.target.value)}
                   required
                   style={{
                     width: '100%',
-                    height: '46px',
+                    height: '44px',
                     padding: '0 44px 0 42px',
                     borderRadius: '8px',
                     border: '1.5px solid var(--border)',
@@ -462,7 +702,7 @@ export const LoginView: React.FC = () => {
                 />
                 <button
                   type="button"
-                  onClick={() => setShowPassword(p => !p)}
+                  onClick={() => setShowPassword(!showPassword)}
                   style={{
                     position: 'absolute',
                     right: '12px',
@@ -472,23 +712,89 @@ export const LoginView: React.FC = () => {
                     border: 'none',
                     color: 'var(--text-faint)',
                     cursor: 'pointer',
+                    padding: '4px',
                     display: 'flex',
-                    alignItems: 'center',
-                    padding: '4px'
+                    alignItems: 'center'
                   }}
                 >
-                  {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
               </div>
             </div>
 
-            {/* Sub-row: Remember Me & Forgot Password */}
+            {/* Confirm Password Field (for Invite mode) */}
+            {mode === 'invite' && (
+              <div>
+                <label
+                  style={{
+                    display: 'block',
+                    fontSize: '13px',
+                    fontWeight: 500,
+                    marginBottom: '6px',
+                    color: 'var(--text)'
+                  }}
+                >
+                  Confirm Password
+                </label>
+                <div style={{ position: 'relative' }}>
+                  <Lock
+                    size={17}
+                    style={{
+                      position: 'absolute',
+                      left: '14px',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      color: 'var(--text-faint)'
+                    }}
+                  />
+                  <input
+                    type={showConfirmPassword ? 'text' : 'password'}
+                    placeholder="Re-enter your password"
+                    value={confirmPassword}
+                    onChange={e => setConfirmPassword(e.target.value)}
+                    required
+                    style={{
+                      width: '100%',
+                      height: '44px',
+                      padding: '0 44px 0 42px',
+                      borderRadius: '8px',
+                      border: '1.5px solid var(--border)',
+                      background: 'var(--surface)',
+                      color: 'var(--text)',
+                      fontSize: '13.5px',
+                      outline: 'none'
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    style={{
+                      position: 'absolute',
+                      right: '12px',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      background: 'none',
+                      border: 'none',
+                      color: 'var(--text-faint)',
+                      cursor: 'pointer',
+                      padding: '4px',
+                      display: 'flex',
+                      alignItems: 'center'
+                    }}
+                  >
+                    {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Remember Me & Forgot Password */}
             <div
               style={{
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-                marginTop: '-2px'
+                margin: '2px 0 4px'
               }}
             >
               <label
@@ -536,13 +842,13 @@ export const LoginView: React.FC = () => {
               )}
             </div>
 
-            {/* Primary Sign In Button */}
+            {/* Submit Button */}
             <button
               type="submit"
               disabled={isSubmitting}
               style={{
                 width: '100%',
-                height: '46px',
+                height: '44px',
                 borderRadius: '8px',
                 border: 'none',
                 background: 'var(--accent)',
@@ -554,7 +860,7 @@ export const LoginView: React.FC = () => {
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: '8px',
-                marginTop: '6px',
+                marginTop: '4px',
                 boxShadow: '0 4px 16px rgba(22, 135, 245, 0.35)',
                 transition: 'all 0.15s ease'
               }}
@@ -568,128 +874,116 @@ export const LoginView: React.FC = () => {
               {isSubmitting ? (
                 <>
                   <Loader2 size={16} className="spin-loader" />
-                  <span>{mode === 'login' ? 'Signing in...' : 'Creating Account...'}</span>
+                  <span>{mode === 'login' ? 'Signing in...' : 'Activating Account...'}</span>
                 </>
               ) : (
-                <span>{mode === 'login' ? 'Sign In' : 'Create Account'}</span>
+                <span>{mode === 'login' ? 'Sign In' : 'Activate & Join Agency'}</span>
               )}
             </button>
 
-            {/* Divider */}
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                margin: '14px 0 12px',
-                gap: '12px'
-              }}
-            >
-              <div style={{ flex: 1, height: '1px', background: 'var(--border)' }} />
-              <span
-                style={{
-                  fontSize: '11px',
-                  fontWeight: 600,
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.8px',
-                  color: 'var(--text-faint)'
-                }}
-              >
-                or continue with
-              </span>
-              <div style={{ flex: 1, height: '1px', background: 'var(--border)' }} />
-            </div>
+            {/* Google Sign In (Only in Login mode) */}
+            {mode === 'login' && (
+              <>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    margin: '10px 0 8px',
+                    gap: '12px'
+                  }}
+                >
+                  <div style={{ flex: 1, height: '1px', background: 'var(--border)' }} />
+                  <span
+                    style={{
+                      fontSize: '11px',
+                      fontWeight: 600,
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.8px',
+                      color: 'var(--text-faint)'
+                    }}
+                  >
+                    or continue with
+                  </span>
+                  <div style={{ flex: 1, height: '1px', background: 'var(--border)' }} />
+                </div>
 
-            {/* Custom Theme-matched Google Sign-in / Sign-up Button */}
-            <button
-              type="button"
-              id="custom-google-auth-btn"
-              onClick={() => {
-                setErrorMsg('');
-                triggerGoogleAuth();
-              }}
-              disabled={isSubmitting || isGoogleLoading}
-              style={{
-                width: '100%',
-                height: '46px',
-                borderRadius: '8px',
-                border: '1.5px solid var(--border)',
-                background: 'var(--surface-2)',
-                color: 'var(--text)',
-                fontSize: '14px',
-                fontWeight: 600,
-                cursor: isSubmitting || isGoogleLoading ? 'not-allowed' : 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '12px',
-                transition: 'all 0.2s ease',
-                boxShadow: theme === 'dark' ? '0 2px 8px rgba(0, 0, 0, 0.3)' : '0 2px 6px rgba(0, 0, 0, 0.04)',
-                userSelect: 'none'
-              }}
-              onMouseEnter={e => {
-                if (!isSubmitting && !isGoogleLoading) {
-                  e.currentTarget.style.borderColor = 'rgba(22, 135, 245, 0.6)';
-                  e.currentTarget.style.background = 'var(--surface-3)';
-                  e.currentTarget.style.boxShadow = '0 4px 14px rgba(22, 135, 245, 0.15)';
-                }
-              }}
-              onMouseLeave={e => {
-                if (!isSubmitting && !isGoogleLoading) {
-                  e.currentTarget.style.borderColor = 'var(--border)';
-                  e.currentTarget.style.background = 'var(--surface-2)';
-                  e.currentTarget.style.boxShadow = theme === 'dark' ? '0 2px 8px rgba(0, 0, 0, 0.3)' : '0 2px 6px rgba(0, 0, 0, 0.04)';
-                }
-              }}
-            >
-              {isGoogleLoading ? (
-                <>
-                  <Loader2 size={18} className="spin-loader" />
-                  <span>Connecting with Google...</span>
-                </>
-              ) : (
-                <>
-                  {/* Official Google 'G' Logo SVG */}
-                  <svg width="20" height="20" viewBox="0 0 24 24" style={{ flexShrink: 0 }}>
-                    <path
-                      d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                      fill="#4285F4"
-                    />
-                    <path
-                      d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                      fill="#34A853"
-                    />
-                    <path
-                      d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
-                      fill="#FBBC05"
-                    />
-                    <path
-                      d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
-                      fill="#EA4335"
-                    />
-                  </svg>
-                  <span>{mode === 'login' ? 'Sign in with Google' : 'Sign up with Google'}</span>
-                </>
-              )}
-            </button>
+                <button
+                  type="button"
+                  id="custom-google-auth-btn"
+                  onClick={() => {
+                    setErrorMsg('');
+                    triggerGoogleAuth();
+                  }}
+                  disabled={isSubmitting || isGoogleLoading}
+                  style={{
+                    width: '100%',
+                    height: '44px',
+                    borderRadius: '8px',
+                    border: '1.5px solid var(--border)',
+                    background: 'var(--surface-2)',
+                    color: 'var(--text)',
+                    fontSize: '13.5px',
+                    fontWeight: 600,
+                    cursor: isSubmitting || isGoogleLoading ? 'not-allowed' : 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '12px',
+                    transition: 'all 0.2s ease',
+                    userSelect: 'none'
+                  }}
+                >
+                  {isGoogleLoading ? (
+                    <>
+                      <Loader2 size={17} className="spin-loader" />
+                      <span>Connecting with Google...</span>
+                    </>
+                  ) : (
+                    <>
+                      <svg width="18" height="18" viewBox="0 0 24 24" style={{ flexShrink: 0 }}>
+                        <path
+                          d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                          fill="#4285F4"
+                        />
+                        <path
+                          d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                          fill="#34A853"
+                        />
+                        <path
+                          d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
+                          fill="#FBBC05"
+                        />
+                        <path
+                          d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+                          fill="#EA4335"
+                        />
+                      </svg>
+                      <span>Sign in with Google</span>
+                    </>
+                  )}
+                </button>
+              </>
+            )}
           </form>
 
           {/* Bottom Switcher */}
           <div
             style={{
               textAlign: 'center',
-              marginTop: '24px',
+              marginTop: '22px',
               fontSize: '13px',
               color: 'var(--text-dim)'
             }}
           >
             {mode === 'login' ? (
-              <>
-                Don&apos;t have an Account?{' '}
+              <div>
+                Received a staff invite code?{' '}
                 <button
                   type="button"
                   onClick={() => {
-                    setMode('register');
+                    setMode('invite');
                     setErrorMsg('');
+                    setSuccessMsg('');
                   }}
                   style={{
                     background: 'none',
@@ -700,17 +994,18 @@ export const LoginView: React.FC = () => {
                     padding: 0
                   }}
                 >
-                  Sign Up
+                  Activate Staff Account
                 </button>
-              </>
+              </div>
             ) : (
-              <>
-                Already have an Account?{' '}
+              <div>
+                Already have an active account?{' '}
                 <button
                   type="button"
                   onClick={() => {
                     setMode('login');
                     setErrorMsg('');
+                    setSuccessMsg('');
                   }}
                   style={{
                     background: 'none',
@@ -721,9 +1016,9 @@ export const LoginView: React.FC = () => {
                     padding: 0
                   }}
                 >
-                  Sign In
+                  Back to Sign In
                 </button>
-              </>
+              </div>
             )}
           </div>
         </div>

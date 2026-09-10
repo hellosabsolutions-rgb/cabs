@@ -106,6 +106,39 @@ const agencySchema = new mongoose.Schema(
     lastLogin: {
       type: String,
       default: 'Just now'
+    },
+    onboardingPhase: {
+      type: String,
+      default: 'Phase 2: Base & Location'
+    },
+    onboardingStep: {
+      type: Number,
+      default: 2
+    },
+    onboardingProgress: {
+      type: Number,
+      default: 35
+    },
+    onboardingStatus: {
+      type: String,
+      enum: ['In Progress', 'KYC Pending', 'Awaiting Fleet', 'Ready for Review', 'Completed'],
+      default: 'In Progress'
+    },
+    kycVerified: {
+      type: Boolean,
+      default: false
+    },
+    kycNotes: {
+      type: String,
+      default: ''
+    },
+    onboardingChecklist: {
+      profileCompleted: { type: Boolean, default: true },
+      locationCompleted: { type: Boolean, default: false },
+      taxKycSubmitted: { type: Boolean, default: false },
+      firstVehicleAdded: { type: Boolean, default: false },
+      firstDriverAdded: { type: Boolean, default: false },
+      documentsVerified: { type: Boolean, default: false }
     }
   },
   {

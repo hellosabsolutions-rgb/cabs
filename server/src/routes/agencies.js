@@ -5,7 +5,11 @@ import {
   getAgencyById,
   updateAgency,
   switchAgency,
-  deleteAgency
+  deleteAgency,
+  getAgencyStaff,
+  inviteAgencyStaff,
+  revokeStaffInvitation,
+  removeAgencyStaff
 } from '../controllers/agencyController.js';
 import { protect } from '../middleware/authMiddleware.js';
 
@@ -19,6 +23,12 @@ router
   .get(getMyAgencies);
 
 router.post('/switch/:id', switchAgency);
+
+// Staff management and invitations
+router.get('/:id/staff', getAgencyStaff);
+router.post('/:id/invite', inviteAgencyStaff);
+router.delete('/:id/invite/:inviteId', revokeStaffInvitation);
+router.delete('/:id/staff/:userId', removeAgencyStaff);
 
 router
   .route('/:id')

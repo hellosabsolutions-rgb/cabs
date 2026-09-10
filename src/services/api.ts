@@ -58,6 +58,8 @@ export async function apiRequest<T = any>(endpoint: string, options: RequestOpti
   const isAuthAuthRoute =
     endpoint.includes('/auth/login') ||
     endpoint.includes('/auth/register') ||
+    endpoint.includes('/auth/accept-invite') ||
+    endpoint.includes('/auth/verify-invite') ||
     endpoint.includes('/auth/refresh');
 
   if (response.status === 401 && !isAuthAuthRoute && !options._retry) {

@@ -13,7 +13,10 @@ import {
   getAuditLogs,
   loginSuperUser,
   inviteTeamMember,
-  getTeamMembers
+  getTeamMembers,
+  getOnboardingPipeline,
+  verifyKyc,
+  nudgeClient
 } from '../controllers/superadminController.js';
 
 const router = express.Router();
@@ -25,6 +28,11 @@ router.get('/team', getTeamMembers);
 
 // 1. Dashboard
 router.get('/dashboard/stats', getDashboardStats);
+
+// 1b. Client Onboarding Pipeline & Live DB Tracker
+router.get('/onboarding', getOnboardingPipeline);
+router.post('/onboarding/:id/kyc', verifyKyc);
+router.post('/onboarding/:id/nudge', nudgeClient);
 
 // 2. Businesses
 router.get('/businesses', getBusinesses);

@@ -31,8 +31,9 @@ export interface AuthContextType {
   isLoading: boolean;
   isDashboardOpening: boolean;
   triggerDashboardOpening: (durationMs?: number) => void;
-  login: (email: string, password: string, rememberMe?: boolean) => Promise<{ success: boolean; error?: string }>;
+  login: (email: string, password: string, rememberMe?: boolean) => Promise<{ success: boolean; error?: string; hasPendingInvite?: boolean; inviteCode?: string }>;
   register: (name: string, email: string, password: string, phone?: string, rememberMe?: boolean) => Promise<{ success: boolean; error?: string }>;
+  acceptStaffInvite: (data: { email: string; inviteCode: string; password: string; name?: string; phone?: string; rememberMe?: boolean }) => Promise<{ success: boolean; error?: string; message?: string }>;
   googleLogin: (credentialOrData: string | { credential?: string; accessToken?: string }, rememberMe?: boolean) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
   sessions: DeviceSession[];
@@ -138,9 +139,47 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }, 2800);
         return { success: true };
       }
-      return { success: false, error: response.error || 'Login failed' };
+      return {
+        success: false,
+        error: response.error || 'Login failed',
+        hasPendingInvite: response.hasPendingInvite,
+        inviteCode: response.inviteCode
+      };
     } catch (err: any) {
       return { success: false, error: err.message || 'Login failed. Please check credentials.' };
+    }
+  };
+
+  const acceptStaffInvite = async (data: {
+    email: string;
+    inviteCode: string;
+    password: string;
+    name?: string;
+    phone?: string;
+    rememberMe?: boolean;
+  }) => {
+    try {
+      const response = await api.post('/auth/accept-invite', data);
+      if (response.success && (response.token || response.accessToken)) {
+        const activeToken = response.accessToken || response.token;
+        localStorage.setItem('fleetos_auth_token', activeToken);
+        setToken(activeToken);
+
+        if (response.refreshToken) {
+          localStorage.setItem('fleetos_refresh_token', response.refreshToken);
+          setRefreshToken(response.refreshToken);
+        }
+
+        setUser(response.user);
+        setIsDashboardOpening(true);
+        setTimeout(() => {
+          setIsDashboardOpening(false);
+        }, 2800);
+        return { success: true, message: response.message };
+      }
+      return { success: false, error: response.error || 'Failed to activate staff account.' };
+    } catch (err: any) {
+      return { success: false, error: err.message || 'Invitation activation failed. Please check your code.' };
     }
   };
 
@@ -272,6 +311,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         triggerDashboardOpening,
         login,
         register,
+        acceptStaffInvite,
         googleLogin,
         logout,
         sessions,

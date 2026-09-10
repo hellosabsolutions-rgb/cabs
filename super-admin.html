@@ -395,25 +395,86 @@ tbody tr.clickable:hover{background:var(--paper);}
 .mb-22{margin-bottom:22px;}
 
 /* ---------- Responsive ---------- */
+.sidebar-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(11,18,32,0.75);
+  backdrop-filter: blur(4px);
+  z-index: 35;
+  animation: fadein 0.2s ease;
+}
+.sidebar-backdrop.open { display: block; }
+
+.table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
 @media (max-width:1180px){
   .kpi-grid{grid-template-columns:repeat(3,1fr);}
   .row-2{grid-template-columns:1fr;}
   .plan-grid{grid-template-columns:1fr;}
   .stat-strip{grid-template-columns:repeat(2,1fr);}
 }
+
 @media (max-width:840px){
-  .sidebar{position:fixed;left:-260px;transition:left .18s;box-shadow:var(--shadow-md);}
+  .sidebar{
+    position:fixed;
+    top:0;bottom:0;
+    left:-270px;
+    width:260px;
+    z-index:40;
+    transition:left .25s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow:var(--shadow-md);
+  }
   .sidebar.open{left:0;}
-  .hamburger{display:flex;}
-  .kpi-grid{grid-template-columns:repeat(2,1fr);}
+  .hamburger{display:flex !important;align-items:center;justify-content:center;}
+  .main{width:100%;min-width:0;}
+  .kpi-grid{grid-template-columns:repeat(2,1fr);gap:12px;}
   .search-box{display:none;}
   .settings-grid{grid-template-columns:1fr;}
   .info-grid{grid-template-columns:1fr;}
+  .controls-bar{flex-direction:column;align-items:stretch;gap:12px;}
+  .search-inline{width:100%;}
+  .search-inline input{width:100%;}
+  .chips{overflow-x:auto;white-space:nowrap;-webkit-overflow-scrolling:touch;padding-bottom:6px;width:100%;}
+  .tabs{overflow-x:auto;white-space:nowrap;-webkit-overflow-scrolling:touch;padding-bottom:4px;width:100%;}
+  .table{min-width:600px;}
+}
+
+@media (max-width:640px){
+  .topbar{padding:0 14px;height:56px;gap:10px;}
+  .page-title{font-size:15px;line-height:1.2;}
+  .page-crumb{font-size:11px;max-width:170px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .content{padding:14px 10px;}
+  .card{padding:14px 12px;border-radius:var(--radius);}
+  .card-head{flex-direction:column;align-items:flex-start;gap:10px;}
+  .card-head > div:last-child{align-self:flex-start;}
+  .kpi-grid{grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:16px;}
+  .kpi-card{padding:12px 10px 10px;}
+  .kpi-value{font-size:19px;}
+  .kpi-label{font-size:9.5px;}
+  .stat-strip{grid-template-columns:repeat(2,1fr);gap:8px;}
+  .stat-box{padding:10px 12px;}
+  .stat-box .val{font-size:17px;}
+  .detail-head{flex-direction:column;align-items:flex-start;}
+  .form-2col{grid-template-columns:1fr;gap:12px;}
+  .chart-box{height:150px;}
+}
+
+@media (max-width:420px){
+  .kpi-grid{grid-template-columns:1fr;}
+  .stat-strip{grid-template-columns:1fr;}
+  .page-crumb{display:none;}
+  .topbar{padding:0 10px;}
 }
 </style>
 </head>
 <body>
 <div class="app">
+  <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
 
   <!-- ============ SIDEBAR ============ -->
   <aside class="sidebar" id="sidebar">
@@ -485,6 +546,12 @@ tbody tr.clickable:hover{background:var(--paper);}
         <div class="nav-item" data-view="users">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
           Users
+        </div>
+        <div class="nav-sub">
+          <div class="nav-item" data-view="user-health">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+            User Health <span class="nav-badge" style="background:rgba(228,87,46,0.2);color:var(--coral);font-weight:800;">6</span>
+          </div>
         </div>
       </div>
 
@@ -791,6 +858,65 @@ tbody tr.clickable:hover{background:var(--paper);}
         </div>
       </section>
 
+      <!-- ============ USER HEALTH ============ -->
+      <section class="view" id="view-user-health">
+        <!-- 4 Summary KPI Cards -->
+        <div style="display:grid;grid-template-columns:repeat(4, 1fr);gap:16px;margin-bottom:20px;" class="stat-strip">
+          <div class="card" style="padding:18px 20px;border-radius:14px;">
+            <div style="font-size:11px;font-weight:700;color:var(--text-faint);text-transform:uppercase;letter-spacing:0.5px;">TOTAL USERS</div>
+            <div style="font-size:26px;font-weight:800;margin-top:8px;color:var(--text);">15</div>
+          </div>
+          <div class="card" style="padding:18px 20px;border-radius:14px;">
+            <div style="font-size:11px;font-weight:700;color:var(--text-faint);text-transform:uppercase;letter-spacing:0.5px;">HEALTHY (0-7D)</div>
+            <div style="font-size:26px;font-weight:800;margin-top:8px;color:var(--teal);">9</div>
+          </div>
+          <div class="card" style="padding:18px 20px;border-radius:14px;">
+            <div style="font-size:11px;font-weight:700;color:var(--text-faint);text-transform:uppercase;letter-spacing:0.5px;">AT RISK (8-15D)</div>
+            <div style="font-size:26px;font-weight:800;margin-top:8px;color:var(--amber);">0</div>
+          </div>
+          <div class="card" style="padding:18px 20px;border-radius:14px;">
+            <div style="font-size:11px;font-weight:700;color:var(--text-faint);text-transform:uppercase;letter-spacing:0.5px;">DORMANT (16D+)</div>
+            <div style="font-size:26px;font-weight:800;margin-top:8px;color:var(--coral);">6</div>
+          </div>
+        </div>
+
+        <!-- Filter Pills & Search -->
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:18px;">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;" id="uhFilterGroup">
+            <button type="button" class="uh-chip active" data-uh-filter="all" style="padding:7px 16px;border-radius:20px;border:none;background:var(--ink);color:#fff;font-weight:700;font-size:12.5px;cursor:pointer;">All</button>
+            <button type="button" class="uh-chip" data-uh-filter="Healthy" style="padding:7px 16px;border-radius:20px;border:1px solid var(--border);background:var(--card);color:var(--text-muted);font-weight:700;font-size:12.5px;cursor:pointer;">Healthy (0-7d)</button>
+            <button type="button" class="uh-chip" data-uh-filter="At risk" style="padding:7px 16px;border-radius:20px;border:1px solid var(--border);background:var(--card);color:var(--text-muted);font-weight:700;font-size:12.5px;cursor:pointer;">At risk (8-15d)</button>
+            <button type="button" class="uh-chip" data-uh-filter="Dormant" style="padding:7px 16px;border-radius:20px;border:1px solid var(--border);background:var(--card);color:var(--text-muted);font-weight:700;font-size:12.5px;cursor:pointer;">Dormant (16d+)</button>
+          </div>
+
+          <div style="display:flex;align-items:center;gap:8px;background:var(--card);border:1px solid var(--border);border-radius:20px;padding:7px 14px;width:270px;">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#7C8AA8" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+            <input type="text" id="uhSearchInput" placeholder="Search user or business..." style="border:none;background:none;outline:none;font-size:12.5px;width:100%;color:var(--text);font-family:inherit;">
+          </div>
+        </div>
+
+        <!-- Table Card -->
+        <div class="card">
+          <div class="table-wrap">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>USER</th>
+                  <th>BUSINESS</th>
+                  <th>ROLE</th>
+                  <th>SIGNED UP</th>
+                  <th>LAST LOGIN</th>
+                  <th>DAYS INACTIVE</th>
+                  <th>HEALTH</th>
+                  <th style="text-align:right;">ACTION</th>
+                </tr>
+              </thead>
+              <tbody id="uhTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
       <!-- ============ ANALYTICS ============ -->
       <section class="view" id="view-analytics">
         <div class="tabbar" id="anaTabs">
@@ -916,9 +1042,162 @@ tbody tr.clickable:hover{background:var(--paper);}
             </div>
           </div>
         </div>
+      <!-- ============ PROFILE ============ -->
+      <section class="view" id="view-profile">
+        <!-- Top Profile Banner Card -->
+        <div class="card" style="padding:22px 26px;margin-bottom:20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:18px;background:linear-gradient(135deg,rgba(47,111,237,0.06) 0%,rgba(124,92,252,0.05) 100%),var(--card);">
+          <div style="display:flex;align-items:center;gap:18px;">
+            <div style="width:62px;height:62px;border-radius:50%;background:linear-gradient(135deg,var(--blue),var(--violet));display:flex;align-items:center;justify-content:center;color:#fff;font-size:22px;font-weight:800;box-shadow:0 4px 14px rgba(47,111,237,0.3);">
+              SA
+            </div>
+            <div>
+              <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                <h2 style="margin:0;font-size:20px;font-weight:800;color:var(--text);">Aarav Mehta</h2>
+                <span class="badge badge-active" style="font-size:11px;padding:3px 8px;">Root Super Admin</span>
+                <span class="badge" style="background:var(--teal-soft);color:var(--teal);font-size:11px;padding:3px 8px;">Tier 0 Authority</span>
+              </div>
+              <div style="margin-top:5px;display:flex;align-items:center;gap:16px;color:var(--text-muted);font-size:13px;flex-wrap:wrap;">
+                <span>aarav.mehta@fleetops.in</span>
+                <span>+91 98765 43210</span>
+                <span style="color:var(--teal);font-weight:600;">● Authenticated Session</span>
+              </div>
+            </div>
+          </div>
+          <button type="button" class="btn btn-logout-action" style="background:var(--coral);color:#fff;padding:10px 20px;border-radius:8px;font-weight:700;font-size:13.5px;display:flex;align-items:center;gap:8px;border:none;box-shadow:0 4px 12px rgba(228,87,46,0.25);">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+            Logout / Sign Out
+          </button>
+        </div>
+
+        <div class="row-2">
+          <!-- Left: Pre-filled Hardcoded Credentials -->
+          <div class="card">
+            <div class="card-head">
+              <div>
+                <div class="card-title">Sign-in Credentials (Hardcoded)</div>
+                <div class="card-sub">Pre-filled in login input fields for instant 1-click access</div>
+              </div>
+              <span class="badge badge-active">Hardcoded</span>
+            </div>
+            <div class="card-body" style="display:flex;flex-direction:column;gap:14px;">
+              <div style="padding:12px 14px;background:var(--blue-soft);border:1px solid rgba(47,111,237,0.2);border-radius:8px;font-size:12.5px;color:var(--blue);line-height:1.5;">
+                <strong>Credential Autofill Notice:</strong> The Super Admin login inputs have been hardcoded with these exact credentials. When you click logout or open login, the inputs will be automatically populated.
+              </div>
+
+              <div>
+                <label style="font-size:11.5px;font-weight:700;text-transform:uppercase;color:var(--text-faint);letter-spacing:0.5px;">Super Admin Email</label>
+                <div style="display:flex;gap:8px;margin-top:6px;">
+                  <input type="text" readonly value="aarav.mehta@fleetops.in" class="mono" style="flex:1;padding:9px 12px;border:1px solid var(--border);border-radius:8px;background:var(--paper);font-size:13px;font-weight:600;color:var(--text);">
+                  <button type="button" class="btn" style="background:var(--paper);border:1px solid var(--border);" onclick="navigator.clipboard.writeText('aarav.mehta@fleetops.in');alert('Copied email to clipboard!');">Copy</button>
+                </div>
+              </div>
+
+              <div>
+                <label style="font-size:11.5px;font-weight:700;text-transform:uppercase;color:var(--text-faint);letter-spacing:0.5px;">Master Password</label>
+                <div style="display:flex;gap:8px;margin-top:6px;">
+                  <input type="text" readonly value="SuperAdminPassword123" class="mono" style="flex:1;padding:9px 12px;border:1px solid var(--border);border-radius:8px;background:var(--paper);font-size:13px;font-weight:600;color:var(--text);">
+                  <button type="button" class="btn" style="background:var(--paper);border:1px solid var(--border);" onclick="navigator.clipboard.writeText('SuperAdminPassword123');alert('Copied password to clipboard!');">Copy</button>
+                </div>
+              </div>
+
+              <div style="border-top:1px solid var(--border);padding-top:12px;display:flex;justify-content:space-between;align-items:center;">
+                <div style="font-size:12px;color:var(--text-muted);">
+                  Login Input State: <b style="color:var(--teal);">Pre-populated</b>
+                </div>
+                <button type="button" class="btn btn-logout-action" style="background:var(--coral-soft);color:var(--coral);border:1px solid rgba(228,87,46,0.3);font-weight:600;">
+                  Sign Out & View Login Form
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right: Root Capabilities -->
+          <div class="card">
+            <div class="card-head">
+              <div>
+                <div class="card-title">Root Permissions & Governance</div>
+                <div class="card-sub">Platform-wide control policies</div>
+              </div>
+              <span class="badge" style="background:var(--violet-soft);color:var(--violet);">Active</span>
+            </div>
+            <div class="card-body" style="display:flex;flex-direction:column;gap:10px;">
+              <div style="padding:10px 12px;background:var(--paper);border-radius:8px;border:1px solid var(--border);">
+                <div style="font-weight:700;font-size:13px;color:var(--text);">Full Business Governance</div>
+                <div style="font-size:11.5px;color:var(--text-muted);margin-top:2px;">Authority over all 42 registered fleet agencies, trial extensions, and suspensions.</div>
+              </div>
+              <div style="padding:10px 12px;background:var(--paper);border-radius:8px;border:1px solid var(--border);">
+                <div style="font-weight:700;font-size:13px;color:var(--text);">Billing & Gateway Authority</div>
+                <div style="font-size:11.5px;color:var(--text-muted);margin-top:2px;">Override subscription plans, issue platform refunds, and reconcile revenue.</div>
+              </div>
+              <div style="padding:10px 12px;background:var(--paper);border-radius:8px;border:1px solid var(--border);">
+                <div style="font-weight:700;font-size:13px;color:var(--text);">Staff & Team Invitations</div>
+                <div style="font-size:11.5px;color:var(--text-muted);margin-top:2px;">Generate invitation links and codes for internal operations staff.</div>
+              </div>
+              <div style="padding:10px 12px;background:var(--paper);border-radius:8px;border:1px solid var(--border);">
+                <div style="font-weight:700;font-size:13px;color:var(--text);">System Audit & Security Logs</div>
+                <div style="font-size:11.5px;color:var(--text-muted);margin-top:2px;">Unrestricted access to security logs and action history across all tenants.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Session & Logout Card -->
+        <div class="card" style="margin-top:16px;padding:20px 24px;border:1px solid rgba(228,87,46,0.3);background:linear-gradient(135deg,rgba(228,87,46,0.03) 0%,transparent 100%),var(--card);">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px;">
+            <div>
+              <div style="font-size:15px;font-weight:800;color:var(--coral);display:flex;align-items:center;gap:8px;">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                Session Security & Logout
+              </div>
+              <div style="font-size:12.5px;color:var(--text-muted);margin-top:4px;max-width:650px;">
+                Clicking logout terminates your current active console session and returns you to the login screen. You can log back in with 1 click using the hardcoded credentials pre-filled in the form.
+              </div>
+            </div>
+            <button type="button" class="btn btn-logout-action" style="background:var(--coral);color:#fff;padding:11px 24px;border-radius:8px;font-weight:700;font-size:13.5px;display:flex;align-items:center;gap:8px;border:none;">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+              Sign Out of Super Admin
+            </button>
+          </div>
+        </div>
       </section>
 
     </div>
+  </div>
+</div>
+
+<!-- ============ SUPER ADMIN LOGIN MODAL OVERLAY ============ -->
+<div id="saLoginOverlay" style="display:none;position:fixed;inset:0;background:rgba(11,18,32,0.85);backdrop-filter:blur(6px);z-index:9999;align-items:center;justify-content:center;padding:20px;">
+  <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;max-width:420px;width:100%;padding:28px;box-shadow:0 20px 40px rgba(0,0,0,0.3);position:relative;">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:18px;">
+      <div style="width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,var(--blue),var(--teal));display:flex;align-items:center;justify-content:center;color:#fff;">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      </div>
+      <div>
+        <div style="font-weight:800;font-size:16px;color:var(--text);">FleetOps Internal Console</div>
+        <div style="font-size:11px;color:var(--text-faint);text-transform:uppercase;letter-spacing:0.5px;font-weight:700;">Super Admin Sign In</div>
+      </div>
+    </div>
+
+    <div style="background:var(--blue-soft);color:var(--blue);padding:10px 12px;border-radius:8px;font-size:12px;margin-bottom:16px;line-height:1.5;">
+      💡 <b>Credentials Hardcoded:</b> Inputs are pre-filled below for instant 1-click access.
+    </div>
+
+    <form id="saLoginForm" onsubmit="event.preventDefault(); document.getElementById('saLoginOverlay').style.display='none';">
+      <div style="margin-bottom:14px;">
+        <label style="display:block;font-size:12px;font-weight:700;color:var(--text-muted);margin-bottom:6px;">Work Email</label>
+        <input type="email" id="saLoginEmail" value="aarav.mehta@fleetops.in" required style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13.5px;background:var(--paper);color:var(--text);">
+      </div>
+
+      <div style="margin-bottom:18px;">
+        <label style="display:block;font-size:12px;font-weight:700;color:var(--text-muted);margin-bottom:6px;">Master Password</label>
+        <input type="password" id="saLoginPass" value="SuperAdminPassword123" required style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13.5px;background:var(--paper);color:var(--text);">
+      </div>
+
+      <button type="submit" class="btn btn-primary" style="width:100%;padding:11px;font-size:14px;font-weight:700;border-radius:8px;display:flex;align-items:center;justify-content:center;gap:8px;">
+        <span>Sign In to Console</span>
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+      </button>
+    </form>
   </div>
 </div>
 
@@ -1394,18 +1673,134 @@ const pageMeta = {
   notifications:{title:'Notifications',crumb:'System-level alerts'},
   audit:{title:'Audit Logs',crumb:'Every action taken on the platform'},
   settings:{title:'Settings',crumb:'Platform configuration'},
+  profile:{title:'Admin Profile',crumb:'Account credentials, security & session management'},
+  'user-health':{title:'User Health',crumb:'Users going quiet — 15+ days since last login'},
 };
+
+/* ======================= USER HEALTH DATA & RENDER ======================= */
+const userHealthList = [
+  {id:'uh-1',name:'Manish Yadav',email:'manish@highwaykings.in',initials:'MY',business:'Highway Kings',role:'Owner',signedUp:'30 Apr 2025',lastLogin:'41 days ago',daysInactive:41,health:'Dormant'},
+  {id:'uh-2',name:'Ritu Sharma',email:'ritu@skylinerides.in',initials:'RS',business:'Skyline Rides',role:'Owner',signedUp:'01 Jul 2025',lastLogin:'25 days ago',daysInactive:25,health:'Dormant'},
+  {id:'uh-3',name:'Meenal Joshi',email:'meenal@primemovers.in',initials:'MJ',business:'Prime Movers',role:'Manager',signedUp:'02 Sep 2025',lastLogin:'22 days ago',daysInactive:22,health:'Dormant'},
+  {id:'uh-4',name:'Farhan Sheikh',email:'farhan@coastalcabs.in',initials:'FS',business:'Coastal Cabs',role:'Manager',signedUp:'12 Oct 2025',lastLogin:'19 days ago',daysInactive:19,health:'Dormant'},
+  {id:'uh-5',name:'Priya Nair',email:'priya@goride.in',initials:'PN',business:'GoRide Logistics',role:'Owner',signedUp:'09 Feb 2025',lastLogin:'18 days ago',daysInactive:18,health:'Dormant'},
+  {id:'uh-6',name:'Karan Bhatia',email:'karan@northline.in',initials:'KB',business:'Northline Transport',role:'Owner',signedUp:'14 Dec 2025',lastLogin:'16 days ago',daysInactive:16,health:'Dormant'},
+  {id:'uh-7',name:'Ajay Kulkarni',email:'ajay@abctravels.in',initials:'AK',business:'ABC Travels',role:'Manager',signedUp:'20 Feb 2025',lastLogin:'1 day ago',daysInactive:1,health:'Healthy'},
+  {id:'uh-8',name:'Suresh Iyer',email:'suresh@metrocabs.in',initials:'SI',business:'Metro Cabs Co.',role:'Owner',signedUp:'22 Nov 2025',lastLogin:'1 day ago',daysInactive:1,health:'Healthy'},
+  {id:'uh-9',name:'Rahul Sharma',email:'rahul@abctravels.in',initials:'RS',business:'ABC Travels',role:'Owner',signedUp:'12 Jan 2025',lastLogin:'2 hours ago',daysInactive:0,health:'Healthy'},
+  {id:'uh-10',name:'Neha Kapoor',email:'neha@speedway.co',initials:'NK',business:'Speedway Fleet',role:'Owner',signedUp:'03 Mar 2025',lastLogin:'14 minutes ago',daysInactive:0,health:'Healthy'},
+  {id:'uh-11',name:'Vikram Singh',email:'vikram@primemovers.in',initials:'VS',business:'Prime Movers',role:'Owner',signedUp:'19 Aug 2025',lastLogin:'3 days ago',daysInactive:3,health:'Healthy'},
+  {id:'uh-12',name:'Deepa Reddy',email:'deepa@urbanwheels.in',initials:'DR',business:'Urban Wheels',role:'Owner',signedUp:'17 Jun 2025',lastLogin:'4 days ago',daysInactive:4,health:'Healthy'},
+  {id:'uh-13',name:'Arjun Menon',email:'arjun@coastalcabs.in',initials:'AM',business:'Coastal Cabs',role:'Owner',signedUp:'05 Sep 2025',lastLogin:'5 days ago',daysInactive:5,health:'Healthy'},
+  {id:'uh-14',name:'Sanjay Verma',email:'sanjay@metrocabs.in',initials:'SV',business:'Metro Cabs Co.',role:'Manager',signedUp:'15 Dec 2025',lastLogin:'2 days ago',daysInactive:2,health:'Healthy'},
+  {id:'uh-15',name:'Kavita Desai',email:'kavita@speedway.co',initials:'KD',business:'Speedway Fleet',role:'Manager',signedUp:'18 May 2025',lastLogin:'6 days ago',daysInactive:6,health:'Healthy'},
+];
+
+let curUhFilter = 'all';
+let curUhSearch = '';
+const nudgedMap = {};
+
+function renderUserHealthTable(){
+  const tb = document.getElementById('uhTableBody');
+  if(!tb) return;
+  const q = curUhSearch.toLowerCase().trim();
+  const list = userHealthList.filter(u=>{
+    const matchF = curUhFilter === 'all' || u.health === curUhFilter;
+    const matchQ = !q || u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q) || u.business.toLowerCase().includes(q);
+    return matchF && matchQ;
+  });
+
+  tb.innerHTML = list.map(u=>{
+    const isDormant = u.health === 'Dormant';
+    const isAtRisk = u.health === 'At risk';
+    const isNudged = nudgedMap[u.id];
+    const daysColor = isDormant ? 'var(--coral)' : isAtRisk ? 'var(--amber)' : 'var(--teal)';
+    const badgeBg = isDormant ? 'rgba(228, 87, 46, 0.1)' : isAtRisk ? 'rgba(245, 166, 35, 0.1)' : 'rgba(14, 165, 160, 0.1)';
+    const badgeColor = isDormant ? 'var(--coral)' : isAtRisk ? 'var(--amber)' : 'var(--teal)';
+    const badgeBorder = isDormant ? 'rgba(228, 87, 46, 0.25)' : isAtRisk ? 'rgba(245, 166, 35, 0.25)' : 'rgba(14, 165, 160, 0.25)';
+
+    return `
+      <tr>
+        <td>
+          <div style="display:flex;align-items:center;gap:10px;">
+            <div style="width:32px;height:32px;border-radius:8px;background:rgba(47, 111, 237, 0.1);color:var(--blue);display:flex;align-items:center;justify-content:center;font-size:11.5px;font-weight:800;flex-shrink:0;">${u.initials}</div>
+            <div>
+              <div style="font-weight:700;font-size:13px;color:var(--text);">${u.name}</div>
+              <div style="font-size:11px;color:var(--text-faint);">${u.email}</div>
+            </div>
+          </div>
+        </td>
+        <td style="font-weight:600;">${u.business}</td>
+        <td>${u.role}</td>
+        <td style="color:var(--text-faint);font-size:12.5px;">${u.signedUp}</td>
+        <td style="color:var(--text-faint);font-size:12.5px;">${u.lastLogin}</td>
+        <td><span style="font-weight:800;font-size:13px;color:${daysColor};">${u.daysInactive}d</span></td>
+        <td>
+          <span style="display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:12px;font-size:11.5px;font-weight:700;background:${badgeBg};color:${badgeColor};border:1px solid ${badgeBorder};">
+            <span>●</span> ${u.health}
+          </span>
+        </td>
+        <td style="text-align:right;">
+          <button type="button" class="btn btn-nudge" data-id="${u.id}" style="padding:5px 14px;border-radius:20px;border:1px solid var(--border);background:${isNudged ? 'rgba(14, 165, 160, 0.1)' : 'transparent'};color:${isNudged ? 'var(--teal)' : 'var(--text)'};font-weight:600;font-size:12px;cursor:${isNudged ? 'default' : 'pointer'};">
+            ${isNudged ? 'Nudged ✓' : 'Send nudge'}
+          </button>
+        </td>
+      </tr>
+    `;
+  }).join('');
+
+  tb.querySelectorAll('.btn-nudge').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const id = btn.dataset.id;
+      const targetUser = userHealthList.find(x=>x.id===id);
+      nudgedMap[id] = true;
+      btn.textContent = 'Nudged ✓';
+      btn.style.color = 'var(--teal)';
+      btn.style.background = 'rgba(14, 165, 160, 0.1)';
+      alert(`Re-engagement nudge sent to ${targetUser ? targetUser.name : 'user'}! Reminder email dispatched.`);
+    });
+  });
+}
+
+document.querySelectorAll('.uh-chip').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.uh-chip').forEach(b=>{
+      b.classList.remove('active');
+      b.style.background = 'var(--card)';
+      b.style.color = 'var(--text-muted)';
+      b.style.border = '1px solid var(--border)';
+    });
+    btn.classList.add('active');
+    btn.style.background = 'var(--ink)';
+    btn.style.color = '#fff';
+    btn.style.border = 'none';
+    curUhFilter = btn.dataset.uhFilter;
+    renderUserHealthTable();
+  });
+});
+
+const uhSearch = document.getElementById('uhSearchInput');
+if(uhSearch){
+  uhSearch.addEventListener('input', (e)=>{
+    curUhSearch = e.target.value;
+    renderUserHealthTable();
+  });
+}
+renderUserHealthTable();
 function goto(view, opts){
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
-  document.getElementById('view-'+view).classList.add('active');
-  document.getElementById('pageTitle').textContent = pageMeta[view].title;
-  document.getElementById('pageCrumb').textContent = pageMeta[view].crumb;
+  const targetView = document.getElementById('view-'+view);
+  if(targetView) targetView.classList.add('active');
+  if(pageMeta[view]){
+    document.getElementById('pageTitle').textContent = pageMeta[view].title;
+    document.getElementById('pageCrumb').textContent = pageMeta[view].crumb;
+  }
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.toggle('active', n.dataset.view===view));
   if(opts && opts.subTab) switchSubTab(opts.subTab);
   if(opts && opts.payTab) switchPayTab(opts.payTab);
   if(opts && opts.anaTab) switchAnaTab(opts.anaTab);
   window.scrollTo(0,0);
-  if(window.innerWidth<=840) document.getElementById('sidebar').classList.remove('open');
+  if(window.innerWidth<=840) toggleSidebar(false);
 }
 document.querySelectorAll('.nav-item[data-view]').forEach(item=>{
   item.addEventListener('click', ()=>{
@@ -1436,6 +1831,23 @@ document.querySelectorAll('[data-goto]').forEach(el=>{
   });
 });
 
+/* Avatar & Footer click to open Admin Profile */
+document.querySelectorAll('.topbar-avatar, .sidebar-foot').forEach(el=>{
+  el.style.cursor = 'pointer';
+  el.setAttribute('title', 'View Admin Profile');
+  el.addEventListener('click', ()=>goto('profile'));
+});
+
+/* Logout Action: Show pre-filled login modal overlay */
+document.querySelectorAll('.btn-logout-action').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    const overlay = document.getElementById('saLoginOverlay');
+    if(overlay){
+      overlay.style.display = 'flex';
+    }
+  });
+});
+
 /* settings sub-nav (visual only) */
 document.querySelectorAll('.settings-nav .s-item').forEach(item=>{
   item.addEventListener('click', ()=>{
@@ -1447,10 +1859,23 @@ document.querySelectorAll('.switch').forEach(sw=>{
   sw.addEventListener('click', ()=>sw.classList.toggle('on'));
 });
 
-/* mobile sidebar */
-document.getElementById('hamburger').addEventListener('click', ()=>{
-  document.getElementById('sidebar').classList.toggle('open');
-});
+/* mobile sidebar & backdrop */
+const sidebar = document.getElementById('sidebar');
+const backdrop = document.getElementById('sidebarBackdrop');
+const hamburger = document.getElementById('hamburger');
+
+function toggleSidebar(open) {
+  const isOpen = open !== undefined ? open : !sidebar.classList.contains('open');
+  sidebar.classList.toggle('open', isOpen);
+  if (backdrop) backdrop.classList.toggle('open', isOpen);
+}
+
+if (hamburger) {
+  hamburger.addEventListener('click', () => toggleSidebar());
+}
+if (backdrop) {
+  backdrop.addEventListener('click', () => toggleSidebar(false));
+}
 
 /* live clock */
 function tick(){

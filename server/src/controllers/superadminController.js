@@ -11,9 +11,76 @@ import { ActivityAuditLog } from '../models/ActivityAuditLog.js';
 import { SubscriptionPlan } from '../models/SubscriptionPlan.js';
 import { SuperTransaction } from '../models/SuperTransaction.js';
 import { SupportTicket } from '../models/SupportTicket.js';
+import { Notification } from '../models/Notification.js';
 import { generateAccessToken } from '../middleware/authMiddleware.js';
 import { eventBus } from '../services/eventBus.js';
 import { logger } from '../utils/logger.js';
+
+/**
+ * Dynamically computes a client's real-time onboarding state
+ * based on live MongoDB records (agencies, vehicles, drivers, kyc).
+ */
+export const computeAgencyOnboarding = (agency, vCount = 0, dCount = 0) => {
+  const hasProfile = Boolean(agency.name && (agency.phone || agency.email));
+  const hasLocation = Boolean(agency.city && (agency.state || agency.address));
+  const hasKyc = Boolean(agency.gstin || agency.pan);
+  const hasVehicles = vCount > 0;
+  const hasDrivers = dCount > 0;
+
+  const missingItems = [];
+  if (!hasLocation) missingItems.push('Address & City incomplete');
+  if (!hasKyc) missingItems.push('GSTIN & PAN not submitted');
+  if (!hasVehicles) missingItems.push('0 Vehicles onboarded');
+  if (!hasDrivers) missingItems.push('0 Drivers onboarded');
+
+  let phase = 'Phase 2: Base & Location';
+  let step = 2;
+  let progress = 35;
+  let status = 'In Progress';
+
+  if (!hasLocation) {
+    phase = 'Phase 2: Base & Location';
+    step = 2;
+    progress = 30;
+    status = 'In Progress';
+  } else if (!hasKyc) {
+    phase = 'Phase 3: KYC & Compliance';
+    step = 3;
+    progress = 50;
+    status = 'KYC Pending';
+  } else if (!hasVehicles) {
+    phase = 'Phase 4: Fleet & Vehicles';
+    step = 4;
+    progress = 70;
+    status = 'Awaiting Fleet';
+  } else if (!hasDrivers) {
+    phase = 'Phase 5: Drivers & Staff';
+    step = 5;
+    progress = 85;
+    status = 'Awaiting Drivers';
+  } else {
+    phase = 'Phase 6: Live & Operational';
+    step = 6;
+    progress = 100;
+    status = 'Completed';
+  }
+
+  return {
+    phase,
+    step,
+    progress,
+    status: agency.kycVerified && status === 'KYC Pending' ? 'In Progress' : status,
+    missingItems,
+    checklist: {
+      profile: hasProfile,
+      location: hasLocation,
+      kyc: hasKyc,
+      vehicles: hasVehicles,
+      drivers: hasDrivers,
+      live: progress === 100
+    }
+  };
+};
 
 // Cache for Dashboard Stats (TTL: 30s)
 let cachedDashboardStats = null;
@@ -240,6 +307,8 @@ export const getBusinesses = async (req, res) => {
           User.countDocuments({ $or: [{ currentAgency: a._id }, { agencies: a._id }] })
         ]);
 
+        const onb = computeAgencyOnboarding(a, vCount, dCount);
+
         return {
           id: a._id.toString(),
           name: a.name,
@@ -247,8 +316,8 @@ export const getBusinesses = async (req, res) => {
           email: a.email || a.owner?.email || 'fleet@domain.com',
           phone: a.phone || a.owner?.phone || '+91 98000 00000',
           type: a.businessType || 'Cab Rental',
-          city: [a.city, a.state].filter(Boolean).join(', ') || 'Mumbai, MH',
-          reg: a.createdAt ? new Date(a.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '12 Jan 2025',
+          city: [a.city, a.state].filter(Boolean).join(', ') || 'New Delhi, DL',
+          reg: a.createdAt ? new Date(a.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : 'Recently',
           plan: a.plan || 'Professional',
           status: a.status || 'Active',
           start: a.startDate || '01 Aug 2026',
@@ -259,8 +328,16 @@ export const getBusinesses = async (req, res) => {
           dlimit: a.dlimit || 25,
           users: uCount || 1,
           ulimit: a.ulimit || 10,
-          lastLogin: a.lastLogin || '2 hours ago',
-          amount: a.amount || '₹1,999'
+          lastLogin: a.lastLogin || 'Just now',
+          amount: a.amount || '₹1,999',
+          onboardingPhase: onb.phase,
+          onboardingStep: onb.step,
+          onboardingProgress: onb.progress,
+          onboardingStatus: onb.status,
+          missingItems: onb.missingItems,
+          kycVerified: a.kycVerified || false,
+          gstin: a.gstin || null,
+          pan: a.pan || null
         };
       })
     );
@@ -273,7 +350,7 @@ export const getBusinesses = async (req, res) => {
 };
 
 /**
- * 3. BUSINESS DETAIL (360° Profile)
+ * 3. BUSINESS DETAIL (360° Profile with REAL MongoDB Records)
  */
 export const getBusinessDetail = async (req, res) => {
   try {
@@ -283,12 +360,17 @@ export const getBusinessDetail = async (req, res) => {
       return res.status(404).json({ success: false, error: 'Business not found' });
     }
 
-    const [vCount, dCount, uCount, recentTrips] = await Promise.all([
+    const [vCount, dCount, uCount, recentTrips, liveVehicles, liveDrivers, liveUsers] = await Promise.all([
       Vehicle.countDocuments({ agency: agency._id }),
       Driver.countDocuments({ agency: agency._id }),
       User.countDocuments({ $or: [{ currentAgency: agency._id }, { agencies: agency._id }] }),
-      Trip.find({ agency: agency._id }).sort({ createdAt: -1 }).limit(5).lean()
+      Trip.find({ agency: agency._id }).sort({ createdAt: -1 }).limit(10).lean(),
+      Vehicle.find({ agency: agency._id }).populate('assignedDriver', 'name phone').sort({ createdAt: -1 }).lean(),
+      Driver.find({ agency: agency._id }).populate('assignedVehicle', 'registrationNumber make model').sort({ createdAt: -1 }).lean(),
+      User.find({ $or: [{ currentAgency: agency._id }, { agencies: agency._id }] }).select('name email role phone status createdAt').lean()
     ]);
+
+    const onb = computeAgencyOnboarding(agency, vCount, dCount);
 
     const detail = {
       id: agency._id.toString(),
@@ -297,8 +379,14 @@ export const getBusinessDetail = async (req, res) => {
       email: agency.email || agency.owner?.email || '',
       phone: agency.phone || agency.owner?.phone || '',
       type: agency.businessType || 'Cab Rental',
-      city: [agency.city, agency.state].filter(Boolean).join(', ') || 'Mumbai, MH',
-      reg: agency.createdAt ? new Date(agency.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '12 Jan 2025',
+      city: [agency.city, agency.state].filter(Boolean).join(', ') || 'New Delhi, DL',
+      state: agency.state || '',
+      address: agency.address || '',
+      gstin: agency.gstin || null,
+      pan: agency.pan || null,
+      kycVerified: agency.kycVerified || false,
+      kycNotes: agency.kycNotes || '',
+      reg: agency.createdAt ? new Date(agency.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : 'Recently',
       plan: agency.plan || 'Professional',
       status: agency.status || 'Active',
       start: agency.startDate || '01 Aug 2026',
@@ -311,15 +399,53 @@ export const getBusinessDetail = async (req, res) => {
       ulimit: agency.ulimit || 10,
       amount: agency.amount || '₹1,999',
       lastLogin: agency.lastLogin || 'Just now',
+      onboarding: onb,
+      // REAL MONGODB COLLECTIONS
+      vehiclesList: liveVehicles.map(v => ({
+        id: v._id.toString(),
+        regNumber: v.registrationNumber,
+        make: v.make || 'Standard',
+        model: v.model || 'Commercial Fleet',
+        type: v.type || 'Sedan',
+        fuelType: v.fuelType || 'CNG / Petrol',
+        status: v.status || 'Active',
+        assignedDriver: v.assignedDriver?.name || 'Unassigned',
+        insuranceExpiry: v.insuranceExpiry || 'Valid',
+        fitnessExpiry: v.fitnessExpiry || 'Valid'
+      })),
+      driversList: liveDrivers.map(d => ({
+        id: d._id.toString(),
+        name: d.name,
+        phone: d.phone,
+        licenseNumber: d.licenseNumber || 'DL-PENDING',
+        status: d.status || 'Active',
+        joiningDate: d.joiningDate || (d.createdAt ? new Date(d.createdAt).toLocaleDateString('en-IN') : 'Recent'),
+        assignedVehicle: d.assignedVehicle?.registrationNumber || 'None'
+      })),
+      tripsList: recentTrips.map(t => ({
+        id: t.tripId || t._id.toString().slice(-6).toUpperCase(),
+        pickup: t.pickupLocation?.address || t.pickupLocation || 'Main Hub',
+        drop: t.dropLocation?.address || t.dropLocation || 'City Center',
+        fare: t.estimatedFare || t.fare || '₹450',
+        status: t.status || 'Completed',
+        date: t.createdAt ? new Date(t.createdAt).toLocaleDateString('en-IN') : 'Today'
+      })),
+      usersList: liveUsers.map(u => ({
+        id: u._id.toString(),
+        name: u.name,
+        email: u.email,
+        phone: u.phone || 'N/A',
+        role: u.role || 'Admin',
+        status: u.status || 'Active'
+      })),
       activity: [
-        { t: `${vCount} vehicles currently active on ${agency.plan || 'Professional'} plan`, time: 'Today' },
-        { t: `${dCount} drivers assigned in fleet roster`, time: '3 days ago' },
-        { t: `Last login recorded ${agency.lastLogin || 'today'}`, time: 'Recently' }
+        { t: `${vCount} real vehicles in MongoDB on ${agency.plan || 'Professional'} plan`, time: 'Live' },
+        { t: `${dCount} real drivers in MongoDB roster`, time: 'Live' },
+        { t: `Onboarding progress: ${onb.phase} (${onb.progress}%)`, time: 'Real-time' }
       ],
       payments: [
         { date: agency.expiryDate || '01 Sep 2026', amount: agency.amount || '₹1,999', status: 'Success' },
         { date: agency.startDate || '01 Aug 2026', amount: agency.amount || '₹1,999', status: 'Success' }
-      ]
     };
 
     res.json({ success: true, data: detail });
@@ -803,4 +929,236 @@ export const getTeamMembers = async (req, res) => {
     res.status(500).json({ success: false, error: err.message });
   }
 };
+
+/**
+ * 15. GET CLIENT ONBOARDING PIPELINE & LIVE DATABASE TRACKER
+ */
+export const getOnboardingPipeline = async (req, res) => {
+  try {
+    const agencies = await Agency.find()
+      .populate('owner', 'name email phone avatar createdAt')
+      .sort({ createdAt: -1 })
+      .lean();
+
+    // Fetch registered users without agencies (leads in Step 1)
+    const usersWithoutAgency = await User.find({
+      $or: [
+        { currentAgency: null, agencies: { $size: 0 } },
+        { currentAgency: { $exists: false } },
+        { currentAgency: null }
+      ]
+    }).select('-password').sort({ createdAt: -1 }).lean();
+
+    const clientCards = [];
+
+    // 1. Registered leads awaiting agency creation
+    for (const u of usersWithoutAgency) {
+      const userAgencies = await Agency.find({ owner: u._id });
+      if (userAgencies.length === 0) {
+        clientCards.push({
+          id: `lead_${u._id}`,
+          type: 'lead',
+          userId: u._id.toString(),
+          agencyName: `${u.name}'s Company (Draft)`,
+          ownerName: u.name,
+          email: u.email,
+          phone: u.phone || 'Pending Setup',
+          city: 'Pending Setup',
+          state: '',
+          registeredAt: u.createdAt
+            ? new Date(u.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+            : 'Recently',
+          phase: 'Phase 1: Company Profile',
+          phaseName: 'Company Profile & Category',
+          step: 1,
+          progress: 20,
+          status: 'In Progress',
+          missingItems: [
+            'Company name & fleet category pending',
+            'HQ location & address pending',
+            'GSTIN & PAN not submitted',
+            'Vehicles not onboarded'
+          ],
+          checklist: {
+            profile: false,
+            location: false,
+            kyc: false,
+            vehicles: false,
+            drivers: false,
+            live: false
+          },
+          vehiclesCount: 0,
+          driversCount: 0,
+          usersCount: 1,
+          plan: 'Trial',
+          kycVerified: false,
+          isLead: true
+        });
+      }
+    }
+
+    // 2. All agencies with live MongoDB counts & collections
+    for (const a of agencies) {
+      const [vCount, dCount, uCount, liveVehicles, liveDrivers] = await Promise.all([
+        Vehicle.countDocuments({ agency: a._id }),
+        Driver.countDocuments({ agency: a._id }),
+        User.countDocuments({ $or: [{ currentAgency: a._id }, { agencies: a._id }] }),
+        Vehicle.find({ agency: a._id }).limit(5).lean(),
+        Driver.find({ agency: a._id }).limit(5).lean()
+      ]);
+
+      const onb = computeAgencyOnboarding(a, vCount, dCount);
+
+      clientCards.push({
+        id: a._id.toString(),
+        type: 'agency',
+        agencyId: a._id.toString(),
+        agencyName: a.name,
+        businessType: a.businessType || 'Department & Tour Operator',
+        ownerName: a.owner?.name || 'Owner',
+        email: a.email || a.owner?.email || '',
+        phone: a.phone || a.owner?.phone || '',
+        city: a.city || 'New Delhi',
+        state: a.state || 'Delhi',
+        address: a.address || '',
+        registeredAt: a.createdAt
+          ? new Date(a.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+          : 'Recently',
+        phase: onb.phase,
+        phaseName: onb.phase.split(':')[1]?.trim() || onb.phase,
+        step: onb.step,
+        progress: onb.progress,
+        status: a.kycVerified && onb.status === 'KYC Pending' ? 'In Progress' : onb.status,
+        missingItems: onb.missingItems,
+        checklist: onb.checklist,
+        vehiclesCount: vCount,
+        driversCount: dCount,
+        usersCount: uCount,
+        plan: a.plan || 'Professional',
+        gstin: a.gstin || null,
+        pan: a.pan || null,
+        kycVerified: a.kycVerified || false,
+        kycNotes: a.kycNotes || '',
+        previewVehicles: liveVehicles.map(v => v.registrationNumber),
+        previewDrivers: liveDrivers.map(d => d.name),
+        isLead: false
+      });
+    }
+
+    // Phase breakdown & pipeline counters
+    const phaseBreakdown = {
+      'Phase 1: Company Profile': clientCards.filter(c => c.step === 1).length,
+      'Phase 2: Base & Location': clientCards.filter(c => c.step === 2).length,
+      'Phase 3: KYC & Compliance': clientCards.filter(c => c.step === 3).length,
+      'Phase 4: Fleet & Vehicles': clientCards.filter(c => c.step === 4).length,
+      'Phase 5: Drivers & Staff': clientCards.filter(c => c.step === 5).length,
+      'Phase 6: Live & Operational': clientCards.filter(c => c.step === 6).length
+    };
+
+    const kpis = {
+      totalInPipeline: clientCards.filter(c => c.step < 6).length,
+      kycPending: clientCards.filter(c => c.step === 3 || (!c.kycVerified && (c.gstin || c.pan))).length,
+      fleetSetupPending: clientCards.filter(c => c.step === 4 || (c.step >= 3 && c.vehiclesCount === 0)).length,
+      completedLive: clientCards.filter(c => c.step === 6).length,
+      totalClients: clientCards.length
+    };
+
+    res.json({
+      success: true,
+      data: {
+        kpis,
+        phaseBreakdown,
+        clients: clientCards
+      }
+    });
+  } catch (err) {
+    logger.error('Error fetching onboarding pipeline', { error: err.message });
+    res.status(500).json({ success: false, error: err.message });
+  }
+};
+
+/**
+ * 16. VERIFY OR REJECT KYC
+ */
+export const verifyKyc = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { verified, notes } = req.body;
+
+    const agency = await Agency.findByIdAndUpdate(
+      id,
+      {
+        kycVerified: verified !== false,
+        kycNotes: notes || 'Verified by SuperAdmin'
+      },
+      { new: true }
+    );
+
+    if (!agency) {
+      return res.status(404).json({ success: false, error: 'Agency not found' });
+    }
+
+    eventBus.emit('superadmin:audit', {
+      action: 'KYC_VERIFIED',
+      actor: 'Aarav Mehta (Super Admin)',
+      text: `${verified !== false ? 'approved KYC for' : 'rejected KYC for'} <b>${agency.name}</b>`,
+      targetId: String(agency._id)
+    });
+
+    res.json({
+      success: true,
+      message: `KYC for ${agency.name} ${verified !== false ? 'approved' : 'rejected'} successfully`,
+      data: agency
+    });
+  } catch (err) {
+    logger.error('Error verifying KYC', { error: err.message });
+    res.status(500).json({ success: false, error: err.message });
+  }
+};
+
+/**
+ * 17. SEND ONBOARDING NUDGE TO CLIENT
+ */
+export const nudgeClient = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { message } = req.body;
+
+    const agency = await Agency.findById(id).populate('owner');
+    if (!agency) {
+      return res.status(404).json({ success: false, error: 'Agency not found' });
+    }
+
+    const nudgeText =
+      message ||
+      `Reminder from FleetOps SuperAdmin: Please complete your onboarding by adding your vehicles and drivers.`;
+
+    if (agency.owner?._id) {
+      await Notification.create({
+        userId: agency.owner._id,
+        agencyId: agency._id,
+        category: 'system',
+        priority: 'warning',
+        title: 'Complete Your Fleet Onboarding',
+        message: nudgeText
+      });
+    }
+
+    eventBus.emit('superadmin:audit', {
+      action: 'CLIENT_NUDGED',
+      actor: 'Aarav Mehta (Super Admin)',
+      text: `sent onboarding reminder to <b>${agency.name}</b> (${agency.owner?.email || agency.email})`,
+      targetId: String(agency._id)
+    });
+
+    res.json({
+      success: true,
+      message: `Onboarding reminder sent successfully to ${agency.name}`
+    });
+  } catch (err) {
+    logger.error('Error nudging client', { error: err.message });
+    res.status(500).json({ success: false, error: err.message });
+  }
+};
+
 
