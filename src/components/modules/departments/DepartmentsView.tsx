@@ -6,7 +6,7 @@ import { MonthlyBillingView } from './MonthlyBillingView';
 import { WeekendBillingView } from './WeekendBillingView';
 import { DepartmentPaymentsView } from './DepartmentPaymentsView';
 import { FileText, ClipboardList, ReceiptText, CreditCard, Briefcase } from 'lucide-react';
-import { SkeletonCard, SkeletonTable } from '../../common/Skeleton';
+import { SkeletonCard, SkeletonTable, SoftRefreshBar } from '../../common/Skeleton';
 
 export const DepartmentsView: React.FC = () => {
   const {
@@ -16,13 +16,15 @@ export const DepartmentsView: React.FC = () => {
     dailyDutyLogs,
     monthlyBills,
     departmentPayments,
-    isLoading
+    isLoading,
+    isLoadingDepartments
   } = useFleet();
 
   const totalMonthlyBilled = monthlyBills.reduce((acc, curr) => acc + curr.totalBill, 0);
   const weekendTripsCount = dailyDutyLogs.filter(l => l.dutyType === 'Weekend / Off-Duty Trip').length;
 
-  if (isLoading) {
+  // First-time load: show full skeleton
+  if (isLoadingDepartments && departmentContracts.length === 0 && dailyDutyLogs.length === 0) {
     return (
       <div className="section active" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
         <SkeletonCard count={4} />
@@ -33,6 +35,7 @@ export const DepartmentsView: React.FC = () => {
 
   return (
     <div className="section active">
+      <SoftRefreshBar visible={isLoadingDepartments && (departmentContracts.length > 0 || dailyDutyLogs.length > 0)} label="Syncing department data…" />
       {/* Department Sub-Tabs Navigation */}
       <div className="subtab-nav">
         <button

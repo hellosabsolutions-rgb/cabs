@@ -54,6 +54,16 @@ export interface FleetContextType {
   refreshData: () => Promise<void>;
   withLoading: <T>(fn: () => Promise<T> | T, key?: string) => Promise<T>;
 
+  // Per-tab granular loading states (for skeleton loaders on each module)
+  isLoadingVehicles: boolean;
+  isLoadingDrivers: boolean;
+  isLoadingDepartments: boolean;
+  isLoadingBookings: boolean;
+  isLoadingExpenses: boolean;
+  isLoadingCompliance: boolean;
+  isLoadingMaintenance: boolean;
+  isLoadingProfitability: boolean;
+
   // Global Toast Notifications
   toasts: ToastNotification[];
   showToast: (type: ToastType, message: string, title?: string, duration?: number) => void;

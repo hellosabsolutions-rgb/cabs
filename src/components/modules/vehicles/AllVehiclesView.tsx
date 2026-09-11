@@ -5,9 +5,10 @@ import { StatusChip } from '../../common/StatusChip';
 import { AddVehicleModal } from './AddVehicleModal';
 import { EditVehicleModal } from './EditVehicleModal';
 import { Vehicle, VehicleStatus } from '../../../types/fleet';
-import { Building2, Briefcase, Fuel, FileText, Shield, Wind, FileCheck, Award, Eye, ChevronDown, CheckCircle2, Clock, Wrench, Edit2, Trash2 } from 'lucide-react';
+import { Building2, Briefcase, Fuel, FileText, Shield, Wind, FileCheck, Award, Eye, ChevronDown, CheckCircle2, Clock, Wrench, Edit2, Trash2, Truck } from 'lucide-react';
 import { Pagination } from '../../common/Pagination';
 import { usePagination } from '../../../hooks/usePagination';
+import { CustomDropdown } from '../../common/CustomDropdown';
 
 export const AllVehiclesView: React.FC = () => {
   const { vehicles, searchQuery, updateVehicleStatus, deleteVehicle } = useFleet();
@@ -151,13 +152,15 @@ export const AllVehiclesView: React.FC = () => {
               top: 'calc(100% + 6px)',
               left: 0,
               zIndex: 9999,
-              background: 'var(--surface-2, #1a2236)',
-              border: '1px solid var(--border, rgba(255,255,255,0.08))',
+              background: 'rgba(13, 18, 30, 0.85)',
+              backdropFilter: 'blur(24px) saturate(190%) contrast(105%)',
+              WebkitBackdropFilter: 'blur(24px) saturate(190%) contrast(105%)',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
               borderRadius: '12px',
               padding: '5px',
               minWidth: '148px',
-              boxShadow: '0 8px 32px rgba(0,0,0,0.45)',
-              animation: 'dropdownFadeIn 0.15s ease',
+              boxShadow: '0 16px 40px -8px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(255, 255, 255, 0.05), inset 0 1px 0 0 rgba(255, 255, 255, 0.14)',
+              animation: 'sleekDropdownGlassIn 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
             }}
           >
             {STATUS_OPTIONS.map(opt => {
@@ -234,32 +237,36 @@ export const AllVehiclesView: React.FC = () => {
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <select
-              className="form-input"
-              style={{ width: 'auto', padding: '5px 10px', fontSize: '12px' }}
-              value={typeFilter}
-              onChange={e => setTypeFilter(e.target.value)}
-            >
-              <option value="All">All Categories</option>
-              <option value="Department">Department</option>
-              <option value="Trip-based">Booking-based</option>
-            </select>
+            <div style={{ width: '150px' }}>
+              <CustomDropdown
+                value={typeFilter}
+                onChange={val => setTypeFilter(val)}
+                options={[
+                  { value: 'All', label: 'All Categories' },
+                  { value: 'Department', label: 'Department' },
+                  { value: 'Trip-based', label: 'Booking-based' }
+                ]}
+                buttonStyle={{ height: '34px', fontSize: '11.5px', padding: '0 8px' }}
+              />
+            </div>
 
-            <select
-              className="form-input"
-              style={{ width: 'auto', padding: '5px 10px', fontSize: '12px' }}
-              value={statusFilter}
-              onChange={e => setStatusFilter(e.target.value)}
-            >
-              <option value="All">All Statuses</option>
-              <option value="Running">Running / Active</option>
-              <option value="Idle">Idle</option>
-              <option value="Maintenance">Maintenance</option>
-            </select>
+            <div style={{ width: '150px' }}>
+              <CustomDropdown
+                value={statusFilter}
+                onChange={val => setStatusFilter(val)}
+                options={[
+                  { value: 'All', label: 'All Statuses' },
+                  { value: 'Running', label: 'Running / Active' },
+                  { value: 'Idle', label: 'Idle' },
+                  { value: 'Maintenance', label: 'Maintenance' }
+                ]}
+                buttonStyle={{ height: '34px', fontSize: '11.5px', padding: '0 8px' }}
+              />
+            </div>
 
             <button
               className="btn-primary-action"
-              style={{ fontSize: '12px', padding: '7px 16px' }}
+              style={{ fontSize: '12px', padding: '7px 16px', height: '34px' }}
               onClick={() => setIsModalOpen(true)}
             >
               + Add vehicle
@@ -293,25 +300,59 @@ export const AllVehiclesView: React.FC = () => {
                 paginatedVehicles.map(v => (
                   <tr key={v.id}>
                     <td>
-                      <div>
-                        <div
-                          onClick={() => setEditingVehicle(v)}
-                          style={{
-                            fontWeight: 600,
-                            color: 'var(--text)',
-                            letterSpacing: '0.5px',
-                            cursor: 'pointer',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '5px'
-                          }}
-                          title="Click to edit vehicle details"
-                        >
-                          <span>{v.registrationNumber}</span>
-                          <Edit2 size={11} color="var(--accent)" style={{ opacity: 0.7 }} />
-                        </div>
-                        <div className="cell-truncate-md" title={v.model || (v.type === 'Department' ? 'Executive Sedan' : 'Commercial MPV')} style={{ fontSize: '11px', color: 'var(--text-faint)', marginTop: '2px' }}>
-                          {v.model || (v.type === 'Department' ? 'Executive Sedan' : 'Commercial MPV')}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        {v.vehiclePhoto ? (
+                          <img
+                            src={v.vehiclePhoto}
+                            alt={v.registrationNumber}
+                            style={{
+                              width: '38px',
+                              height: '38px',
+                              borderRadius: '8px',
+                              objectFit: 'cover',
+                              background: 'var(--surface-3)',
+                              border: '1px solid var(--border)',
+                              flexShrink: 0
+                            }}
+                          />
+                        ) : (
+                          <div
+                            style={{
+                              width: '38px',
+                              height: '38px',
+                              borderRadius: '8px',
+                              background: 'var(--surface-2)',
+                              border: '1px solid var(--border)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              color: 'var(--accent, #38bdf8)',
+                              flexShrink: 0
+                            }}
+                          >
+                            <Truck size={16} />
+                          </div>
+                        )}
+                        <div>
+                          <div
+                            onClick={() => setEditingVehicle(v)}
+                            style={{
+                              fontWeight: 600,
+                              color: 'var(--text)',
+                              letterSpacing: '0.5px',
+                              cursor: 'pointer',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '5px'
+                            }}
+                            title="Click to edit vehicle details"
+                          >
+                            <span>{v.registrationNumber}</span>
+                            <Edit2 size={11} color="var(--accent)" style={{ opacity: 0.7 }} />
+                          </div>
+                          <div className="cell-truncate-md" title={v.model || (v.type === 'Department' ? 'Executive Sedan' : 'Commercial MPV')} style={{ fontSize: '11px', color: 'var(--text-faint)', marginTop: '2px' }}>
+                            {v.model || (v.type === 'Department' ? 'Executive Sedan' : 'Commercial MPV')}
+                          </div>
                         </div>
                       </div>
                     </td>

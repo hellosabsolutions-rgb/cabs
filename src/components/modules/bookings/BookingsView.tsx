@@ -29,10 +29,10 @@ import {
   RefreshCw,
   ChevronDown
 } from 'lucide-react';
-import { SkeletonCard, SkeletonTable } from '../../common/Skeleton';
+import { SkeletonCard, SkeletonTable, SoftRefreshBar } from '../../common/Skeleton';
 
 export const BookingsView: React.FC = () => {
-  const { bookings, trips, updateTripStatus, searchQuery, isLoading, fetchLiveBookings, completeTrip } = useFleet();
+  const { bookings, trips, updateTripStatus, searchQuery, isLoading, isLoadingBookings, fetchLiveBookings, completeTrip } = useFleet();
 
   // All bookings list
   const bookingList: TripFinancial[] = bookings || trips || [];
@@ -174,7 +174,8 @@ export const BookingsView: React.FC = () => {
     };
   }, [bookingList]);
 
-  if (isLoading) {
+  // First-time load: show full skeleton
+  if (isLoadingBookings && bookingList.length === 0) {
     return (
       <div className="section active" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
         <SkeletonCard count={4} />
@@ -270,6 +271,7 @@ export const BookingsView: React.FC = () => {
 
   return (
     <div className="section active" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      <SoftRefreshBar visible={isLoadingBookings && bookingList.length > 0} label="Syncing bookings…" />
       {/* Overview Stat Cards (Revenue, Advance, Pending Payment, Active) */}
       <div className="stats-grid">
         <StatCard

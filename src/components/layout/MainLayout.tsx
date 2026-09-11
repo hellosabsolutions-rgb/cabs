@@ -16,6 +16,7 @@ import { MaintenanceView } from '../modules/maintenance/MaintenanceView';
 import { NotificationsView } from '../modules/notifications/NotificationsView';
 import { ProfileView } from '../modules/profile/ProfileView';
 import { ReportIssueView } from '../modules/reports/ReportIssueView';
+import { ActivityView } from '../modules/activity/ActivityView';
 import { ErrorBoundary } from '../common/ErrorBoundary';
 import { ToastContainer } from '../common/ToastContainer';
 import { useAuth } from '../../context/AuthContext';
@@ -120,7 +121,8 @@ export const MainLayout: React.FC = () => {
               <Route path="/compliance" element={<ComplianceView />} />
               <Route path="/maintenance" element={<MaintenanceView />} />
 
-              {/* Notifications, Profile & Reports */}
+              {/* Notifications, Profile, Activity & Reports */}
+              <Route path="/activity" element={<ActivityView />} />
               <Route path="/notifications" element={<NotificationsView />} />
               <Route path="/profile" element={<ProfileView />} />
               <Route path="/report" element={<ReportIssueView />} />

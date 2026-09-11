@@ -32,6 +32,9 @@ import notificationRoutes from './routes/notifications.js';
 import payrollRoutes from './routes/payroll.js';
 import reportRoutes from './routes/reports.js';
 import uploadRoutes from './routes/upload.js';
+import driverAssignmentRoutes from './routes/driverAssignments.js';
+import sosRoutes from './routes/sos.js';
+import activityRoutes from './routes/activities.js';
 
 const app = express();
 
@@ -41,7 +44,14 @@ app.use(helmet());
 // CORS configuration (allow frontend origin or any during development)
 app.use(
   cors({
-    origin: process.env.CLIENT_URL || 'http://localhost:3000',
+    origin: (origin, callback) => {
+      if (!origin || process.env.NODE_ENV !== 'production') {
+        return callback(null, true);
+      }
+      const allowed = [process.env.CLIENT_URL, 'http://localhost:3000'].filter(Boolean);
+      if (allowed.includes(origin)) return callback(null, true);
+      return callback(new Error('Not allowed by CORS'));
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization']
@@ -85,6 +95,29 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// Official Server Time (IST - Asia/Kolkata)
+app.get('/api/server-time', (req, res) => {
+  const now = new Date();
+  const istFormatter = new Intl.DateTimeFormat('en-IN', {
+    timeZone: 'Asia/Kolkata',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: true
+  });
+  const istFormatted = istFormatter.format(now);
+  res.json({
+    success: true,
+    timestamp: now.getTime(),
+    iso: now.toISOString(),
+    timezone: 'Asia/Kolkata (IST)',
+    ist: istFormatted
+  });
+});
+
 app.use('/api', (req, res, next) => {
   if (getDbStatus().connected) return next();
   return res.status(503).json({
@@ -118,6 +151,9 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/payroll', payrollRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/upload', uploadRoutes);
+app.use('/api/driver-assignments', driverAssignmentRoutes);
+app.use('/api/sos', sosRoutes);
+app.use('/api/activities', activityRoutes);
 
 // Root route
 app.get('/', (req, res) => {

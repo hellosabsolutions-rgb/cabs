@@ -68,6 +68,25 @@ export interface Vehicle {
   fitnessExpiry?: string;
 }
 
+export interface DriverAssignment {
+  id: string;
+  driverId: string;
+  driverName: string;
+  vehicleId?: string;
+  vehicleRegistration: string;
+  assignedAt: string;
+  unassignedAt?: string | null;
+  status: 'ACTIVE' | 'COMPLETED' | 'UNASSIGNED';
+  assignedBy?: string;
+  unassignedBy?: string | null;
+  reason?: string;
+  odometerAtAssignment?: number;
+  odometerAtUnassignment?: number | null;
+  notes?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export type DriverType = 'Full Time' | 'Part Time' | 'Contract' | 'Owner Driver';
 
 export interface Driver {
@@ -85,6 +104,8 @@ export interface Driver {
   joiningDate: string;
   status: 'On duty' | 'Off duty';
   monthlySalary?: number;
+  activeAssignment?: DriverAssignment | null;
+  assignmentHistory?: DriverAssignment[];
 }
 
 export type PayrollStatus = 'PAID' | 'DUE' | 'ADVANCE RUNNING';

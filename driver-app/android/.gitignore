@@ -1,0 +1,22 @@
+# OSX
+#
+.DS_Store
+
+# Android/IntelliJ
+#
+build/
+app/build/
+.idea
+.gradle
+local.properties
+*.iml
+*.hprof
+.cxx/
+*.apk
+*.aab
+
+# generated inline modules
+app/src/main/java/inline/
+
+# Bundle artifacts
+*.jsbundle

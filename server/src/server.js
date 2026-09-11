@@ -6,11 +6,13 @@ import mongoose from 'mongoose';
 import app from './app.js';
 import { connectDB } from './config/db.js';
 import { initSocket } from './services/socketService.js';
+import { autoBackfillAssignments } from './controllers/driverAssignmentController.js';
 
 const PORT = process.env.PORT || 5000;
 
 const start = async () => {
   await connectDB();
+  await autoBackfillAssignments().catch(e => console.warn('Auto backfill notice:', e.message));
 
   const httpServer = http.createServer(app);
   const io = initSocket(httpServer);

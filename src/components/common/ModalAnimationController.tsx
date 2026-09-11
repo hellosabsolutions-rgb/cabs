@@ -30,21 +30,26 @@ export const ModalAnimationController: React.FC = () => {
       const dialog = overlay.querySelector('.modal-dialog, .opaque-glass-dialog') as HTMLElement | null;
       if (!dialog || dialog.classList.contains('closing')) return;
 
+      // Exclude any internal elements like file remove buttons, tags, or upload boxes
+      if (target.closest('[data-no-modal-close], .upload-box, .upload-preview, .upload-preview-wrap, [data-action="remove-file"]')) {
+        return;
+      }
+
       // 1. Did the user click directly on the backdrop (outside the dialog)?
       const isBackdropClick = target === overlay;
 
-      // 2. Did the user click a close button (e.g. ✕ in header)?
-      const isCloseBtn = Boolean(target.closest('.modal-close-btn, [aria-label="Close modal"]'));
+      // 2. Did the user click an explicit modal close button (e.g. ✕ in header)?
+      const isCloseBtn = Boolean(target.closest('.modal-close-btn, [aria-label="Close modal"], [data-modal-close]'));
 
-      // 3. Did the user click a Cancel or Close secondary button?
+      // 3. Did the user click a Cancel or Close secondary button in modal footer or action bar?
       const text = target.textContent?.trim().toLowerCase() || '';
-      const isCancelOrCloseBtn =
-        (Boolean(target.closest('.modal-footer .btn-secondary, button.btn-secondary')) ||
-         target.tagName === 'BUTTON') &&
+      const isFooterCancelBtn =
+        Boolean(target.closest('.modal-footer, .modal-actions, .dialog-actions')) &&
+        target.tagName === 'BUTTON' &&
         (target as HTMLButtonElement).type !== 'submit' &&
-        (text === 'cancel' || text === 'close' || text === '✕' || text === '×');
+        (text === 'cancel' || text === 'close');
 
-      if (isBackdropClick || isCloseBtn || isCancelOrCloseBtn) {
+      if (isBackdropClick || isCloseBtn || isFooterCancelBtn) {
         // Intercept click immediately before React handles it
         e.preventDefault();
         e.stopPropagation();

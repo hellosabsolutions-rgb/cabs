@@ -12,7 +12,13 @@ import {
   revokeSession,
   revokeAllOtherSessions
 } from '../controllers/authController.js';
-import { protect } from '../middleware/authMiddleware.js';
+import {
+  driverLogin,
+  driverGoogleLogin,
+  getDriverMe,
+  startDriverDuty
+} from '../controllers/driverAuthController.js';
+import { protect, protectDriver } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
@@ -21,6 +27,11 @@ router.post('/login', login);
 router.post('/google', googleLogin);
 router.post('/refresh', refreshTokenHandler);
 router.post('/logout', logout);
+
+router.post('/driver/login', driverLogin);
+router.post('/driver/google', driverGoogleLogin);
+router.get('/driver/me', protectDriver, getDriverMe);
+router.post('/driver/duty/start', protectDriver, startDriverDuty);
 
 router.get('/me', protect, getMe);
 router.put('/profile', protect, updateProfile);

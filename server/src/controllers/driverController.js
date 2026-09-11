@@ -1,6 +1,8 @@
 import { Driver } from '../models/Driver.js';
 import { Vehicle } from '../models/Vehicle.js';
 import { Compliance } from '../models/Compliance.js';
+import DriverAssignment from '../models/DriverAssignment.js';
+import { recordAssignment, recordUnassignment } from './driverAssignmentController.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import { createCrudController } from './crudFactory.js';
 import { calculateExpiryMeta } from './complianceController.js';
@@ -18,6 +20,26 @@ const baseDriverController = createCrudController(Driver, [
   'emergencyContact'
 ]);
 
+function plateKey(value = '') {
+  return String(value).replace(/[\s-]/g, '').toUpperCase();
+}
+
+function normalizeAssignedVehicle(value) {
+  if (!value || value === '—' || value === '-' || value === 'Unassigned' || value === 'None') {
+    return '—';
+  }
+  return String(value).trim().toUpperCase().replace(/\s+/g, '');
+}
+
+async function findVehicleByPlate(plate) {
+  if (!plate || plate === '—') return null;
+  const exact = await Vehicle.findOne({ registrationNumber: plate });
+  if (exact) return exact;
+  const key = plateKey(plate);
+  const vehicles = await Vehicle.find({}).select('_id registrationNumber assignedDriver');
+  return vehicles.find((item) => plateKey(item.registrationNumber) === key) || null;
+}
+
 /**
  * @desc    Get all drivers with search, filtering, and pagination
  * @route   GET /api/drivers
@@ -26,11 +48,39 @@ const baseDriverController = createCrudController(Driver, [
 export const getDrivers = baseDriverController.getAll;
 
 /**
- * @desc    Get single driver by ID
+ * @desc    Get single driver by ID with active assignment and history
  * @route   GET /api/drivers/:id
  * @access  Public / Private
  */
-export const getDriverById = baseDriverController.getById;
+export const getDriverById = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const query = mongoose.Types.ObjectId.isValid(id) ? { _id: id } : { id };
+
+  const driver = await Driver.findOne(query);
+  if (!driver) {
+    return res.status(404).json({
+      success: false,
+      error: `Driver not found with ID ${id}`
+    });
+  }
+
+  const [activeAssignment, assignmentHistory] = await Promise.all([
+    DriverAssignment.findOne({ driverId: driver._id, status: 'ACTIVE' }).lean(),
+    DriverAssignment.find({ driverId: driver._id })
+      .sort({ assignedAt: -1 })
+      .limit(20)
+      .lean()
+  ]);
+
+  const driverData = driver.toObject ? driver.toObject() : driver;
+  driverData.activeAssignment = activeAssignment || null;
+  driverData.assignmentHistory = assignmentHistory || [];
+
+  res.status(200).json({
+    success: true,
+    data: driverData
+  });
+});
 
 /**
  * @desc    Onboard/Create a new driver in the system
@@ -41,6 +91,7 @@ export const createDriver = asyncHandler(async (req, res) => {
   const {
     name,
     phone,
+    email,
     photo,
     address,
     emergencyContact,
@@ -87,9 +138,7 @@ export const createDriver = asyncHandler(async (req, res) => {
   }
 
   // 2. Format fields
-  const cleanVehicle = assignedVehicle && assignedVehicle !== '—' && assignedVehicle !== 'Unassigned'
-    ? assignedVehicle.trim()
-    : '—';
+  const cleanVehicle = normalizeAssignedVehicle(assignedVehicle);
 
   const cleanJoiningDate = joiningDate || new Date().toISOString().split('T')[0];
 
@@ -122,6 +171,7 @@ export const createDriver = asyncHandler(async (req, res) => {
   const driver = await Driver.create({
     name: cleanName,
     phone: cleanPhone,
+    email: email ? String(email).trim().toLowerCase() : undefined,
     photo: finalPhoto,
     address: address ? address.trim() : undefined,
     emergencyContact: emergencyContact ? emergencyContact.trim() : undefined,
@@ -136,13 +186,26 @@ export const createDriver = asyncHandler(async (req, res) => {
     agencyId: agencyId || undefined
   });
 
-  // 4. If assigned vehicle is provided, update vehicle's assignedDriver
+  // 4. If assigned vehicle is provided, update vehicle's assignedDriver & record assignment
   if (cleanVehicle !== '—') {
     try {
-      await Vehicle.findOneAndUpdate(
-        { registrationNumber: cleanVehicle },
-        { assignedDriver: cleanName }
-      );
+      const vehicle = await findVehicleByPlate(cleanVehicle);
+      if (vehicle) {
+        await Vehicle.findByIdAndUpdate(vehicle._id, { assignedDriver: cleanName });
+        if (vehicle.registrationNumber !== cleanVehicle) {
+          await Driver.findByIdAndUpdate(driver._id, { assignedVehicle: vehicle.registrationNumber });
+          driver.assignedVehicle = vehicle.registrationNumber;
+        }
+      }
+      await recordAssignment({
+        driverId: driver._id,
+        driverName: cleanName,
+        vehicleId: vehicle ? vehicle._id : null,
+        vehicleRegistration: vehicle ? vehicle.registrationNumber : cleanVehicle,
+        odometer: vehicle ? vehicle.odometer : 0,
+        agencyId: driver.agencyId || (vehicle ? vehicle.agencyId : null),
+        reason: 'Driver onboarded with vehicle'
+      });
     } catch (vErr) {
       console.warn('Could not auto-sync assignedDriver to vehicle:', vErr.message);
     }
@@ -208,7 +271,12 @@ export const updateDriver = asyncHandler(async (req, res) => {
   }
 
   const prevVehicle = existing.assignedVehicle;
-  const newVehicle = req.body.assignedVehicle;
+  let newVehicle = req.body.assignedVehicle;
+
+  if (Object.prototype.hasOwnProperty.call(req.body, 'assignedVehicle')) {
+    newVehicle = normalizeAssignedVehicle(req.body.assignedVehicle);
+    req.body.assignedVehicle = newVehicle;
+  }
 
   const updatedDriver = await Driver.findOneAndUpdate(query, req.body, {
     new: true,
@@ -216,24 +284,76 @@ export const updateDriver = asyncHandler(async (req, res) => {
   });
 
   // Sync vehicle if assignment changed or driver name changed
-  if (newVehicle && newVehicle !== prevVehicle) {
+  if (newVehicle !== undefined && normalizeAssignedVehicle(prevVehicle) !== newVehicle) {
     if (prevVehicle && prevVehicle !== '—') {
-      await Vehicle.findOneAndUpdate(
-        { registrationNumber: prevVehicle, assignedDriver: existing.name },
-        { $unset: { assignedDriver: 1 } }
-      );
+      const prev = await findVehicleByPlate(prevVehicle);
+      if (prev) {
+        const linkedToThisDriver =
+          !prev.assignedDriver ||
+          prev.assignedDriver.trim().toLowerCase() === existing.name.trim().toLowerCase();
+        if (linkedToThisDriver) {
+          await Vehicle.findByIdAndUpdate(prev._id, { $unset: { assignedDriver: 1 } });
+        }
+      }
+      await recordUnassignment({
+        driverId: updatedDriver._id,
+        vehicleRegistration: prevVehicle,
+        reason: (newVehicle && newVehicle !== '—') ? `Swapped to ${newVehicle}` : 'Driver unassigned from vehicle'
+      });
     }
-    if (newVehicle !== '—') {
-      await Vehicle.findOneAndUpdate(
-        { registrationNumber: newVehicle },
-        { assignedDriver: updatedDriver.name }
-      );
+
+    if (newVehicle && newVehicle !== '—') {
+      const next = await findVehicleByPlate(newVehicle);
+      if (next) {
+        const others = await Driver.find({
+          _id: { $ne: updatedDriver._id },
+          assignedVehicle: { $exists: true, $nin: [null, '', '—'] }
+        }).select('_id assignedVehicle');
+        for (const other of others) {
+          if (plateKey(other.assignedVehicle) === plateKey(next.registrationNumber)) {
+            await Driver.updateOne({ _id: other._id }, { $set: { assignedVehicle: '—' } });
+            await recordUnassignment({
+              driverId: other._id,
+              vehicleRegistration: next.registrationNumber,
+              reason: `Vehicle reassigned to ${updatedDriver.name}`
+            });
+          }
+        }
+
+        await Vehicle.findByIdAndUpdate(next._id, { assignedDriver: updatedDriver.name });
+        if (next.registrationNumber !== updatedDriver.assignedVehicle) {
+          await Driver.findByIdAndUpdate(updatedDriver._id, {
+            assignedVehicle: next.registrationNumber
+          });
+          updatedDriver.assignedVehicle = next.registrationNumber;
+        }
+
+        await recordAssignment({
+          driverId: updatedDriver._id,
+          driverName: updatedDriver.name,
+          vehicleId: next._id,
+          vehicleRegistration: next.registrationNumber,
+          odometer: next.odometer || 0,
+          agencyId: updatedDriver.agencyId || next.agencyId || null,
+          reason: 'Vehicle assigned to driver'
+        });
+      }
+    } else if (!newVehicle || newVehicle === '—') {
+      await recordUnassignment({
+        driverId: updatedDriver._id,
+        reason: 'Driver unassigned from vehicle'
+      });
     }
-  } else if (req.body.name && req.body.name !== existing.name && updatedDriver.assignedVehicle && updatedDriver.assignedVehicle !== '—') {
-    await Vehicle.findOneAndUpdate(
-      { registrationNumber: updatedDriver.assignedVehicle },
-      { assignedDriver: updatedDriver.name }
-    );
+  } else if (
+    req.body.name &&
+    req.body.name !== existing.name &&
+    updatedDriver.assignedVehicle &&
+    updatedDriver.assignedVehicle !== '—'
+  ) {
+    const linked = await findVehicleByPlate(updatedDriver.assignedVehicle);
+    if (linked) {
+      await Vehicle.findByIdAndUpdate(linked._id, { assignedDriver: updatedDriver.name });
+    }
   }
 
   // Sync Driving licence compliance document if license details or name changed
@@ -343,12 +463,17 @@ export const deleteDriver = asyncHandler(async (req, res) => {
     });
   }
 
-  // If driver was assigned to a vehicle, clear it
+  // If driver was assigned to a vehicle, clear it & record unassignment
   if (driver.assignedVehicle && driver.assignedVehicle !== '—') {
     await Vehicle.findOneAndUpdate(
       { registrationNumber: driver.assignedVehicle, assignedDriver: driver.name },
       { $unset: { assignedDriver: 1 } }
     );
+    await recordUnassignment({
+      driverId: driver._id,
+      vehicleRegistration: driver.assignedVehicle,
+      reason: 'Driver removed from roster'
+    });
   }
 
   res.status(200).json({

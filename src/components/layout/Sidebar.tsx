@@ -2,6 +2,7 @@ import React from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { useFleet } from '../../context/FleetContext';
 import { useTheme } from '../../context/ThemeContext';
+import { useLanguage } from '../../context/LanguageContext';
 import { AgencySwitcher } from './AgencySwitcher';
 import {
   LayoutDashboard,
@@ -25,7 +26,8 @@ import {
   Moon,
   Fuel,
   Banknote,
-  LifeBuoy
+  LifeBuoy,
+  Activity
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -36,6 +38,7 @@ interface SidebarProps {
 export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onCloseMobile }) => {
   const { complianceStats } = useFleet();
   const { theme, setTheme } = useTheme();
+  const { t } = useLanguage();
   const location = useLocation();
 
   const totalAlerts = complianceStats.expiringSoonCount + complianceStats.expiredCount;
@@ -59,7 +62,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onCloseMobile }) => {
 
   return (
     <aside className={`sidebar ${isOpen ? 'open' : ''}`}>
-      <div className="brand" style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '16px 16px 14px' }}>
+      <div className="brand">
         <div
           style={{
             width: '44px',
@@ -94,7 +97,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onCloseMobile }) => {
             KABPRO
           </div>
           <div className="brand-sub" style={{ fontSize: '10px', color: 'var(--text-faint)', letterSpacing: '0.4px' }}>
-            Commercial Fleet
+            {t('brand.subtitle', 'Commercial Fleet')}
           </div>
         </div>
       </div>
@@ -113,33 +116,33 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onCloseMobile }) => {
             onClick={onCloseMobile}
           >
             <LayoutDashboard />
-            Dashboard
+            {t('nav.dashboard', 'Dashboard')}
           </NavLink>
         </div>
 
         {/* Vehicles */}
         <div className="nav-group">
-          <div className="nav-label">Vehicles</div>
+          <div className="nav-label">{t('nav.group.vehicles', 'Vehicles')}</div>
           <NavLink
             to="/vehicles"
             className={navClass('/vehicles')}
             onClick={onCloseMobile}
           >
             <Truck />
-            Vehicles
+            {t('nav.vehicles', 'Vehicles')}
           </NavLink>
         </div>
 
         {/* Drivers */}
         <div className="nav-group">
-          <div className="nav-label">Drivers</div>
+          <div className="nav-label">{t('nav.group.drivers', 'Drivers')}</div>
           <NavLink
             to="/drivers/list"
             className={navClass('/drivers/list')}
             onClick={onCloseMobile}
           >
             <Users />
-            Driver list
+            {t('nav.driverList', 'Driver list')}
           </NavLink>
           <NavLink
             to="/drivers/attendance"
@@ -147,7 +150,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onCloseMobile }) => {
             onClick={onCloseMobile}
           >
             <CalendarCheck />
-            Attendance
+            {t('nav.attendance', 'Attendance')}
           </NavLink>
           <NavLink
             to="/drivers/expenses"
@@ -155,7 +158,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onCloseMobile }) => {
             onClick={onCloseMobile}
           >
             <Receipt />
-            Driver expenses
+            {t('nav.driverExpenses', 'Driver expenses')}
           </NavLink>
           <NavLink
             to="/drivers/payroll"
@@ -163,20 +166,20 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onCloseMobile }) => {
             onClick={onCloseMobile}
           >
             <Banknote />
-            Driver payroll
+            {t('nav.driverPayroll', 'Driver payroll')}
           </NavLink>
         </div>
 
         {/* Departments & Contracts */}
         <div className="nav-group">
-          <div className="nav-label">Departments & contracts</div>
+          <div className="nav-label">{t('nav.group.departments', 'Departments & contracts')}</div>
           <NavLink
             to="/departments/contracts"
             className={navClass('/departments/contracts')}
             onClick={onCloseMobile}
           >
             <FileText />
-            Contracts
+            {t('nav.contracts', 'Contracts')}
           </NavLink>
           <NavLink
             to="/departments/duty-logs"
@@ -184,7 +187,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onCloseMobile }) => {
             onClick={onCloseMobile}
           >
             <ClipboardList />
-            Daily duty logs
+            {t('nav.dutyLogs', 'Daily duty logs')}
           </NavLink>
           <NavLink
             to="/departments/billing"
@@ -192,7 +195,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onCloseMobile }) => {
             onClick={onCloseMobile}
           >
             <ReceiptText />
-            Monthly billing
+            {t('nav.billing', 'Monthly billing')}
           </NavLink>
           <NavLink
             to="/departments/payments"
@@ -200,33 +203,33 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onCloseMobile }) => {
             onClick={onCloseMobile}
           >
             <CreditCard />
-            Payments
+            {t('nav.payments', 'Payments')}
           </NavLink>
         </div>
 
         {/* Booking */}
         <div className="nav-group">
-          <div className="nav-label">Booking</div>
+          <div className="nav-label">{t('nav.group.booking', 'Booking')}</div>
           <NavLink
             to="/booking"
             className={navClass('/booking')}
             onClick={onCloseMobile}
           >
             <Navigation />
-            Booking
+            {t('nav.booking', 'Booking')}
           </NavLink>
         </div>
 
         {/* Money */}
         <div className="nav-group">
-          <div className="nav-label">Money</div>
+          <div className="nav-label">{t('nav.group.money', 'Money')}</div>
           <NavLink
             to="/expenses/fastag"
             className={navClass('/expenses/fastag')}
             onClick={onCloseMobile}
           >
             <CreditCard />
-            FASTag per vehicle
+            {t('nav.fastag', 'FASTag per vehicle')}
           </NavLink>
           <NavLink
             to="/expenses/fuel"
@@ -234,7 +237,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onCloseMobile }) => {
             onClick={onCloseMobile}
           >
             <Fuel />
-            Fuel tracking & logs
+            {t('nav.fuelTracking', 'Fuel tracking & logs')}
           </NavLink>
           <NavLink
             to="/expenses/all"
@@ -242,7 +245,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onCloseMobile }) => {
             onClick={onCloseMobile}
           >
             <IndianRupee />
-            All expenses
+            {t('nav.allExpenses', 'All expenses')}
           </NavLink>
           <NavLink
             to="/profitability"
@@ -250,7 +253,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onCloseMobile }) => {
             onClick={onCloseMobile}
           >
             <TrendingUp />
-            Profitability
+            {t('nav.profitability', 'Profitability')}
           </NavLink>
           <NavLink
             to="/profitability"
@@ -258,20 +261,20 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onCloseMobile }) => {
             onClick={onCloseMobile}
           >
             <IndianRupee />
-            Revenue
+            {t('nav.revenue', 'Revenue')}
           </NavLink>
         </div>
 
         {/* Compliance */}
         <div className="nav-group">
-          <div className="nav-label">Compliance</div>
+          <div className="nav-label">{t('nav.group.compliance', 'Compliance')}</div>
           <NavLink
             to="/compliance"
             className={navClass('/compliance')}
             onClick={onCloseMobile}
           >
             <ShieldAlert />
-            Documents
+            {t('nav.documents', 'Documents')}
             {totalAlerts > 0 && <span className="badge">{totalAlerts}</span>}
           </NavLink>
           <NavLink
@@ -280,20 +283,28 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onCloseMobile }) => {
             onClick={onCloseMobile}
           >
             <Wrench />
-            Maintenance
+            {t('nav.maintenance', 'Maintenance')}
           </NavLink>
         </div>
 
         {/* System */}
         <div className="nav-group">
-          <div className="nav-label">System</div>
+          <div className="nav-label">{t('nav.group.system', 'System')}</div>
+          <NavLink
+            to="/activity"
+            className={navClass('/activity')}
+            onClick={onCloseMobile}
+          >
+            <Activity />
+            {t('nav.activity', 'Activity')}
+          </NavLink>
           <NavLink
             to="/report"
             className={navClass('/report')}
             onClick={onCloseMobile}
           >
             <LifeBuoy />
-            Report
+            {t('nav.report', 'Report')}
           </NavLink>
           <NavLink
             to="/notifications"
@@ -301,7 +312,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onCloseMobile }) => {
             onClick={onCloseMobile}
           >
             <Bell />
-            Notifications
+            {t('nav.notifications', 'Notifications')}
             {totalAlerts > 0 && <span className="badge">{totalAlerts}</span>}
           </NavLink>
           <NavLink
@@ -310,7 +321,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onCloseMobile }) => {
             onClick={onCloseMobile}
           >
             <Settings />
-            Profile & Settings
+            {t('nav.profile', 'Profile & Settings')}
           </NavLink>
         </div>
       </div>
@@ -321,13 +332,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onCloseMobile }) => {
             className={`theme-btn ${theme === 'dark' ? 'active' : ''}`}
             onClick={() => setTheme('dark')}
           >
-            <Moon size={14} /> Dark
+            <Moon size={14} /> {t('theme.dark', 'Dark')}
           </div>
           <div
             className={`theme-btn ${theme === 'light' ? 'active' : ''}`}
             onClick={() => setTheme('light')}
           >
-            <Sun size={14} /> Light
+            <Sun size={14} /> {t('theme.light', 'Light')}
           </div>
         </div>
       </div>

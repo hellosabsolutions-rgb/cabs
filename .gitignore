@@ -20,6 +20,10 @@ yarn-error.log*
 .env.test.local
 .env.production.local
 
+# Google OAuth client JSON
+client_secret*.json
+**/client_secret*.json
+
 # Editor / OS files
 .DS_Store
 *.pem
@@ -37,3 +41,23 @@ yarn-error.log*
 opsiva-*.json
 server/*firebase-adminsdk*.json
 server/opsiva-*.json
+
+# Expo / React Native
+.expo/
+web-build/
+*.jks
+*.p8
+*.p12
+*.mobileprovision
+*.orig.*
+driver-app/.expo/
+driver-app/android/.gradle/
+driver-app/android/build/
+driver-app/android/app/build/
+driver-app/android/.cxx/
+driver-app/android/.idea/
+driver-app/android/*.iml
+driver-app/android/app/*.iml
+driver-app/ios/Pods/
+driver-app/ios/build/
+driver-app/ios/*.xcworkspace/xcuserdata/

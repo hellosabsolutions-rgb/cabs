@@ -90,6 +90,16 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [dashboardStats, setDashboardStats] = useState<DashboardStatsData | null>(null);
   const [isLoadingDashboard, setIsLoadingDashboard] = useState<boolean>(false);
 
+  // Per-tab granular loading states for independent skeleton loaders
+  const [isLoadingVehicles, setIsLoadingVehicles] = useState(false);
+  const [isLoadingDrivers, setIsLoadingDrivers] = useState(false);
+  const [isLoadingDepartments, setIsLoadingDepartments] = useState(false);
+  const [isLoadingBookings, setIsLoadingBookings] = useState(false);
+  const [isLoadingExpenses, setIsLoadingExpenses] = useState(false);
+  const [isLoadingCompliance, setIsLoadingCompliance] = useState(false);
+  const [isLoadingMaintenance, setIsLoadingMaintenance] = useState(false);
+  const [isLoadingProfitability, setIsLoadingProfitability] = useState(false);
+
   const [isLoading, setIsLoading] = useState(false);
   const [loadingKey, setLoadingKey] = useState<string | null>(null);
   const [toasts, setToasts] = useState<ToastNotification[]>([]);
@@ -204,6 +214,7 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // Fetch vehicles from live backend API
   const fetchLiveVehicles = async () => {
+    setIsLoadingVehicles(true);
     try {
       const res = await api.get('/vehicles?limit=100');
       if (res && res.success && Array.isArray(res.data)) {
@@ -211,11 +222,14 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
     } catch (err) {
       console.warn('Backend vehicles API not reachable:', err);
+    } finally {
+      setIsLoadingVehicles(false);
     }
   };
 
   // Fetch drivers from live backend API
   const fetchLiveDrivers = async (): Promise<Driver[]> => {
+    setIsLoadingDrivers(true);
     try {
       const res = await api.get('/drivers?limit=500');
       if (res && res.success && Array.isArray(res.data)) {
@@ -228,6 +242,8 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
     } catch (err) {
       console.warn('Backend drivers API not reachable:', err);
+    } finally {
+      setIsLoadingDrivers(false);
     }
     return [];
   };
@@ -261,6 +277,7 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // Fetch compliance documents & live expiry calculation from backend API
   const fetchLiveCompliance = async () => {
+    setIsLoadingCompliance(true);
     try {
       const res = await api.get('/compliance/expiry');
       if (res && res.success && res.data) {
@@ -269,6 +286,8 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
     } catch (err) {
       console.warn('Backend compliance API not reachable:', err);
+    } finally {
+      setIsLoadingCompliance(false);
     }
   };
 
@@ -332,6 +351,7 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const fetchLiveBookings = async (queryParam?: { month?: string; date?: string; status?: string }) => {
+    setIsLoadingBookings(true);
     try {
       let url = '/bookings';
       const params = new URLSearchParams();
@@ -355,10 +375,13 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
     } catch (err) {
       console.warn('Backend bookings API not reachable:', err);
+    } finally {
+      setIsLoadingBookings(false);
     }
   };
 
   const fetchLiveDailyDutyLogs = async (queryParam?: { month?: string; date?: string; vehicle?: string; department?: string; status?: string; search?: string }) => {
+    setIsLoadingDepartments(true);
     try {
       let endpoint = '/duty-logs?limit=200';
       if (queryParam) {
@@ -381,10 +404,13 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
     } catch (err) {
       console.warn('Backend daily duty logs API not reachable:', err);
+    } finally {
+      setIsLoadingDepartments(false);
     }
   };
 
   const fetchLiveFastagTransactions = async (queryParam?: { vehicle?: string; type?: string; month?: string; search?: string }) => {
+    setIsLoadingExpenses(true);
     try {
       let endpoint = '/fastag?limit=300';
       if (queryParam) {
@@ -407,6 +433,8 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
     } catch (err) {
       console.warn('Backend FASTag API not reachable:', err);
+    } finally {
+      setIsLoadingExpenses(false);
     }
   };
 
@@ -468,6 +496,53 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     fetchLiveDashboardStats();
   }, []);
 
+  // Tab-change: fresh data fetch on every tab navigation
+  // Agar data pehle se loaded hai → SoftRefreshBar dikhega, skeleton nahi
+  // Agar data empty hai → full skeleton dikhega
+  useEffect(() => {
+    switch (activePage) {
+      case 'dashboard':
+        fetchLiveDashboardStats();
+        break;
+      case 'vehicles':
+        fetchLiveVehicles();
+        break;
+      case 'drivers':
+        fetchLiveDrivers();
+        fetchLiveAttendance();
+        fetchLiveDriverExpenses();
+        break;
+      case 'departments':
+        fetchLiveContracts();
+        fetchLiveDailyDutyLogs();
+        fetchLiveMonthlyBills();
+        break;
+      case 'bookings':
+      case 'trips':
+        fetchLiveBookings();
+        break;
+      case 'expenses':
+        fetchLiveFastagTransactions();
+        break;
+      case 'compliance':
+        fetchLiveCompliance();
+        break;
+      case 'profitability':
+        setIsLoadingProfitability(true);
+        Promise.all([fetchLiveBookings(), fetchLiveDailyDutyLogs()])
+          .finally(() => setIsLoadingProfitability(false));
+        break;
+      case 'maintenance':
+        setIsLoadingMaintenance(true);
+        // maintenance records don't have a separate API yet, use vehicles for context
+        fetchLiveVehicles().finally(() => setIsLoadingMaintenance(false));
+        break;
+      default:
+        break;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activePage]);
+
   const refreshData = async () => {
     setIsLoading(true);
     setLoadingKey('refreshing');
@@ -509,6 +584,23 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             id: res.data.id || res.data._id
           };
           setVehicles(prev => [serverVehicle, ...prev.filter(v => v.registrationNumber !== serverVehicle.registrationNumber)]);
+
+          if (serverVehicle.assignedDriver && serverVehicle.registrationNumber) {
+            const driverName = serverVehicle.assignedDriver.trim().toLowerCase();
+            const plate = serverVehicle.registrationNumber;
+            setDrivers(prev =>
+              prev.map(d => {
+                const sameDriver = d.name.trim().toLowerCase() === driverName;
+                const hadThisPlate =
+                  d.assignedVehicle &&
+                  d.assignedVehicle.replace(/[\s-]/g, '').toUpperCase() ===
+                    plate.replace(/[\s-]/g, '').toUpperCase();
+                if (sameDriver) return { ...d, assignedVehicle: plate };
+                if (hadThisPlate && !sameDriver) return { ...d, assignedVehicle: '—' };
+                return d;
+              })
+            );
+          }
 
           // Sync compliance records for the 5 documents
           const cleanReg = serverVehicle.registrationNumber;
@@ -693,12 +785,59 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
       setVehicles(prev =>
         prev.map(v => {
-          if (v.id === id) {
-            return savedVehicle || { ...v, ...updatedData };
+          if (v.id !== id) return v;
+          const merged = savedVehicle || { ...v, ...updatedData };
+          // Explicit unassign from form sends null
+          if (
+            Object.prototype.hasOwnProperty.call(updatedData, 'assignedDriver') &&
+            (updatedData.assignedDriver == null ||
+              updatedData.assignedDriver === '' ||
+              updatedData.assignedDriver === 'Unassigned')
+          ) {
+            return { ...merged, assignedDriver: undefined };
           }
-          return v;
+          return merged;
         })
       );
+
+      // Keep driver.assignedVehicle in sync when vehicle.assignedDriver changes
+      const existingVehicle = vehicles.find(v => v.id === id);
+      const plate = (savedVehicle?.registrationNumber ||
+        updatedData.registrationNumber ||
+        existingVehicle?.registrationNumber ||
+        '') as string;
+
+      if (Object.prototype.hasOwnProperty.call(updatedData, 'assignedDriver') && plate) {
+        const rawNext = updatedData.assignedDriver;
+        const nextDriverName =
+          rawNext && rawNext !== 'Unassigned' && String(rawNext).trim()
+            ? String(rawNext).trim()
+            : '';
+        const previousDriverName = existingVehicle?.assignedDriver?.trim() || '';
+
+        setDrivers(prev =>
+          prev.map(d => {
+            const nameKey = d.name.trim().toLowerCase();
+            const isNext =
+              nextDriverName && nameKey === nextDriverName.toLowerCase();
+            const isPrevious =
+              previousDriverName && nameKey === previousDriverName.toLowerCase();
+            const hadThisPlate =
+              d.assignedVehicle &&
+              d.assignedVehicle.replace(/[\s-]/g, '').toUpperCase() ===
+                plate.replace(/[\s-]/g, '').toUpperCase();
+
+            if (isNext) {
+              return { ...d, assignedVehicle: plate };
+            }
+            // Unassign / switch: clear previous holder and anyone with this plate
+            if ((!nextDriverName && (isPrevious || hadThisPlate)) || (hadThisPlate && !isNext)) {
+              return { ...d, assignedVehicle: '—' };
+            }
+            return d;
+          })
+        );
+      }
 
       // Also update compliance records if compliance dates changed
       if (
@@ -1484,6 +1623,7 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const updateDriver = async (id: string, data: Partial<Driver>) => {
     try {
+      const previous = drivers.find(d => d.id === id);
       try {
         const res = await api.put(`/drivers/${id}`, data);
         if (res.success && res.data) {
@@ -1492,6 +1632,38 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             id: res.data.id || res.data._id
           };
           setDrivers(prev => prev.map(d => (d.id === id ? updated : d)));
+
+          if (Object.prototype.hasOwnProperty.call(data, 'assignedVehicle')) {
+            const prevPlate = previous?.assignedVehicle;
+            const nextPlate =
+              updated.assignedVehicle && updated.assignedVehicle !== '—'
+                ? updated.assignedVehicle
+                : '';
+
+            setVehicles(prev =>
+              prev.map(v => {
+                const plateKey = (value?: string) =>
+                  String(value || '')
+                    .replace(/[\s-]/g, '')
+                    .toUpperCase();
+                const isPrev =
+                  prevPlate &&
+                  prevPlate !== '—' &&
+                  plateKey(v.registrationNumber) === plateKey(prevPlate);
+                const isNext =
+                  nextPlate && plateKey(v.registrationNumber) === plateKey(nextPlate);
+
+                if (isNext) {
+                  return { ...v, assignedDriver: updated.name };
+                }
+                if (isPrev && !isNext) {
+                  return { ...v, assignedDriver: undefined };
+                }
+                return v;
+              })
+            );
+          }
+
           showToast('success', `Driver ${updated.name} updated successfully.`, 'Driver Updated');
           await fetchLiveDrivers();
           await fetchPayrollSummary(selectedPayrollMonth);
@@ -2674,6 +2846,14 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         loadingKey,
         refreshData,
         withLoading,
+        isLoadingVehicles,
+        isLoadingDrivers,
+        isLoadingDepartments,
+        isLoadingBookings,
+        isLoadingExpenses,
+        isLoadingCompliance,
+        isLoadingMaintenance,
+        isLoadingProfitability,
         toasts,
         showToast,
         dismissToast,

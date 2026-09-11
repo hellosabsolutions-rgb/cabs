@@ -1,6 +1,5 @@
 import { io, Socket } from 'socket.io-client';
-
-const SOCKET_SERVER_URL = 'http://localhost:5001';
+import { SOCKET_SERVER_URL } from '../config/env';
 
 /**
  * SocketManager

@@ -2,6 +2,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 import mongoose from 'mongoose';
+import bcrypt from 'bcryptjs';
 import { connectDB } from './config/db.js';
 
 // Models
@@ -131,7 +132,9 @@ const seedDatabase = async () => {
       maintenance
     ] = await Promise.all([
       Vehicle.insertMany(sanitizeDocs(initialVehicles)),
-      Driver.insertMany(sanitizeDocs(initialDrivers)),
+      Driver.insertMany(
+        sanitizeDocs(initialDrivers).map(({ password, ...driver }) => driver)
+      ),
       DriverAttendance.insertMany(sanitizeDocs(initialDriverAttendance)),
       DriverExpense.insertMany(sanitizeDocs(initialDriverExpenses)),
       DriverAdvance.insertMany(sanitizeDocs(initialDriverAdvances)),
@@ -147,6 +150,16 @@ const seedDatabase = async () => {
       Compliance.insertMany(sanitizeDocs([...vehicleComplianceDocs, ...driverComplianceDocs])),
       Maintenance.insertMany(sanitizeDocs(initialMaintenanceRecords))
     ]);
+
+    for (const item of initialDrivers) {
+      if (!item.password) continue;
+      await Driver.updateOne(
+        { name: item.name },
+        { $set: { password: await bcrypt.hash(item.password, 10) } }
+      );
+    }
+
+    await Driver.updateMany({}, { $set: { agencyId: defaultAgency._id } });
 
     console.log('✨ Seed Summary:');
     console.log(`  🚗 Vehicles: ${vehicles.length}`);

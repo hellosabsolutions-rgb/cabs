@@ -5,7 +5,17 @@ const refreshTokenSchema = new mongoose.Schema(
     userId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
-      required: true,
+      index: true
+    },
+    driverId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Driver',
+      index: true
+    },
+    kind: {
+      type: String,
+      enum: ['user', 'driver'],
+      default: 'user',
       index: true
     },
     tokenHash: {

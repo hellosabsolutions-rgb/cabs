@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import bcrypt from 'bcryptjs';
 
 const driverSchema = new mongoose.Schema(
   {
@@ -7,6 +8,30 @@ const driverSchema = new mongoose.Schema(
       required: [true, 'Driver name is required'],
       trim: true,
       index: true
+    },
+    code: {
+      type: String,
+      trim: true,
+      uppercase: true,
+      index: true
+    },
+    email: {
+      type: String,
+      lowercase: true,
+      trim: true,
+      unique: true,
+      sparse: true
+    },
+    googleId: {
+      type: String,
+      trim: true,
+      unique: true,
+      sparse: true
+    },
+    password: {
+      type: String,
+      minlength: [6, 'Password must be at least 6 characters'],
+      select: false
     },
     phone: {
       type: String,
@@ -61,6 +86,10 @@ const driverSchema = new mongoose.Schema(
       default: 0,
       min: 0
     },
+    lastLoginAt: {
+      type: Date,
+      default: null
+    },
     agencyId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Agency',
@@ -74,6 +103,7 @@ const driverSchema = new mongoose.Schema(
       transform: (doc, ret) => {
         ret.id = ret._id.toString();
         delete ret.__v;
+        delete ret.password;
         return ret;
       }
     },
@@ -81,4 +111,19 @@ const driverSchema = new mongoose.Schema(
   }
 );
 
+driverSchema.pre('save', async function (next) {
+  if (!this.isModified('password') || !this.password) {
+    return next();
+  }
+  const salt = await bcrypt.genSalt(10);
+  this.password = await bcrypt.hash(this.password, salt);
+  next();
+});
+
+driverSchema.methods.matchPassword = async function (enteredPassword) {
+  if (!this.password) return false;
+  return bcrypt.compare(enteredPassword, this.password);
+};
+
 export const Driver = mongoose.model('Driver', driverSchema);
+export default Driver;

@@ -1,7 +1,9 @@
 /**
  * Centralized HTTP client for FleetOS API with Silent Refresh Token Rotation
  */
-const BASE_URL = 'http://localhost:5001/api';
+import { API_BASE_URL } from '../config/env';
+
+const BASE_URL = API_BASE_URL;
 
 interface RequestOptions extends RequestInit {
   data?: any;
@@ -49,7 +51,7 @@ export async function apiRequest<T = any>(endpoint: string, options: RequestOpti
     }
     throw new Error(
       networkError.message?.includes('Failed to fetch')
-        ? 'Cannot connect to FleetOS server (http://localhost:5001). Please ensure backend is running.'
+        ? `Cannot connect to FleetOS server (${BASE_URL.replace(/\/api\/?$/, '')}). Please ensure backend is running.`
         : networkError.message || 'Network connection error.'
     );
   }
@@ -170,5 +172,108 @@ export const api = {
 
   delete: <T = any>(endpoint: string, options?: RequestOptions) => 
     apiRequest<T>(endpoint, { ...options, method: 'DELETE' })
+};
+
+export const driverAssignmentsApi = {
+  getAll: (params?: { page?: number; limit?: number; status?: string; search?: string }) => {
+    const query = new URLSearchParams();
+    if (params?.page) query.set('page', String(params.page));
+    if (params?.limit) query.set('limit', String(params.limit));
+    if (params?.status) query.set('status', params.status);
+    if (params?.search) query.set('search', params.search);
+    const qs = query.toString();
+    return api.get<{ success: boolean; data: any[]; total: number }>(`/driver-assignments${qs ? `?${qs}` : ''}`);
+  },
+  getActive: () => api.get<{ success: boolean; data: any[]; count: number }>('/driver-assignments/active'),
+  getDriverHistory: (driverId: string) => api.get<{ success: boolean; data: any[]; count: number }>(`/driver-assignments/driver/${driverId}`),
+  getVehicleHistory: (registration: string) => api.get<{ success: boolean; data: any[]; count: number }>(`/driver-assignments/vehicle/${encodeURIComponent(registration)}`),
+  assign: (data: { driverId: string; vehicleRegistration: string; reason?: string; odometerAtAssignment?: number; notes?: string }) =>
+    api.post<{ success: boolean; data: any }>('/driver-assignments', data),
+  endAssignment: (id: string, data?: { reason?: string; odometer?: number; notes?: string }) =>
+    api.post<{ success: boolean; data: any }>(`/driver-assignments/${id}/end`, data || {})
+};
+
+export interface ActivityItem {
+  id: string;
+  _id?: string;
+  agencyId?: string;
+  agencyName?: string;
+  actorId?: string;
+  actorName: string;
+  actorEmail?: string;
+  actorRole: string;
+  actorAvatar?: string | null;
+  actorType: 'user' | 'driver' | 'system';
+  action: string;
+  category: 'trips' | 'duty' | 'vehicles' | 'attendance' | 'expenses' | 'payroll' | 'auth' | 'system';
+  description: string;
+  targetEntity?: string;
+  targetId?: string;
+  meta?: any;
+  createdAt: string;
+}
+
+export interface UserActivityStats {
+  id: string;
+  name: string;
+  email?: string;
+  phone?: string;
+  avatar?: string | null;
+  actorType: 'user' | 'driver';
+  role: string;
+  status: string;
+  agencyName?: string;
+  assignedVehicle?: string;
+  totalActivities: number;
+  todayActivitiesCount: number;
+  lastLoginAt?: string | null;
+  lastActivity?: {
+    action: string;
+    description: string;
+    category: string;
+    timestamp: string;
+    timeAgo: string;
+  };
+}
+
+export const activitiesApi = {
+  getAll: (params?: {
+    search?: string;
+    userId?: string;
+    userName?: string;
+    actorType?: string;
+    category?: string;
+    agencyId?: string;
+    page?: number;
+    limit?: number;
+  }) => {
+    const qs = new URLSearchParams();
+    if (params?.search) qs.set('search', params.search);
+    if (params?.userId) qs.set('userId', params.userId);
+    if (params?.userName) qs.set('userName', params.userName);
+    if (params?.actorType) qs.set('actorType', params.actorType);
+    if (params?.category) qs.set('category', params.category);
+    if (params?.agencyId) qs.set('agencyId', params.agencyId);
+    if (params?.page) qs.set('page', String(params.page));
+    if (params?.limit) qs.set('limit', String(params.limit));
+    const query = qs.toString();
+    return api.get<{
+      success: boolean;
+      data: ActivityItem[];
+      total: number;
+      page: number;
+      pages: number;
+    }>(`/activities${query ? `?${query}` : ''}`);
+  },
+  getUserStats: (agencyId?: string) => {
+    return api.get<{
+      success: boolean;
+      data: UserActivityStats[];
+      total: number;
+    }>(`/activities/users-stats${agencyId ? `?agencyId=${agencyId}` : ''}`);
+  },
+  create: (data: Partial<ActivityItem>) => {
+    return api.post<{ success: boolean; data: ActivityItem }>('/activities', data);
+  }
 };
 

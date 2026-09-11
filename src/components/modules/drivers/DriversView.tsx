@@ -22,15 +22,20 @@ import {
   List,
   CheckCircle2,
   Search,
-  Eye
+  Eye,
+  EyeOff,
+  Car
 } from 'lucide-react';
-import { SkeletonCard, SkeletonTable } from '../../common/Skeleton';
+import { SkeletonCard, SkeletonTable, SkeletonDriverCard, SoftRefreshBar } from '../../common/Skeleton';
 import { Pagination } from '../../common/Pagination';
 import { usePagination } from '../../../hooks/usePagination';
+import { resolveAssignedVehicle, isAssignedPlate } from '../../../utils/assignment';
+import { CustomDropdown } from '../../common/CustomDropdown';
 
 export const DriversView: React.FC = () => {
   const {
     drivers,
+    vehicles,
     searchQuery,
     driverSubTab,
     setDriverSubTab,
@@ -41,6 +46,7 @@ export const DriversView: React.FC = () => {
     dailyDutyLogs,
     driverCompliance,
     isLoading,
+    isLoadingDrivers,
     updateDriverStatus,
     deleteDriver
   } = useFleet();
@@ -50,6 +56,8 @@ export const DriversView: React.FC = () => {
   const [selectedDriverForDetail, setSelectedDriverForDetail] = useState<Driver | null>(null);
   const [selectedTypeFilter, setSelectedTypeFilter] = useState<string>('All');
   const [selectedStatusFilter, setSelectedStatusFilter] = useState<string>('All');
+  // Assignment filter: 'All' | 'Assigned' | 'Unassigned' - defaults to 'All' so all drivers are shown directly!
+  const [assignmentFilter, setAssignmentFilter] = useState<'All' | 'Assigned' | 'Unassigned'>('All');
   const [localSearch, setLocalSearch] = useState<string>('');
 
   // Persisted view mode: 'card' | 'list'
@@ -64,10 +72,29 @@ export const DriversView: React.FC = () => {
 
   const activeSearch = (localSearch || searchQuery).trim().toLowerCase();
 
+  // Counts of assigned and unassigned drivers for badges & filters
+  const assignedCount = useMemo(
+    () => drivers.filter(d => isAssignedPlate(resolveAssignedVehicle(d, vehicles))).length,
+    [drivers, vehicles]
+  );
+  const unassignedCount = useMemo(
+    () => drivers.filter(d => !isAssignedPlate(resolveAssignedVehicle(d, vehicles))).length,
+    [drivers, vehicles]
+  );
+
   const filtered = drivers.filter(d => {
+    const assignedPlate = resolveAssignedVehicle(d, vehicles) || '';
+    const isAssigned = isAssignedPlate(assignedPlate);
+
+    // Assignment filter
+    if (assignmentFilter === 'Assigned' && !isAssigned) return false;
+    if (assignmentFilter === 'Unassigned' && isAssigned) return false;
+
+    const plate = assignedPlate.toLowerCase();
     const matchSearch =
       !activeSearch ||
       d.name.toLowerCase().includes(activeSearch) ||
+      plate.includes(activeSearch) ||
       (d.assignedVehicle && d.assignedVehicle.toLowerCase().includes(activeSearch)) ||
       (d.phone && d.phone.toLowerCase().includes(activeSearch)) ||
       (d.driverType && d.driverType.toLowerCase().includes(activeSearch)) ||
@@ -160,17 +187,19 @@ export const DriversView: React.FC = () => {
   const fullTimeCount = drivers.filter(d => d.driverType === 'Full Time').length;
   const totalExpenseSum = driverExpenses.reduce((acc, curr) => acc + curr.amount, 0);
 
-  if (isLoading) {
+  // First-time load: show full skeleton
+  if (isLoadingDrivers && drivers.length === 0) {
     return (
       <div className="section active" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
         <SkeletonCard count={4} />
-        <SkeletonTable rows={6} columns={6} />
+        <SkeletonDriverCard count={6} />
       </div>
     );
   }
 
   return (
     <div className="section active">
+      <SoftRefreshBar visible={isLoadingDrivers && drivers.length > 0} label="Syncing drivers…" />
       {/* Driver Sub-tabs Navigation */}
       <div className="subtab-nav">
         <button
@@ -312,29 +341,49 @@ export const DriversView: React.FC = () => {
 
               {/* Right Filters & View Mode Toggle */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-                <select
-                  className="form-input"
-                  style={{ width: 'auto', padding: '6px 12px', fontSize: '12px', height: '36px', borderRadius: '8px' }}
-                  value={selectedStatusFilter}
-                  onChange={e => setSelectedStatusFilter(e.target.value)}
-                >
-                  <option value="All">Status: All</option>
-                  <option value="Active">Status: Active</option>
-                  <option value="Off duty">Status: Off duty</option>
-                </select>
+                {/* Assignment Filter */}
+                <div style={{ minWidth: '160px' }}>
+                  <CustomDropdown
+                    value={assignmentFilter}
+                    onChange={val => setAssignmentFilter(val as 'All' | 'Assigned' | 'Unassigned')}
+                    options={[
+                      { value: 'All', label: 'All Drivers', badge: `${drivers.length}` },
+                      { value: 'Assigned', label: 'Assigned Only', badge: `${assignedCount}`, badgeColor: 'rgba(34, 197, 94, 0.2)' },
+                      { value: 'Unassigned', label: 'Unassigned Only', badge: `${unassignedCount}`, badgeColor: 'rgba(239, 68, 68, 0.2)' }
+                    ]}
+                    buttonStyle={{ height: '36px', fontSize: '12px' }}
+                  />
+                </div>
 
-                <select
-                  className="form-input"
-                  style={{ width: 'auto', padding: '6px 12px', fontSize: '12px', height: '36px', borderRadius: '8px' }}
-                  value={selectedTypeFilter}
-                  onChange={e => setSelectedTypeFilter(e.target.value)}
-                >
-                  <option value="All">All Types</option>
-                  <option value="Full Time">Full Time</option>
-                  <option value="Part Time">Part Time</option>
-                  <option value="Contract">Contract</option>
-                  <option value="Owner Driver">Owner Driver</option>
-                </select>
+                {/* Status Filter */}
+                <div style={{ minWidth: '135px' }}>
+                  <CustomDropdown
+                    value={selectedStatusFilter}
+                    onChange={val => setSelectedStatusFilter(val)}
+                    options={[
+                      { value: 'All', label: 'Status: All' },
+                      { value: 'Active', label: 'Status: Active' },
+                      { value: 'Off duty', label: 'Status: Off duty' }
+                    ]}
+                    buttonStyle={{ height: '36px', fontSize: '12px' }}
+                  />
+                </div>
+
+                {/* Driver Type Filter */}
+                <div style={{ minWidth: '135px' }}>
+                  <CustomDropdown
+                    value={selectedTypeFilter}
+                    onChange={val => setSelectedTypeFilter(val)}
+                    options={[
+                      { value: 'All', label: 'All Types' },
+                      { value: 'Full Time', label: 'Full Time' },
+                      { value: 'Part Time', label: 'Part Time' },
+                      { value: 'Contract', label: 'Contract' },
+                      { value: 'Owner Driver', label: 'Owner Driver' }
+                    ]}
+                    buttonStyle={{ height: '36px', fontSize: '12px' }}
+                  />
+                </div>
 
                 {/* View Switcher: Card View vs List View */}
                 <div
@@ -411,7 +460,35 @@ export const DriversView: React.FC = () => {
               <div style={{ marginTop: '18px' }}>
                 {paginatedDrivers.length === 0 ? (
                   <div style={{ textAlign: 'center', padding: '48px 0', color: 'var(--text-muted)' }}>
-                    No drivers found matching your filter criteria.
+                    <Users size={32} style={{ opacity: 0.3, marginBottom: 12 }} />
+                    <div style={{ fontWeight: 600, marginBottom: 4 }}>No drivers found</div>
+                    <div style={{ fontSize: '13px', marginBottom: 12 }}>
+                      {assignmentFilter !== 'All'
+                        ? `No ${assignmentFilter.toLowerCase()} drivers match your current filter.`
+                        : 'No drivers found matching your filter criteria.'}
+                    </div>
+                    {(assignmentFilter !== 'All' || selectedStatusFilter !== 'All' || selectedTypeFilter !== 'All' || localSearch) && (
+                      <button
+                        onClick={() => {
+                          setAssignmentFilter('All');
+                          setSelectedStatusFilter('All');
+                          setSelectedTypeFilter('All');
+                          setLocalSearch('');
+                        }}
+                        style={{
+                          fontSize: '12px',
+                          padding: '6px 16px',
+                          borderRadius: '8px',
+                          border: '1px solid var(--border)',
+                          background: 'var(--surface-2)',
+                          color: 'var(--accent)',
+                          cursor: 'pointer',
+                          fontWeight: 500
+                        }}
+                      >
+                        Reset filters
+                      </button>
+                    )}
                   </div>
                 ) : (
                   <div
@@ -426,6 +503,8 @@ export const DriversView: React.FC = () => {
                       const pendingSettlement = getDriverPendingSettlement(d);
                       const licenseInfo = getDriverLicenseInfo(d);
                       const isActive = d.status === 'On duty';
+                      const assignedPlate = resolveAssignedVehicle(d, vehicles);
+                      const isAssigned = isAssignedPlate(assignedPlate);
 
                       return (
                         <div
@@ -505,8 +584,23 @@ export const DriversView: React.FC = () => {
                                     <CheckCircle2 size={13} style={{ color: '#2563eb', flexShrink: 0 }} />
                                   )}
                                 </div>
-                                <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>
-                                  This Month: <strong style={{ color: 'var(--text)' }}>{tripsCount} trips</strong>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px', flexWrap: 'wrap' }}>
+                                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '11px' }}>
+                                    <Car size={12} style={{ color: isAssigned ? 'var(--accent)' : 'var(--text-faint)' }} />
+                                    {isAssigned ? (
+                                      <span style={{ fontWeight: 600, color: 'var(--accent)', background: 'var(--accent-dim)', padding: '1px 6px', borderRadius: '4px' }}>
+                                        {assignedPlate}
+                                      </span>
+                                    ) : (
+                                      <span style={{ color: 'var(--text-faint)', fontStyle: 'italic', background: 'var(--surface-2)', padding: '1px 6px', borderRadius: '4px', border: '1px dashed var(--border)' }}>
+                                        Unassigned
+                                      </span>
+                                    )}
+                                  </div>
+                                  <span style={{ fontSize: '11.5px', color: 'var(--text-faint)' }}>•</span>
+                                  <span style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}>
+                                    {tripsCount} trips
+                                  </span>
                                 </div>
                               </div>
                             </div>
@@ -599,8 +693,14 @@ export const DriversView: React.FC = () => {
                   <tbody>
                     {paginatedDrivers.length === 0 ? (
                       <tr>
-                        <td colSpan={8} style={{ textAlign: 'center', color: 'var(--text-faint)', padding: '30px 0' }}>
-                          No drivers found matching your filter criteria.
+                        <td colSpan={8} style={{ textAlign: 'center', color: 'var(--text-faint)', padding: '36px 0' }}>
+                          <Users size={28} style={{ opacity: 0.3, marginBottom: 8, display: 'block', margin: '0 auto 8px' }} />
+                          <div style={{ fontWeight: 600, marginBottom: 4, color: 'var(--text-muted)' }}>No drivers found</div>
+                          <div style={{ fontSize: '12px' }}>
+                            {assignmentFilter !== 'All'
+                              ? `No ${assignmentFilter.toLowerCase()} drivers match your current filter.`
+                              : 'No drivers found matching your search or filter criteria.'}
+                          </div>
                         </td>
                       </tr>
                     ) : (
@@ -646,7 +746,22 @@ export const DriversView: React.FC = () => {
                               {d.driverType || 'Full Time'}
                             </span>
                           </td>
-                          <td style={{ fontWeight: 500 }}>{d.assignedVehicle || '—'}</td>
+                          <td style={{ fontWeight: 500 }}>
+                            {(() => {
+                              const assignedPlate = resolveAssignedVehicle(d, vehicles);
+                              const isAssigned = isAssignedPlate(assignedPlate);
+                              return isAssigned ? (
+                                <span style={{ color: 'var(--accent)', fontWeight: 600, background: 'var(--accent-dim)', padding: '2px 8px', borderRadius: '4px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                  <Car size={11} />
+                                  {assignedPlate}
+                                </span>
+                              ) : (
+                                <span style={{ color: 'var(--text-faint)', fontStyle: 'italic', fontSize: '11px', padding: '2px 8px', borderRadius: '6px', background: 'var(--surface-2)', border: '1px dashed var(--border)' }}>
+                                  Unassigned
+                                </span>
+                              );
+                            })()}
+                          </td>
                           <td style={{ color: d.emergencyContact ? 'var(--text)' : 'var(--text-faint)' }}>
                             {d.emergencyContact || '—'}
                           </td>

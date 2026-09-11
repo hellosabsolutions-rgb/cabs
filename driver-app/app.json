@@ -1,0 +1,64 @@
+{
+  "expo": {
+    "name": "KABPRO Driver",
+    "slug": "kabpro-driver",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#F7F7F7"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "in.kabpro.driver",
+      "googleServicesFile": "./GoogleService-Info.plist",
+      "infoPlist": {
+        "GIDClientID": "546992458715-8jt589ame54ts6mpnf7bjjn7s3l21r6a.apps.googleusercontent.com",
+        "CFBundleURLTypes": [
+          {
+            "CFBundleURLSchemes": [
+              "in.kabpro.driver",
+              "com.googleusercontent.apps.546992458715-8jt589ame54ts6mpnf7bjjn7s3l21r6a"
+            ]
+          }
+        ],
+        "NSCameraUsageDescription": "KABPRO uses the camera to capture odometer, fuel, and incident photos.",
+        "NSPhotoLibraryUsageDescription": "KABPRO uses photos for odometer, fuel, expense, SOS, and document uploads.",
+        "NSLocationWhenInUseUsageDescription": "KABPRO attaches live GPS coordinates to emergency SOS requests to dispatch immediate help."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#E8F4FE",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "package": "in.kabpro.driver",
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-secure-store",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "KABPRO uses photos for odometer, fuel, expense, SOS, and document uploads.",
+          "cameraPermission": "KABPRO uses the camera to capture odometer, fuel, and incident photos."
+        }
+      ],
+      "expo-document-picker",
+      [
+        "@react-native-google-signin/google-signin",
+        {
+          "iosUrlScheme": "com.googleusercontent.apps.546992458715-8jt589ame54ts6mpnf7bjjn7s3l21r6a"
+        }
+      ]
+    ]
+  }
+}

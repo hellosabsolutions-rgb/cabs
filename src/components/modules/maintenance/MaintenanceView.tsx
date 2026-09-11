@@ -7,11 +7,11 @@ import { MaintenanceType } from '../../../types/fleet';
 import { Pagination } from '../../common/Pagination';
 import { usePagination } from '../../../hooks/usePagination';
 import { Paperclip } from 'lucide-react';
-import { SkeletonCard, SkeletonTable } from '../../common/Skeleton';
+import { SkeletonCard, SkeletonTable, SkeletonMaintenance, SoftRefreshBar } from '../../common/Skeleton';
 import { DatePicker } from '../../common/DatePicker';
 
 export const MaintenanceView: React.FC = () => {
-  const { vehicles, maintenanceRecords, addMaintenanceRecord, updateMaintenanceStatus, searchQuery, isLoading } = useFleet();
+  const { vehicles, maintenanceRecords, addMaintenanceRecord, updateMaintenanceStatus, searchQuery, isLoading, isLoadingMaintenance } = useFleet();
   const vehicleOptions = vehicles.map(v => v.registrationNumber);
 
   const [mVehicle, setMVehicle] = useState(vehicles[0]?.registrationNumber || '');
@@ -103,17 +103,18 @@ export const MaintenanceView: React.FC = () => {
 
   const formatINR = (val: number) => '₹' + Math.round(val).toLocaleString('en-IN');
 
-  if (isLoading) {
+  // First-time load: show maintenance skeleton
+  if (isLoadingMaintenance && maintenanceRecords.length === 0) {
     return (
       <div className="section active" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-        <SkeletonCard count={4} />
-        <SkeletonTable rows={5} columns={6} />
+        <SkeletonMaintenance />
       </div>
     );
   }
 
   return (
     <div className="section active">
+      <SoftRefreshBar visible={isLoadingMaintenance && maintenanceRecords.length > 0} label="Syncing maintenance records…" />
       {/* Quick Stats Grid */}
       <div className="stats-grid">
         <StatCard label="Service cost (this month)" value={formatINR(currentMonthStats.service)} />

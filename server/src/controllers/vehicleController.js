@@ -1,10 +1,14 @@
 import mongoose from 'mongoose';
 import { Vehicle } from '../models/Vehicle.js';
+import { Driver } from '../models/Driver.js';
 import { Compliance } from '../models/Compliance.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import { notify } from '../services/notificationService.js';
 import { uploadToCloudinary } from '../services/cloudinaryService.js';
 import { createCrudController } from './crudFactory.js';
+
+import DriverAssignment from '../models/DriverAssignment.js';
+import { recordAssignment, recordUnassignment } from './driverAssignmentController.js';
 
 // Base CRUD controller for vehicles
 const baseVehicleController = createCrudController(Vehicle, [
@@ -15,6 +19,144 @@ const baseVehicleController = createCrudController(Vehicle, [
   'assignedDriver',
   'hubStand'
 ]);
+
+function plateKey(value = '') {
+  return String(value).replace(/[\s-]/g, '').toUpperCase();
+}
+
+function escapeRegex(value = '') {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function cleanDriverName(value) {
+  if (!value || typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  if (!trimmed || ['—', '-', 'Unassigned', 'None', 'N/A'].includes(trimmed)) return null;
+  return trimmed;
+}
+
+/**
+ * Keep Driver.assignedVehicle in sync when a vehicle's assignedDriver changes,
+ * and track historical DriverAssignment records.
+ */
+async function syncDriverAssignmentFromVehicle(vehicle, previousDriverName) {
+  if (!vehicle?.registrationNumber) return;
+
+  const reg = vehicle.registrationNumber;
+  const nextDriver = cleanDriverName(vehicle.assignedDriver);
+  const prevDriver = cleanDriverName(previousDriverName);
+  const regKey = plateKey(reg);
+
+  // Always clear previous driver when unassigning or switching.
+  if (prevDriver && prevDriver !== nextDriver) {
+    await Driver.updateMany(
+      { name: new RegExp(`^${escapeRegex(prevDriver)}$`, 'i') },
+      { $set: { assignedVehicle: '—' } }
+    );
+    const prevDriverDoc = await Driver.findOne({
+      name: new RegExp(`^${escapeRegex(prevDriver)}$`, 'i')
+    }).select('_id');
+    if (prevDriverDoc) {
+      await recordUnassignment({
+        driverId: prevDriverDoc._id,
+        vehicleRegistration: reg,
+        reason: nextDriver ? `Swapped to ${nextDriver}` : 'Unassigned from vehicle'
+      });
+    }
+  }
+
+  // Clear every driver currently pointing at this plate (except the new assignee).
+  const candidates = await Driver.find({
+    assignedVehicle: { $exists: true, $nin: [null, '', '—'] }
+  }).select('_id name assignedVehicle');
+
+  for (const driver of candidates) {
+    const holdsPlate = plateKey(driver.assignedVehicle) === regKey;
+    const isNext =
+      nextDriver && driver.name.trim().toLowerCase() === nextDriver.toLowerCase();
+    if (holdsPlate && !isNext) {
+      await Driver.updateOne({ _id: driver._id }, { $set: { assignedVehicle: '—' } });
+      await recordUnassignment({
+        driverId: driver._id,
+        vehicleRegistration: reg,
+        reason: 'Vehicle assigned to another driver'
+      });
+    }
+  }
+
+  if (!nextDriver) {
+    await recordUnassignment({
+      vehicleRegistration: reg,
+      reason: 'Vehicle driver unassigned'
+    });
+    return;
+  }
+
+  const driver =
+    (await Driver.findOne({ name: nextDriver })) ||
+    (await Driver.findOne({ name: new RegExp(`^${escapeRegex(nextDriver)}$`, 'i') }));
+
+  if (driver) {
+    await Driver.updateOne({ _id: driver._id }, { $set: { assignedVehicle: reg } });
+    await recordAssignment({
+      driverId: driver._id,
+      driverName: driver.name,
+      vehicleId: vehicle._id || null,
+      vehicleRegistration: reg,
+      odometer: vehicle.odometer || 0,
+      agencyId: vehicle.agencyId || driver.agencyId || null,
+      reason: 'Vehicle assigned to driver'
+    });
+  }
+}
+
+/**
+ * @desc    Get single vehicle by ID or Registration Number with active assignment and history
+ * @route   GET /api/vehicles/:id
+ * @access  Public / Private
+ */
+export const getVehicleById = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const query = mongoose.Types.ObjectId.isValid(id)
+    ? { _id: id }
+    : { registrationNumber: new RegExp(`^${id.trim()}$`, 'i') };
+
+  const vehicle = await Vehicle.findOne(query);
+  if (!vehicle) {
+    return res.status(404).json({
+      success: false,
+      error: `Vehicle not found with identifier ${id}`
+    });
+  }
+
+  const [activeAssignment, assignmentHistory] = await Promise.all([
+    DriverAssignment.findOne({
+      $or: [
+        { vehicleId: vehicle._id },
+        { vehicleRegistration: vehicle.registrationNumber }
+      ],
+      status: 'ACTIVE'
+    }).lean(),
+    DriverAssignment.find({
+      $or: [
+        { vehicleId: vehicle._id },
+        { vehicleRegistration: vehicle.registrationNumber }
+      ]
+    })
+      .sort({ assignedAt: -1 })
+      .limit(20)
+      .lean()
+  ]);
+
+  const vehicleData = vehicle.toObject ? vehicle.toObject() : vehicle;
+  vehicleData.activeAssignment = activeAssignment || null;
+  vehicleData.assignmentHistory = assignmentHistory || [];
+
+  res.status(200).json({
+    success: true,
+    data: vehicleData
+  });
+});
 
 /**
  * @desc    Onboard a new vehicle to fleet with mandatory & optional fields and auto-compliance docs
@@ -297,6 +439,12 @@ export const onboardVehicle = asyncHandler(async (req, res) => {
     metadata: { vehicleId: vehicle._id?.toString(), registrationNumber: cleanReg }
   });
 
+  try {
+    await syncDriverAssignmentFromVehicle(vehicle, null);
+  } catch (syncErr) {
+    console.warn('Could not sync driver assignedVehicle on onboard:', syncErr.message);
+  }
+
   res.status(201).json({
     success: true,
     message: `Vehicle ${cleanReg} onboarded successfully!`,
@@ -372,10 +520,55 @@ export const updateVehicle = asyncHandler(async (req, res) => {
     updateData.assignedTo = updateData.departmentName?.trim() || 'Booking Fleet';
   }
 
-  const updated = await Vehicle.findOneAndUpdate(query, updateData, {
-    new: true,
-    runValidators: true
-  });
+  const previousDriver = existing.assignedDriver;
+  const assignedDriverProvided = Object.prototype.hasOwnProperty.call(updateData, 'assignedDriver');
+  let nextAssignedDriver = existing.assignedDriver;
+
+  const mongoUpdate = {};
+  const setFields = { ...updateData };
+  delete setFields.$unset;
+
+  if (assignedDriverProvided) {
+    const cleaned = cleanDriverName(updateData.assignedDriver);
+    delete setFields.assignedDriver;
+    if (!cleaned) {
+      mongoUpdate.$unset = { assignedDriver: 1 };
+      nextAssignedDriver = null;
+    } else {
+      setFields.assignedDriver = cleaned;
+      nextAssignedDriver = cleaned;
+    }
+  }
+
+  if (Object.keys(setFields).length > 0) {
+    mongoUpdate.$set = setFields;
+  }
+
+  const updated = await Vehicle.findOneAndUpdate(
+    query,
+    Object.keys(mongoUpdate).length ? mongoUpdate : setFields,
+    {
+      new: true,
+      runValidators: true
+    }
+  );
+
+  if (
+    assignedDriverProvided ||
+    (updateData.registrationNumber && updateData.registrationNumber !== existing.registrationNumber)
+  ) {
+    try {
+      await syncDriverAssignmentFromVehicle(
+        {
+          registrationNumber: updated.registrationNumber,
+          assignedDriver: nextAssignedDriver
+        },
+        previousDriver
+      );
+    } catch (syncErr) {
+      console.warn('Could not sync driver assignedVehicle on vehicle update:', syncErr.message);
+    }
+  }
 
   res.status(200).json({
     success: true,
@@ -386,6 +579,7 @@ export const updateVehicle = asyncHandler(async (req, res) => {
 
 export const vehicleController = {
   ...baseVehicleController,
+  getById: getVehicleById,
   create: onboardVehicle,
   update: updateVehicle
 };

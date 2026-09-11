@@ -1,12 +1,12 @@
 import React from 'react';
 import { useFleet } from '../../../context/FleetContext';
 import { StatCard } from '../../common/StatCard';
-import { SkeletonCard, SkeletonTable } from '../../common/Skeleton';
+import { SkeletonCard, SkeletonTable, SkeletonProfitability, SoftRefreshBar } from '../../common/Skeleton';
 import { Pagination } from '../../common/Pagination';
 import { usePagination } from '../../../hooks/usePagination';
 
 export const ProfitabilityView: React.FC = () => {
-  const { vehicles, searchQuery, isLoading } = useFleet();
+  const { vehicles, searchQuery, isLoading, isLoadingProfitability } = useFleet();
 
   const filtered = vehicles.filter(v =>
     v.registrationNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -22,19 +22,18 @@ export const ProfitabilityView: React.FC = () => {
     paginatedItems: paginatedVehicles
   } = usePagination(filtered, 10);
 
-  if (isLoading) {
+  // First-time load: show profitability skeleton
+  if (isLoadingProfitability && vehicles.length === 0) {
     return (
       <div className="section active">
-        <SkeletonCard count={4} />
-        <div style={{ marginTop: '20px' }}>
-          <SkeletonTable rows={5} columns={5} />
-        </div>
+        <SkeletonProfitability />
       </div>
     );
   }
 
   return (
     <div className="section active">
+      <SoftRefreshBar visible={isLoadingProfitability && vehicles.length > 0} label="Syncing profitability data…" />
       <div className="stats-grid">
         <StatCard label="Department profit" value="₹1,85,000" customColor="var(--accent)" />
         <StatCard label="Trip profit" value="₹3,30,000" customColor="var(--accent)" />

@@ -1,17 +1,9 @@
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import { getMessaging, Messaging, isSupported } from 'firebase/messaging';
+import { FIREBASE_VAPID_KEY, firebaseConfig } from './env';
 
-export const firebaseConfig = {
-  apiKey: "AIzaSyBVuaUye79dCwCzqUqZ1H81D0geIN63MKc",
-  authDomain: "opsiva-e1ee5.firebaseapp.com",
-  projectId: "opsiva-e1ee5",
-  storageBucket: "opsiva-e1ee5.firebasestorage.app",
-  messagingSenderId: "546992458715",
-  appId: "1:546992458715:web:0ad1761fb9a439236ff5fe",
-  measurementId: "G-WYW0TG0FY9"
-};
-
-export const VAPID_KEY = "BCR3trUdff3ZDhEhkZe6ka1jRxb07z2Xh31YdQuDDEzJnG78RPj3lUBRQNQ1FzI8a0FPKeepA1pGsidl5qxn0Xk";
+export { firebaseConfig };
+export const VAPID_KEY = FIREBASE_VAPID_KEY;
 
 export const app: FirebaseApp = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 

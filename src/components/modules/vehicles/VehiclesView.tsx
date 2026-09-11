@@ -8,10 +8,10 @@ import { EditVehicleModal } from './EditVehicleModal';
 import { VehicleAvailabilityModal } from '../bookings/VehicleAvailabilityModal';
 import { Vehicle, VehicleStatus, VehicleType } from '../../../types/fleet';
 import { Truck, Briefcase, Building2, Plus, FileText, RotateCcw, MapPin, Fuel, AlertTriangle, Shield, Wind, FileCheck, Award, Eye, Calendar, Edit2, Trash2 } from 'lucide-react';
-import { SkeletonCard, SkeletonTable } from '../../common/Skeleton';
+import { SkeletonCard, SkeletonTable, SoftRefreshBar } from '../../common/Skeleton';
 
 export const VehiclesView: React.FC = () => {
-  const { vehicles, searchQuery, updateVehicleStatus, switchVehicleMode, deleteVehicle, isLoading } = useFleet();
+  const { vehicles, searchQuery, updateVehicleStatus, switchVehicleMode, deleteVehicle, isLoading, isLoadingVehicles } = useFleet();
 
   const [typeFilter, setTypeFilter] = useState<'All' | VehicleType>('All');
   const [statusFilter, setStatusFilter] = useState<string>('All');
@@ -74,7 +74,8 @@ export const VehiclesView: React.FC = () => {
     updateVehicleStatus(id, nextStatus[current]);
   };
 
-  if (isLoading) {
+  // First-time load: show full skeleton
+  if (isLoadingVehicles && vehicles.length === 0) {
     return (
       <div className="section active" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
         <SkeletonCard count={4} />
@@ -85,6 +86,7 @@ export const VehiclesView: React.FC = () => {
 
   return (
     <div className="section active" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      <SoftRefreshBar visible={isLoadingVehicles && vehicles.length > 0} label="Syncing vehicles…" />
       {/* Overview Stat Cards */}
       <div className="stats-grid">
         <StatCard label="Total Fleet Size" value={stats.total} customColor="var(--accent)" />

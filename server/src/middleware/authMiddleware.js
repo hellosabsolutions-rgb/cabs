@@ -1,15 +1,16 @@
 import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 import { User } from '../models/User.js';
+import { Driver } from '../models/Driver.js';
 import { RefreshToken } from '../models/RefreshToken.js';
 import { asyncHandler } from './asyncHandler.js';
 
 /**
  * Generate a short-lived access token (default 15 minutes)
  */
-export const generateAccessToken = (id, sessionId = null) => {
+export const generateAccessToken = (id, sessionId = null, kind = 'user') => {
   return jwt.sign(
-    { id, sessionId },
+    { id, sessionId, kind },
     process.env.JWT_SECRET || 'fleetos_default_fallback_jwt_secret',
     {
       expiresIn: process.env.ACCESS_TOKEN_EXPIRE || '15m'
@@ -67,6 +68,13 @@ export const protect = asyncHandler(async (req, res, next) => {
       process.env.JWT_SECRET || 'fleetos_default_fallback_jwt_secret'
     );
 
+    if (decoded.kind === 'driver') {
+      return res.status(401).json({
+        success: false,
+        error: 'Driver token cannot access this route.'
+      });
+    }
+
     const user = await User.findById(decoded.id);
 
     if (!user) {
@@ -85,8 +93,67 @@ export const protect = asyncHandler(async (req, res, next) => {
 
     req.user = user;
     req.sessionId = decoded.sessionId || null;
+    req.authKind = decoded.kind || 'user';
 
     // Asynchronously update last active time of session if sessionId exists
+    if (decoded.sessionId) {
+      RefreshToken.findByIdAndUpdate(decoded.sessionId, {
+        lastActiveAt: new Date()
+      }).catch(() => {});
+    }
+
+    next();
+  } catch (err) {
+    return res.status(401).json({
+      success: false,
+      error: 'Token is invalid or has expired. Please log in again.'
+    });
+  }
+});
+
+/**
+ * Protect driver-app routes — verifies a driver JWT
+ */
+export const protectDriver = asyncHandler(async (req, res, next) => {
+  let token;
+
+  if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+    token = req.headers.authorization.split(' ')[1];
+  }
+
+  if (!token) {
+    return res.status(401).json({
+      success: false,
+      error: 'Not authorized. Missing authentication token.'
+    });
+  }
+
+  try {
+    const decoded = jwt.verify(
+      token,
+      process.env.JWT_SECRET || 'fleetos_default_fallback_jwt_secret'
+    );
+
+    if (decoded.kind && decoded.kind !== 'driver') {
+      return res.status(401).json({
+        success: false,
+        error: 'This route is for drivers only.'
+      });
+    }
+
+    const driver = await Driver.findById(decoded.id);
+
+    if (!driver) {
+      return res.status(401).json({
+        success: false,
+        error: 'The driver belonging to this token no longer exists.'
+      });
+    }
+
+    req.driver = driver;
+    req.sessionId = decoded.sessionId || null;
+    req.authKind = 'driver';
+
     if (decoded.sessionId) {
       RefreshToken.findByIdAndUpdate(decoded.sessionId, {
         lastActiveAt: new Date()
