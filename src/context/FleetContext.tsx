@@ -628,6 +628,51 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
+  const bulkAddVehicles = async (vehiclesList: Array<Omit<Vehicle, 'id'>>) => {
+    try {
+      setIsLoading(true);
+      const res = await api.post('/vehicles/bulk', { vehicles: vehiclesList });
+      if (res && res.success) {
+        showToast(
+          'success',
+          res.message || `Processed ${vehiclesList.length} vehicles successfully.`,
+          'Bulk Onboard Complete'
+        );
+        await fetchLiveVehicles();
+        await fetchLiveCompliance();
+        return {
+          success: true,
+          count: res.summary?.created || res.count || vehiclesList.length,
+          summary: res.summary
+        };
+      } else {
+        showToast('error', res?.error || 'Failed to bulk import vehicles.', 'Import Failed');
+        return { success: false, error: res?.error };
+      }
+    } catch (err: any) {
+      console.warn('Bulk vehicles API failed or offline, falling back to sequential onboarding:', err);
+      let createdCount = 0;
+      for (const v of vehiclesList) {
+        try {
+          const singleRes = await addVehicle(v);
+          if (singleRes && singleRes.success) {
+            createdCount++;
+          }
+        } catch {
+          // ignore individual error in fallback
+        }
+      }
+      showToast(
+        'info',
+        `Onboarded ${createdCount} of ${vehiclesList.length} vehicles.`,
+        'Import Completed'
+      );
+      return { success: true, count: createdCount };
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const updateVehicleStatus = async (id: string, status: VehicleStatus) => {
     try {
       setVehicles(prev =>
@@ -1462,6 +1507,51 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       console.error('Failed to add driver', err);
       showToast('error', err.message || 'Could not register driver.', 'Error');
       return { success: false, error: err.message };
+    }
+  };
+
+  const bulkAddDrivers = async (driversList: Array<Omit<Driver, 'id'>>) => {
+    try {
+      setIsLoading(true);
+      const res = await api.post('/drivers/bulk', { drivers: driversList });
+      if (res && res.success) {
+        showToast(
+          'success',
+          res.message || `Processed ${driversList.length} drivers successfully.`,
+          'Bulk Onboard Complete'
+        );
+        await fetchLiveDrivers();
+        await fetchPayrollSummary(selectedPayrollMonth);
+        return {
+          success: true,
+          count: res.summary?.created || res.data?.length || 0,
+          summary: res.summary
+        };
+      } else {
+        showToast('error', res?.error || 'Failed to bulk import drivers.', 'Import Failed');
+        return { success: false, error: res?.error };
+      }
+    } catch (err: any) {
+      console.warn('Bulk API failed or offline, falling back to sequential onboarding:', err);
+      let createdCount = 0;
+      for (const d of driversList) {
+        try {
+          const singleRes = await addDriver(d);
+          if (singleRes && singleRes.success) {
+            createdCount++;
+          }
+        } catch {
+          // ignore individual error in fallback
+        }
+      }
+      showToast(
+        'info',
+        `Onboarded ${createdCount} of ${driversList.length} drivers.`,
+        'Import Completed'
+      );
+      return { success: true, count: createdCount };
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -2710,6 +2800,7 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setVehicleSubTab,
         vehicles,
         addVehicle,
+        bulkAddVehicles,
         updateVehicle,
         deleteVehicle,
         updateVehicleStatus,
@@ -2717,6 +2808,7 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         drivers,
         fetchLiveDrivers,
         addDriver,
+        bulkAddDrivers,
         updateDriverStatus,
         updateDriver,
         deleteDriver,

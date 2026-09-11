@@ -1,8 +1,9 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useFleet } from '../../../context/FleetContext';
 import { StatCard } from '../../common/StatCard';
 import { AddDriverModal } from './AddDriverModal';
 import { EditDriverModal } from './EditDriverModal';
+import { ImportDriversModal } from './ImportDriversModal';
 import { DriverDetailView } from './DriverDetailView';
 import { DriverAttendanceView } from './DriverAttendanceView';
 import { DriverExpensesView } from './DriverExpensesView';
@@ -22,11 +23,20 @@ import {
   List,
   CheckCircle2,
   Search,
-  Eye
+  Eye,
+  Upload,
+  Download,
+  FileSpreadsheet
 } from 'lucide-react';
 import { SkeletonCard, SkeletonTable } from '../../common/Skeleton';
 import { Pagination } from '../../common/Pagination';
 import { usePagination } from '../../../hooks/usePagination';
+import {
+  exportDriversToExcel,
+  downloadDriverExcelTemplate,
+  exportDriversToCsv,
+  downloadCsv
+} from '../../../utils/csvHelper';
 
 export const DriversView: React.FC = () => {
   const {
@@ -42,15 +52,59 @@ export const DriversView: React.FC = () => {
     driverCompliance,
     isLoading,
     updateDriverStatus,
-    deleteDriver
+    deleteDriver,
+    showToast
   } = useFleet();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
+  const exportMenuRef = useRef<HTMLDivElement>(null);
   const [editingDriver, setEditingDriver] = useState<Driver | null>(null);
   const [selectedDriverForDetail, setSelectedDriverForDetail] = useState<Driver | null>(null);
   const [selectedTypeFilter, setSelectedTypeFilter] = useState<string>('All');
   const [selectedStatusFilter, setSelectedStatusFilter] = useState<string>('All');
   const [localSearch, setLocalSearch] = useState<string>('');
+
+  // Close export dropdown when clicking outside
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (exportMenuRef.current && !exportMenuRef.current.contains(e.target as Node)) {
+        setIsExportMenuOpen(false);
+      }
+    };
+    if (isExportMenuOpen) {
+      document.addEventListener('mousedown', handleOutsideClick);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick);
+    };
+  }, [isExportMenuOpen]);
+
+  const handleExportAllDrivers = () => {
+    if (drivers.length === 0) {
+      showToast('info', 'No drivers available to export.', 'Empty Roster');
+      return;
+    }
+    exportDriversToExcel(drivers);
+    showToast('success', `Exported ${drivers.length} drivers to Excel (.xlsx) successfully.`, 'Excel Downloaded');
+  };
+
+  const handleDownloadExcelTemplate = () => {
+    downloadDriverExcelTemplate();
+    showToast('info', 'Driver Excel (.xlsx) sample template downloaded.', 'Template Ready');
+  };
+
+  const handleExportCsvDrivers = () => {
+    if (drivers.length === 0) {
+      showToast('info', 'No drivers available to export.', 'Empty Roster');
+      return;
+    }
+    const csv = exportDriversToCsv(drivers);
+    const dateStr = new Date().toISOString().split('T')[0];
+    downloadCsv(csv, `fleet_drivers_roster_${dateStr}.csv`);
+    showToast('success', `Exported ${drivers.length} drivers to CSV.`, 'CSV Downloaded');
+  };
 
   // Persisted view mode: 'card' | 'list'
   const [viewMode, setViewMode] = useState<'card' | 'list'>(() => {
@@ -395,6 +449,179 @@ export const DriversView: React.FC = () => {
                     <span>List</span>
                   </button>
                 </div>
+
+                {/* Export Dropdown Button */}
+                <div style={{ position: 'relative' }} ref={exportMenuRef}>
+                  <button
+                    type="button"
+                    title="Export drivers to CSV or download sample template"
+                    onClick={() => setIsExportMenuOpen(prev => !prev)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      padding: '7px 13px',
+                      height: '36px',
+                      borderRadius: '8px',
+                      border: '1px solid var(--border)',
+                      background: 'var(--surface, #ffffff)',
+                      color: 'var(--text)',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    <Download size={14} color="var(--accent)" />
+                    <span>Export</span>
+                    <ChevronDown
+                      size={13}
+                      style={{
+                        transform: isExportMenuOpen ? 'rotate(180deg)' : 'none',
+                        transition: 'transform 0.15s ease'
+                      }}
+                    />
+                  </button>
+
+                  {isExportMenuOpen && (
+                    <div
+                      style={{
+                        position: 'absolute',
+                        right: 0,
+                        top: 'calc(100% + 6px)',
+                        zIndex: 100,
+                        backgroundColor: 'var(--surface, #1e222d)',
+                        border: '1px solid var(--border)',
+                        borderRadius: '10px',
+                        boxShadow: '0 10px 25px rgba(0,0,0,0.3)',
+                        minWidth: '220px',
+                        padding: '6px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '4px'
+                      }}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => {
+                          handleExportAllDrivers();
+                          setIsExportMenuOpen(false);
+                        }}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '10px',
+                          padding: '9px 12px',
+                          fontSize: '12px',
+                          color: 'var(--text)',
+                          background: 'transparent',
+                          border: 'none',
+                          borderRadius: '6px',
+                          cursor: 'pointer',
+                          textAlign: 'left',
+                          width: '100%',
+                          transition: 'background 0.15s ease'
+                        }}
+                        onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--surface-2, rgba(255,255,255,0.06))')}
+                        onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
+                      >
+                        <FileSpreadsheet size={16} color="#22c55e" />
+                        <div>
+                          <div style={{ fontWeight: 600 }}>Export to Excel (.xlsx)</div>
+                          <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{drivers.length} drivers (Excel Sheet)</div>
+                        </div>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          handleDownloadExcelTemplate();
+                          setIsExportMenuOpen(false);
+                        }}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '10px',
+                          padding: '9px 12px',
+                          fontSize: '12px',
+                          color: 'var(--text)',
+                          background: 'transparent',
+                          border: 'none',
+                          borderRadius: '6px',
+                          cursor: 'pointer',
+                          textAlign: 'left',
+                          width: '100%',
+                          transition: 'background 0.15s ease'
+                        }}
+                        onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--surface-2, rgba(255,255,255,0.06))')}
+                        onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
+                      >
+                        <Download size={16} color="var(--accent)" />
+                        <div>
+                          <div style={{ fontWeight: 600 }}>Download Excel Template</div>
+                          <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Sample driver sheet (.xlsx)</div>
+                        </div>
+                      </button>
+
+                      <div style={{ height: '1px', background: 'var(--border, rgba(255,255,255,0.1))', margin: '2px 0' }} />
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          handleExportCsvDrivers();
+                          setIsExportMenuOpen(false);
+                        }}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '10px',
+                          padding: '8px 12px',
+                          fontSize: '12px',
+                          color: 'var(--text-muted)',
+                          background: 'transparent',
+                          border: 'none',
+                          borderRadius: '6px',
+                          cursor: 'pointer',
+                          textAlign: 'left',
+                          width: '100%',
+                          transition: 'background 0.15s ease'
+                        }}
+                        onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--surface-2, rgba(255,255,255,0.06))')}
+                        onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
+                      >
+                        <FileSpreadsheet size={15} />
+                        <div>
+                          <div style={{ fontWeight: 500 }}>Export as CSV (.csv)</div>
+                        </div>
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Import Drivers Button */}
+                <button
+                  type="button"
+                  title="Bulk import drivers from Excel (.xlsx) spreadsheet"
+                  onClick={() => setIsImportModalOpen(true)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    padding: '7px 14px',
+                    height: '36px',
+                    borderRadius: '8px',
+                    border: '1px solid var(--border)',
+                    background: 'var(--surface, #ffffff)',
+                    color: 'var(--text)',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease'
+                  }}
+                >
+                  <Upload size={14} color="var(--accent)" />
+                  <span>Import Drivers</span>
+                </button>
 
                 <button
                   className="btn-primary-action"
@@ -760,6 +987,11 @@ export const DriversView: React.FC = () => {
           <AddDriverModal
             isOpen={isModalOpen}
             onClose={() => setIsModalOpen(false)}
+          />
+
+          <ImportDriversModal
+            isOpen={isImportModalOpen}
+            onClose={() => setIsImportModalOpen(false)}
           />
 
           <EditDriverModal

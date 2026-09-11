@@ -65,6 +65,7 @@ export interface FleetContextType {
   drivers: Driver[];
   fetchLiveDrivers: () => Promise<Driver[]>;
   addDriver: (driver: Omit<Driver, 'id'>) => Promise<{ success: boolean; driver?: Driver; error?: string } | void> | void;
+  bulkAddDrivers: (drivers: Array<Omit<Driver, 'id'>>) => Promise<{ success: boolean; count?: number; error?: string; summary?: any }>;
   updateDriverStatus: (id: string, status: 'On duty' | 'Off duty') => Promise<void>;
   updateDriver: (id: string, data: Partial<Driver>) => Promise<{ success: boolean; driver?: Driver; error?: string }>;
   deleteDriver: (id: string) => Promise<{ success: boolean; error?: string }>;
@@ -143,6 +144,7 @@ export interface FleetContextType {
   setVehicleSubTab: (tab: VehicleSubTab) => void;
   vehicles: Vehicle[];
   addVehicle: (vehicle: Omit<Vehicle, 'id'>) => Promise<{ success: boolean; vehicle?: Vehicle; error?: string } | void> | void;
+  bulkAddVehicles: (vehicles: Array<Omit<Vehicle, 'id'>>) => Promise<{ success: boolean; count?: number; error?: string; summary?: any }>;
   updateVehicle: (id: string, updatedData: Partial<Vehicle>) => Promise<{ success: boolean; error?: string }>;
   deleteVehicle: (id: string) => Promise<{ success: boolean; error?: string }>;
   updateVehicleStatus: (id: string, status: VehicleStatus) => void;

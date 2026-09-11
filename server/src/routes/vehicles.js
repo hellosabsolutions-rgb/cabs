@@ -12,6 +12,10 @@ router
   .post(vehicleController.create);
 
 router
+  .route('/bulk')
+  .post(vehicleController.bulkCreate);
+
+router
   .route('/:id')
   .get(vehicleController.getById)
   .put(vehicleController.update)
