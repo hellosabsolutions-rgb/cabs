@@ -72,14 +72,6 @@ function FrostedBlurCard({
         experimentalBlurMethod={BLUR_METHOD}
         style={StyleSheet.absoluteFill}
       />
-      {/* Specular Top Border Highlight */}
-      <View
-        style={[
-          styles.specularTopEdge,
-          { borderTopLeftRadius: borderRadius, borderTopRightRadius: borderRadius },
-        ]}
-        pointerEvents="none"
-      />
       {children}
     </View>
   );
@@ -107,7 +99,6 @@ function FrostedBlurPill({
         experimentalBlurMethod={BLUR_METHOD}
         style={StyleSheet.absoluteFill}
       />
-      <View style={styles.pillSpecularEdge} pointerEvents="none" />
       {children}
     </View>
   );
@@ -140,7 +131,6 @@ function FrostedCircleButton({
         experimentalBlurMethod={BLUR_METHOD}
         style={StyleSheet.absoluteFill}
       />
-      <View style={styles.circleSpecular} pointerEvents="none" />
       {children}
     </Pressable>
   );
@@ -813,15 +803,7 @@ const styles = StyleSheet.create({
     shadowRadius: 20,
     elevation: 8,
   },
-  specularTopEdge: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 1.5,
-    backgroundColor: 'rgba(255, 255, 255, 0.4)',
-    zIndex: 2,
-  },
+
   frostedPillWrap: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -838,14 +820,7 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 4,
   },
-  pillSpecularEdge: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.45)',
-  },
+
 
   /* FLOATING TOP BAR */
   topBar: {
@@ -873,14 +848,7 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 3,
   },
-  circleSpecular: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.5)',
-  },
+
   vehicleBadgePill: {
     // Layout handled inside FrostedBlurPill
   },
