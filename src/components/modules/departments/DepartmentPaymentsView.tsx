@@ -3,6 +3,7 @@ import { useFleet } from '../../../context/FleetContext';
 import { StatCard } from '../../common/StatCard';
 import { RecordPaymentModal } from './RecordPaymentModal';
 import { DepartmentPayment } from '../../../types/fleet';
+import { CustomStatusDropdown, StatusOption } from '../../common/CustomStatusDropdown';
 import { Pagination } from '../../common/Pagination';
 import { usePagination } from '../../../hooks/usePagination';
 import { FileText, Building2, Receipt, ChevronDown } from 'lucide-react';
@@ -61,73 +62,36 @@ export const DepartmentPaymentsView: React.FC = () => {
   }, [departmentPayments]);
 
   const renderStatusDropdown = (status: DepartmentPayment['status'], id: string) => {
-    const getStatusStyle = (s: DepartmentPayment['status']) => {
-      switch (s) {
-        case 'Reconciled':
-          return {
-            background: 'rgba(57, 255, 110, 0.12)',
-            color: 'var(--success)',
-            borderColor: 'rgba(57, 255, 110, 0.35)'
-          };
-        case 'Received':
-          return {
-            background: 'rgba(56, 189, 248, 0.12)',
-            color: '#38bdf8',
-            borderColor: 'rgba(56, 189, 248, 0.35)'
-          };
-        case 'Processing':
-          return {
-            background: 'rgba(255, 193, 7, 0.12)',
-            color: '#ffc107',
-            borderColor: 'rgba(255, 193, 7, 0.35)'
-          };
-        default:
-          return {
-            background: 'var(--surface-3)',
-            color: 'var(--text)',
-            borderColor: 'var(--border)'
-          };
+    const paymentOptions: StatusOption<DepartmentPayment['status']>[] = [
+      {
+        value: 'Reconciled',
+        label: 'Reconciled',
+        color: 'var(--success, #26b8d8)',
+        bg: 'rgba(38, 184, 216, 0.12)',
+        borderColor: 'rgba(38, 184, 216, 0.35)'
+      },
+      {
+        value: 'Received',
+        label: 'Received',
+        color: '#38bdf8',
+        bg: 'rgba(56, 189, 248, 0.12)',
+        borderColor: 'rgba(56, 189, 248, 0.35)'
+      },
+      {
+        value: 'Processing',
+        label: 'Processing',
+        color: '#ffc107',
+        bg: 'rgba(255, 193, 7, 0.12)',
+        borderColor: 'rgba(255, 193, 7, 0.35)'
       }
-    };
-
-    const style = getStatusStyle(status);
+    ];
 
     return (
-      <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
-        <select
-          value={status}
-          onChange={e => updateDepartmentPaymentStatus(id, e.target.value as DepartmentPayment['status'])}
-          style={{
-            background: style.background,
-            color: style.color,
-            border: `1px solid ${style.borderColor}`,
-            padding: '4px 22px 4px 10px',
-            borderRadius: '20px',
-            fontSize: '11.5px',
-            fontWeight: 700,
-            cursor: 'pointer',
-            outline: 'none',
-            appearance: 'none',
-            WebkitAppearance: 'none',
-            lineHeight: 1.4
-          }}
-          title="Change payment status"
-        >
-          <option value="Reconciled" style={{ background: 'var(--surface-1, #1e293b)', color: 'var(--success)' }}>● Reconciled</option>
-          <option value="Received" style={{ background: 'var(--surface-1, #1e293b)', color: '#38bdf8' }}>● Received</option>
-          <option value="Processing" style={{ background: 'var(--surface-1, #1e293b)', color: '#ffc107' }}>● Processing</option>
-        </select>
-        <ChevronDown
-          size={11}
-          style={{
-            position: 'absolute',
-            right: '7px',
-            pointerEvents: 'none',
-            color: style.color,
-            opacity: 0.85
-          }}
-        />
-      </div>
+      <CustomStatusDropdown
+        value={status}
+        options={paymentOptions}
+        onChange={(newStatus) => updateDepartmentPaymentStatus(id, newStatus)}
+      />
     );
   };
 

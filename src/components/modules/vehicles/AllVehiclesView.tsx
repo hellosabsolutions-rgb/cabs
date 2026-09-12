@@ -9,6 +9,7 @@ import { Building2, Briefcase, Fuel, FileText, Shield, Wind, FileCheck, Award, E
 import { Pagination } from '../../common/Pagination';
 import { usePagination } from '../../../hooks/usePagination';
 import { CustomDropdown } from '../../common/CustomDropdown';
+import { StatusDropdown } from '../../common/StatusDropdown';
 
 export const AllVehiclesView: React.FC = () => {
   const { vehicles, searchQuery, updateVehicleStatus, deleteVehicle } = useFleet();
@@ -64,155 +65,40 @@ export const AllVehiclesView: React.FC = () => {
     };
   }, [vehicles]);
 
-  const StatusDropdown: React.FC<{ vehicle: Vehicle }> = ({ vehicle }) => {
-    const [open, setOpen] = useState(false);
-    const ref = useRef<HTMLDivElement>(null);
-
-    const STATUS_OPTIONS: { value: VehicleStatus; label: string; color: string; bg: string; border: string; icon: React.ReactNode }[] = [
-      {
-        value: 'Running',
-        label: 'Running',
-        color: 'var(--success, #39ff6e)',
-        bg: 'rgba(57, 255, 110, 0.12)',
-        border: 'rgba(57, 255, 110, 0.35)',
-        icon: <CheckCircle2 size={13} />,
-      },
-      {
-        value: 'Idle',
-        label: 'Idle',
-        color: '#ffc107',
-        bg: 'rgba(255, 193, 7, 0.12)',
-        border: 'rgba(255, 193, 7, 0.35)',
-        icon: <Clock size={13} />,
-      },
-      {
-        value: 'Maintenance',
-        label: 'Maintenance',
-        color: 'var(--danger, #ff5c5c)',
-        bg: 'rgba(255, 92, 92, 0.12)',
-        border: 'rgba(255, 92, 92, 0.35)',
-        icon: <Wrench size={13} />,
-      },
-    ];
-
+  const StatusDropdownComponent: React.FC<{ vehicle: Vehicle }> = ({ vehicle }) => {
     const currentVal = vehicle.status === 'Active' ? 'Running' : vehicle.status;
-    const current = STATUS_OPTIONS.find(o => o.value === currentVal) || STATUS_OPTIONS[0];
-
-    useEffect(() => {
-      if (!open) return;
-      const handler = (e: MouseEvent) => {
-        if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-      };
-      document.addEventListener('mousedown', handler);
-      return () => document.removeEventListener('mousedown', handler);
-    }, [open]);
-
     return (
-      <div ref={ref} style={{ position: 'relative', display: 'inline-block' }}>
-        {/* Trigger pill */}
-        <button
-          type="button"
-          onClick={() => setOpen(o => !o)}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '5px',
-            background: current.bg,
-            color: current.color,
-            border: `1px solid ${current.border}`,
-            borderRadius: '20px',
-            padding: '4px 10px 4px 9px',
-            fontSize: '11.5px',
-            fontWeight: 700,
-            cursor: 'pointer',
-            outline: 'none',
-            transition: 'opacity 0.15s',
-            whiteSpace: 'nowrap',
-          }}
-          title="Click to change vehicle status"
-        >
-          {current.icon}
-          {current.label}
-          <ChevronDown
-            size={11}
-            style={{
-              marginLeft: '1px',
-              transition: 'transform 0.2s',
-              transform: open ? 'rotate(180deg)' : 'rotate(0deg)',
-              opacity: 0.8,
-            }}
-          />
-        </button>
-
-        {/* Floating menu */}
-        {open && (
-          <div
-            style={{
-              position: 'absolute',
-              top: 'calc(100% + 6px)',
-              left: 0,
-              zIndex: 9999,
-              background: 'rgba(13, 18, 30, 0.85)',
-              backdropFilter: 'blur(24px) saturate(190%) contrast(105%)',
-              WebkitBackdropFilter: 'blur(24px) saturate(190%) contrast(105%)',
-              border: '1px solid rgba(255, 255, 255, 0.1)',
-              borderRadius: '12px',
-              padding: '5px',
-              minWidth: '148px',
-              boxShadow: '0 16px 40px -8px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(255, 255, 255, 0.05), inset 0 1px 0 0 rgba(255, 255, 255, 0.14)',
-              animation: 'sleekDropdownGlassIn 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
-            }}
-          >
-            {STATUS_OPTIONS.map(opt => {
-              const isActive = opt.value === currentVal;
-              return (
-                <button
-                  key={opt.value}
-                  type="button"
-                  onClick={() => {
-                    updateVehicleStatus(vehicle.id, opt.value);
-                    setOpen(false);
-                  }}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    width: '100%',
-                    padding: '7px 10px',
-                    borderRadius: '8px',
-                    background: isActive ? opt.bg : 'transparent',
-                    border: isActive ? `1px solid ${opt.border}` : '1px solid transparent',
-                    color: isActive ? opt.color : 'var(--text-dim, #94a3b8)',
-                    fontSize: '12px',
-                    fontWeight: isActive ? 700 : 500,
-                    cursor: 'pointer',
-                    textAlign: 'left',
-                    transition: 'background 0.12s, color 0.12s',
-                  }}
-                  onMouseEnter={e => {
-                    if (!isActive) {
-                      (e.currentTarget as HTMLButtonElement).style.background = opt.bg;
-                      (e.currentTarget as HTMLButtonElement).style.color = opt.color;
-                    }
-                  }}
-                  onMouseLeave={e => {
-                    if (!isActive) {
-                      (e.currentTarget as HTMLButtonElement).style.background = 'transparent';
-                      (e.currentTarget as HTMLButtonElement).style.color = 'var(--text-dim, #94a3b8)';
-                    }
-                  }}
-                >
-                  <span style={{ color: opt.color }}>{opt.icon}</span>
-                  {opt.label}
-                  {isActive && (
-                    <span style={{ marginLeft: 'auto', fontSize: '10px', opacity: 0.6 }}>✓</span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        )}
-      </div>
+      <StatusDropdown
+        value={currentVal}
+        options={[
+          {
+            value: 'Running',
+            label: 'Running',
+            color: 'var(--success, #22c55e)',
+            bg: 'rgba(34, 197, 94, 0.12)',
+            borderColor: 'rgba(34, 197, 94, 0.35)',
+            icon: <CheckCircle2 size={13} />
+          },
+          {
+            value: 'Idle',
+            label: 'Idle',
+            color: '#ffc107',
+            bg: 'rgba(255, 193, 7, 0.12)',
+            borderColor: 'rgba(255, 193, 7, 0.35)',
+            icon: <Clock size={13} />
+          },
+          {
+            value: 'Maintenance',
+            label: 'Maintenance',
+            color: 'var(--danger, #ff5c5c)',
+            bg: 'rgba(255, 92, 92, 0.12)',
+            borderColor: 'rgba(255, 92, 92, 0.35)',
+            icon: <Wrench size={13} />
+          }
+        ]}
+        onChange={val => updateVehicleStatus(vehicle.id, val as VehicleStatus)}
+        size="sm"
+      />
     );
   };
 
@@ -402,7 +288,7 @@ export const AllVehiclesView: React.FC = () => {
                     </td>
 
                     <td>
-                      <StatusDropdown vehicle={v} />
+                      <StatusDropdownComponent vehicle={v} />
                     </td>
 
                     {/* 5 Compliance Documents */}

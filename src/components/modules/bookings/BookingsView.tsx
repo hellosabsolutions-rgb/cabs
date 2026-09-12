@@ -6,6 +6,7 @@ import { CompleteBookingModal } from './CompleteBookingModal';
 import { CollectPaymentModal } from './CollectPaymentModal';
 import { VehicleAvailabilityModal } from './VehicleAvailabilityModal';
 import { BookingDetailModal } from './BookingDetailModal';
+import { EditBookingModal } from './EditBookingModal';
 import { DatePicker } from '../../common/DatePicker';
 import { MonthPicker } from '../../common/MonthPicker';
 import { TripFinancial, TripStatus, PaymentStatus } from '../../../types/fleet';
@@ -29,9 +30,11 @@ import {
   Fuel,
   RefreshCw,
   ChevronDown,
-  Eye
+  Eye,
+  Edit2
 } from 'lucide-react';
 import { SkeletonCard, SkeletonTable, SoftRefreshBar } from '../../common/Skeleton';
+import { StatusDropdown } from '../../common/StatusDropdown';
 
 export const BookingsView: React.FC = () => {
   const {
@@ -61,6 +64,7 @@ export const BookingsView: React.FC = () => {
   const [completingBooking, setCompletingBooking] = useState<TripFinancial | null>(null);
   const [collectingPaymentBooking, setCollectingPaymentBooking] = useState<TripFinancial | null>(null);
   const [selectedBooking, setSelectedBooking] = useState<TripFinancial | null>(null);
+  const [editingBooking, setEditingBooking] = useState<TripFinancial | null>(null);
 
   // Prefill state from availability modal
   const [prefillVehicle, setPrefillVehicle] = useState<string | undefined>(undefined);
@@ -199,90 +203,24 @@ export const BookingsView: React.FC = () => {
   }
 
   const renderBookingStatusDropdown = (b: TripFinancial) => {
-    const getStatusStyle = (s: TripFinancial['status']) => {
-      switch (s) {
-        case 'Completed':
-          return {
-            background: 'rgba(57, 255, 110, 0.12)',
-            color: 'var(--success)',
-            borderColor: 'rgba(57, 255, 110, 0.35)'
-          };
-        case 'Ongoing':
-          return {
-            background: 'rgba(56, 189, 248, 0.12)',
-            color: '#38bdf8',
-            borderColor: 'rgba(56, 189, 248, 0.35)'
-          };
-        case ('Upcoming' as any):
-          return {
-            background: 'rgba(255, 193, 7, 0.12)',
-            color: '#ffc107',
-            borderColor: 'rgba(255, 193, 7, 0.35)'
-          };
-        case 'Cancelled':
-          return {
-            background: 'rgba(255, 92, 92, 0.12)',
-            color: 'var(--danger, #ff5c5c)',
-            borderColor: 'rgba(255, 92, 92, 0.35)'
-          };
-        default:
-          return {
-            background: 'var(--surface-3)',
-            color: 'var(--text)',
-            borderColor: 'var(--border)'
-          };
-      }
-    };
-
-    const style = getStatusStyle(b.status);
-
     return (
-      <div
-        style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}
-        onClick={e => e.stopPropagation()}
-      >
-        <select
-          value={b.status}
-          onChange={e => {
-            const newStatus = e.target.value as TripFinancial['status'];
-            if (newStatus === 'Completed' && b.status === 'Ongoing') {
-              setCompletingBooking(b);
-            } else {
-              updateTripStatus(b.id, newStatus);
-            }
-          }}
-          style={{
-            background: style.background,
-            color: style.color,
-            border: `1px solid ${style.borderColor}`,
-            padding: '4px 22px 4px 10px',
-            borderRadius: '20px',
-            fontSize: '11px',
-            fontWeight: 700,
-            cursor: 'pointer',
-            outline: 'none',
-            appearance: 'none',
-            WebkitAppearance: 'none',
-            lineHeight: 1.4
-          }}
-          title="Change booking status"
-        >
-          <option value="Upcoming" style={{ background: 'var(--surface-1, #1e293b)', color: '#ffc107' }}>● Upcoming</option>
-          <option value="Ongoing" style={{ background: 'var(--surface-1, #1e293b)', color: '#38bdf8' }}>● Ongoing</option>
-          <option value="Completed" style={{ background: 'var(--surface-1, #1e293b)', color: 'var(--success)' }}>● Completed</option>
-          <option value="Cancelled" style={{ background: 'var(--surface-1, #1e293b)', color: '#ff5c5c' }}>● Cancelled</option>
-        </select>
-        <ChevronDown
-          size={11}
-          style={{
-            position: 'absolute',
-            right: '7px',
-            pointerEvents: 'none',
-            color: style.color,
-            opacity: 0.85
-          }}
-        />
-      </div>
+      <StatusDropdown
+        value={b.status}
+        options={[
+          { value: 'Upcoming', label: 'Upcoming', color: '#ffc107', bg: 'rgba(255, 193, 7, 0.12)', borderColor: 'rgba(255, 193, 7, 0.35)' },
+          { value: 'Ongoing', label: 'Ongoing', color: '#38bdf8', bg: 'rgba(56, 189, 248, 0.12)', borderColor: 'rgba(56, 189, 248, 0.35)' },
+          { value: 'Completed', label: 'Completed', color: 'var(--success, #22c55e)', bg: 'rgba(34, 197, 94, 0.12)', borderColor: 'rgba(34, 197, 94, 0.35)' },
+          { value: 'Cancelled', label: 'Cancelled', color: '#ef4444', bg: 'rgba(239, 68, 68, 0.12)', borderColor: 'rgba(239, 68, 68, 0.35)' }
+        ]}
+        onChange={newStatus => {
+          if (newStatus === 'Completed' && b.status === 'Ongoing') {
+            setCompletingBooking(b);
+          } else {
+            updateTripStatus(b.id, newStatus as TripFinancial['status']);
+          }
+        }}
+        size="sm"
+      />
     );
   };
 
@@ -735,6 +673,31 @@ export const BookingsView: React.FC = () => {
                             <Eye size={12} /> View Details
                           </button>
 
+                          {/* Quick Edit / Expenses Button */}
+                          <button
+                            type="button"
+                            className="subtab-btn"
+                            style={{
+                              fontSize: '11px',
+                              padding: '4px 8px',
+                              width: '100%',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: '4px',
+                              color: '#fbbf24',
+                              borderColor: 'rgba(251, 191, 36, 0.4)',
+                              background: 'rgba(251, 191, 36, 0.08)'
+                            }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditingBooking(b);
+                            }}
+                            title="Edit trip expenses (Fuel, Toll, Driver Bata) & trip details"
+                          >
+                            <Edit2 size={12} /> Edit Expenses
+                          </button>
+
                           {b.status === 'Ongoing' && (
                             <button
                               className="btn-primary-action"
@@ -829,6 +792,17 @@ export const BookingsView: React.FC = () => {
           setSelectedBooking(null);
           setCollectingPaymentBooking(b);
         }}
+        onEdit={(b) => {
+          setSelectedBooking(null);
+          setEditingBooking(b);
+        }}
+      />
+
+      {/* Edit Booking & Expenses Modal */}
+      <EditBookingModal
+        isOpen={!!editingBooking}
+        onClose={() => setEditingBooking(null)}
+        booking={editingBooking}
       />
     </div>
   );

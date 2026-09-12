@@ -104,7 +104,7 @@ export interface FleetContextType {
   addDriverPenalty: (data: { driverId: string; amount: number; date?: string; challanNumber?: string; reason: string; vehicle?: string }) => Promise<{ success: boolean; error?: string }>;
   updateDriverPenalty: (id: string, data: Partial<{ amount: number; date: string; challanNumber: string; reason: string; vehicle: string }>) => Promise<{ success: boolean; error?: string }>;
   deleteDriverPenalty: (id: string) => Promise<{ success: boolean; error?: string }>;
-  settleDriverSalary: (data: { driverId: string; month?: string; paymentMode?: string; paymentDate?: string; remarks?: string }) => Promise<{ success: boolean; error?: string }>;
+  settleDriverSalary: (data: { driverId: string; month?: string; paymentMode?: string; paymentDate?: string; remarks?: string; absentDeduction?: number; absentDays?: number; advanceDeduction?: number }) => Promise<{ success: boolean; error?: string }>;
   unsettleDriverSalary: (data: { driverId: string; month?: string }) => Promise<{ success: boolean; error?: string }>;
   deletePayrollSettlement: (id: string) => Promise<{ success: boolean; error?: string }>;
   fetchDriverPayrollDetail: (driverId: string, month?: string) => Promise<{ success: boolean; data?: any; error?: string }>;
@@ -198,6 +198,10 @@ export interface FleetContextType {
       paymentNotes?: string;
     }
   ) => Promise<{ success: boolean; data?: TripFinancial; error?: string }>;
+  updateBooking: (
+    id: string,
+    data: Partial<TripFinancial>
+  ) => Promise<{ success: boolean; data?: TripFinancial; error?: string }>;
   recordBookingPayment: (
     id: string,
     payment: {
@@ -210,9 +214,11 @@ export interface FleetContextType {
   checkVehicleAvailability: (date: string) => Promise<import('../types/fleet').VehicleAvailabilityResult | null>;
   expenses: ExpenseRecord[];
   addExpense: (expense: Omit<ExpenseRecord, 'id'>) => void;
+  fetchLiveExpenses: (queryParam?: { vehicle?: string; category?: string; search?: string }) => Promise<void>;
   maintenanceRecords: MaintenanceRecord[];
-  addMaintenanceRecord: (record: Omit<MaintenanceRecord, 'id' | 'status'>) => void;
-  updateMaintenanceStatus: (id: string, status: MaintenanceRecord['status']) => void;
+  addMaintenanceRecord: (record: Omit<MaintenanceRecord, 'id' | 'status'>) => Promise<void> | void;
+  updateMaintenanceStatus: (id: string, status: MaintenanceRecord['status']) => Promise<void> | void;
+  fetchLiveMaintenance: (queryParam?: { vehicle?: string; type?: string; status?: string; search?: string }) => Promise<void>;
 
   vehicleCompliance: DocumentCompliance[];
   addVehicleComplianceDoc: (doc: Omit<DocumentCompliance, 'id'>) => void;

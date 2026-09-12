@@ -33,6 +33,7 @@ interface BookingDetailModalProps {
   booking: TripFinancial | null;
   onComplete?: (booking: TripFinancial) => void;
   onCollectPayment?: (booking: TripFinancial) => void;
+  onEdit?: (booking: TripFinancial) => void;
 }
 
 export const BookingDetailModal: React.FC<BookingDetailModalProps> = ({
@@ -40,7 +41,8 @@ export const BookingDetailModal: React.FC<BookingDetailModalProps> = ({
   onClose,
   booking,
   onComplete,
-  onCollectPayment
+  onCollectPayment,
+  onEdit
 }) => {
   const { drivers, vehicles, updateDriverStatus, assignBookingDriver } = useFleet();
 
@@ -129,7 +131,8 @@ export const BookingDetailModal: React.FC<BookingDetailModalProps> = ({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: '16px'
+        padding: '20px',
+        animation: 'modalFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards'
       }}
     >
       <div
@@ -139,15 +142,16 @@ export const BookingDetailModal: React.FC<BookingDetailModalProps> = ({
           width: '100%',
           maxWidth: '840px',
           maxHeight: '90vh',
-          background: 'var(--surface-1, #0f172a)',
-          color: 'var(--text, #f8fafc)',
+          background: 'var(--surface)',
+          color: 'var(--text)',
           borderRadius: '16px',
-          border: '1px solid var(--border-soft, #334155)',
-          boxShadow: '0 24px 48px -12px rgba(0, 0, 0, 0.65)',
+          border: '1px solid var(--border)',
+          boxShadow: '0 20px 60px rgba(0, 0, 0, 0.4), 0 0 0 1px var(--border)',
           display: 'flex',
           flexDirection: 'column',
           overflow: 'hidden',
-          animation: 'fadeIn 0.2s ease-out'
+          margin: 'auto',
+          animation: 'modalPopIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards'
         }}
       >
         {/* MODAL HEADER */}
@@ -244,6 +248,28 @@ export const BookingDetailModal: React.FC<BookingDetailModalProps> = ({
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            {onEdit && (
+              <button
+                type="button"
+                onClick={() => onEdit(booking)}
+                style={{
+                  background: 'rgba(251, 191, 36, 0.12)',
+                  border: '1px solid rgba(251, 191, 36, 0.35)',
+                  color: '#fbbf24',
+                  padding: '6px 12px',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  fontSize: '12px',
+                  fontWeight: 700,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '5px'
+                }}
+                title="Edit booking expenses & trip details"
+              >
+                <Edit2 size={13} /> Edit / Expenses
+              </button>
+            )}
             <button
               type="button"
               onClick={handlePrint}
@@ -824,6 +850,30 @@ export const BookingDetailModal: React.FC<BookingDetailModalProps> = ({
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            {/* Edit Booking & Expenses button */}
+            {onEdit && (
+              <button
+                type="button"
+                className="subtab-btn"
+                onClick={() => onEdit(booking)}
+                style={{
+                  color: '#fbbf24',
+                  borderColor: 'rgba(251, 191, 36, 0.4)',
+                  background: 'rgba(251, 191, 36, 0.1)',
+                  padding: '7px 14px',
+                  fontSize: '12px',
+                  fontWeight: 700,
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}
+              >
+                <Edit2 size={13} /> Edit Expenses & Details
+              </button>
+            )}
+
             {/* Collect pending balance button if any */}
             {pendingDue > 0 && onCollectPayment && (
               <button

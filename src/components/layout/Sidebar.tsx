@@ -256,8 +256,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onCloseMobile }) => {
             {t('nav.profitability', 'Profitability')}
           </NavLink>
           <NavLink
-            to="/profitability"
-            className={navClass('/profitability', true)}
+            to="/revenue"
+            className={navClass('/revenue')}
             onClick={onCloseMobile}
           >
             <IndianRupee />

@@ -105,7 +105,12 @@ export const DriverPayrollDetailView: React.FC<DriverPayrollDetailViewProps> = (
   const baseSalary = summary.baseSalary ?? driver?.monthlySalary ?? 0;
   const advanceBalance = summary.advanceBalance ?? 0;
   const challanBalance = summary.challanBalance ?? 0;
-  const netPayable = summary.netPayable ?? Math.max(0, baseSalary - advanceBalance - challanBalance);
+  const absentDays = summary.absentDays ?? 0;
+  const absentDates = summary.absentDates ?? [];
+  const perDaySalary = summary.perDaySalary ?? (baseSalary > 0 ? Math.round(baseSalary / 30) : 0);
+  const suggestedAbsentDeduction = summary.suggestedAbsentDeduction ?? (perDaySalary * absentDays);
+  const absentDeduction = summary.absentDeduction ?? suggestedAbsentDeduction;
+  const netPayable = summary.netPayable ?? Math.max(0, baseSalary - advanceBalance - challanBalance - absentDeduction);
   const isPaid = summary.status === 'PAID';
 
   const ledger = detailData?.ledger || [];
@@ -463,7 +468,29 @@ export const DriverPayrollDetailView: React.FC<DriverPayrollDetailViewProps> = (
           </div>
         </div>
 
-        {/* Card 2: Advance balance owed */}
+        {/* Card 2: Absences — this month */}
+        <div
+          style={{
+            background: 'var(--surface)',
+            border: '1px solid var(--border)',
+            borderLeft: '4px solid #ef4444',
+            borderRadius: '10px',
+            padding: '16px 18px',
+            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)'
+          }}
+        >
+          <div style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-faint)', marginBottom: '4px', fontFamily: "'Poppins', sans-serif" }}>
+            Absences — this month
+          </div>
+          <div style={{ fontSize: '24px', fontWeight: 700, color: absentDays > 0 ? '#ef4444' : 'var(--text)', letterSpacing: '-0.02em', fontFamily: "'Poppins', sans-serif" }}>
+            {absentDays} Day{absentDays !== 1 ? 's' : ''}
+          </div>
+          <div style={{ fontSize: '11.5px', color: absentDeduction > 0 ? '#ef4444' : 'var(--text-faint)', marginTop: '4px', fontFamily: "'Poppins', sans-serif", fontWeight: absentDeduction > 0 ? 600 : 400 }}>
+            {absentDeduction > 0 ? `−₹${absentDeduction.toLocaleString('en-IN')} deducted` : 'No salary deduction'}
+          </div>
+        </div>
+
+        {/* Card 3: Advance balance owed */}
         <div
           style={{
             background: 'var(--surface)',
@@ -485,7 +512,7 @@ export const DriverPayrollDetailView: React.FC<DriverPayrollDetailViewProps> = (
           </div>
         </div>
 
-        {/* Card 3: Challans & penalties */}
+        {/* Card 4: Challans & penalties */}
         <div
           style={{
             background: 'var(--surface)',
@@ -507,7 +534,7 @@ export const DriverPayrollDetailView: React.FC<DriverPayrollDetailViewProps> = (
           </div>
         </div>
 
-        {/* Card 4: Net payable now */}
+        {/* Card 5: Net payable now */}
         <div
           style={{
             background: 'var(--surface)',
@@ -525,7 +552,7 @@ export const DriverPayrollDetailView: React.FC<DriverPayrollDetailViewProps> = (
             ₹{netPayable.toLocaleString('en-IN')}
           </div>
           <div style={{ fontSize: '11.5px', color: 'var(--text-faint)', marginTop: '4px', fontFamily: "'Poppins', sans-serif" }}>
-            Salary − advances − challans
+            Salary − absent − adv − challans
           </div>
         </div>
       </div>
@@ -639,11 +666,16 @@ export const DriverPayrollDetailView: React.FC<DriverPayrollDetailViewProps> = (
                     const isAdvance = item.type === 'ADVANCE';
                     const isPenalty = item.type === 'PENALTY';
                     const isPaidEntry = item.type === 'PAID';
+                    const isAbsenteeism = item.type === 'ABSENTEEISM';
 
                     let badgeBg = 'var(--surface-3)';
                     let badgeColor = 'var(--text-dim)';
                     let badgeBorder = '1px solid var(--border)';
-                    if (isAdvance) {
+                    if (isAbsenteeism) {
+                      badgeBg = 'rgba(239, 68, 68, 0.08)';
+                      badgeColor = '#ef4444';
+                      badgeBorder = '1.5px solid #ef4444';
+                    } else if (isAdvance) {
                       badgeBg = 'rgba(217, 119, 6, 0.06)';
                       badgeColor = '#b45309';
                       badgeBorder = '1.5px solid #d97706';
@@ -1187,6 +1219,11 @@ export const DriverPayrollDetailView: React.FC<DriverPayrollDetailViewProps> = (
           monthlySalary: baseSalary,
           advanceBalance,
           challanBalance,
+          absentDays,
+          absentDates,
+          perDaySalary,
+          suggestedAbsentDeduction,
+          absentDeduction,
           netPayable,
           status: isPaid ? 'PAID' : 'DUE',
           month: selectedMonth

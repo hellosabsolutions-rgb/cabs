@@ -36,6 +36,14 @@ export const DriverPayrollDetailDrawer: React.FC<DriverPayrollDetailDrawerProps>
 
   const [paymentMode, setPaymentMode] = useState<'Cash' | 'UPI' | 'Bank Transfer' | 'Cheque'>('Cash');
   const [paymentDate, setPaymentDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
+  const [deductLeaves, setDeductLeaves] = useState<boolean>(() => (payrollItem?.absentDays || 0) > 0);
+  const [absentDeduction, setAbsentDeduction] = useState<number>(() => {
+    return payrollItem?.absentDeduction !== undefined
+      ? payrollItem.absentDeduction
+      : (payrollItem?.suggestedAbsentDeduction || 0);
+  });
+  const [deductAdvance, setDeductAdvance] = useState<boolean>(() => (payrollItem?.advanceBalance || 0) > 0);
+  const [advanceDeduction, setAdvanceDeduction] = useState<number>(() => payrollItem?.advanceBalance || 0);
   const [remarks, setRemarks] = useState<string>('');
   const [isSettling, setIsSettling] = useState<boolean>(false);
   const [isUnsettling, setIsUnsettling] = useState<boolean>(false);
@@ -44,6 +52,18 @@ export const DriverPayrollDetailDrawer: React.FC<DriverPayrollDetailDrawerProps>
 
   const isPaid = payrollItem.status === 'PAID';
 
+  const effectiveAbsentDeduction = deductLeaves ? Math.max(0, Number(absentDeduction) || 0) : 0;
+  const effectiveAdvanceDeduction = deductAdvance
+    ? Math.min(payrollItem.advanceBalance || 0, Math.max(0, Number(advanceDeduction) || 0))
+    : 0;
+
+  const drawerNetPayable = isPaid
+    ? payrollItem.netPayable
+    : Math.max(
+        0,
+        payrollItem.monthlySalary - effectiveAdvanceDeduction - payrollItem.challanBalance - effectiveAbsentDeduction
+      );
+
   const handleSettle = async () => {
     setIsSettling(true);
     await settleDriverSalary({
@@ -51,7 +71,10 @@ export const DriverPayrollDetailDrawer: React.FC<DriverPayrollDetailDrawerProps>
       month: selectedPayrollMonth,
       paymentMode,
       paymentDate,
-      remarks
+      remarks,
+      absentDeduction: effectiveAbsentDeduction,
+      absentDays: deductLeaves ? (payrollItem.absentDays || 0) : 0,
+      advanceDeduction: effectiveAdvanceDeduction
     });
     setIsSettling(false);
   };
@@ -229,11 +252,20 @@ export const DriverPayrollDetailDrawer: React.FC<DriverPayrollDetailDrawerProps>
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
-                <span style={{ color: '#b45309', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                  <Wallet size={13} /> Less: Advance Balance
+                <span style={{ color: effectiveAbsentDeduction > 0 ? '#ef4444' : 'var(--text-faint)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <ShieldAlert size={13} /> Less: Absenteeism ({payrollItem.absentDays || 0} days)
                 </span>
-                <span style={{ fontWeight: 700, color: payrollItem.advanceBalance > 0 ? '#b45309' : 'var(--text-faint)' }}>
-                  {payrollItem.advanceBalance > 0 ? `-₹${payrollItem.advanceBalance.toLocaleString('en-IN')}` : '—'}
+                <span style={{ fontWeight: 700, color: effectiveAbsentDeduction > 0 ? '#ef4444' : 'var(--text-faint)' }}>
+                  {effectiveAbsentDeduction > 0 ? `-₹${effectiveAbsentDeduction.toLocaleString('en-IN')}` : '₹0 (Skipped)'}
+                </span>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
+                <span style={{ color: effectiveAdvanceDeduction > 0 ? '#b45309' : 'var(--text-faint)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <Wallet size={13} /> Less: Advance Deduction
+                </span>
+                <span style={{ fontWeight: 700, color: effectiveAdvanceDeduction > 0 ? '#b45309' : 'var(--text-faint)' }}>
+                  {effectiveAdvanceDeduction > 0 ? `-₹${effectiveAdvanceDeduction.toLocaleString('en-IN')}` : '₹0 (Not Deducted)'}
                 </span>
               </div>
 
@@ -261,11 +293,11 @@ export const DriverPayrollDetailDrawer: React.FC<DriverPayrollDetailDrawerProps>
                     {isPaid ? 'Total Amount Paid' : 'Net Payable to Driver'}
                   </div>
                   <div style={{ fontSize: '11px', color: 'var(--text-faint)' }}>
-                    {isPaid ? 'Salary settled for this month' : 'Payable after advance and challan deductions'}
+                    {isPaid ? 'Salary settled for this month' : 'Payable after absences, advance and challan deductions'}
                   </div>
                 </div>
                 <div style={{ fontSize: '20px', fontWeight: 900, color: isPaid ? '#16a34a' : 'var(--text)' }}>
-                  ₹{payrollItem.netPayable.toLocaleString('en-IN')}
+                  ₹{drawerNetPayable.toLocaleString('en-IN')}
                 </div>
               </div>
             </div>
@@ -367,6 +399,75 @@ export const DriverPayrollDetailDrawer: React.FC<DriverPayrollDetailDrawerProps>
                 />
               </div>
 
+              {/* Leaves / Absenteeism Checkbox & Input */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '11.5px', fontWeight: 600, color: 'var(--text)' }}>
+                  <input
+                    type="checkbox"
+                    checked={deductLeaves}
+                    onChange={e => setDeductLeaves(e.target.checked)}
+                    style={{ width: '15px', height: '15px', accentColor: 'var(--accent)', cursor: 'pointer' }}
+                  />
+                  <span>Deduct Salary for Absences ({payrollItem.absentDays || 0} days)</span>
+                </label>
+                {deductLeaves && (
+                  <input
+                    type="number"
+                    min="0"
+                    className="form-input"
+                    style={{ fontSize: '12px', padding: '6px 10px' }}
+                    value={absentDeduction}
+                    placeholder="Enter leaves deduction amount"
+                    onChange={e => setAbsentDeduction(Math.max(0, Number(e.target.value) || 0))}
+                  />
+                )}
+              </div>
+
+              {/* Advance Checkbox & Customizable Input */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: (payrollItem.advanceBalance || 0) > 0 ? 'pointer' : 'default', fontSize: '11.5px', fontWeight: 600, color: 'var(--text)' }}>
+                  <input
+                    type="checkbox"
+                    checked={deductAdvance}
+                    disabled={!payrollItem.advanceBalance || payrollItem.advanceBalance <= 0}
+                    onChange={e => setDeductAdvance(e.target.checked)}
+                    style={{ width: '15px', height: '15px', accentColor: 'var(--accent)', cursor: (payrollItem.advanceBalance || 0) > 0 ? 'pointer' : 'default' }}
+                  />
+                  <span>Deduct Advance (Available: ₹{(payrollItem.advanceBalance || 0).toLocaleString('en-IN')})</span>
+                </label>
+                {deductAdvance && (payrollItem.advanceBalance || 0) > 0 && (
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <input
+                      type="number"
+                      min="0"
+                      max={payrollItem.advanceBalance}
+                      className="form-input"
+                      style={{ fontSize: '12px', padding: '6px 10px', flex: 1 }}
+                      value={advanceDeduction}
+                      placeholder="Enter advance amount to deduct"
+                      onChange={e => setAdvanceDeduction(Math.min(payrollItem.advanceBalance, Math.max(0, Number(e.target.value) || 0)))}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setAdvanceDeduction(payrollItem.advanceBalance)}
+                      style={{
+                        background: 'var(--surface-3)',
+                        border: '1px solid var(--border)',
+                        color: 'var(--accent)',
+                        fontSize: '11px',
+                        fontWeight: 600,
+                        padding: '6px 10px',
+                        borderRadius: '6px',
+                        cursor: 'pointer',
+                        whiteSpace: 'nowrap'
+                      }}
+                    >
+                      Full
+                    </button>
+                  </div>
+                )}
+              </div>
+
               <button
                 type="button"
                 className="btn-primary-action"
@@ -385,7 +486,7 @@ export const DriverPayrollDetailDrawer: React.FC<DriverPayrollDetailDrawerProps>
                 }}
               >
                 <CheckCircle2 size={15} />
-                {isSettling ? 'Marking Paid...' : `Mark Salary as Paid (₹${payrollItem.netPayable.toLocaleString('en-IN')})`}
+                {isSettling ? 'Marking Paid...' : `Mark Salary as Paid (₹${drawerNetPayable.toLocaleString('en-IN')})`}
               </button>
             </div>
           )}

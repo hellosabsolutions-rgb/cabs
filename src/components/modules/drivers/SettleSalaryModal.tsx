@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useFleet } from '../../../context/FleetContext';
-import { X, CheckCircle2 } from 'lucide-react';
+import { X, CheckCircle2, Wallet, CalendarX, AlertTriangle } from 'lucide-react';
 
 interface SettleSalaryModalProps {
   isOpen: boolean;
@@ -13,6 +13,11 @@ interface SettleSalaryModalProps {
     advanceBalance: number;
     challanBalance: number;
     netPayable: number;
+    absentDays?: number;
+    absentDates?: string[];
+    perDaySalary?: number;
+    suggestedAbsentDeduction?: number;
+    absentDeduction?: number;
     month?: string;
   } | null;
 }
@@ -30,18 +35,50 @@ export const SettleSalaryModal: React.FC<SettleSalaryModalProps> = ({
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string>('');
 
+  // Checkbox & custom amount states for Leaves / Absenteeism
+  const [deductLeaves, setDeductLeaves] = useState<boolean>(true);
+  const [absentDeduction, setAbsentDeduction] = useState<number>(0);
+
+  // Checkbox & custom amount states for Advances
+  const [deductAdvance, setDeductAdvance] = useState<boolean>(true);
+  const [advanceDeduction, setAdvanceDeduction] = useState<number>(0);
+
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && item) {
       setPaymentMode('Cash');
       setPaymentDate(new Date().toISOString().split('T')[0]);
       setRemarks('');
       setErrorMsg('');
+
+      // Leaves / Absenteeism initialization
+      const hasAbsents = (item.absentDays || 0) > 0;
+      setDeductLeaves(hasAbsents);
+      const defaultAbsentDeduction = item.absentDeduction !== undefined
+        ? item.absentDeduction
+        : (item.suggestedAbsentDeduction ?? (item.absentDays ? Math.round((item.monthlySalary / 30) * item.absentDays) : 0));
+      setAbsentDeduction(defaultAbsentDeduction);
+
+      // Advance deduction initialization
+      const hasAdvance = (item.advanceBalance || 0) > 0;
+      setDeductAdvance(hasAdvance);
+      setAdvanceDeduction(item.advanceBalance || 0);
     }
-  }, [isOpen]);
+  }, [isOpen, item]);
 
   if (!isOpen || !item) return null;
 
   const month = item.month || selectedPayrollMonth;
+
+  // Real-time calculation values
+  const effectiveAbsentDeduction = deductLeaves ? Math.max(0, Number(absentDeduction) || 0) : 0;
+  const effectiveAdvanceDeduction = deductAdvance
+    ? Math.min(item.advanceBalance || 0, Math.max(0, Number(advanceDeduction) || 0))
+    : 0;
+
+  const currentNetPayable = Math.max(
+    0,
+    (item.monthlySalary || 0) - effectiveAdvanceDeduction - (item.challanBalance || 0) - effectiveAbsentDeduction
+  );
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -53,7 +90,10 @@ export const SettleSalaryModal: React.FC<SettleSalaryModalProps> = ({
       month,
       paymentMode,
       paymentDate,
-      remarks: remarks.trim()
+      remarks: remarks.trim(),
+      absentDeduction: effectiveAbsentDeduction,
+      absentDays: deductLeaves ? (item.absentDays || 0) : 0,
+      advanceDeduction: effectiveAdvanceDeduction
     });
 
     setIsSubmitting(false);
@@ -74,13 +114,13 @@ export const SettleSalaryModal: React.FC<SettleSalaryModalProps> = ({
         left: 0,
         right: 0,
         bottom: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.55)',
-        backdropFilter: 'blur(3px)',
+        backgroundColor: 'rgba(0, 0, 0, 0.65)',
+        backdropFilter: 'blur(6px)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         zIndex: 9999,
-        padding: '16px'
+        padding: '20px'
       }}
     >
       <div
@@ -89,11 +129,15 @@ export const SettleSalaryModal: React.FC<SettleSalaryModalProps> = ({
         style={{
           background: 'var(--surface)',
           color: 'var(--text)',
-          borderRadius: '12px',
+          borderRadius: '16px',
           width: '100%',
-          maxWidth: '480px',
+          maxWidth: '540px',
+          margin: 'auto',
           border: '1px solid var(--border)',
-          boxShadow: '0 20px 40px rgba(0, 0, 0, 0.25)',
+          boxShadow: '0 20px 50px rgba(0, 0, 0, 0.4), 0 0 0 1px var(--border)',
+          maxHeight: '90vh',
+          display: 'flex',
+          flexDirection: 'column',
           overflow: 'hidden',
           fontFamily: "'Poppins', sans-serif"
         }}
@@ -103,7 +147,8 @@ export const SettleSalaryModal: React.FC<SettleSalaryModalProps> = ({
             padding: '22px 24px 16px 24px',
             display: 'flex',
             justifyContent: 'space-between',
-            alignItems: 'flex-start'
+            alignItems: 'flex-start',
+            borderBottom: '1px solid var(--border)'
           }}
         >
           <div>
@@ -149,8 +194,8 @@ export const SettleSalaryModal: React.FC<SettleSalaryModalProps> = ({
           </button>
         </div>
 
-        <form onSubmit={handleSubmit}>
-          <div style={{ padding: '0 24px 20px 24px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, overflow: 'hidden' }}>
+          <div style={{ padding: '18px 24px 20px 24px', display: 'flex', flexDirection: 'column', gap: '14px', flex: 1, overflowY: 'auto' }}>
             {errorMsg && (
               <div
                 style={{
@@ -167,11 +212,213 @@ export const SettleSalaryModal: React.FC<SettleSalaryModalProps> = ({
               </div>
             )}
 
+            {/* 1. Leaves / Absenteeism Section with Checkbox & Custom Amount */}
+            <div
+              style={{
+                background: 'var(--surface-2)',
+                border: '1px solid var(--border)',
+                borderRadius: '12px',
+                padding: '14px 16px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '10px'
+              }}
+            >
+              <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', userSelect: 'none', margin: 0 }}>
+                <input
+                  type="checkbox"
+                  checked={deductLeaves}
+                  onChange={e => setDeductLeaves(e.target.checked)}
+                  style={{ width: '16px', height: '16px', cursor: 'pointer', accentColor: 'var(--accent)' }}
+                />
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                      <CalendarX size={14} color={deductLeaves ? '#ef4444' : 'var(--text-faint)'} />
+                      Deduct Salary for Absent Days ({item.absentDays || 0} days)
+                    </span>
+                    {item.absentDays !== undefined && item.absentDays > 0 && (
+                      <span style={{ fontSize: '11px', color: 'var(--text-faint)', fontWeight: 500 }}>
+                        @ ₹{item.perDaySalary || Math.round((item.monthlySalary || 0) / 30)}/day
+                      </span>
+                    )}
+                  </div>
+                  <div style={{ fontSize: '11.5px', color: 'var(--text-faint)', marginTop: '2px' }}>
+                    {item.absentDays && item.absentDays > 0
+                      ? `Absent on: ${item.absentDates?.join(', ') || 'recorded dates'}`
+                      : 'Driver was present for all days'}
+                  </div>
+                </div>
+              </label>
+
+              {deductLeaves && (
+                <div style={{ paddingTop: '10px', borderTop: '1px dashed var(--border)', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-dim)', margin: 0 }}>
+                      Absenteeism Salary Deduction (₹)
+                    </label>
+                    {item.absentDays !== undefined && item.absentDays > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const suggested = item.suggestedAbsentDeduction ?? Math.round(((item.monthlySalary || 0) / 30) * (item.absentDays || 0));
+                          setAbsentDeduction(suggested);
+                        }}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: 'var(--accent, #1687f5)',
+                          fontSize: '11px',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          padding: 0
+                        }}
+                      >
+                        Reset to suggested (₹{((item.perDaySalary || Math.round((item.monthlySalary || 0) / 30)) * (item.absentDays || 0)).toLocaleString('en-IN')})
+                      </button>
+                    )}
+                  </div>
+                  <input
+                    type="number"
+                    min="0"
+                    max={item.monthlySalary || 1000000}
+                    value={absentDeduction}
+                    onChange={e => setAbsentDeduction(Math.max(0, Number(e.target.value) || 0))}
+                    placeholder="Enter amount to deduct for leaves"
+                    style={{
+                      width: '100%',
+                      height: '40px',
+                      padding: '0 12px',
+                      borderRadius: '8px',
+                      border: '1px solid var(--border)',
+                      background: 'var(--surface-3)',
+                      color: 'var(--text)',
+                      fontSize: '13.5px',
+                      outline: 'none',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                  <div style={{ fontSize: '11px', color: 'var(--text-faint)' }}>
+                    {absentDeduction > 0
+                      ? `₹${absentDeduction.toLocaleString('en-IN')} will be deducted from this month's salary.`
+                      : 'Zero deduction (full salary will be preserved).'}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* 2. Advances Section with Checkbox & Custom Amount */}
+            <div
+              style={{
+                background: 'var(--surface-2)',
+                border: '1px solid var(--border)',
+                borderRadius: '12px',
+                padding: '14px 16px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '10px'
+              }}
+            >
+              <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: (item.advanceBalance || 0) > 0 ? 'pointer' : 'default', userSelect: 'none', margin: 0 }}>
+                <input
+                  type="checkbox"
+                  checked={deductAdvance}
+                  disabled={!item.advanceBalance || item.advanceBalance <= 0}
+                  onChange={e => setDeductAdvance(e.target.checked)}
+                  style={{ width: '16px', height: '16px', cursor: (item.advanceBalance || 0) > 0 ? 'pointer' : 'default', accentColor: 'var(--accent)' }}
+                />
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                      <Wallet size={14} color={deductAdvance && item.advanceBalance > 0 ? '#d97706' : 'var(--text-faint)'} />
+                      Deduct Driver Advance from this Salary
+                    </span>
+                    <span style={{ fontSize: '11px', fontWeight: 700, color: (item.advanceBalance || 0) > 0 ? '#d97706' : 'var(--text-faint)' }}>
+                      Total Balance: ₹{(item.advanceBalance || 0).toLocaleString('en-IN')}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: '11.5px', color: 'var(--text-faint)', marginTop: '2px' }}>
+                    {(item.advanceBalance || 0) > 0
+                      ? 'Toggle whether to deduct advance and specify the amount'
+                      : 'No outstanding advance balance for this driver'}
+                  </div>
+                </div>
+              </label>
+
+              {deductAdvance && (item.advanceBalance || 0) > 0 && (
+                <div style={{ paddingTop: '10px', borderTop: '1px dashed var(--border)', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-dim)', margin: 0 }}>
+                      Advance Deduction Amount (₹)
+                    </label>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <button
+                        type="button"
+                        onClick={() => setAdvanceDeduction(Math.round((item.advanceBalance || 0) / 2))}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: 'var(--accent, #1687f5)',
+                          fontSize: '11px',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          padding: 0
+                        }}
+                      >
+                        Half (₹{Math.round((item.advanceBalance || 0) / 2).toLocaleString('en-IN')})
+                      </button>
+                      <span style={{ color: 'var(--border)', fontSize: '11px' }}>|</span>
+                      <button
+                        type="button"
+                        onClick={() => setAdvanceDeduction(item.advanceBalance || 0)}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: 'var(--accent, #1687f5)',
+                          fontSize: '11px',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          padding: 0
+                        }}
+                      >
+                        Full (₹{(item.advanceBalance || 0).toLocaleString('en-IN')})
+                      </button>
+                    </div>
+                  </div>
+                  <input
+                    type="number"
+                    min="0"
+                    max={item.advanceBalance || 1000000}
+                    value={advanceDeduction}
+                    onChange={e => setAdvanceDeduction(Math.min(item.advanceBalance || 0, Math.max(0, Number(e.target.value) || 0)))}
+                    placeholder="Enter advance amount to deduct"
+                    style={{
+                      width: '100%',
+                      height: '40px',
+                      padding: '0 12px',
+                      borderRadius: '8px',
+                      border: '1px solid var(--border)',
+                      background: 'var(--surface-3)',
+                      color: 'var(--text)',
+                      fontSize: '13.5px',
+                      outline: 'none',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                  <div style={{ fontSize: '11px', color: 'var(--text-faint)' }}>
+                    {advanceDeduction < (item.advanceBalance || 0)
+                      ? `₹${advanceDeduction.toLocaleString('en-IN')} will be deducted. Remaining ₹${Math.max(0, (item.advanceBalance || 0) - advanceDeduction).toLocaleString('en-IN')} remains as active advance.`
+                      : `Full advance of ₹${(item.advanceBalance || 0).toLocaleString('en-IN')} will be cleared.`}
+                  </div>
+                </div>
+              )}
+            </div>
+
             {/* Payout Calculation Card */}
             <div
               style={{
                 background: 'var(--surface-2)',
-                borderRadius: '10px',
+                borderRadius: '12px',
                 padding: '14px 16px',
                 border: '1px solid var(--border)',
                 display: 'flex',
@@ -179,39 +426,55 @@ export const SettleSalaryModal: React.FC<SettleSalaryModalProps> = ({
                 gap: '8px'
               }}
             >
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: 'var(--text-dim)', fontFamily: "'Poppins', sans-serif" }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: 'var(--text-dim)' }}>
                 <span>Base Monthly Salary</span>
                 <span style={{ fontWeight: 700, color: 'var(--text)' }}>
                   ₹{(item.monthlySalary || 0).toLocaleString('en-IN')}
                 </span>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: 'var(--text-dim)', fontFamily: "'Poppins', sans-serif" }}>
-                <span>Advances Deducted</span>
-                <span style={{ fontWeight: 700, color: '#d97706' }}>
-                  −₹{(item.advanceBalance || 0).toLocaleString('en-IN')}
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: 'var(--text-dim)' }}>
+                <span style={{ color: effectiveAbsentDeduction > 0 ? '#ef4444' : 'var(--text-faint)' }}>
+                  Absenteeism Deducted {deductLeaves && (item.absentDays || 0) > 0 ? `(${item.absentDays} days)` : ''}
+                </span>
+                <span style={{ fontWeight: 700, color: effectiveAbsentDeduction > 0 ? '#ef4444' : 'var(--text-faint)' }}>
+                  {effectiveAbsentDeduction > 0 ? `−₹${effectiveAbsentDeduction.toLocaleString('en-IN')}` : '₹0 (Skipped)'}
                 </span>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: 'var(--text-dim)', fontFamily: "'Poppins', sans-serif" }}>
-                <span>Challans Deducted</span>
-                <span style={{ fontWeight: 700, color: '#ef4444' }}>
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: 'var(--text-dim)' }}>
+                <span style={{ color: effectiveAdvanceDeduction > 0 ? '#d97706' : 'var(--text-faint)' }}>
+                  Advances Deducted
+                </span>
+                <span style={{ fontWeight: 700, color: effectiveAdvanceDeduction > 0 ? '#d97706' : 'var(--text-faint)' }}>
+                  {effectiveAdvanceDeduction > 0 ? `−₹${effectiveAdvanceDeduction.toLocaleString('en-IN')}` : '₹0 (Not Deducted)'}
+                </span>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: 'var(--text-dim)' }}>
+                <span style={{ color: (item.challanBalance || 0) > 0 ? '#ef4444' : 'var(--text-faint)' }}>
+                  Challans Deducted
+                </span>
+                <span style={{ fontWeight: 700, color: (item.challanBalance || 0) > 0 ? '#ef4444' : 'var(--text-faint)' }}>
                   −₹{(item.challanBalance || 0).toLocaleString('en-IN')}
                 </span>
               </div>
+
               <div
                 style={{
                   display: 'flex',
                   justifyContent: 'space-between',
+                  alignItems: 'baseline',
                   fontSize: '15px',
                   fontWeight: 700,
                   borderTop: '1px dashed var(--border)',
                   paddingTop: '8px',
-                  marginTop: '4px',
-                  fontFamily: "'Poppins', sans-serif"
+                  marginTop: '4px'
                 }}
               >
                 <span>Net Amount Handed Over</span>
-                <span style={{ color: 'var(--accent, #1687f5)', fontWeight: 800 }}>
-                  ₹{(item.netPayable || 0).toLocaleString('en-IN')}
+                <span style={{ color: 'var(--accent, #1687f5)', fontSize: '17px', fontWeight: 800 }}>
+                  ₹{currentNetPayable.toLocaleString('en-IN')}
                 </span>
               </div>
             </div>
@@ -224,8 +487,7 @@ export const SettleSalaryModal: React.FC<SettleSalaryModalProps> = ({
                     fontSize: '12.5px',
                     fontWeight: 600,
                     marginBottom: '6px',
-                    color: 'var(--text)',
-                    fontFamily: "'Poppins', sans-serif"
+                    color: 'var(--text)'
                   }}
                 >
                   Payment Date
@@ -245,8 +507,7 @@ export const SettleSalaryModal: React.FC<SettleSalaryModalProps> = ({
                     color: 'var(--text)',
                     fontSize: '13.5px',
                     outline: 'none',
-                    boxSizing: 'border-box',
-                    fontFamily: "'Poppins', sans-serif"
+                    boxSizing: 'border-box'
                   }}
                 />
               </div>
@@ -258,8 +519,7 @@ export const SettleSalaryModal: React.FC<SettleSalaryModalProps> = ({
                     fontSize: '12.5px',
                     fontWeight: 600,
                     marginBottom: '6px',
-                    color: 'var(--text)',
-                    fontFamily: "'Poppins', sans-serif"
+                    color: 'var(--text)'
                   }}
                 >
                   Paid via
@@ -277,8 +537,7 @@ export const SettleSalaryModal: React.FC<SettleSalaryModalProps> = ({
                     color: 'var(--text)',
                     fontSize: '13.5px',
                     outline: 'none',
-                    boxSizing: 'border-box',
-                    fontFamily: "'Poppins', sans-serif"
+                    boxSizing: 'border-box'
                   }}
                 >
                   <option value="Cash">Cash Handover</option>
@@ -296,8 +555,7 @@ export const SettleSalaryModal: React.FC<SettleSalaryModalProps> = ({
                   fontSize: '12.5px',
                   fontWeight: 600,
                   marginBottom: '6px',
-                  color: 'var(--text)',
-                  fontFamily: "'Poppins', sans-serif"
+                  color: 'var(--text)'
                 }}
               >
                 Remarks / Notes (Optional)
@@ -317,8 +575,7 @@ export const SettleSalaryModal: React.FC<SettleSalaryModalProps> = ({
                   color: 'var(--text)',
                   fontSize: '13.5px',
                   outline: 'none',
-                  boxSizing: 'border-box',
-                  fontFamily: "'Poppins', sans-serif"
+                  boxSizing: 'border-box'
                 }}
               />
             </div>
@@ -327,49 +584,38 @@ export const SettleSalaryModal: React.FC<SettleSalaryModalProps> = ({
           <div
             style={{
               padding: '14px 24px 20px 24px',
+              borderTop: '1px solid var(--border)',
               display: 'flex',
               justifyContent: 'flex-end',
-              alignItems: 'center',
               gap: '10px',
-              borderTop: '1px solid var(--border)'
+              background: 'var(--surface)'
             }}
           >
             <button
               type="button"
               onClick={onClose}
               disabled={isSubmitting}
-              style={{
-                height: '38px',
-                padding: '0 16px',
-                borderRadius: '6px',
-                border: '1px solid var(--border)',
-                background: 'transparent',
-                color: 'var(--text)',
-                fontSize: '13px',
-                fontWeight: 500,
-                cursor: 'pointer',
-                fontFamily: "'Poppins', sans-serif"
-              }}
+              className="btn-secondary"
+              style={{ padding: '8px 18px', fontSize: '13px', borderRadius: '8px' }}
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isSubmitting}
+              className="btn-primary"
               style={{
-                height: '38px',
-                padding: '0 18px',
-                borderRadius: '6px',
-                border: 'none',
-                background: 'var(--accent, #1687f5)',
-                color: '#ffffff',
+                padding: '8px 22px',
                 fontSize: '13px',
-                fontWeight: 600,
-                cursor: 'pointer',
-                fontFamily: "'Poppins', sans-serif"
+                borderRadius: '8px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                fontWeight: 700
               }}
             >
-              {isSubmitting ? 'Recording...' : 'Mark as Paid'}
+              <CheckCircle2 size={16} />
+              {isSubmitting ? 'Recording Payment...' : 'Mark as Paid'}
             </button>
           </div>
         </form>

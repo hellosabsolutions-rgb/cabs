@@ -43,6 +43,7 @@ const pageHeaders: Record<PageId, PageHeaderInfo> = {
   trips: { title: 'Booking', subtitle: 'Commercial, outstation and advance bookings management' },
   expenses: { title: 'Expenses', subtitle: 'Fuel, toll, driver and maintenance costs' },
   profitability: { title: 'Profitability', subtitle: 'Department, trip and overall P&L' },
+  revenue: { title: 'Revenue', subtitle: 'Trip & Department revenue, direct costs and collections' },
   compliance: { title: 'Compliance', subtitle: 'Vehicle and driver document tracking' },
   maintenance: { title: 'Maintenance', subtitle: 'Service, repair and tyre change records' }
 };
@@ -134,6 +135,8 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       else setExpenseSubTab('fastag');
     } else if (path.startsWith('/profitability')) {
       setActivePage('profitability');
+    } else if (path.startsWith('/revenue')) {
+      setActivePage('revenue');
     } else if (path.startsWith('/compliance')) {
       setActivePage('compliance');
     } else if (path.startsWith('/maintenance')) {
@@ -168,6 +171,7 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       trips: '/booking',
       expenses: expenseSubTab === 'fuel' ? '/expenses/fuel' : expenseSubTab === 'all' ? '/expenses/all' : '/expenses/fastag',
       profitability: '/profitability',
+      revenue: '/revenue',
       compliance: '/compliance',
       maintenance: '/maintenance'
     };
@@ -465,6 +469,65 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
+  // Fetch live maintenance records from backend API
+  const fetchLiveMaintenance = async (queryParam?: { vehicle?: string; type?: string; status?: string; search?: string }) => {
+    setIsLoadingMaintenance(true);
+    try {
+      let endpoint = '/maintenance?limit=500';
+      if (queryParam) {
+        const params = new URLSearchParams();
+        if (queryParam.vehicle && queryParam.vehicle !== 'All') params.append('vehicle', queryParam.vehicle);
+        if (queryParam.type && queryParam.type !== 'All') params.append('type', queryParam.type);
+        if (queryParam.status && queryParam.status !== 'All') params.append('status', queryParam.status);
+        if (queryParam.search) params.append('search', queryParam.search);
+        const qStr = params.toString();
+        if (qStr) endpoint += `&${qStr}`;
+      }
+      const res = await api.get(endpoint);
+      if (res && res.success && Array.isArray(res.data)) {
+        setMaintenanceRecords(
+          res.data.map((item: any) => ({
+            ...item,
+            id: item.id || item._id
+          }))
+        );
+      }
+    } catch (err) {
+      console.warn('Backend maintenance API not reachable:', err);
+    } finally {
+      setIsLoadingMaintenance(false);
+    }
+  };
+
+  // Fetch live fleet expenses from backend API
+  const fetchLiveExpenses = async (queryParam?: { vehicle?: string; category?: string; search?: string }) => {
+    setIsLoadingExpenses(true);
+    try {
+      let endpoint = '/expenses?limit=500';
+      if (queryParam) {
+        const params = new URLSearchParams();
+        if (queryParam.vehicle && queryParam.vehicle !== 'All') params.append('vehicle', queryParam.vehicle);
+        if (queryParam.category && queryParam.category !== 'All') params.append('category', queryParam.category);
+        if (queryParam.search) params.append('search', queryParam.search);
+        const qStr = params.toString();
+        if (qStr) endpoint += `&${qStr}`;
+      }
+      const res = await api.get(endpoint);
+      if (res && res.success && Array.isArray(res.data)) {
+        setExpenses(
+          res.data.map((item: any) => ({
+            ...item,
+            id: item.id || item._id
+          }))
+        );
+      }
+    } catch (err) {
+      console.warn('Backend expenses API not reachable:', err);
+    } finally {
+      setIsLoadingExpenses(false);
+    }
+  };
+
   // Fetch live aggregated dashboard statistics
   const fetchLiveDashboardStats = async (): Promise<DashboardStatsData | null> => {
     setIsLoadingDashboard(true);
@@ -494,6 +557,8 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     fetchLiveFastagTransactions();
     fetchLiveMonthlyBills();
     fetchPayrollSummary();
+    fetchLiveMaintenance();
+    fetchLiveExpenses();
     fetchLiveDashboardStats();
   }, []);
 
@@ -1656,6 +1721,73 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return completeBooking(id, data);
   };
 
+  const updateBooking = async (id: string, updateData: Partial<TripFinancial>) => {
+    try {
+      setIsLoading(true);
+      const res = await api.put(`/bookings/${id}`, updateData);
+      if (res && res.success && res.data) {
+        const updated = res.data;
+        const normalized: TripFinancial = {
+          ...updated,
+          id: updated.id || updated._id
+        };
+        setTrips(prev => prev.map(t => (t.id === id || (t._id && t._id === id) ? normalized : t)));
+        showToast('success', `Booking #${normalized.bookingNumber || normalized.tripNumber || id} updated successfully!`, 'Booking Updated');
+        return { success: true, data: normalized };
+      }
+    } catch (err: any) {
+      console.warn('Update booking API failed, updating locally:', err);
+      showToast('error', err.message || 'Failed to update booking on server.', 'Update Failed');
+    } finally {
+      setIsLoading(false);
+    }
+
+    // Local fallback update calculation
+    setTrips(prev =>
+      prev.map(t => {
+        if (t.id === id || t._id === id) {
+          const merged = { ...t, ...updateData };
+          const fare = Number(merged.revenue || merged.totalAmount || 0);
+          const adv = Number(merged.advanceAmount || 0);
+          const bal = Number(merged.balancePaid || 0);
+          const pend = Math.max(0, fare - (adv + bal));
+          const fuel = Number(merged.fuelCost || 0);
+          const toll = Number(merged.fastagCost || 0);
+          const driver = Number(merged.driverBata || 0);
+          const other = Number(merged.otherExpenses || 0);
+          const exp = fuel + toll + driver + other;
+          const profit = fare - exp;
+          const margin = fare > 0 ? ((profit / fare) * 100).toFixed(1) + '%' : '0%';
+          const endKm = Number(merged.endOdometer) || 0;
+          const startKm = Number(merged.startOdometer) || 0;
+          const totalKmRun = endKm >= startKm && endKm > 0 ? endKm - startKm : (merged.totalKmRun || 0);
+
+          return {
+            ...merged,
+            revenue: fare,
+            totalAmount: fare,
+            advanceAmount: adv,
+            balancePaid: bal,
+            pendingAmount: pend,
+            paymentStatus: pend === 0 && fare > 0 ? 'Paid' : (adv + bal) > 0 ? 'Partial' : 'Unpaid',
+            fuelCost: fuel,
+            fastagCost: toll,
+            driverBata: driver,
+            otherExpenses: other,
+            expenses: exp,
+            profit,
+            margin,
+            endOdometer: endKm || merged.endOdometer,
+            totalKmRun
+          };
+        }
+        return t;
+      })
+    );
+    showToast('info', 'Booking updated locally.', 'Booking Updated');
+    return { success: true };
+  };
+
   const recordBookingPayment = async (
     id: string,
     payment: {
@@ -2321,7 +2453,7 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
-  const settleDriverSalary = async (data: { driverId: string; month?: string; paymentMode?: string; paymentDate?: string; remarks?: string }) => {
+  const settleDriverSalary = async (data: { driverId: string; month?: string; paymentMode?: string; paymentDate?: string; remarks?: string; absentDeduction?: number; absentDays?: number; advanceDeduction?: number }) => {
     try {
       const res = await api.post('/payroll/settle', {
         ...data,
@@ -2983,26 +3115,69 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
-  const addMaintenanceRecord = (recordData: Omit<MaintenanceRecord, 'id' | 'status'>) => {
+  const addMaintenanceRecord = async (recordData: Omit<MaintenanceRecord, 'id' | 'status'>) => {
     try {
-      const newRecord: MaintenanceRecord = {
+      let savedRecord: MaintenanceRecord | null = null;
+      try {
+        const res = await api.post('/maintenance', {
+          ...recordData,
+          status: 'Completed'
+        });
+        if (res && res.success && res.data) {
+          savedRecord = {
+            ...res.data,
+            id: res.data.id || res.data._id
+          };
+        }
+      } catch (apiErr) {
+        console.warn('Maintenance API post failed, falling back to client record:', apiErr);
+      }
+
+      const finalRecord: MaintenanceRecord = savedRecord || {
         ...recordData,
         id: 'm_' + Date.now(),
         status: 'Completed'
       };
-      setMaintenanceRecords(prev => [newRecord, ...prev]);
-      showToast('success', `${newRecord.type} for ${newRecord.vehicle} (₹${newRecord.cost.toLocaleString('en-IN')}) saved.`, 'Maintenance Logged');
+
+      setMaintenanceRecords(prev => [finalRecord, ...prev.filter(r => r.id !== finalRecord.id)]);
+
+      // Auto-reflect in Expenses!
+      const newExpense: ExpenseRecord = {
+        id: 'exp_m_' + finalRecord.id,
+        date: finalRecord.dateLabel || finalRecord.date,
+        vehicle: finalRecord.vehicle,
+        category: 'Maintenance',
+        linkedTo: `Maintenance - ${finalRecord.type}`,
+        amount: finalRecord.cost
+      };
+      setExpenses(prev => [newExpense, ...prev.filter(e => e.id !== newExpense.id)]);
+
+      // Refresh live expenses and dashboard stats in background
+      fetchLiveExpenses();
+      fetchLiveDashboardStats();
+
+      showToast('success', `${finalRecord.type} for ${finalRecord.vehicle} (₹${finalRecord.cost.toLocaleString('en-IN')}) saved and added to expenses.`, 'Maintenance Logged');
     } catch (err) {
       console.error('Failed to add maintenance record', err);
       showToast('error', 'Failed to save maintenance record.', 'Error');
     }
   };
 
-  const updateMaintenanceStatus = (id: string, status: MaintenanceRecord['status']) => {
-    setMaintenanceRecords(prev =>
-      prev.map(r => (r.id === id ? { ...r, status } : r))
-    );
-    showToast('info', `Maintenance status updated to ${status}.`, 'Status Updated');
+  const updateMaintenanceStatus = async (id: string, status: MaintenanceRecord['status']) => {
+    try {
+      try {
+        await api.put(`/maintenance/${id}`, { status });
+      } catch (apiErr) {
+        console.warn('Maintenance status update API failed:', apiErr);
+      }
+      setMaintenanceRecords(prev =>
+        prev.map(r => (r.id === id ? { ...r, status } : r))
+      );
+      showToast('info', `Maintenance status updated to ${status}.`, 'Status Updated');
+    } catch (err) {
+      console.error('Failed to update maintenance status', err);
+      showToast('error', 'Failed to update maintenance status.', 'Error');
+    }
   };
 
   const addVehicleComplianceDoc = async (docData: Omit<DocumentCompliance, 'id'>) => {
@@ -3286,10 +3461,12 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         addBooking,
         completeTrip,
         completeBooking,
+        updateBooking,
         recordBookingPayment,
         checkVehicleAvailability,
         expenses,
         addExpense,
+        fetchLiveExpenses,
         expenseSubTab,
         setExpenseSubTab: handleSetExpenseSubTab,
         fuelLogs,
@@ -3302,6 +3479,7 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         maintenanceRecords,
         addMaintenanceRecord,
         updateMaintenanceStatus,
+        fetchLiveMaintenance,
         vehicleCompliance,
         addVehicleComplianceDoc,
         driverCompliance,

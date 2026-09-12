@@ -442,6 +442,18 @@ export const DriverPayrollView: React.FC = () => {
                     textTransform: 'uppercase'
                   }}
                 >
+                  Attendance / Absent
+                </th>
+                <th
+                  style={{
+                    padding: '12px 20px',
+                    fontSize: '11px',
+                    fontWeight: 800,
+                    letterSpacing: '0.6px',
+                    color: 'var(--text-faint)',
+                    textTransform: 'uppercase'
+                  }}
+                >
                   Advance Balance
                 </th>
                 <th
@@ -488,13 +500,13 @@ export const DriverPayrollView: React.FC = () => {
             <tbody>
               {isPayrollLoading ? (
                 <tr>
-                  <td colSpan={6} style={{ padding: '40px', textAlign: 'center', color: 'var(--text-faint)' }}>
+                  <td colSpan={7} style={{ padding: '40px', textAlign: 'center', color: 'var(--text-faint)' }}>
                     Loading driver payroll records...
                   </td>
                 </tr>
               ) : paginatedItems.length === 0 ? (
                 <tr>
-                  <td colSpan={6} style={{ padding: '40px', textAlign: 'center', color: 'var(--text-faint)' }}>
+                  <td colSpan={7} style={{ padding: '40px', textAlign: 'center', color: 'var(--text-faint)' }}>
                     No driver payroll records match your search or filter.
                   </td>
                 </tr>
@@ -543,6 +555,53 @@ export const DriverPayrollView: React.FC = () => {
                             </div>
                           </div>
                         </div>
+                      </td>
+
+                      {/* Attendance / Absent Days Column */}
+                      <td style={{ padding: '14px 20px' }}>
+                        {item.absentDays !== undefined && item.absentDays > 0 ? (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                            <span
+                              style={{
+                                fontSize: '11px',
+                                fontWeight: 700,
+                                padding: '2px 8px',
+                                borderRadius: '4px',
+                                background: 'rgba(239, 68, 68, 0.1)',
+                                color: '#ef4444',
+                                border: '1px solid rgba(239, 68, 68, 0.3)',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                width: 'fit-content'
+                              }}
+                              title={`Absent on: ${item.absentDates?.join(', ') || 'dates in month'}`}
+                            >
+                              ● {item.absentDays} Day{item.absentDays > 1 ? 's' : ''} Absent
+                            </span>
+                            <span style={{ fontSize: '11.5px', color: '#ef4444', fontWeight: 600 }}>
+                              −₹{(item.absentDeduction || item.suggestedAbsentDeduction || 0).toLocaleString('en-IN')} deduction
+                            </span>
+                          </div>
+                        ) : (
+                          <span
+                            style={{
+                              fontSize: '11px',
+                              fontWeight: 600,
+                              padding: '2px 8px',
+                              borderRadius: '4px',
+                              background: 'rgba(34, 197, 94, 0.08)',
+                              color: '#22c55e',
+                              border: '1px solid rgba(34, 197, 94, 0.25)',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              width: 'fit-content'
+                            }}
+                          >
+                            ● 0 Absent (Full Present)
+                          </span>
+                        )}
                       </td>
 
                       {/* Advance Balance */}

@@ -232,6 +232,14 @@ bookingSchema.pre('save', function (next) {
   this.profit = total - exp;
   this.margin = total > 0 ? ((this.profit / total) * 100).toFixed(1) + '%' : '0%';
 
+  if (this.endOdometer !== undefined && this.endOdometer !== null) {
+    const start = Number(this.startOdometer) || 0;
+    const end = Number(this.endOdometer) || 0;
+    if (end >= start && end > 0) {
+      this.totalKmRun = end - start;
+    }
+  }
+
   next();
 });
 

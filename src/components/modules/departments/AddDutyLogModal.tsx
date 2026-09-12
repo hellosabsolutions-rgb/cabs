@@ -15,7 +15,35 @@ export const AddDutyLogModal: React.FC<AddDutyLogModalProps> = ({
   onClose,
   defaultDutyType = 'Official Department Duty'
 }) => {
-  const { departmentContracts, drivers, vehicles, addDailyDutyLog, addTrip, switchVehicleMode } = useFleet();
+  const {
+    departmentContracts,
+    drivers,
+    vehicles,
+    addDailyDutyLog,
+    addTrip,
+    switchVehicleMode,
+    addFuelLog,
+    addFastagTransaction
+  } = useFleet();
+
+  const formatMonthFromDate = (dateStr: string) => {
+    if (!dateStr) return 'August 2026';
+    const parts = dateStr.split('-');
+    if (parts.length === 3) {
+      const year = parseInt(parts[0], 10);
+      const monthIdx = parseInt(parts[1], 10) - 1;
+      const day = parseInt(parts[2], 10);
+      const d = new Date(year, monthIdx, day);
+      if (!isNaN(d.getTime())) {
+        return d.toLocaleString('en-US', { month: 'long', year: 'numeric' });
+      }
+    }
+    const d = new Date(dateStr);
+    if (!isNaN(d.getTime())) {
+      return d.toLocaleString('en-US', { month: 'long', year: 'numeric' });
+    }
+    return 'August 2026';
+  };
 
   const [dutyType, setDutyType] = useState<'Official Department Duty' | 'Weekend / Off-Duty Trip'>(defaultDutyType);
   const [dutySlipNumber, setDutySlipNumber] = useState(
@@ -174,9 +202,10 @@ export const AddDutyLogModal: React.FC<AddDutyLogModalProps> = ({
 
     const deptName = selectedContract?.departmentName || '';
     const vehicleReg = selectedContract?.vehicle || vehicles[0]?.registrationNumber || '';
+    const derivedMonth = formatMonthFromDate(date);
+    const generatedTripSlip = `TRIP-WKND-${Math.floor(Math.random() * 9000 + 1000)}`;
 
     if (dutyType === 'Weekend / Off-Duty Trip') {
-      const generatedTripSlip = `TRIP-WKND-${Math.floor(Math.random() * 9000 + 1000)}`;
       const baseNum = Number(packageBasePrice) || 2255;
       const freeKmNum = Number(packageFreeKm) || 80;
       const extraKmNum = Math.max(0, calcTotalKm - freeKmNum);
@@ -191,7 +220,7 @@ export const AddDutyLogModal: React.FC<AddDutyLogModalProps> = ({
       addDailyDutyLog({
         dutySlipNumber: generatedTripSlip,
         logBookPageNo: logBookPageNo.trim() || '122',
-        month: month.trim() || 'August 2026',
+        month: derivedMonth,
         date,
         departmentName: deptName,
         vehicle: vehicleReg,
@@ -278,7 +307,7 @@ export const AddDutyLogModal: React.FC<AddDutyLogModalProps> = ({
       addDailyDutyLog({
         dutySlipNumber: dutySlipNumber.trim(),
         logBookPageNo: logBookPageNo.trim() || '122',
-        month: month.trim() || 'August 2026',
+        month: derivedMonth,
         date,
         departmentName: deptName,
         vehicle: vehicleReg,
@@ -309,6 +338,45 @@ export const AddDutyLogModal: React.FC<AddDutyLogModalProps> = ({
         fuelBillPhoto: fuelBillPreview || fuelBillName || null,
         status: 'Approved',
         notes: notes.trim() || undefined
+      });
+    }
+
+    // 3. Automatically record Fuel Expense into Vehicle's Fuel Section
+    if (fuelNum > 0) {
+      const litresNum = fuelLitres ? Number(fuelLitres) : Math.round((fuelNum / 95) * 10) / 10;
+      const rateNum = litresNum > 0 ? Math.round((fuelNum / litresNum) * 100) / 100 : 95;
+      const cleanVehicleObj = vehicles.find(
+        v => v.registrationNumber.toLowerCase().replace(/\s+/g, '') === vehicleReg.toLowerCase().replace(/\s+/g, '')
+      );
+      addFuelLog({
+        date: date,
+        vehicle: vehicleReg,
+        fuelType: cleanVehicleObj?.fuelType || 'Diesel',
+        litres: litresNum || 1,
+        ratePerLitre: rateNum,
+        totalCost: fuelNum,
+        stationName: journeyFrom ? `${journeyFrom} Fuel Station` : `${deptName || 'Department'} Refill Point`,
+        odometerReading: Number(endKm) || Number(startKm) || 0,
+        driver: driverName,
+        billPhoto: fuelBillPreview || null,
+        paymentMode: 'Cash'
+      });
+    }
+
+    // 4. Automatically record FASTag Toll into Vehicle's FASTag Section
+    if (tollNum > 0) {
+      const slipRefId = dutyType === 'Weekend / Off-Duty Trip' ? generatedTripSlip : dutySlipNumber.trim();
+      addFastagTransaction({
+        vehicle: vehicleReg,
+        tollPlaza: journeyTo ? `${journeyTo} Toll Plaza` : `${deptName || 'Department'} Route Toll`,
+        lane: 'ETC Fastag Lane',
+        date: date,
+        time: startTime || '09:30 AM',
+        amount: tollNum,
+        type: 'Toll Deduction',
+        transactionRef: `TOLL-${slipRefId || Date.now()}`,
+        linkedDutyOrTrip: slipRefId,
+        proofSlip: slipPhotoPreview || null
       });
     }
 
@@ -420,44 +488,36 @@ export const AddDutyLogModal: React.FC<AddDutyLogModalProps> = ({
               </div>
             </div>
 
-            {/* Log Book Register Reference: Month & Page No (from physical register) */}
+            {/* Log Book Register Reference: Log Book Page No */}
             <div
               style={{
                 background: 'rgba(56, 189, 248, 0.04)',
                 border: '1px solid rgba(56, 189, 248, 0.2)',
                 borderRadius: '8px',
-                padding: '10px 12px',
+                padding: '10px 14px',
                 display: 'flex',
                 flexDirection: 'column',
                 gap: '8px'
               }}
             >
-              <div style={{ fontSize: '11.5px', fontWeight: 700, color: 'var(--accent)', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                <BookOpen size={13} /> Log Book Register Details
+              <div style={{ fontSize: '11.5px', fontWeight: 700, color: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '6px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                  <BookOpen size={13} /> Log Book Register Details
+                </div>
+                <span style={{ fontSize: '11px', color: 'var(--text-faint)', fontWeight: 500 }}>
+                  Duty Month: <strong style={{ color: 'var(--text)' }}>{formatMonthFromDate(date)}</strong> (Auto-detected from Duty Date)
+                </span>
               </div>
-              <div className="form-row-2">
-                <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label">Month *</label>
-                  <input
-                    type="text"
-                    className="form-input"
-                    placeholder="e.g. August 2026"
-                    value={month}
-                    onChange={e => setMonth(e.target.value)}
-                    required
-                  />
-                </div>
-                <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label">Log Book Page No. *</label>
-                  <input
-                    type="text"
-                    className="form-input"
-                    placeholder="e.g. 122 or 123"
-                    value={logBookPageNo}
-                    onChange={e => setLogBookPageNo(e.target.value)}
-                    required
-                  />
-                </div>
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label">Log Book Page No. *</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="e.g. 122 or 123"
+                  value={logBookPageNo}
+                  onChange={e => setLogBookPageNo(e.target.value)}
+                  required
+                />
               </div>
             </div>
 

@@ -35,6 +35,7 @@ import { Pagination } from '../../common/Pagination';
 import { usePagination } from '../../../hooks/usePagination';
 import { resolveAssignedVehicle, isAssignedPlate } from '../../../utils/assignment';
 import { CustomDropdown } from '../../common/CustomDropdown';
+import { StatusDropdown } from '../../common/StatusDropdown';
 import {
   exportDriversToExcel,
   downloadDriverExcelTemplate,
@@ -911,40 +912,15 @@ export const DriversView: React.FC = () => {
                             </td>
                             <td>{d.joiningDate}</td>
                             <td onClick={e => e.stopPropagation()}>
-                              <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
-                                <select
-                                  value={d.status}
-                                  onChange={e => updateDriverStatus(d.id, e.target.value as 'On duty' | 'Off duty')}
-                                  style={{
-                                    background: d.status === 'On duty' ? 'rgba(34, 197, 94, 0.12)' : 'var(--surface-3)',
-                                    color: d.status === 'On duty' ? '#22c55e' : 'var(--text-dim)',
-                                    border: `1px solid ${d.status === 'On duty' ? 'rgba(34, 197, 94, 0.35)' : 'var(--border)'}`,
-                                    padding: '4px 24px 4px 10px',
-                                    borderRadius: '20px',
-                                    fontSize: '11.5px',
-                                    fontWeight: 600,
-                                    cursor: 'pointer',
-                                    outline: 'none',
-                                    appearance: 'none',
-                                    WebkitAppearance: 'none',
-                                    lineHeight: 1.4
-                                  }}
-                                  title="Select driver duty status"
-                                >
-                                  <option value="On duty" style={{ background: 'var(--surface-1)', color: 'var(--text)' }}>● Active</option>
-                                  <option value="Off duty" style={{ background: 'var(--surface-1)', color: 'var(--text)' }}>● Off duty</option>
-                                </select>
-                                <ChevronDown
-                                  size={11}
-                                  style={{
-                                    position: 'absolute',
-                                    right: '8px',
-                                    pointerEvents: 'none',
-                                    color: d.status === 'On duty' ? '#22c55e' : 'var(--text-dim)',
-                                    opacity: 0.8
-                                  }}
-                                />
-                              </div>
+                              <StatusDropdown
+                                value={d.status === 'On duty' ? 'On duty' : 'Off duty'}
+                                options={[
+                                  { value: 'On duty', label: 'Active', color: '#22c55e', bg: 'rgba(34, 197, 94, 0.12)', borderColor: 'rgba(34, 197, 94, 0.35)' },
+                                  { value: 'Off duty', label: 'Off duty', color: 'var(--text-dim)', bg: 'var(--surface-3)', borderColor: 'var(--border)' }
+                                ]}
+                                onChange={newVal => updateDriverStatus(d.id, newVal as 'On duty' | 'Off duty')}
+                                size="sm"
+                              />
                             </td>
                             <td style={{ textAlign: 'right' }} onClick={e => e.stopPropagation()}>
                               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '6px' }}>

@@ -7,6 +7,7 @@ export type PageId =
   | 'trips'
   | 'expenses'
   | 'profitability'
+  | 'revenue'
   | 'compliance'
   | 'maintenance';
 
@@ -143,6 +144,8 @@ export interface DriverPayrollSettlement {
   driverName: string;
   month: string;
   baseSalary: number;
+  absentDays?: number;
+  absentDeduction?: number;
   advancesDeducted: number;
   challansDeducted: number;
   netPaid: number;
@@ -163,6 +166,11 @@ export interface DriverPayrollItem {
   monthlySalary: number;
   advanceBalance: number;
   challanBalance: number;
+  absentDays?: number;
+  absentDates?: string[];
+  perDaySalary?: number;
+  suggestedAbsentDeduction?: number;
+  absentDeduction?: number;
   netPayable: number;
   status: PayrollStatus;
   settlement?: {
@@ -171,6 +179,8 @@ export interface DriverPayrollItem {
     paidAmount: number;
     paymentMode: string;
     paymentDate: string;
+    absentDays?: number;
+    absentDeduction?: number;
     remarks?: string;
   } | null;
   advances: Array<{

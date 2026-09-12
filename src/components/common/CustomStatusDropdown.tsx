@@ -2,8 +2,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { ChevronDown, Check } from 'lucide-react';
 
-export interface StatusOption {
-  value: string;
+export interface StatusOption<T extends string = string> {
+  value: T;
   label: string;
   color?: string;
   bg?: string;
@@ -11,57 +11,23 @@ export interface StatusOption {
   icon?: React.ReactNode;
 }
 
-interface StatusDropdownProps {
-  value: string;
-  options: StatusOption[] | string[];
-  onChange: (newValue: any) => void;
+export interface CustomStatusDropdownProps<T extends string = string> {
+  value: T;
+  options: StatusOption<T>[];
+  onChange: (newValue: T) => void | Promise<void>;
   disabled?: boolean;
   size?: 'sm' | 'md';
   title?: string;
 }
 
-const DEFAULT_STATUS_STYLES: Record<string, { color: string; bg: string; border: string }> = {
-  // Vehicle statuses
-  running: { color: '#10b981', bg: 'rgba(16, 185, 129, 0.14)', border: 'rgba(16, 185, 129, 0.35)' },
-  active: { color: '#10b981', bg: 'rgba(16, 185, 129, 0.14)', border: 'rgba(16, 185, 129, 0.35)' },
-  idle: { color: '#94a3b8', bg: 'rgba(148, 163, 184, 0.12)', border: 'rgba(148, 163, 184, 0.3)' },
-  maintenance: { color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.14)', border: 'rgba(245, 158, 11, 0.35)' },
-
-  // Booking / Trip statuses
-  scheduled: { color: '#38bdf8', bg: 'rgba(56, 189, 248, 0.14)', border: 'rgba(56, 189, 248, 0.35)' },
-  ongoing: { color: '#06b6d4', bg: 'rgba(6, 182, 212, 0.14)', border: 'rgba(6, 182, 212, 0.35)' },
-  completed: { color: '#10b981', bg: 'rgba(16, 185, 129, 0.14)', border: 'rgba(16, 185, 129, 0.35)' },
-  cancelled: { color: '#ef4444', bg: 'rgba(239, 68, 68, 0.14)', border: 'rgba(239, 68, 68, 0.35)' },
-  upcoming: { color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.14)', border: 'rgba(245, 158, 11, 0.35)' },
-
-  // Driver duty & attendance
-  present: { color: '#22c55e', bg: 'rgba(34, 197, 94, 0.14)', border: 'rgba(34, 197, 94, 0.35)' },
-  late: { color: '#eab308', bg: 'rgba(234, 179, 8, 0.14)', border: 'rgba(234, 179, 8, 0.35)' },
-  absent: { color: '#ef4444', bg: 'rgba(239, 68, 68, 0.14)', border: 'rgba(239, 68, 68, 0.35)' },
-  'on leave': { color: '#94a3b8', bg: 'rgba(148, 163, 184, 0.12)', border: 'rgba(148, 163, 184, 0.3)' },
-  'on duty': { color: '#22c55e', bg: 'rgba(34, 197, 94, 0.14)', border: 'rgba(34, 197, 94, 0.35)' },
-  'off duty': { color: '#94a3b8', bg: 'rgba(148, 163, 184, 0.12)', border: 'rgba(148, 163, 184, 0.3)' },
-
-  // Payment / Billing
-  paid: { color: '#10b981', bg: 'rgba(16, 185, 129, 0.14)', border: 'rgba(16, 185, 129, 0.35)' },
-  sent: { color: '#38bdf8', bg: 'rgba(56, 189, 248, 0.14)', border: 'rgba(56, 189, 248, 0.35)' },
-  draft: { color: '#94a3b8', bg: 'rgba(148, 163, 184, 0.12)', border: 'rgba(148, 163, 184, 0.3)' },
-  overdue: { color: '#ef4444', bg: 'rgba(239, 68, 68, 0.14)', border: 'rgba(239, 68, 68, 0.35)' },
-  partial: { color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.14)', border: 'rgba(245, 158, 11, 0.35)' },
-  unpaid: { color: '#ef4444', bg: 'rgba(239, 68, 68, 0.14)', border: 'rgba(239, 68, 68, 0.35)' },
-  approved: { color: '#10b981', bg: 'rgba(16, 185, 129, 0.14)', border: 'rgba(16, 185, 129, 0.35)' },
-  pending: { color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.14)', border: 'rgba(245, 158, 11, 0.35)' },
-  rejected: { color: '#ef4444', bg: 'rgba(239, 68, 68, 0.14)', border: 'rgba(239, 68, 68, 0.35)' }
-};
-
-export const StatusDropdown: React.FC<StatusDropdownProps> = ({
+export const CustomStatusDropdown = <T extends string = string>({
   value,
   options,
   onChange,
   disabled = false,
-  size = 'md',
-  title = 'Click to change status'
-}) => {
+  size = 'sm',
+  title
+}: CustomStatusDropdownProps<T>) => {
   const [isOpen, setIsOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
@@ -72,54 +38,25 @@ export const StatusDropdown: React.FC<StatusDropdownProps> = ({
     openUp: false
   });
 
-  const normalizedOptions: StatusOption[] = options.map(opt => {
-    if (typeof opt === 'string') {
-      const fallback = DEFAULT_STATUS_STYLES[opt.toLowerCase().trim()] || {
-        color: 'var(--text)',
-        bg: 'var(--surface-3)',
-        border: 'var(--border)'
-      };
-      return {
-        value: opt,
-        label: opt,
-        color: fallback.color,
-        bg: fallback.bg,
-        borderColor: fallback.border
-      };
-    }
-    const fallback = DEFAULT_STATUS_STYLES[opt.value.toLowerCase().trim()] || {
-      color: 'var(--text)',
-      bg: 'var(--surface-3)',
-      border: 'var(--border)'
-    };
-    return {
-      ...opt,
-      color: opt.color || fallback.color,
-      bg: opt.bg || fallback.bg,
-      borderColor: opt.borderColor || fallback.border
-    };
-  });
-
-  const activeOption = normalizedOptions.find(o => o.value === value) ||
-    normalizedOptions.find(o => o.value.toLowerCase() === (value || '').toLowerCase()) || {
-      value,
-      label: value,
-      color: 'var(--text)',
-      bg: 'var(--surface-3)',
-      borderColor: 'var(--border)'
-    };
+  const activeOption = options.find(o => o.value === value) || options[0] || {
+    value,
+    label: value,
+    color: 'var(--text)',
+    bg: 'var(--surface-2)',
+    borderColor: 'var(--border)'
+  };
 
   const updatePosition = () => {
     if (!triggerRef.current) return;
     const rect = triggerRef.current.getBoundingClientRect();
-    const dropdownHeight = normalizedOptions.length * 40 + 18;
+    const dropdownHeight = options.length * 38 + 16;
     const spaceBelow = window.innerHeight - rect.bottom;
     const openUp = spaceBelow < dropdownHeight && rect.top > dropdownHeight;
 
     setCoords({
-      top: openUp ? rect.top - dropdownHeight - 6 : rect.bottom + 6,
-      left: Math.max(8, Math.min(window.innerWidth - 175, rect.left)),
-      width: Math.max(160, rect.width),
+      top: openUp ? rect.top - dropdownHeight - 4 : rect.bottom + 4,
+      left: Math.max(8, Math.min(window.innerWidth - 170, rect.left)),
+      width: Math.max(150, rect.width),
       openUp
     });
   };
@@ -135,6 +72,7 @@ export const StatusDropdown: React.FC<StatusDropdownProps> = ({
     }
   };
 
+  // Close on click outside, scroll, resize, or escape
   useEffect(() => {
     if (!isOpen) return;
 
@@ -173,7 +111,7 @@ export const StatusDropdown: React.FC<StatusDropdownProps> = ({
     };
   }, [isOpen]);
 
-  const handleSelect = (option: StatusOption, e: React.MouseEvent) => {
+  const handleSelect = (option: StatusOption<T>, e: React.MouseEvent) => {
     e.stopPropagation();
     setIsOpen(false);
     if (option.value !== value) {
@@ -181,34 +119,31 @@ export const StatusDropdown: React.FC<StatusDropdownProps> = ({
     }
   };
 
-  const isSmall = size === 'sm';
-
   return (
-    <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', verticalAlign: 'middle' }}>
+    <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
       <button
         ref={triggerRef}
         type="button"
         disabled={disabled}
         onClick={handleToggle}
-        title={title}
+        title={title || `Current status: ${activeOption.label}. Click to change.`}
         style={{
           display: 'inline-flex',
           alignItems: 'center',
           gap: '6px',
-          background: activeOption.bg,
-          color: activeOption.color,
-          border: `1px solid ${activeOption.borderColor}`,
-          borderRadius: '9999px',
-          padding: isSmall ? '3px 10px 3px 9px' : '4px 12px 4px 10px',
-          fontSize: isSmall ? '11px' : '11.5px',
+          background: activeOption.bg || 'var(--surface-2)',
+          color: activeOption.color || 'var(--text)',
+          border: `1px solid ${activeOption.borderColor || 'var(--border)'}`,
+          padding: size === 'sm' ? '4px 10px' : '6px 14px',
+          borderRadius: '20px',
+          fontSize: size === 'sm' ? '11.5px' : '12.5px',
           fontWeight: 600,
           cursor: disabled ? 'not-allowed' : 'pointer',
           outline: 'none',
-          lineHeight: 1.3,
-          letterSpacing: '0.2px',
-          transition: 'all 0.15s ease',
-          boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)',
+          lineHeight: 1.4,
           fontFamily: "'Poppins', sans-serif",
+          boxShadow: '0 1px 2px rgba(0, 0, 0, 0.04)',
+          transition: 'all 0.15s ease',
           opacity: disabled ? 0.6 : 1
         }}
         onMouseEnter={e => {
@@ -229,12 +164,12 @@ export const StatusDropdown: React.FC<StatusDropdownProps> = ({
         />
         <span>{activeOption.label}</span>
         <ChevronDown
-          size={isSmall ? 11 : 12}
+          size={12}
           style={{
             transform: isOpen ? 'rotate(180deg)' : 'none',
             transition: 'transform 0.2s ease',
-            opacity: 0.85,
-            color: activeOption.color || 'currentColor'
+            opacity: 0.8,
+            color: activeOption.color || 'var(--text-faint)'
           }}
         />
       </button>
@@ -251,8 +186,8 @@ export const StatusDropdown: React.FC<StatusDropdownProps> = ({
               width: `${Math.max(160, coords.width)}px`
             }}
           >
-            {normalizedOptions.map(option => {
-              const isSelected = option.value === value || option.value.toLowerCase() === (value || '').toLowerCase();
+            {options.map(option => {
+              const isSelected = option.value === value;
               return (
                 <div
                   key={option.value}

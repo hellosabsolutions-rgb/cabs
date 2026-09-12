@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useFleet } from '../../../context/FleetContext';
 import { StatCard } from '../../common/StatCard';
 import { StatusChip } from '../../common/StatusChip';
@@ -25,6 +25,13 @@ export const MaintenanceView: React.FC = () => {
 
   const [summaryVehicle, setSummaryVehicle] = useState<string>(vehicles[0]?.registrationNumber || '');
 
+  useEffect(() => {
+    if (!mVehicle && vehicles.length > 0) {
+      setMVehicle(vehicles[0].registrationNumber);
+      setSummaryVehicle(vehicles[0].registrationNumber);
+    }
+  }, [vehicles, mVehicle]);
+
   const filteredRecords = maintenanceRecords.filter(r =>
     r.vehicle.toLowerCase().includes(searchQuery.toLowerCase()) ||
     r.type.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -40,10 +47,20 @@ export const MaintenanceView: React.FC = () => {
     paginatedItems: paginatedRecords
   } = usePagination(filteredRecords, 10);
 
-  // Quick stats calculation for current month (2026-08)
+  // Quick stats calculation for current month (dynamic)
   const currentMonthStats = useMemo(() => {
-    const CURRENT_MONTH = '2026-08';
-    const thisMonthRecords = maintenanceRecords.filter(r => r.date.startsWith(CURRENT_MONTH));
+    const now = new Date();
+    const currentYearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const currentMonthShort = now.toLocaleDateString('en-GB', { month: 'short' }).toLowerCase();
+
+    const thisMonthRecords = maintenanceRecords.filter(r => {
+      if (!r.date) return false;
+      if (r.date.startsWith(currentYearMonth)) return true;
+      if (r.dateLabel && r.dateLabel.toLowerCase().includes(currentMonthShort)) return true;
+      if (r.date.toLowerCase().includes(currentMonthShort)) return true;
+      return false;
+    });
+
     const sums: Record<MaintenanceType, number> = { Service: 0, Repair: 0, 'Tyre Change': 0 };
 
     thisMonthRecords.forEach(r => {
