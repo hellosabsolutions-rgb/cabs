@@ -16,6 +16,96 @@ function nextDriverCode() {
   return `DRV-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
 }
 
+function serializeDoc(doc) {
+  if (!doc) return null;
+  const json = typeof doc.toJSON === 'function' ? doc.toJSON() : { ...(doc.toObject?.() || doc) };
+  json.id = json.id || json._id?.toString();
+  return json;
+}
+
+function hoursBetween(startStr, endStr) {
+  if (!startStr || !endStr || startStr === '—' || endStr === '—') return 0;
+  try {
+    const parseTime = (tStr) => {
+      const [time, modifier] = tStr.split(' ');
+      let [hours, minutes] = time.split(':').map(Number);
+      if (modifier === 'PM' && hours < 12) hours += 12;
+      if (modifier === 'AM' && hours === 12) hours = 0;
+      return hours + minutes / 60;
+    };
+    const startH = parseTime(startStr);
+    const endH = parseTime(endStr);
+    const diff = endH >= startH ? endH - startH : (24 - startH) + endH;
+    return Number(diff.toFixed(1));
+  } catch {
+    return 0;
+  }
+}
+
+function istTodayDate(now = new Date()) {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(now);
+}
+
+function monthNameIst(now = new Date()) {
+  const monthNames = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
+  const monthIndex = Number(
+    new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Kolkata', month: 'numeric' }).format(now)
+  ) - 1;
+  return monthNames[monthIndex] || monthNames[now.getMonth()];
+}
+
+async function upsertOpenDutyLog({ driver, vehicle, odoNumber, istTime, todayDate, photoUrl, locationAddress }) {
+  const vehicleReg = vehicle?.registrationNumber || driver.assignedVehicle || 'Fleet';
+  const existing = await DailyDutyLog.findOne({
+    driverName: driver.name || 'Driver',
+    vehicle: vehicleReg,
+    date: todayDate,
+    dutyType: 'Official Department Duty',
+    status: 'Pending'
+  }).sort({ createdAt: -1 });
+
+  if (existing) {
+    existing.startKm = odoNumber;
+    existing.endKm = odoNumber;
+    existing.totalKm = 0;
+    existing.startTime = istTime;
+    existing.endTime = '—';
+    existing.totalHours = 0;
+    if (photoUrl) existing.dutySlipPhoto = photoUrl;
+    if (locationAddress) existing.journeyFrom = locationAddress;
+    await existing.save();
+    return { log: existing, created: false };
+  }
+
+  const log = await DailyDutyLog.create({
+    dutySlipNumber: `SLIP-${Date.now().toString().slice(-6)}`,
+    logBookPageNo: String(Math.floor(100 + Math.random() * 900)),
+    month: monthNameIst(),
+    date: todayDate,
+    departmentName: vehicle?.departmentName || 'General Operations',
+    vehicle: vehicleReg,
+    driverName: driver.name || 'Driver',
+    dutyType: 'Official Department Duty',
+    startKm: odoNumber,
+    endKm: odoNumber,
+    totalKm: 0,
+    startTime: istTime,
+    endTime: '—',
+    totalHours: 0,
+    dutySlipPhoto: photoUrl || null,
+    journeyFrom: locationAddress || '',
+    notes: 'On duty',
+    status: 'Pending',
+    officerSignatureStatus: 'Pending',
+    driverSignatureStatus: 'Pending'
+  });
+
+  return { log, created: true };
+}
+
 /**
  * @desc    Driver password login (mobile, email, or driver code)
  * @route   POST /api/auth/driver/login
@@ -141,18 +231,6 @@ export const startDriverDuty = asyncHandler(async (req, res) => {
     });
   }
 
-  // Update driver status
-  await Driver.findByIdAndUpdate(driver._id, {
-    status: 'On duty',
-    assignedVehicle: vehicle.registrationNumber
-  });
-
-  // Update vehicle status
-  await Vehicle.findByIdAndUpdate(vehicle._id, {
-    status: 'Running',
-    odometer: Math.max(vehicle.odometer || 0, odoNumber)
-  });
-
   const now = new Date();
   const istFormatter = new Intl.DateTimeFormat('en-IN', {
     timeZone: 'Asia/Kolkata',
@@ -171,11 +249,81 @@ export const startDriverDuty = asyncHandler(async (req, res) => {
     minute: '2-digit',
     hour12: true
   }).format(now);
-  const todayDate = now.toISOString().slice(0, 10);
+  const todayDate = istTodayDate(now);
 
-  // Auto-record / update attendance for today as Present
+  // Parse and normalize location payload
+  let locationData = null;
+  let locationAddress = null;
+  let latitude = null;
+  let longitude = null;
+
+  if (location) {
+    if (typeof location === 'string') {
+      locationAddress = location.trim();
+      locationData = { address: locationAddress, latitude: null, longitude: null };
+    } else if (typeof location === 'object') {
+      latitude = Number(location.latitude) || null;
+      longitude = Number(location.longitude) || null;
+      locationAddress = location.address?.trim() || (latitude && longitude ? `${latitude.toFixed(5)}, ${longitude.toFixed(5)}` : null);
+      locationData = {
+        latitude,
+        longitude,
+        address: locationAddress,
+        accuracy: location.accuracy || null,
+        timestamp: location.timestamp || now.getTime()
+      };
+    }
+  }
+
+  // Update driver status and live duty location
+  const driverUpdateFields = {
+    status: 'On duty',
+    assignedVehicle: vehicle.registrationNumber
+  };
+  if (locationAddress || latitude || longitude) {
+    driverUpdateFields.dutyStartLocation = {
+      latitude,
+      longitude,
+      address: locationAddress,
+      time: istFormatted
+    };
+    driverUpdateFields.currentLocation = {
+      latitude,
+      longitude,
+      address: locationAddress,
+      updatedAt: now
+    };
+  }
+  await Driver.findByIdAndUpdate(driver._id, driverUpdateFields);
+
+  // Update vehicle status and location
+  const vehicleUpdateFields = {
+    status: 'Running',
+    odometer: Math.max(vehicle.odometer || 0, odoNumber)
+  };
+  if (locationAddress) {
+    vehicleUpdateFields.currentLocation = locationAddress;
+  }
+  await Vehicle.findByIdAndUpdate(vehicle._id, vehicleUpdateFields);
+
+  // Auto-record / update attendance for today as Present with check-in location
+  let attendanceDoc = null;
   try {
-    await DriverAttendance.findOneAndUpdate(
+    const attendanceSetFields = {
+      status: 'Present',
+      checkIn: istTime,
+      checkOut: '—',
+      workingHours: 0,
+      assignedVehicle: vehicle.registrationNumber
+    };
+    if (locationAddress) {
+      attendanceSetFields.location = locationAddress;
+    }
+    if (latitude && longitude) {
+      attendanceSetFields.coordinates = { latitude, longitude };
+    }
+
+    attendanceDoc = await DriverAttendance.findOneAndUpdate(
       { driverId: driver._id.toString(), date: todayDate },
       {
         $setOnInsert: {
@@ -184,11 +332,7 @@ export const startDriverDuty = asyncHandler(async (req, res) => {
           date: todayDate,
           dutyType: 'Department Duty'
         },
-        $set: {
-          status: 'Present',
-          checkIn: istTime,
-          assignedVehicle: vehicle.registrationNumber
-        }
+        $set: attendanceSetFields
       },
       { upsert: true, new: true }
     );
@@ -196,12 +340,57 @@ export const startDriverDuty = asyncHandler(async (req, res) => {
     console.warn('Could not auto-log attendance on start duty:', attErr.message);
   }
 
+  let dutyLogDoc = null;
+  let dutyLogCreated = false;
+  try {
+    const result = await upsertOpenDutyLog({
+      driver,
+      vehicle,
+      odoNumber,
+      istTime,
+      todayDate,
+      photoUrl,
+      locationAddress
+    });
+    dutyLogDoc = result.log;
+    dutyLogCreated = result.created;
+  } catch (logErr) {
+    console.warn('Could not auto-create DailyDutyLog on start duty:', logErr.message);
+  }
+
+  const attendancePayload = serializeDoc(attendanceDoc);
+  const dutyLogPayload = serializeDoc(dutyLogDoc);
+
   // Socket emissions for real-time dashboard and mobile sync
   try {
-    emitToDriver(driver._id, 'driver:status', { onDuty: true, status: 'On duty', vehicle: vehicle.registrationNumber });
-    emitToDriver(driver._id, 'driver:updated', { id: driver._id.toString(), status: 'On duty' });
-    broadcastAll('driver:any_change', { driverId: driver._id.toString(), status: 'On duty' });
-    broadcastAll('vehicle:updated', { vehicleId: vehicle._id.toString(), status: 'Running', odometer: odoNumber });
+    const dutyPayload = {
+      driverId: driver._id.toString(),
+      driverName: driver.name,
+      vehicle: vehicle.registrationNumber,
+      status: 'On duty',
+      startedAt: istFormatted,
+      startOdometer: odoNumber,
+      location: locationData,
+      action: 'check-in',
+      log: dutyLogPayload,
+      attendance: attendancePayload
+    };
+
+    emitToDriver(driver._id, 'driver:status', { onDuty: true, status: 'On duty', vehicle: vehicle.registrationNumber, location: locationData });
+    emitToDriver(driver._id, 'driver:updated', { id: driver._id.toString(), status: 'On duty', location: locationData, dutyStartLocation: driverUpdateFields.dutyStartLocation });
+    emitToDriver(driver._id, 'duty:updated', { action: 'check-in', log: dutyLogPayload, attendance: attendancePayload });
+    broadcastAll('driver:duty_started', dutyPayload);
+    broadcastAll('driver:any_change', { driverId: driver._id.toString(), status: 'On duty', location: locationData, action: 'check-in' });
+    broadcastAll('vehicle:updated', { vehicleId: vehicle._id.toString(), status: 'Running', odometer: odoNumber, location: locationAddress });
+    if (attendancePayload) {
+      broadcastAll('attendance:updated', { action: 'check-in', record: attendancePayload });
+    }
+    if (dutyLogPayload) {
+      broadcastAll(dutyLogCreated ? 'duty-log:created' : 'duty-log:updated', {
+        action: 'check-in',
+        log: dutyLogPayload
+      });
+    }
   } catch (sockErr) {
     console.warn('Socket emission warning on startDuty:', sockErr.message);
   }
@@ -211,6 +400,7 @@ export const startDriverDuty = asyncHandler(async (req, res) => {
     message: 'Duty started successfully.',
     startedAt: istFormatted,
     timestamp: now.getTime(),
+    location: locationData,
     vehicle: {
       id: vehicle._id.toString(),
       reg: vehicle.registrationNumber,
@@ -284,9 +474,10 @@ export const endDriverDuty = asyncHandler(async (req, res) => {
     minute: '2-digit',
     hour12: true
   }).format(now);
-  const todayDate = now.toISOString().slice(0, 10);
+  const todayDate = istTodayDate(now);
 
   // Update attendance checkout time & working hours if record exists
+  let attendanceDoc = null;
   try {
     const attRecord = await DriverAttendance.findOne({
       driverId: driver._id.toString(),
@@ -295,69 +486,104 @@ export const endDriverDuty = asyncHandler(async (req, res) => {
     if (attRecord) {
       attRecord.checkOut = istTime;
       if (attRecord.checkIn) {
-        try {
-          const parseTime = (tStr) => {
-            const [time, modifier] = tStr.split(' ');
-            let [hours, minutes] = time.split(':').map(Number);
-            if (modifier === 'PM' && hours < 12) hours += 12;
-            if (modifier === 'AM' && hours === 12) hours = 0;
-            return hours + minutes / 60;
-          };
-          const startH = parseTime(attRecord.checkIn);
-          const endH = parseTime(istTime);
-          const diff = endH >= startH ? endH - startH : (24 - startH) + endH;
-          attRecord.workingHours = Number(diff.toFixed(1));
-        } catch {
-          // Ignore parsing issues
-        }
+        attRecord.workingHours = hoursBetween(attRecord.checkIn, istTime);
       }
       if (remarks) {
         attRecord.notes = attRecord.notes ? `${attRecord.notes}; ${remarks}` : remarks;
       }
       await attRecord.save();
+      attendanceDoc = attRecord;
     }
   } catch (attErr) {
     console.warn('Could not auto-update attendance on end duty:', attErr.message);
   }
 
-  // Create DailyDutyLog entry for official duty bookkeeping
+  // Complete today's open duty slip, or create a finished one if check-in was missed
+  let dutyLogDoc = null;
+  let dutyLogCreated = false;
   try {
+    const vehicleReg = vehicle ? vehicle.registrationNumber : (driver.assignedVehicle || 'Fleet');
     const startKm = currentVehicleOdo || odoNumber;
-    const dutySlipNumber = `SLIP-${Date.now().toString().slice(-6)}`;
-    const monthNames = [
-      'January', 'February', 'March', 'April', 'May', 'June',
-      'July', 'August', 'September', 'October', 'November', 'December'
-    ];
-    const currentMonth = monthNames[now.getMonth()];
+    const totalKm = Math.max(0, odoNumber - startKm);
 
-    await DailyDutyLog.create({
-      dutySlipNumber,
-      logBookPageNo: String(Math.floor(100 + Math.random() * 900)),
-      month: currentMonth,
-      date: todayDate,
-      departmentName: vehicle?.departmentName || 'General Operations',
-      vehicle: vehicle ? vehicle.registrationNumber : (driver.assignedVehicle || 'Fleet'),
+    const openLog = await DailyDutyLog.findOne({
       driverName: driver.name || 'Driver',
+      vehicle: vehicleReg,
+      date: todayDate,
       dutyType: 'Official Department Duty',
-      startKm,
-      endKm: odoNumber,
-      totalKm: Math.max(0, odoNumber - startKm),
-      endTime: istTime,
-      dutySlipPhoto: photoUrl || null,
-      notes: remarks || '',
-      status: 'Approved'
-    });
+      status: 'Pending'
+    }).sort({ createdAt: -1 });
+
+    if (openLog) {
+      const resolvedStartKm = openLog.startKm || startKm;
+      openLog.endKm = odoNumber;
+      openLog.totalKm = Math.max(0, odoNumber - resolvedStartKm);
+      openLog.endTime = istTime;
+      openLog.totalHours = hoursBetween(openLog.startTime, istTime) || 10;
+      openLog.dutySlipPhoto = photoUrl || openLog.dutySlipPhoto || null;
+      openLog.notes = remarks || (openLog.notes === 'On duty' ? '' : (openLog.notes || ''));
+      openLog.status = 'Approved';
+      openLog.officerSignatureStatus = openLog.officerSignatureStatus === 'Pending' ? 'Pending' : openLog.officerSignatureStatus;
+      openLog.driverSignatureStatus = 'Signed';
+      await openLog.save();
+      dutyLogDoc = openLog;
+    } else {
+      dutyLogDoc = await DailyDutyLog.create({
+        dutySlipNumber: `SLIP-${Date.now().toString().slice(-6)}`,
+        logBookPageNo: String(Math.floor(100 + Math.random() * 900)),
+        month: monthNameIst(now),
+        date: todayDate,
+        departmentName: vehicle?.departmentName || 'General Operations',
+        vehicle: vehicleReg,
+        driverName: driver.name || 'Driver',
+        dutyType: 'Official Department Duty',
+        startKm,
+        endKm: odoNumber,
+        totalKm,
+        startTime: attendanceDoc?.checkIn || '09:00 AM',
+        endTime: istTime,
+        totalHours: hoursBetween(attendanceDoc?.checkIn, istTime) || 10,
+        dutySlipPhoto: photoUrl || null,
+        notes: remarks || '',
+        status: 'Approved'
+      });
+      dutyLogCreated = true;
+    }
   } catch (logErr) {
     console.warn('Could not auto-create DailyDutyLog on end duty:', logErr.message);
   }
+
+  const attendancePayload = serializeDoc(attendanceDoc);
+  const dutyLogPayload = serializeDoc(dutyLogDoc);
 
   // Real-time socket broadcast
   try {
     emitToDriver(driver._id, 'driver:status', { onDuty: false, status: 'Off duty' });
     emitToDriver(driver._id, 'driver:updated', { id: driver._id.toString(), status: 'Off duty' });
-    broadcastAll('driver:any_change', { driverId: driver._id.toString(), status: 'Off duty' });
+    emitToDriver(driver._id, 'duty:updated', { action: 'check-out', log: dutyLogPayload, attendance: attendancePayload });
+    broadcastAll('driver:duty_ended', {
+      driverId: driver._id.toString(),
+      driverName: driver.name,
+      status: 'Off duty',
+      endedAt: istFormatted,
+      endOdometer: odoNumber,
+      kmRun,
+      action: 'check-out',
+      log: dutyLogPayload,
+      attendance: attendancePayload
+    });
+    broadcastAll('driver:any_change', { driverId: driver._id.toString(), status: 'Off duty', action: 'check-out' });
     if (vehicle) {
       broadcastAll('vehicle:updated', { vehicleId: vehicle._id.toString(), status: 'Active', odometer: odoNumber });
+    }
+    if (attendancePayload) {
+      broadcastAll('attendance:updated', { action: 'check-out', record: attendancePayload });
+    }
+    if (dutyLogPayload) {
+      broadcastAll(dutyLogCreated ? 'duty-log:created' : 'duty-log:updated', {
+        action: 'check-out',
+        log: dutyLogPayload
+      });
     }
   } catch (sockErr) {
     console.warn('Socket emission warning on endDuty:', sockErr.message);

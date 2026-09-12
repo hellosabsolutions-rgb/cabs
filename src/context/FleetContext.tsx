@@ -583,12 +583,119 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       fetchLiveDrivers();
     };
 
+    const upsertDutyLog = (incoming: any) => {
+      const log = incoming?.log || incoming;
+      if (!log) return;
+      const id = log.id || log._id;
+      if (!id) return;
+      const normalized: DailyDutyLog = { ...log, id };
+      setDailyDutyLogs(prev => {
+        const idx = prev.findIndex(item => item.id === id || (item as any)._id === id);
+        if (idx === -1) return [normalized, ...prev];
+        const next = [...prev];
+        next[idx] = { ...next[idx], ...normalized, id: next[idx].id };
+        return next;
+      });
+    };
+
+    const handleDutyLogCreated = (data: any) => {
+      upsertDutyLog(data);
+      const log = data?.log || data;
+      const action = data?.action;
+      if (action === 'check-in') {
+        showToast('info', `${log?.driverName || 'Driver'} checked in${log?.vehicle ? ` on ${log.vehicle}` : ''}.`, 'Duty Started');
+      } else if (action === 'check-out') {
+        showToast('success', `Duty slip #${log?.dutySlipNumber || ''} completed for ${log?.driverName || 'driver'}.`, 'Duty Ended');
+      }
+    };
+
+    const handleDutyLogUpdated = (data: any) => {
+      upsertDutyLog(data);
+      const log = data?.log || data;
+      const action = data?.action;
+      if (action === 'check-in') {
+        showToast('info', `${log?.driverName || 'Driver'} checked in${log?.vehicle ? ` on ${log.vehicle}` : ''}.`, 'Duty Started');
+      } else if (action === 'check-out') {
+        showToast('success', `Duty slip #${log?.dutySlipNumber || ''} updated — ${log?.driverName || 'driver'} checked out.`, 'Duty Ended');
+      }
+    };
+
+    const handleDutyLogDeleted = (data: any) => {
+      const id = data?.id || data?._id;
+      if (!id) return;
+      setDailyDutyLogs(prev => prev.filter(item => item.id !== id && (item as any)._id !== id));
+    };
+
+    const upsertAttendance = (incoming: any) => {
+      const record = incoming?.record || incoming;
+      if (!record) return;
+      const id = record.id || record._id;
+      const normalized: DriverAttendance = { ...record, id: id || record.id };
+      setAttendanceRecords(prev => {
+        const idx = prev.findIndex(item =>
+          (id && (item.id === id || (item as any)._id === id)) ||
+          (item.driverId && record.driverId && item.driverId === record.driverId && item.date === record.date)
+        );
+        if (idx === -1) return [normalized, ...prev];
+        const next = [...prev];
+        next[idx] = { ...next[idx], ...normalized, id: next[idx].id || id };
+        return next;
+      });
+    };
+
+    const handleAttendanceUpdated = (data: any) => {
+      upsertAttendance(data);
+    };
+
+    const handleAttendanceBulkUpdated = (data: any) => {
+      const records = data?.records;
+      if (!Array.isArray(records) || records.length === 0) return;
+      setAttendanceRecords(prev => {
+        const next = [...prev];
+        records.forEach((record: any) => {
+          const id = record.id || record._id;
+          const idx = next.findIndex(item =>
+            (id && (item.id === id || (item as any)._id === id)) ||
+            (item.driverId && record.driverId && item.driverId === record.driverId && item.date === record.date)
+          );
+          const normalized: DriverAttendance = { ...record, id: id || record.id };
+          if (idx === -1) next.unshift(normalized);
+          else next[idx] = { ...next[idx], ...normalized, id: next[idx].id || id };
+        });
+        return next;
+      });
+    };
+
+    const handleAttendanceDeleted = (data: any) => {
+      const id = data?.id || data?._id;
+      if (!id) return;
+      setAttendanceRecords(prev => prev.filter(item => item.id !== id && (item as any)._id !== id));
+    };
+
+    const handleDutyStarted = (data: any) => {
+      if (data?.log) upsertDutyLog(data);
+      if (data?.attendance) upsertAttendance({ record: data.attendance });
+    };
+
+    const handleDutyEnded = (data: any) => {
+      if (data?.log) upsertDutyLog(data);
+      if (data?.attendance) upsertAttendance({ record: data.attendance });
+    };
+
     socket.on('booking:created', handleBookingCreated);
     socket.on('booking:updated', handleBookingUpdated);
     socket.on('booking:completed', handleBookingCompleted);
     socket.on('booking:assigned', handleBookingAssigned);
     socket.on('booking:unassigned', handleBookingUnassigned);
     socket.on('driver:any_change', handleDriverAnyChange);
+    socket.on('duty-log:created', handleDutyLogCreated);
+    socket.on('duty-log:updated', handleDutyLogUpdated);
+    socket.on('duty-log:deleted', handleDutyLogDeleted);
+    socket.on('attendance:updated', handleAttendanceUpdated);
+    socket.on('attendance:bulk-updated', handleAttendanceBulkUpdated);
+    socket.on('attendance:deleted', handleAttendanceDeleted);
+    socket.on('driver:duty_started', handleDutyStarted);
+    socket.on('driver:duty_ended', handleDutyEnded);
 
     return () => {
       socket.off('booking:created', handleBookingCreated);
@@ -597,6 +704,14 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       socket.off('booking:assigned', handleBookingAssigned);
       socket.off('booking:unassigned', handleBookingUnassigned);
       socket.off('driver:any_change', handleDriverAnyChange);
+      socket.off('duty-log:created', handleDutyLogCreated);
+      socket.off('duty-log:updated', handleDutyLogUpdated);
+      socket.off('duty-log:deleted', handleDutyLogDeleted);
+      socket.off('attendance:updated', handleAttendanceUpdated);
+      socket.off('attendance:bulk-updated', handleAttendanceBulkUpdated);
+      socket.off('attendance:deleted', handleAttendanceDeleted);
+      socket.off('driver:duty_started', handleDutyStarted);
+      socket.off('driver:duty_ended', handleDutyEnded);
     };
   }, []);
 

@@ -19,6 +19,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import type { RootStackParamList } from '../navigation/types';
 import { ScreenHeader } from '../components/ScreenHeader';
+import { GlassButton, GlassCircleButton, GlassPill, GlassSurface, supportsLiquidGlass, usesIosGlass } from '../components/GlassChrome';
 import { useAppTheme } from '../theme/ThemeProvider';
 import { useSession } from '../state/session';
 import { API_BASE_URL } from '../constants/config';
@@ -368,9 +369,9 @@ export function BookingsScreen({ navigation }: Props) {
   }, []);
 
   const isDark = scheme === 'dark';
-  const cardBg = isDark ? '#1C2129' : '#FFFFFF';
-  const cardBorder = isDark ? '#2B323D' : '#EDF2F7';
   const subBorder = isDark ? 'rgba(255, 255, 255, 0.08)' : '#F1F5F9';
+  const filledChip = !usesIosGlass || !supportsLiquidGlass;
+  const chipColor = (active: boolean) => (active && filledChip ? '#FFFFFF' : colors.text);
 
   return (
     <View style={[styles.screenWrap, { backgroundColor: colors.bg }]}>
@@ -381,11 +382,11 @@ export function BookingsScreen({ navigation }: Props) {
         title={t('tab.bookings') || 'Bookings'}
         subtitle="Scheduled & assigned trips"
         rightAction={
-          <View style={[styles.tripCountBadge, { backgroundColor: isDark ? 'rgba(59, 130, 246, 0.2)' : '#EFF6FF' }]}>
-            <Text style={[styles.tripCountBadgeText, { color: '#2563EB' }]}>
+          <GlassPill>
+            <Text style={[styles.tripCountBadgeText, { color: colors.accent }]}>
               {filteredBookings.length} {filteredBookings.length === 1 ? 'Trip' : 'Trips'}
             </Text>
-          </View>
+          </GlassPill>
         }
       >
 
@@ -396,111 +397,33 @@ export function BookingsScreen({ navigation }: Props) {
           style={styles.filterScrollView}
           contentContainerStyle={styles.filterPillsRow}
         >
-          <Pressable
-            onPress={() => setFilter('all')}
-            style={[
-              styles.filterPill,
-              {
-                backgroundColor: filter === 'all' ? colors.accent : isDark ? '#232933' : '#F1F5F9',
-                borderColor: filter === 'all' ? colors.accent : cardBorder,
-              },
-            ]}
-          >
-            <Text
-              style={[
-                styles.filterPillText,
-                { color: filter === 'all' ? '#FFFFFF' : colors.text },
-              ]}
-            >
-              All Trips{bookings.length > 0 ? ` (${bookings.length})` : ''}
-            </Text>
-          </Pressable>
+          {([
+            { id: 'all' as const, label: `All Trips${bookings.length > 0 ? ` (${bookings.length})` : ''}` },
+            { id: 'today-tomorrow' as const, label: 'Today & Tomorrow' },
+            { id: 'week' as const, label: 'This Week' },
+            { id: 'month' as const, label: 'This Month' },
+          ]).map((tab) => {
+            const active = filter === tab.id;
+            return (
+              <GlassPill key={tab.id} selected={active} onPress={() => setFilter(tab.id)}>
+                <Text style={[styles.filterPillText, { color: chipColor(active) }]}>
+                  {tab.label}
+                </Text>
+              </GlassPill>
+            );
+          })}
 
-          <Pressable
-            onPress={() => setFilter('today-tomorrow')}
-            style={[
-              styles.filterPill,
-              {
-                backgroundColor: filter === 'today-tomorrow' ? colors.accent : isDark ? '#232933' : '#F1F5F9',
-                borderColor: filter === 'today-tomorrow' ? colors.accent : cardBorder,
-              },
-            ]}
-          >
-            <Text
-              style={[
-                styles.filterPillText,
-                { color: filter === 'today-tomorrow' ? '#FFFFFF' : colors.text },
-              ]}
-            >
-              Today & Tomorrow
-            </Text>
-          </Pressable>
-
-          <Pressable
-            onPress={() => setFilter('week')}
-            style={[
-              styles.filterPill,
-              {
-                backgroundColor: filter === 'week' ? colors.accent : isDark ? '#232933' : '#F1F5F9',
-                borderColor: filter === 'week' ? colors.accent : cardBorder,
-              },
-            ]}
-          >
-            <Text
-              style={[
-                styles.filterPillText,
-                { color: filter === 'week' ? '#FFFFFF' : colors.text },
-              ]}
-            >
-              This Week
-            </Text>
-          </Pressable>
-
-          <Pressable
-            onPress={() => setFilter('month')}
-            style={[
-              styles.filterPill,
-              {
-                backgroundColor: filter === 'month' ? colors.accent : isDark ? '#232933' : '#F1F5F9',
-                borderColor: filter === 'month' ? colors.accent : cardBorder,
-              },
-            ]}
-          >
-            <Text
-              style={[
-                styles.filterPillText,
-                { color: filter === 'month' ? '#FFFFFF' : colors.text },
-              ]}
-            >
-              This Month
-            </Text>
-          </Pressable>
-
-          <Pressable
-            onPress={() => setFilter('custom-date')}
-            style={[
-              styles.filterPill,
-              {
-                backgroundColor: filter === 'custom-date' ? colors.accent : isDark ? '#232933' : '#F1F5F9',
-                borderColor: filter === 'custom-date' ? colors.accent : cardBorder,
-              },
-            ]}
-          >
+          <GlassPill selected={filter === 'custom-date'} onPress={() => setFilter('custom-date')}>
             <Ionicons
               name="calendar-outline"
               size={13}
-              color={filter === 'custom-date' ? '#FFFFFF' : colors.text}
+              color={chipColor(filter === 'custom-date')}
               style={{ marginRight: 5 }}
             />
-            <Text
-              style={[
-                styles.filterPillText,
-                { color: filter === 'custom-date' ? '#FFFFFF' : colors.text },
-              ]}
-            >
+            <Text style={[styles.filterPillText, { color: chipColor(filter === 'custom-date') }]}>
               {filter === 'custom-date' ? formatDisplayDate(selectedDate) : 'Date'}
             </Text>
-          </Pressable>
+          </GlassPill>
         </ScrollView>
 
         {/* CUSTOM DATE HORIZONTAL SELECTOR STRIP */}
@@ -515,33 +438,20 @@ export function BookingsScreen({ navigation }: Props) {
               renderItem={({ item }) => {
                 const isSelected = item.dateStr === selectedDate;
                 return (
-                  <Pressable
+                  <GlassPill
+                    selected={isSelected}
                     onPress={() => setSelectedDate(item.dateStr)}
-                    style={[
-                      styles.dateDayPill,
-                      {
-                        backgroundColor: isSelected ? colors.accent : cardBg,
-                        borderColor: isSelected ? colors.accent : cardBorder,
-                      },
-                    ]}
+                    style={styles.dateDayPill}
                   >
-                    <Text
-                      style={[
-                        styles.dateDayLabel,
-                        { color: isSelected ? '#FFFFFF' : colors.textDim },
-                      ]}
-                    >
-                      {item.label}
-                    </Text>
-                    <Text
-                      style={[
-                        styles.dateDayNum,
-                        { color: isSelected ? '#FFFFFF' : colors.text },
-                      ]}
-                    >
-                      {item.num}
-                    </Text>
-                  </Pressable>
+                    <View style={{ alignItems: 'center' }}>
+                      <Text style={[styles.dateDayLabel, { color: isSelected && filledChip ? '#FFFFFF' : colors.textDim }]}>
+                        {item.label}
+                      </Text>
+                      <Text style={[styles.dateDayNum, { color: chipColor(isSelected) }]}>
+                        {item.num}
+                      </Text>
+                    </View>
+                  </GlassPill>
                 );
               }}
             />
@@ -549,7 +459,7 @@ export function BookingsScreen({ navigation }: Props) {
         )}
 
         {/* FINANCIAL SUMMARY KPI CARD */}
-        <View style={[styles.kpiCard, { backgroundColor: cardBg, borderColor: cardBorder }]}>
+        <GlassSurface style={styles.kpiCard}>
           <View style={styles.kpiItem}>
             <Text style={[styles.kpiLabel, { color: colors.textDim }]}>Total Est. Fare</Text>
             <Text style={[styles.kpiValue, { color: colors.text }]}>
@@ -563,7 +473,7 @@ export function BookingsScreen({ navigation }: Props) {
               ₹{totalPending.toLocaleString('en-IN')}
             </Text>
           </View>
-        </View>
+        </GlassSurface>
       </ScreenHeader>
 
       {/* FULL-SCREEN BOOKINGS LIST */}
@@ -599,19 +509,17 @@ export function BookingsScreen({ navigation }: Props) {
                   : 'No bookings scheduled for the selected period.'}
               </Text>
               {bookings.length > 0 ? (
-                <Pressable
+                <GlassButton
+                  title={`View All Assigned Trips (${bookings.length})`}
                   onPress={() => setFilter('all')}
-                  style={[styles.emptyResetBtn, { backgroundColor: colors.accent }]}
-                >
-                  <Text style={styles.emptyResetBtnText}>View All Assigned Trips ({bookings.length})</Text>
-                </Pressable>
+                  style={styles.emptyResetBtn}
+                />
               ) : (
-                <Pressable
+                <GlassButton
+                  title="Refresh Bookings"
                   onPress={onRefresh}
-                  style={[styles.emptyResetBtn, { backgroundColor: colors.accent }]}
-                >
-                  <Text style={styles.emptyResetBtnText}>Refresh Bookings</Text>
-                </Pressable>
+                  style={styles.emptyResetBtn}
+                />
               )}
             </View>
           )
@@ -619,16 +527,12 @@ export function BookingsScreen({ navigation }: Props) {
         renderItem={({ item }) => (
           <Pressable
             onPress={() => navigation.navigate('BookingDetail', { bookingId: item.id, booking: item })}
-            style={({ pressed }) => [
-              styles.bookingCard,
-              {
-                backgroundColor: cardBg,
-                borderColor: cardBorder,
-                opacity: pressed ? 0.94 : 1,
-                transform: [{ scale: pressed ? 0.992 : 1 }],
-              },
-            ]}
+            style={({ pressed }) => ({
+              opacity: pressed ? 0.94 : 1,
+              transform: [{ scale: pressed ? 0.992 : 1 }],
+            })}
           >
+          <GlassSurface style={styles.bookingCard}>
             {/* Top Row: Ref #, Trip Type & Status */}
             <View style={styles.cardHeaderRow}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
@@ -772,19 +676,16 @@ export function BookingsScreen({ navigation }: Props) {
               </View>
 
               {/* Quick Call Button */}
-              <Pressable
-                onPress={(e) => {
-                  e.stopPropagation();
-                  callPassenger(item.customerPhone, item.customerName);
-                }}
-                style={({ pressed }) => [
-                  styles.callButton,
-                  { backgroundColor: isDark ? '#232933' : '#F1F5F9', opacity: pressed ? 0.7 : 1 },
-                ]}
-              >
-                <Ionicons name="call" size={15} color="#2563EB" />
-              </Pressable>
+              <GlassCircleButton
+                onPress={() => callPassenger(item.customerPhone, item.customerName)}
+                icon="call"
+                iconSize={15}
+                iconColor="#2563EB"
+                size={36}
+                accessibilityLabel={`Call ${item.customerName}`}
+              />
             </View>
+          </GlassSurface>
           </Pressable>
         )}
       />
@@ -877,9 +778,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    borderRadius: 12,
-    borderCurve: 'continuous',
-    borderWidth: 1,
     paddingVertical: 9,
     paddingHorizontal: 16,
     marginTop: 4,
@@ -937,10 +835,7 @@ const styles = StyleSheet.create({
   },
   emptyResetBtn: {
     marginTop: 18,
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 10,
-    borderCurve: 'continuous',
+    minWidth: 220,
   },
   emptyResetBtnText: {
     color: '#FFFFFF',
@@ -948,15 +843,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   bookingCard: {
-    borderRadius: 16,
-    borderCurve: 'continuous',
-    borderWidth: 1,
     padding: 14,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
   },
   cardHeaderRow: {
     flexDirection: 'row',

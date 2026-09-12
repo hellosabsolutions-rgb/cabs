@@ -1,7 +1,7 @@
 import React from 'react';
-import { StyleProp, View, ViewStyle } from 'react-native';
+import { View, StyleProp, ViewStyle } from 'react-native';
 import { radius, space } from '../theme/colors';
-import { useAppTheme } from '../theme/ThemeProvider';
+import { GlassSurface } from './GlassChrome';
 
 type Props = {
   children: React.ReactNode;
@@ -9,24 +9,12 @@ type Props = {
 };
 
 export function Card({ children, style }: Props) {
-  const { colors } = useAppTheme();
-
   return (
-    <View
-      style={[
-        {
-          backgroundColor: colors.surface,
-          borderRadius: radius.lg,
-          borderCurve: 'continuous',
-          borderWidth: 1,
-          borderColor: colors.border,
-          padding: space.lg,
-          gap: space.md,
-        },
-        style,
-      ]}
+    <GlassSurface
+      borderRadius={radius.lg}
+      style={[{ padding: space.lg, gap: space.md }, style]}
     >
       {children}
-    </View>
+    </GlassSurface>
   );
 }

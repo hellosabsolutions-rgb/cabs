@@ -609,7 +609,7 @@ export const DailyDutyLogsView: React.FC = () => {
 
                           {/* KM Reading To */}
                           <td style={{ padding: '8px 10px', textAlign: 'right', fontFamily: 'monospace' }}>
-                            {log.endKm}
+                            {log.status === 'Pending' && (!log.endTime || log.endTime === '—') ? '—' : log.endKm}
                           </td>
 
                           {/* KM Done */}
@@ -886,7 +886,9 @@ export const DailyDutyLogsView: React.FC = () => {
 
                         {/* Odometer Start -> End */}
                         <td style={{ fontFamily: 'monospace', fontSize: '12px', whiteSpace: 'nowrap' }}>
-                          {log.startKm} → {log.endKm}
+                          {log.status === 'Pending' && (!log.endTime || log.endTime === '—')
+                            ? `${log.startKm} → —`
+                            : `${log.startKm} → ${log.endKm}`}
                         </td>
 
                         {/* Total KM & Route */}
@@ -979,10 +981,14 @@ export const DailyDutyLogsView: React.FC = () => {
                         {/* Timings & Hours */}
                         <td>
                           <div style={{ fontSize: '12px', color: 'var(--text)' }}>
-                            {log.totalHours} hrs
+                            {log.status === 'Pending' && (!log.endTime || log.endTime === '—')
+                              ? 'In progress'
+                              : `${log.totalHours} hrs`}
                           </div>
                           <div style={{ fontSize: '10.5px', color: 'var(--text-faint)' }}>
-                            {log.startTime} - {log.endTime}
+                            {log.endTime && log.endTime !== '—'
+                              ? `${log.startTime} - ${log.endTime}`
+                              : `${log.startTime} · On duty`}
                           </div>
                         </td>
 

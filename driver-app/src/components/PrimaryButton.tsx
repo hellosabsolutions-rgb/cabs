@@ -1,14 +1,7 @@
 import React from 'react';
-import {
-  ActivityIndicator,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-  ViewStyle,
-} from 'react-native';
-import { radius, space } from '../theme/colors';
-import { useAppTheme } from '../theme/ThemeProvider';
+import { View, ViewStyle } from 'react-native';
+import { space } from '../theme/colors';
+import { GlassButton } from './GlassChrome';
 
 type Variant = 'primary' | 'secondary' | 'danger' | 'ghost';
 
@@ -29,74 +22,18 @@ export function PrimaryButton({
   loading,
   style,
 }: Props) {
-  const { colors } = useAppTheme();
-  const onAccent = variant === 'primary' || variant === 'danger';
-
   return (
-    <Pressable
+    <GlassButton
+      title={title}
       onPress={onPress}
-      disabled={disabled || loading}
-      style={({ pressed }) => [
-        styles.base,
-        variant === 'primary' && { backgroundColor: colors.accent },
-        variant === 'secondary' && {
-          backgroundColor: colors.surfaceMuted,
-          borderWidth: 1,
-          borderColor: colors.border,
-        },
-        variant === 'danger' && { backgroundColor: colors.danger },
-        variant === 'ghost' && { backgroundColor: 'transparent' },
-        (disabled || loading) && styles.disabled,
-        pressed && styles.pressed,
-        style,
-      ]}
-    >
-      {loading ? (
-        <ActivityIndicator size="small" color={onAccent ? colors.accentText : colors.accent} />
-      ) : (
-        <Text
-          style={[
-            styles.text,
-            onAccent && { color: colors.accentText },
-            variant === 'secondary' && { color: colors.text, fontWeight: '500' },
-            variant === 'ghost' && { color: colors.accent },
-          ]}
-        >
-          {title}
-        </Text>
-      )}
-    </Pressable>
+      variant={variant}
+      disabled={disabled}
+      loading={loading}
+      style={style}
+    />
   );
 }
 
 export function ButtonRow({ children }: { children: React.ReactNode }) {
-  return <View style={styles.row}>{children}</View>;
+  return <View style={{ flexDirection: 'row', gap: space.sm, marginTop: space.lg }}>{children}</View>;
 }
-
-const styles = StyleSheet.create({
-  base: {
-    minHeight: 44,
-    borderRadius: radius.sm,
-    borderCurve: 'continuous',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-  },
-  disabled: {
-    opacity: 0.5,
-  },
-  pressed: {
-    opacity: 0.86,
-  },
-  text: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
-  row: {
-    flexDirection: 'row',
-    gap: space.sm,
-    marginTop: space.lg,
-  },
-});

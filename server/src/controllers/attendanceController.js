@@ -2,6 +2,23 @@ import mongoose from 'mongoose';
 import { DriverAttendance } from '../models/DriverAttendance.js';
 import { Driver } from '../models/Driver.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
+import { broadcastAll } from '../services/socketService.js';
+
+function serializeAttendance(doc) {
+  if (!doc) return null;
+  const json = typeof doc.toJSON === 'function' ? doc.toJSON() : { ...(doc.toObject?.() || doc) };
+  json.id = json.id || json._id?.toString();
+  return json;
+}
+
+function emitAttendance(action, record, extra = {}) {
+  if (!record) return;
+  try {
+    broadcastAll('attendance:updated', { action, record: serializeAttendance(record), ...extra });
+  } catch (err) {
+    console.warn('Socket emit attendance:updated failed:', err.message);
+  }
+}
 
 /**
  * @desc    Get attendance records with filtering, date search, and pagination
@@ -453,6 +470,8 @@ export const markAttendance = asyncHandler(async (req, res) => {
     { new: true, upsert: true, setDefaultsOnInsert: true }
   );
 
+  emitAttendance('marked', record);
+
   res.status(200).json({
     success: true,
     message: `Attendance marked as ${status} for ${resolvedDriverName}`,
@@ -506,6 +525,16 @@ export const bulkMarkAttendance = asyncHandler(async (req, res) => {
 
   // Fetch updated records for this date
   const updatedRecords = await DriverAttendance.find({ date }).lean();
+  const serializedRecords = updatedRecords.map(doc => ({
+    ...doc,
+    id: doc._id.toString()
+  }));
+
+  try {
+    broadcastAll('attendance:bulk-updated', { action: 'bulk', date, records: serializedRecords });
+  } catch (err) {
+    console.warn('Socket emit attendance:bulk-updated failed:', err.message);
+  }
 
   res.status(200).json({
     success: true,
@@ -513,10 +542,7 @@ export const bulkMarkAttendance = asyncHandler(async (req, res) => {
     matchedCount: result.matchedCount,
     modifiedCount: result.modifiedCount,
     upsertedCount: result.upsertedCount,
-    data: updatedRecords.map(doc => ({
-      ...doc,
-      id: doc._id.toString()
-    }))
+    data: serializedRecords
   });
 });
 
@@ -589,6 +615,8 @@ export const updateAttendanceStatus = asyncHandler(async (req, res) => {
       });
       await existing.save();
 
+      emitAttendance('status', existing);
+
       return res.status(200).json({
         success: true,
         message: `Attendance status recorded as ${status}`,
@@ -617,6 +645,8 @@ export const updateAttendanceStatus = asyncHandler(async (req, res) => {
   }
 
   await existing.save();
+
+  emitAttendance('status', existing);
 
   res.status(200).json({
     success: true,
@@ -678,6 +708,8 @@ export const updateAttendance = asyncHandler(async (req, res) => {
     });
   }
 
+  emitAttendance('updated', record);
+
   res.status(200).json({
     success: true,
     message: 'Attendance record updated successfully',
@@ -701,6 +733,12 @@ export const deleteAttendance = asyncHandler(async (req, res) => {
       success: false,
       error: `Attendance record with ID ${req.params.id} not found`
     });
+  }
+
+  try {
+    broadcastAll('attendance:deleted', { action: 'deleted', id: record._id.toString() });
+  } catch (err) {
+    console.warn('Socket emit attendance:deleted failed:', err.message);
   }
 
   res.status(200).json({

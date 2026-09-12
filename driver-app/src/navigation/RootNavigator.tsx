@@ -67,7 +67,7 @@ export function RootNavigator() {
               options={{ headerShown: false }}
             />
             <Stack.Screen name="StartDuty" component={StartDutyScreen} options={{ headerShown: false }} />
-            <Stack.Screen name="EndDuty" component={EndDutyScreen} options={{ title: t('nav.endDuty') }} />
+            <Stack.Screen name="EndDuty" component={EndDutyScreen} options={{ headerShown: false }} />
             <Stack.Screen name="AddFuel" component={AddFuelScreen} options={{ title: t('nav.addFuel') }} />
             <Stack.Screen name="AddExpense" component={AddExpenseScreen} options={{ title: t('nav.addExpense') }} />
             <Stack.Screen name="AdvanceRequest" component={AdvanceRequestScreen} options={{ title: t('nav.advanceRequest') }} />

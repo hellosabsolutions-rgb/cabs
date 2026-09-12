@@ -4,9 +4,7 @@ import {
   Alert,
   Animated,
   Dimensions,
-  KeyboardAvoidingView,
   Linking,
-  Modal,
   PanResponder,
   Platform,
   Pressable,
@@ -14,12 +12,16 @@ import {
   StatusBar,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import {
+  BottomSheetModal,
+  BottomSheetScrollView,
+  BottomSheetTextInput,
+} from '@gorhom/bottom-sheet';
 import type { RootStackParamList } from '../navigation/types';
 import { useAppTheme } from '../theme/ThemeProvider';
 import { BookingItem } from '../types/booking';
@@ -27,10 +29,13 @@ import { GoogleMapView } from '../components/GoogleMapView';
 import { useSession } from '../state/session';
 import { bookingApi } from '../services/api';
 import { driverSocket } from '../services/socket';
+import { GlassButton, GlassCircleButton, GlassPill } from '../components/GlassChrome';
+import { BookingSheetHandle } from '../components/BookingSheetHandle';
+import { AppBottomSheetModal } from '../components/AppBottomSheetModal';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'BookingDetail'>;
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 export function BookingDetailScreen({ route, navigation }: Props) {
   const insets = useSafeAreaInsets();
@@ -40,7 +45,8 @@ export function BookingDetailScreen({ route, navigation }: Props) {
   const session = useSession();
 
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
-  const [isCompleteModalOpen, setIsCompleteModalOpen] = useState(false);
+  const completeSheetRef = useRef<BottomSheetModal>(null);
+  const completeSnapPoints = useMemo(() => ['62%', '88%'], []);
   const [endOdometerInput, setEndOdometerInput] = useState(
     String(Math.max(session.odometer || 0, ((initialBooking?.startOdometer || 0) + (initialBooking?.routeDistanceKm || 0))))
   );
@@ -48,7 +54,6 @@ export function BookingDetailScreen({ route, navigation }: Props) {
 
   const [expandedSection, setExpandedSection] = useState<'route' | 'requests' | 'payment' | null>('route');
 
-  // Parallax Draggable Bottom Sheet Snap Points
   const SNAP_TOP = insets.top + 52;
   const SNAP_MID = SCREEN_HEIGHT * 0.44;
   const SNAP_LOW = SCREEN_HEIGHT - 175;
@@ -102,7 +107,6 @@ export function BookingDetailScreen({ route, navigation }: Props) {
           translateY.setValue(nextY);
         },
         onPanResponderRelease: (_, gestureState) => {
-          // If barely moved (tap), toggle snap point
           if (Math.abs(gestureState.dy) < 8 && Math.abs(gestureState.dx) < 8) {
             toggleSnapPoint();
             return;
@@ -113,7 +117,6 @@ export function BookingDetailScreen({ route, navigation }: Props) {
           let nextState: 'top' | 'mid' | 'low' = 'mid';
 
           if (gestureState.vy < -0.35) {
-            // Flick up
             if (currentSnap.current === 'low') {
               target = SNAP_MID;
               nextState = 'mid';
@@ -122,7 +125,6 @@ export function BookingDetailScreen({ route, navigation }: Props) {
               nextState = 'top';
             }
           } else if (gestureState.vy > 0.35) {
-            // Flick down
             if (currentSnap.current === 'top') {
               target = SNAP_MID;
               nextState = 'mid';
@@ -131,7 +133,6 @@ export function BookingDetailScreen({ route, navigation }: Props) {
               nextState = 'low';
             }
           } else {
-            // Nearest snap point
             const dTop = Math.abs(currentPos - SNAP_TOP);
             const dMid = Math.abs(currentPos - SNAP_MID);
             const dLow = Math.abs(currentPos - SNAP_LOW);
@@ -154,6 +155,15 @@ export function BookingDetailScreen({ route, navigation }: Props) {
       }),
     [SNAP_TOP, SNAP_MID, SNAP_LOW]
   );
+
+  const isDark = scheme === 'dark';
+  const cardBg = isDark ? '#1E232B' : '#FFFFFF';
+  const cardBorder = isDark ? '#2D333D' : '#F1F3F5';
+  const sheetBg = isDark ? '#14181F' : '#FFFFFF';
+  const mutedText = isDark ? '#94A3B8' : '#64748B';
+  const primaryText = isDark ? '#F8FAFC' : '#0F172A';
+  const rowDivider = isDark ? 'rgba(255, 255, 255, 0.08)' : '#F1F5F9';
+  const rowHoverBg = isDark ? 'rgba(255, 255, 255, 0.04)' : '#F8FAFC';
 
   useEffect(() => {
     if (!booking?.id) return;
@@ -297,7 +307,7 @@ export function BookingDetailScreen({ route, navigation }: Props) {
       } else {
         setBooking((prev) => (prev ? { ...prev, status: 'Completed', endOdometer: odoNum } : null));
       }
-      setIsCompleteModalOpen(false);
+      completeSheetRef.current?.dismiss();
       Alert.alert('Trip Completed', 'Booking marked as completed. Dashboard synced in real time.');
     } catch (err: any) {
       Alert.alert('Error', err?.message || 'Could not complete trip.');
@@ -362,20 +372,22 @@ export function BookingDetailScreen({ route, navigation }: Props) {
     });
   };
 
-  const isDark = scheme === 'dark';
-  const cardBg = isDark ? '#1E232B' : '#FFFFFF';
-  const cardBorder = isDark ? '#2D333D' : '#F1F3F5';
-  const sheetBg = isDark ? '#14181F' : '#FFFFFF';
-  const mutedText = isDark ? '#94A3B8' : '#64748B';
-  const primaryText = isDark ? '#F8FAFC' : '#0F172A';
-  const rowDivider = isDark ? 'rgba(255, 255, 255, 0.08)' : '#F1F5F9';
-  const rowHoverBg = isDark ? 'rgba(255, 255, 255, 0.04)' : '#F8FAFC';
+  const openCompleteTripSheet = () => {
+    setEndOdometerInput(
+      String(
+        Math.max(
+          session.odometer || 0,
+          (booking.startOdometer || 0) + (booking.routeDistanceKm || 0)
+        )
+      )
+    );
+    completeSheetRef.current?.present();
+  };
 
   return (
     <View style={styles.screenContainer}>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} translucent backgroundColor="transparent" />
 
-      {/* FULL-SCREEN LIVE GOOGLE MAP (EXTENDING ALL THE WAY UNDER STATUS BAR) */}
       <View style={styles.mapBackgroundWrapper}>
         <GoogleMapView
           pickupLocation={booking.pickupLocation}
@@ -387,57 +399,26 @@ export function BookingDetailScreen({ route, navigation }: Props) {
         />
       </View>
 
-      {/* FLOATING TOP BAR: IOS LIQUID GLASS vs ANDROID NORMAL BUTTON */}
-      <Pressable
-        onPress={() => navigation.goBack()}
-        android_ripple={{ color: 'rgba(0,0,0,0.12)', borderless: true }}
-        style={({ pressed }) => [
-          styles.floatingBackBtn,
-          {
-            top: insets.top + 8,
-            backgroundColor: Platform.OS === 'ios'
-              ? (isDark ? 'rgba(15, 23, 42, 0.65)' : 'rgba(255, 255, 255, 0.72)')
-              : (isDark ? '#1E293B' : '#FFFFFF'),
-            borderColor: Platform.OS === 'ios'
-              ? (isDark ? 'rgba(255, 255, 255, 0.25)' : 'rgba(255, 255, 255, 0.85)')
-              : (isDark ? '#334155' : '#E2E8F0'),
-            borderWidth: Platform.OS === 'ios' ? 1.5 : 1,
-            opacity: pressed ? 0.75 : 1,
-          },
-        ]}
-      >
-        {Platform.OS === 'ios' && <View style={styles.liquidGlossHighlight} />}
-        <Ionicons
-          name={Platform.OS === 'ios' ? 'chevron-back' : 'arrow-back'}
-          size={Platform.OS === 'ios' ? 22 : 20}
-          color={primaryText}
+      <View style={[styles.floatingBackWrap, { top: insets.top + 8 }]}>
+        <GlassCircleButton
+          onPress={() => navigation.goBack()}
+          icon={Platform.OS === 'ios' ? 'chevron-back' : 'arrow-back'}
+          iconSize={Platform.OS === 'ios' ? 22 : 20}
+          iconColor={primaryText}
+          tone="auto"
+          accessibilityLabel="Back"
         />
-      </Pressable>
-
-      {/* FLOATING ROUTE DISTANCE/ETA BADGE: IOS LIQUID GLASS vs ANDROID NORMAL BADGE */}
-      <View
-        style={[
-          styles.floatingRouteBadge,
-          {
-            top: insets.top + 8,
-            backgroundColor: Platform.OS === 'ios'
-              ? (isDark ? 'rgba(15, 23, 42, 0.65)' : 'rgba(255, 255, 255, 0.75)')
-              : (isDark ? '#1E293B' : '#FFFFFF'),
-            borderColor: Platform.OS === 'ios'
-              ? (isDark ? 'rgba(255, 255, 255, 0.25)' : 'rgba(255, 255, 255, 0.85)')
-              : (isDark ? '#334155' : '#E2E8F0'),
-            borderWidth: Platform.OS === 'ios' ? 1.5 : 1,
-          },
-        ]}
-      >
-        {Platform.OS === 'ios' && <View style={styles.routeBadgeGloss} />}
-        <View style={styles.routeBadgeDot} />
-        <Text style={[styles.floatingRouteBadgeText, { color: primaryText }]}>
-          {booking.routeDistanceKm} km · ~{booking.estimatedDurationMins} min
-        </Text>
       </View>
 
-      {/* PARALLAX DRAGGABLE BOTTOM SHEET CARD */}
+      <View style={[styles.floatingRouteWrap, { top: insets.top + 8 }]}>
+        <GlassPill>
+          <View style={styles.routeBadgeDot} />
+          <Text style={[styles.floatingRouteBadgeText, { color: primaryText }]}>
+            {booking.routeDistanceKm} km · ~{booking.estimatedDurationMins} min
+          </Text>
+        </GlassPill>
+      </View>
+
       <Animated.View
         style={[
           styles.bottomSheetCard,
@@ -449,90 +430,24 @@ export function BookingDetailScreen({ route, navigation }: Props) {
           },
         ]}
       >
-        {/* DRAGGABLE HEADER / HANDLE BAR WITH PAN RESPONDER */}
-        <View {...panResponder.panHandlers} style={styles.dragHeaderArea}>
-          <Pressable
-            onPress={toggleSnapPoint}
-            hitSlop={{ top: 16, bottom: 16, left: 60, right: 60 }}
-            style={styles.handleBarWrap}
-          >
-            <View style={[styles.handleBar, { backgroundColor: isDark ? '#475569' : '#CBD5E1' }]} />
-          </Pressable>
-
-          {/* 1. PASSENGER PROFILE ROW */}
-          <View style={styles.passengerProfileRow}>
-            {/* Avatar */}
-            <View style={[styles.avatarCircle, { backgroundColor: isDark ? '#334155' : '#EEF2F6' }]}>
-              <Ionicons name="person" size={24} color={isDark ? '#94A3B8' : '#475569'} />
-            </View>
-
-            {/* Name & Rating */}
-            <View style={styles.passengerTextCol}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <Text style={[styles.passengerNameText, { color: primaryText }]} numberOfLines={1}>
-                  {booking.customerName || 'Guest Passenger'}
-                </Text>
-                <View style={[styles.ratingTag, { backgroundColor: isDark ? '#334155' : '#F1F5F9' }]}>
-                  <Ionicons name="star" size={11} color="#F59E0B" />
-                  <Text style={[styles.ratingTagText, { color: primaryText }]}>4.8</Text>
-                </View>
-              </View>
-              <Text style={[styles.passengerRoleText, { color: mutedText }]}>
-                Passenger · {booking.passengersCount} {booking.passengersCount === 1 ? 'Guest' : 'Guests'}
-              </Text>
-            </View>
-
-            {/* Circular Quick Action Buttons (Chat & Call) */}
-            <View style={styles.profileActionsRow}>
-              <Pressable
-                onPress={smsPassenger}
-                android_ripple={{ color: 'rgba(0,0,0,0.1)', borderless: true }}
-                style={({ pressed }) => [
-                  styles.circleActionBtn,
-                  Platform.OS === 'ios'
-                    ? {
-                        backgroundColor: isDark ? '#1E293B' : '#F1F5F9',
-                        opacity: pressed ? 0.7 : 1,
-                      }
-                    : {
-                        backgroundColor: isDark ? '#1E293B' : '#FFFFFF',
-                        borderColor: isDark ? '#334155' : '#E2E8F0',
-                        borderWidth: 1,
-                        opacity: pressed ? 0.85 : 1,
-                      },
-                ]}
-              >
-                <Ionicons name="chatbubble-ellipses" size={18} color={primaryText} />
-              </Pressable>
-
-              <Pressable
-                onPress={callPassenger}
-                android_ripple={{ color: 'rgba(0,0,0,0.1)', borderless: true }}
-                style={({ pressed }) => [
-                  styles.circleActionBtn,
-                  Platform.OS === 'ios'
-                    ? {
-                        backgroundColor: isDark ? '#1E293B' : '#F1F5F9',
-                        opacity: pressed ? 0.7 : 1,
-                      }
-                    : {
-                        backgroundColor: isDark ? '#1E293B' : '#FFFFFF',
-                        borderColor: isDark ? '#334155' : '#E2E8F0',
-                        borderWidth: 1,
-                        opacity: pressed ? 0.85 : 1,
-                      },
-                ]}
-              >
-                <Ionicons name="call" size={17} color={primaryText} />
-              </Pressable>
-            </View>
-          </View>
+        <View {...panResponder.panHandlers}>
+          <BookingSheetHandle
+            booking={booking}
+            isDark={isDark}
+            primaryText={primaryText}
+            mutedText={mutedText}
+            onToggleSnap={toggleSnapPoint}
+            onCall={callPassenger}
+            onSms={smsPassenger}
+          />
         </View>
 
-        {/* INNER SCROLLABLE CONTENT */}
         <ScrollView
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: Math.max(insets.bottom + 120, 160) }}
+          contentContainerStyle={{
+            paddingHorizontal: 18,
+            paddingBottom: Math.max(insets.bottom + 120, 160),
+          }}
         >
 
           {/* Divider */}
@@ -630,63 +545,23 @@ export function BookingDetailScreen({ route, navigation }: Props) {
 
           {/* 4. TRIP LIFECYCLE ACTION BUTTON */}
           {booking.status === 'Scheduled' && (
-            <Pressable
+            <GlassButton
+              title="Start Trip (Pick Up Passenger)"
+              icon="play-circle"
               onPress={handleStartTrip}
-              disabled={isUpdatingStatus}
-              android_ripple={{ color: 'rgba(255,255,255,0.2)' }}
-              style={({ pressed }) => [
-                styles.primaryLifecycleBtn,
-                {
-                  backgroundColor: '#059669',
-                  opacity: pressed || isUpdatingStatus ? 0.85 : 1,
-                  borderRadius: Platform.OS === 'ios' ? 14 : 8,
-                },
-              ]}
-            >
-              {isUpdatingStatus ? (
-                <ActivityIndicator color="#FFFFFF" size="small" />
-              ) : (
-                <>
-                  <Ionicons name="play-circle" size={18} color="#FFFFFF" />
-                  <Text style={styles.primaryLifecycleBtnText}>Start Trip (Pick Up Passenger)</Text>
-                </>
-              )}
-            </Pressable>
+              loading={isUpdatingStatus}
+              style={[styles.primaryLifecycleBtn, { backgroundColor: '#059669' }]}
+            />
           )}
 
           {booking.status === 'Ongoing' && (
-            <Pressable
-              onPress={() => {
-                setEndOdometerInput(
-                  String(
-                    Math.max(
-                      session.odometer || 0,
-                      (booking.startOdometer || 0) + (booking.routeDistanceKm || 0)
-                    )
-                  )
-                );
-                setIsCompleteModalOpen(true);
-              }}
-              disabled={isUpdatingStatus}
-              android_ripple={{ color: 'rgba(255,255,255,0.2)' }}
-              style={({ pressed }) => [
-                styles.primaryLifecycleBtn,
-                {
-                  backgroundColor: '#D97706',
-                  opacity: pressed || isUpdatingStatus ? 0.85 : 1,
-                  borderRadius: Platform.OS === 'ios' ? 14 : 8,
-                },
-              ]}
-            >
-              {isUpdatingStatus ? (
-                <ActivityIndicator color="#FFFFFF" size="small" />
-              ) : (
-                <>
-                  <Ionicons name="checkmark-done-circle" size={18} color="#FFFFFF" />
-                  <Text style={styles.primaryLifecycleBtnText}>Complete Trip & Enter Odometer</Text>
-                </>
-              )}
-            </Pressable>
+            <GlassButton
+              title="Complete Trip & Enter Odometer"
+              icon="checkmark-done-circle"
+              onPress={openCompleteTripSheet}
+              loading={isUpdatingStatus}
+              style={[styles.primaryLifecycleBtn, { backgroundColor: '#D97706' }]}
+            />
           )}
 
           {booking.status === 'Completed' && (
@@ -708,32 +583,12 @@ export function BookingDetailScreen({ route, navigation }: Props) {
           )}
 
           {/* 5. TURN-BY-TURN NAVIGATION BUTTON */}
-          <Pressable
+          <GlassButton
+            title="Start Navigation · Google Maps"
+            icon="navigate"
             onPress={openNavigation}
-            android_ripple={{ color: 'rgba(255,255,255,0.2)' }}
-            style={({ pressed }) => [
-              styles.startNavigationBtn,
-              Platform.OS === 'ios'
-                ? {
-                    borderRadius: 14,
-                    shadowColor: '#2563EB',
-                    shadowOffset: { width: 0, height: 6 },
-                    shadowOpacity: 0.35,
-                    shadowRadius: 12,
-                    opacity: pressed ? 0.88 : 1,
-                  }
-                : {
-                    borderRadius: 8,
-                    elevation: 2,
-                    opacity: pressed ? 0.92 : 1,
-                  },
-            ]}
-          >
-            <Ionicons name="navigate" size={16} color="#FFFFFF" />
-            <Text style={styles.startNavigationBtnText}>
-              Start Navigation · Google Maps
-            </Text>
-          </Pressable>
+            style={styles.startNavigationBtn}
+          />
 
           {/* 5. TAPPABLE DETAIL ACCORDION ROWS (Matching Image 2) */}
           <View style={[styles.accordionContainer, { backgroundColor: cardBg, borderColor: cardBorder }]}>
@@ -944,121 +799,117 @@ export function BookingDetailScreen({ route, navigation }: Props) {
         </ScrollView>
       </Animated.View>
 
-      {/* COMPLETE TRIP & ENTER END ODOMETER MODAL */}
-      <Modal
-        visible={isCompleteModalOpen}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setIsCompleteModalOpen(false)}
+      <AppBottomSheetModal
+        ref={completeSheetRef}
+        snapPoints={completeSnapPoints}
+        index={0}
+        backgroundColor={cardBg}
+        handleColor={isDark ? '#475569' : '#CBD5E1'}
       >
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          style={styles.modalOverlay}
+        <BottomSheetScrollView
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={[
+            styles.completeSheetContent,
+            { paddingBottom: Math.max(insets.bottom + 24, 36) },
+          ]}
         >
-          <Pressable style={styles.modalBackdrop} onPress={() => setIsCompleteModalOpen(false)} />
-          <View style={[styles.modalCard, { backgroundColor: cardBg, borderColor: cardBorder }]}>
-            <View style={styles.modalHeader}>
-              <View>
-                <Text style={[styles.modalTitle, { color: primaryText }]}>Complete Trip</Text>
-                <Text style={[styles.modalSubtitle, { color: mutedText }]}>
-                  {booking.bookingNumber} · {booking.route}
-                </Text>
-              </View>
-              <Pressable
-                onPress={() => setIsCompleteModalOpen(false)}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              >
-                <Ionicons name="close-circle" size={24} color={mutedText} />
-              </Pressable>
-            </View>
-
-            <View style={[styles.modalDivider, { backgroundColor: rowDivider }]} />
-
-            {/* Start Odometer reference */}
-            <View style={styles.modalFieldRow}>
-              <Text style={[styles.modalLabel, { color: mutedText }]}>Start Odometer</Text>
-              <Text style={[styles.modalValueBold, { color: primaryText }]}>
-                {booking.startOdometer?.toLocaleString('en-IN') || 0} km
+          <View style={styles.modalHeader}>
+            <View>
+              <Text style={[styles.modalTitle, { color: primaryText }]}>Complete Trip</Text>
+              <Text style={[styles.modalSubtitle, { color: mutedText }]}>
+                {booking.bookingNumber} · {booking.route}
               </Text>
             </View>
-
-            {/* End Odometer Input */}
-            <View style={{ marginTop: 12 }}>
-              <Text style={[styles.modalInputLabel, { color: primaryText }]}>
-                Ending Odometer Reading (km) *
-              </Text>
-              <TextInput
-                value={endOdometerInput}
-                onChangeText={setEndOdometerInput}
-                keyboardType="numeric"
-                placeholder="e.g. 45280"
-                placeholderTextColor={mutedText}
-                style={[
-                  styles.modalTextInput,
-                  {
-                    backgroundColor: isDark ? '#0F172A' : '#F8FAFC',
-                    color: primaryText,
-                    borderColor: isDark ? '#334155' : '#CBD5E1',
-                  },
-                ]}
-              />
-              {Number(endOdometerInput) > (booking.startOdometer || 0) && (
-                <Text style={{ fontSize: 11.5, color: '#10B981', marginTop: 4, fontWeight: '600' }}>
-                  Total Trip Distance: {Number(endOdometerInput) - (booking.startOdometer || 0)} km
-                </Text>
-              )}
-            </View>
-
-            {/* Trip Notes */}
-            <View style={{ marginTop: 12 }}>
-              <Text style={[styles.modalInputLabel, { color: primaryText }]}>
-                Remarks / Toll / Parking Notes (Optional)
-              </Text>
-              <TextInput
-                value={completionNotes}
-                onChangeText={setCompletionNotes}
-                placeholder="e.g. Toll paid ₹120, passenger dropped safely"
-                placeholderTextColor={mutedText}
-                multiline
-                numberOfLines={3}
-                style={[
-                  styles.modalTextInputMultiline,
-                  {
-                    backgroundColor: isDark ? '#0F172A' : '#F8FAFC',
-                    color: primaryText,
-                    borderColor: isDark ? '#334155' : '#CBD5E1',
-                  },
-                ]}
-              />
-            </View>
-
-            {/* Modal Actions */}
-            <View style={styles.modalActionRow}>
-              <Pressable
-                onPress={() => setIsCompleteModalOpen(false)}
-                style={[styles.modalCancelBtn, { borderColor: cardBorder }]}
-              >
-                <Text style={[styles.modalCancelBtnText, { color: mutedText }]}>Cancel</Text>
-              </Pressable>
-
-              <Pressable
-                onPress={handleConfirmComplete}
-                disabled={isUpdatingStatus}
-                style={[styles.modalSubmitBtn, { opacity: isUpdatingStatus ? 0.7 : 1 }]}
-              >
-                {isUpdatingStatus ? (
-                  <ActivityIndicator size="small" color="#FFFFFF" />
-                ) : (
-                  <>
-                    <Ionicons name="checkmark-done" size={16} color="#FFFFFF" />
-                    <Text style={styles.modalSubmitBtnText}>Confirm Completion</Text>
-                  </>
-                )}
-              </Pressable>
-            </View>
+            <Pressable
+              onPress={() => completeSheetRef.current?.dismiss()}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Ionicons name="close-circle" size={24} color={mutedText} />
+            </Pressable>
           </View>
-        </KeyboardAvoidingView>
-      </Modal>
+
+          <View style={[styles.modalDivider, { backgroundColor: rowDivider }]} />
+
+          <View style={styles.modalFieldRow}>
+            <Text style={[styles.modalLabel, { color: mutedText }]}>Start Odometer</Text>
+            <Text style={[styles.modalValueBold, { color: primaryText }]}>
+              {booking.startOdometer?.toLocaleString('en-IN') || 0} km
+            </Text>
+          </View>
+
+          <View style={{ marginTop: 12 }}>
+            <Text style={[styles.modalInputLabel, { color: primaryText }]}>
+              Ending Odometer Reading (km) *
+            </Text>
+            <BottomSheetTextInput
+              value={endOdometerInput}
+              onChangeText={setEndOdometerInput}
+              keyboardType="numeric"
+              placeholder="e.g. 45280"
+              placeholderTextColor={mutedText}
+              style={[
+                styles.modalTextInput,
+                {
+                  backgroundColor: isDark ? '#0F172A' : '#F8FAFC',
+                  color: primaryText,
+                  borderColor: isDark ? '#334155' : '#CBD5E1',
+                },
+              ]}
+            />
+            {Number(endOdometerInput) > (booking.startOdometer || 0) && (
+              <Text style={{ fontSize: 11.5, color: '#10B981', marginTop: 4, fontWeight: '600' }}>
+                Total Trip Distance: {Number(endOdometerInput) - (booking.startOdometer || 0)} km
+              </Text>
+            )}
+          </View>
+
+          <View style={{ marginTop: 12 }}>
+            <Text style={[styles.modalInputLabel, { color: primaryText }]}>
+              Remarks / Toll / Parking Notes (Optional)
+            </Text>
+            <BottomSheetTextInput
+              value={completionNotes}
+              onChangeText={setCompletionNotes}
+              placeholder="e.g. Toll paid ₹120, passenger dropped safely"
+              placeholderTextColor={mutedText}
+              multiline
+              numberOfLines={3}
+              style={[
+                styles.modalTextInputMultiline,
+                {
+                  backgroundColor: isDark ? '#0F172A' : '#F8FAFC',
+                  color: primaryText,
+                  borderColor: isDark ? '#334155' : '#CBD5E1',
+                },
+              ]}
+            />
+          </View>
+
+          <View style={styles.modalActionRow}>
+            <Pressable
+              onPress={() => completeSheetRef.current?.dismiss()}
+              style={[styles.modalCancelBtn, { borderColor: cardBorder }]}
+            >
+              <Text style={[styles.modalCancelBtnText, { color: mutedText }]}>Cancel</Text>
+            </Pressable>
+
+            <Pressable
+              onPress={handleConfirmComplete}
+              disabled={isUpdatingStatus}
+              style={[styles.modalSubmitBtn, { opacity: isUpdatingStatus ? 0.7 : 1 }]}
+            >
+              {isUpdatingStatus ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <>
+                  <Ionicons name="checkmark-done" size={16} color="#FFFFFF" />
+                  <Text style={styles.modalSubmitBtnText}>Confirm Completion</Text>
+                </>
+              )}
+            </Pressable>
+          </View>
+        </BottomSheetScrollView>
+      </AppBottomSheetModal>
     </View>
   );
 }
@@ -1087,6 +938,16 @@ const styles = StyleSheet.create({
   mapImage: {
     width: '100%',
     height: '100%',
+  },
+  floatingBackWrap: {
+    position: 'absolute',
+    left: 16,
+    zIndex: 50,
+  },
+  floatingRouteWrap: {
+    position: 'absolute',
+    right: 16,
+    zIndex: 50,
   },
   floatingBackBtn: {
     position: 'absolute',
@@ -1169,7 +1030,6 @@ const styles = StyleSheet.create({
     height: SCREEN_HEIGHT,
     borderTopLeftRadius: 32,
     borderTopRightRadius: 32,
-    paddingHorizontal: 18,
     borderWidth: 1,
     shadowOffset: { width: 0, height: -6 },
     shadowOpacity: 0.24,
@@ -1177,67 +1037,9 @@ const styles = StyleSheet.create({
     elevation: 14,
     zIndex: 20,
   },
-  dragHeaderArea: {
-    paddingBottom: 4,
-  },
-  handleBarWrap: {
-    alignItems: 'center',
-    paddingVertical: 10,
-  },
-  handleBar: {
-    width: 44,
-    height: 5,
-    borderRadius: 2.5,
-  },
-  passengerProfileRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 6,
-    gap: 12,
-  },
-  avatarCircle: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  passengerTextCol: {
-    flex: 1,
-  },
-  passengerNameText: {
-    fontSize: 16,
-    fontWeight: '800',
-    letterSpacing: -0.2,
-  },
-  ratingTag: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
-  },
-  ratingTagText: {
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  passengerRoleText: {
-    fontSize: 12.5,
-    marginTop: 2,
-    fontWeight: '500',
-  },
-  profileActionsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  circleActionBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
+  completeSheetContent: {
+    paddingHorizontal: 20,
+    paddingTop: 4,
   },
   sheetDivider: {
     height: 1,

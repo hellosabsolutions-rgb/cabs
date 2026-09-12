@@ -1,7 +1,6 @@
 import React from 'react';
 import {
   Platform,
-  Pressable,
   StatusBar,
   StyleSheet,
   Text,
@@ -10,8 +9,9 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { radius, space } from '../theme/colors';
+import { space } from '../theme/colors';
 import { useAppTheme } from '../theme/ThemeProvider';
+import { GlassCircleButton, GlassHeaderBar } from './GlassChrome';
 
 export type ScreenHeaderProps = {
   title: string;
@@ -19,14 +19,11 @@ export type ScreenHeaderProps = {
   onBack?: () => void;
   leftAction?: React.ReactNode;
   rightAction?: React.ReactNode;
-  children?: React.ReactNode; // e.g., filter pills or sub-bars
+  children?: React.ReactNode;
   containerStyle?: ViewStyle;
   compact?: boolean;
 };
 
-/**
- * Reusable Icon Button designed for native headers (e.g., Settings, Back, Call, Info)
- */
 export function HeaderIconButton({
   onPress,
   icon,
@@ -42,35 +39,25 @@ export function HeaderIconButton({
   badge?: boolean;
   accessibilityLabel?: string;
 }) {
-  const { colors, scheme } = useAppTheme();
-  const isDark = scheme === 'dark';
+  const { colors } = useAppTheme();
 
   return (
-    <Pressable
-      onPress={onPress}
-      hitSlop={8}
-      accessibilityLabel={accessibilityLabel}
-      style={({ pressed }) => [
-        styles.iconBtn,
-        {
-          backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.04)',
-          borderColor: isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.08)',
-          opacity: pressed ? 0.7 : 1,
-          transform: [{ scale: pressed ? 0.94 : 1 }],
-        },
-      ]}
-    >
-      {icon ? <Ionicons name={icon} size={size} color={colors.text} /> : children}
-      {badge && <View style={[styles.iconBadge, { backgroundColor: colors.danger }]} />}
-    </Pressable>
+    <View>
+      <GlassCircleButton
+        onPress={onPress}
+        icon={icon}
+        iconSize={size}
+        iconColor={colors.text}
+        accessibilityLabel={accessibilityLabel}
+        size={38}
+      >
+        {icon ? undefined : children}
+      </GlassCircleButton>
+      {badge ? <View style={[styles.iconBadge, { backgroundColor: colors.danger }]} /> : null}
+    </View>
   );
 }
 
-/**
- * Modern Native Glass Screen Header
- * Designed for iOS & Android with dynamic safe area handling,
- * sleek glassmorphic elevation, and production-grade typography.
- */
 export function ScreenHeader({
   title,
   subtitle,
@@ -82,75 +69,53 @@ export function ScreenHeader({
   compact = false,
 }: ScreenHeaderProps) {
   const insets = useSafeAreaInsets();
-  const { colors, scheme } = useAppTheme();
-  const isDark = scheme === 'dark';
+  const { colors } = useAppTheme();
 
   const androidStatus = StatusBar.currentHeight || 24;
   const topInset = Math.max(insets.top, Platform.OS === 'android' ? androidStatus : 14);
 
   return (
-    <View
+    <GlassHeaderBar
       style={[
         styles.headerRoot,
-        {
-          paddingTop: topInset,
-          backgroundColor: isDark ? 'rgba(18, 22, 28, 0.96)' : 'rgba(255, 255, 255, 0.96)',
-          borderBottomColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.07)',
-        },
+        { paddingTop: topInset },
         containerStyle,
       ]}
     >
       <View style={[styles.mainRow, compact && styles.compactRow]}>
-        {/* Left section: Back button or custom left action */}
         {onBack ? (
-          <Pressable
+          <GlassCircleButton
             onPress={onBack}
-            hitSlop={8}
-            style={({ pressed }) => [
-              styles.backBtn,
-              { opacity: pressed ? 0.6 : 1 },
-            ]}
-          >
-            <Ionicons
-              name={Platform.OS === 'ios' ? 'chevron-back' : 'arrow-back'}
-              size={24}
-              color={colors.text}
-            />
-          </Pressable>
+            icon={Platform.OS === 'ios' ? 'chevron-back' : 'arrow-back'}
+            iconSize={22}
+            iconColor={colors.text}
+            accessibilityLabel="Back"
+            size={38}
+            style={styles.backBtn}
+          />
         ) : leftAction ? (
           <View style={styles.leftSlot}>{leftAction}</View>
         ) : null}
 
-        {/* Title & Subtitle */}
         <View style={styles.titleContainer}>
           <Text
-            style={[
-              compact ? styles.compactTitle : styles.largeTitle,
-              { color: colors.text },
-            ]}
+            style={[compact ? styles.compactTitle : styles.largeTitle, { color: colors.text }]}
             numberOfLines={1}
           >
             {title}
           </Text>
           {subtitle ? (
-            <Text
-              style={[styles.subtitle, { color: colors.textDim }]}
-              numberOfLines={1}
-            >
+            <Text style={[styles.subtitle, { color: colors.textDim }]} numberOfLines={1}>
               {subtitle}
             </Text>
           ) : null}
         </View>
 
-        {/* Right action slot (Buttons, Badges, etc.) */}
-        {rightAction ? (
-          <View style={styles.rightSlot}>{rightAction}</View>
-        ) : null}
+        {rightAction ? <View style={styles.rightSlot}>{rightAction}</View> : null}
       </View>
 
-      {/* Sub-header content (Filters, Search, Tabs) */}
       {children ? <View style={styles.childrenSlot}>{children}</View> : null}
-    </View>
+    </GlassHeaderBar>
   );
 }
 
@@ -159,7 +124,6 @@ const styles = StyleSheet.create({
     width: '100%',
     paddingHorizontal: space.lg,
     paddingBottom: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
     zIndex: 100,
   },
   mainRow: {
@@ -173,9 +137,6 @@ const styles = StyleSheet.create({
   },
   backBtn: {
     marginRight: 10,
-    padding: 4,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   leftSlot: {
     marginRight: 10,
@@ -210,19 +171,10 @@ const styles = StyleSheet.create({
   childrenSlot: {
     marginTop: 10,
   },
-  iconBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
-    borderCurve: 'continuous',
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   iconBadge: {
     position: 'absolute',
-    top: 7,
-    right: 7,
+    top: 4,
+    right: 4,
     width: 8,
     height: 8,
     borderRadius: 4,

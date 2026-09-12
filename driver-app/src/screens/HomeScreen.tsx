@@ -17,6 +17,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { NativeBottomTabScreenProps } from '@react-navigation/bottom-tabs/unstable';
 import { Ionicons } from '@expo/vector-icons';
 import { SectionTitle } from '../components/SectionTitle';
+import { GlassSurface } from '../components/GlassChrome';
 import { MainTabParamList, RootStackParamList } from '../navigation/types';
 import { radius, space } from '../theme/colors';
 import { useAppTheme } from '../theme/ThemeProvider';
@@ -463,17 +464,33 @@ export function HomeScreen({ navigation }: Props) {
           {/* Multi-Layered Diffuse Mesh Blur Gradient (Seamless liquid depth, no sharp circular elements) */}
           <MeshBlurBackground isDark={isDark} />
 
-          {/* Header Row: Greeting pill, Driver Name, Location, Live Duty & Avatar */}
-          <View style={styles.heroHeaderRow}>
-            {/* Left Col */}
-            <View style={styles.flex}>
-              <View style={styles.heroGreetingPill}>
-                <Ionicons name={greeting.icon} size={12} color={greeting.color} />
-                <Text style={styles.heroGreetingText}>
-                  {t(greeting.key)} 👋
-                </Text>
-              </View>
+          <View style={styles.heroPillsRow}>
+            <View style={styles.heroGreetingPill}>
+              <Ionicons name={greeting.icon} size={12} color={greeting.color} />
+              <Text style={styles.heroGreetingText}>{t(greeting.key)}</Text>
+            </View>
 
+            <Pressable
+              onPress={() => navigation.navigate(session.onDuty ? 'EndDuty' : 'StartDuty')}
+              style={styles.heroDutyPill}
+            >
+              <Animated.View
+                style={[
+                  styles.dutyDot,
+                  {
+                    backgroundColor: session.onDuty ? '#4ADE80' : '#E2E8F0',
+                    opacity: session.onDuty ? pulse : 0.7,
+                  },
+                ]}
+              />
+              <Text style={styles.heroDutyText}>
+                {session.onDuty ? t('home.onDuty') : t('home.offDuty')}
+              </Text>
+            </Pressable>
+          </View>
+
+          <View style={styles.heroHeaderRow}>
+            <View style={styles.flex}>
               <Text style={styles.heroDriverName} numberOfLines={1}>
                 {session.driver.name || 'Driver'}
               </Text>
@@ -491,40 +508,19 @@ export function HomeScreen({ navigation }: Props) {
               </Pressable>
             </View>
 
-            {/* Right Col */}
-            <View style={styles.heroRightCol}>
-              <Pressable
-                onPress={() => navigation.navigate(session.onDuty ? 'EndDuty' : 'StartDuty')}
-                style={styles.heroDutyPill}
-              >
-                <Animated.View
-                  style={[
-                    styles.dutyDot,
-                    {
-                      backgroundColor: session.onDuty ? '#4ADE80' : '#E2E8F0',
-                      opacity: session.onDuty ? pulse : 0.7,
-                    },
-                  ]}
-                />
-                <Text style={styles.heroDutyText}>
-                  {session.onDuty ? t('home.onDuty') : t('home.offDuty')}
-                </Text>
-              </Pressable>
-
-              <Pressable
-                onPress={() => navigation.navigate('Profile')}
-                style={styles.heroAvatarWrap}
-              >
-                {session.driver.photo ? (
-                  <Image source={{ uri: session.driver.photo }} style={styles.heroAvatarImg} />
-                ) : (
-                  <View style={styles.heroAvatarFallback}>
-                    <Text style={styles.heroAvatarInitials}>{session.driver.initials || 'SS'}</Text>
-                  </View>
-                )}
-                {session.onDuty && <View style={styles.avatarOnlineBadge} />}
-              </Pressable>
-            </View>
+            <Pressable
+              onPress={() => navigation.navigate('Profile')}
+              style={styles.heroAvatarWrap}
+            >
+              {session.driver.photo ? (
+                <Image source={{ uri: session.driver.photo }} style={styles.heroAvatarImg} />
+              ) : (
+                <View style={styles.heroAvatarFallback}>
+                  <Text style={styles.heroAvatarInitials}>{session.driver.initials || 'SS'}</Text>
+                </View>
+              )}
+              {session.onDuty && <View style={styles.avatarOnlineBadge} />}
+            </Pressable>
           </View>
 
           {/* Cockpit Card Section - Seamlessly integrated inside hero */}
@@ -628,31 +624,29 @@ export function HomeScreen({ navigation }: Props) {
                   key={item.titleKey}
                   onPress={() => navigation.navigate(item.route as never)}
                   style={({ pressed }) => [
-                    styles.gridTile,
-                    {
-                      backgroundColor: isDark ? '#181818' : '#FFFFFF',
-                      borderColor: isDark ? '#262626' : '#ECECEC',
-                    },
+                    { width: '48.2%', marginBottom: 11 },
                     pressed && { opacity: 0.75, transform: [{ scale: 0.96 }] },
                   ]}
                 >
-                  {isSos && <View style={styles.sosAlertDot} />}
-                  <View
-                    style={[
-                      styles.gridIconBox,
-                      { backgroundColor: isDark ? item.bgDark : item.bgLight },
-                    ]}
-                  >
-                    <Ionicons name={item.icon} size={22} color={item.tint} />
-                  </View>
-                  <Text
-                    style={[styles.gridTitle, { color: colors.text }]}
-                    numberOfLines={1}
-                    adjustsFontSizeToFit
-                    minimumFontScale={0.82}
-                  >
-                    {t(item.titleKey)}
-                  </Text>
+                  <GlassSurface style={styles.gridTile}>
+                    {isSos && <View style={styles.sosAlertDot} />}
+                    <View
+                      style={[
+                        styles.gridIconBox,
+                        { backgroundColor: isDark ? item.bgDark : item.bgLight },
+                      ]}
+                    >
+                      <Ionicons name={item.icon} size={22} color={item.tint} />
+                    </View>
+                    <Text
+                      style={[styles.gridTitle, { color: colors.text }]}
+                      numberOfLines={1}
+                      adjustsFontSizeToFit
+                      minimumFontScale={0.82}
+                    >
+                      {t(item.titleKey)}
+                    </Text>
+                  </GlassSurface>
                 </Pressable>
               );
             })}
@@ -660,7 +654,7 @@ export function HomeScreen({ navigation }: Props) {
 
           {/* ─── RECENT TIMELINE ─── */}
           <SectionTitle title={t('home.recent')} />
-          <View style={[styles.timeline, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <GlassSurface style={styles.timeline}>
             {recent.map((item, index) => (
               <View
                 key={item.id}
@@ -686,7 +680,7 @@ export function HomeScreen({ navigation }: Props) {
                 </View>
               </View>
             ))}
-          </View>
+          </GlassSurface>
         </View>
       </ScrollView>
     </View>
@@ -794,26 +788,31 @@ const styles = StyleSheet.create({
   meshBlob: {
     position: 'absolute',
   },
+  heroPillsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+    marginBottom: 10,
+  },
   heroHeaderRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     justifyContent: 'space-between',
     gap: 12,
     marginBottom: 16,
   },
   heroGreetingPill: {
-    alignSelf: 'flex-start',
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 3.5,
-    borderRadius: 8,
+    gap: 6,
+    height: 32,
+    paddingHorizontal: 12,
+    borderRadius: 16,
     borderCurve: 'continuous',
     backgroundColor: 'rgba(255, 255, 255, 0.18)',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.28)',
-    marginBottom: 5,
   },
   heroGreetingText: {
     color: '#FFFFFF',
@@ -847,9 +846,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: radius.pill,
+    height: 32,
+    paddingHorizontal: 12,
+    borderRadius: 16,
     borderCurve: 'continuous',
     backgroundColor: 'rgba(255, 255, 255, 0.18)',
     borderWidth: 1,
@@ -1074,20 +1073,10 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   gridTile: {
-    width: '48.2%',
-    marginBottom: 11,
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 14,
     paddingHorizontal: 12,
-    borderRadius: 14,
-    borderCurve: 'continuous',
-    borderWidth: 1,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    elevation: 2,
     position: 'relative',
     gap: 10,
   },
@@ -1116,9 +1105,6 @@ const styles = StyleSheet.create({
 
   /* ─── RECENT TIMELINE ─── */
   timeline: {
-    borderRadius: radius.lg,
-    borderCurve: 'continuous',
-    borderWidth: 1,
     overflow: 'hidden',
     marginTop: space.sm,
   },

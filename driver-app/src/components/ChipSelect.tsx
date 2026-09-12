@@ -1,7 +1,7 @@
 import React from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { radius } from '../theme/colors';
+import { StyleSheet, Text, View } from 'react-native';
 import { useAppTheme } from '../theme/ThemeProvider';
+import { GlassPill, supportsLiquidGlass, usesIosGlass } from './GlassChrome';
 
 type Item = { id: string; label: string };
 
@@ -15,31 +15,24 @@ export function ChipSelect({
   onChange: (id: string) => void;
 }) {
   const { colors } = useAppTheme();
+  const filled = !usesIosGlass || !supportsLiquidGlass;
 
   return (
     <View style={styles.wrap}>
       {items.map((item) => {
         const active = item.id === value;
         return (
-          <Pressable
-            key={item.id}
-            onPress={() => onChange(item.id)}
-            style={[
-              styles.chip,
-              { borderColor: colors.border, backgroundColor: colors.bg },
-              active && { backgroundColor: colors.accentMuted, borderColor: colors.accent },
-            ]}
-          >
+          <GlassPill key={item.id} selected={active} onPress={() => onChange(item.id)}>
             <Text
               style={[
                 styles.text,
-                { color: colors.textDim },
-                active && { color: colors.accent, fontWeight: '600' },
+                { color: active && filled ? '#FFFFFF' : active ? colors.text : colors.textDim },
+                active && { fontWeight: '700' },
               ]}
             >
               {item.label}
             </Text>
-          </Pressable>
+          </GlassPill>
         );
       })}
     </View>
@@ -51,12 +44,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 6,
-  },
-  chip: {
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-    borderRadius: radius.pill,
-    borderWidth: 1,
   },
   text: {
     fontSize: 12,

@@ -58,7 +58,7 @@ export function NativeBottomTabs<ParamList extends ParamListBase>({
     tabBarLabelVisibilityMode: 'labeled',
     tabBarControllerMode: 'tabBar',
     tabBarMinimizeBehavior: 'onScrollDown',
-    tabBarBlurEffect: 'systemDefault',
+    ...(Platform.OS === 'ios' ? { tabBarBlurEffect: 'systemDefault' as const } : {}),
     lazy: false,
   };
 

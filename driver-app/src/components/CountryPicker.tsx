@@ -1,17 +1,15 @@
-import React, { useMemo, useState } from 'react';
-import {
-  FlatList,
-  Modal,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import {
+  BottomSheetFlatList,
+  BottomSheetModal,
+  BottomSheetTextInput,
+} from '@gorhom/bottom-sheet';
 import { radius, space } from '../theme/colors';
 import { useAppTheme } from '../theme/ThemeProvider';
 import { COUNTRIES, INDIA, type Country } from '../constants/countries';
+import { AppBottomSheetModal } from './AppBottomSheetModal';
 
 type Props = {
   visible: boolean;
@@ -21,8 +19,19 @@ type Props = {
 };
 
 export function CountryPicker({ visible, value, onSelect, onClose }: Props) {
-  const { colors, type, t } = useAppTheme();
+  const { colors, type, t, scheme } = useAppTheme();
+  const sheetRef = useRef<BottomSheetModal>(null);
   const [query, setQuery] = useState('');
+  const snapPoints = useMemo(() => ['72%', '93%'], []);
+  const isDark = scheme === 'dark';
+
+  useEffect(() => {
+    if (visible) {
+      sheetRef.current?.present();
+    } else {
+      sheetRef.current?.dismiss();
+    }
+  }, [visible]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -42,21 +51,30 @@ export function CountryPicker({ visible, value, onSelect, onClose }: Props) {
     );
   }, [query]);
 
+  const close = useCallback(() => {
+    sheetRef.current?.dismiss();
+  }, []);
+
   return (
-    <Modal
-      visible={visible}
-      animationType="slide"
-      presentationStyle="pageSheet"
-      onRequestClose={onClose}
+    <AppBottomSheetModal
+      ref={sheetRef}
+      snapPoints={snapPoints}
+      index={1}
+      backgroundColor={colors.bg}
+      handleColor={isDark ? '#475569' : '#CBD5E1'}
+      onDismiss={() => {
+        setQuery('');
+        onClose();
+      }}
     >
-      <View style={[styles.sheet, { backgroundColor: colors.bg }]}>
+      <View style={styles.sheetInner}>
         <View style={styles.sheetTop}>
           <Text style={type.pageTitle}>{t('login.selectCountry')}</Text>
-          <Pressable onPress={onClose} hitSlop={8}>
+          <Pressable onPress={close} hitSlop={8}>
             <Ionicons name="close" size={22} color={colors.text} />
           </Pressable>
         </View>
-        <TextInput
+        <BottomSheetTextInput
           value={query}
           onChangeText={setQuery}
           placeholder={t('login.searchCountry')}
@@ -67,10 +85,11 @@ export function CountryPicker({ visible, value, onSelect, onClose }: Props) {
             { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text },
           ]}
         />
-        <FlatList
+        <BottomSheetFlatList
           data={filtered}
           keyExtractor={(item) => item.code}
           keyboardShouldPersistTaps="handled"
+          contentContainerStyle={styles.listContent}
           renderItem={({ item }) => {
             const active = item.code === value;
             return (
@@ -98,14 +117,13 @@ export function CountryPicker({ visible, value, onSelect, onClose }: Props) {
           }}
         />
       </View>
-    </Modal>
+    </AppBottomSheetModal>
   );
 }
 
 const styles = StyleSheet.create({
-  sheet: {
+  sheetInner: {
     flex: 1,
-    paddingTop: 20,
     paddingHorizontal: space.lg,
   },
   sheetTop: {
@@ -121,6 +139,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.md,
     marginBottom: space.md,
     fontSize: 14,
+  },
+  listContent: {
+    paddingBottom: 40,
   },
   option: {
     flexDirection: 'row',

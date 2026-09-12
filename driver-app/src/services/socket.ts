@@ -85,6 +85,11 @@ class DriverSocketManager {
         'booking:created',
         'booking:completed',
         'duty:updated',
+        'driver:duty_started',
+        'driver:duty_ended',
+        'duty-log:created',
+        'duty-log:updated',
+        'attendance:updated',
         'notification:new',
       ];
 

@@ -14,6 +14,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Screen } from '../components/Screen';
+import { GlassButton } from '../components/GlassChrome';
 import { CountryPicker } from '../components/CountryPicker';
 import { INDIA, matchCountryByDialPrefix } from '../constants/countries';
 import { RootStackParamList } from '../navigation/types';
@@ -259,23 +260,13 @@ export function LoginScreen({ navigation: _navigation }: Props) {
               </Pressable>
             </View>
 
-            <Pressable
+            <GlassButton
+              title={t('login.signIn')}
               onPress={signIn}
+              loading={busy === 'password'}
               disabled={Boolean(busy)}
-              style={({ pressed }) => [
-                styles.signIn,
-                { backgroundColor: colors.accent },
-                (pressed || busy) && { opacity: 0.8 },
-              ]}
-            >
-              {busy === 'password' ? (
-                <ActivityIndicator color={colors.accentText} />
-              ) : (
-                <Text style={[styles.signInText, { color: colors.accentText }]}>
-                  {t('login.signIn')}
-                </Text>
-              )}
-            </Pressable>
+              style={styles.signIn}
+            />
 
             <Text style={[styles.agencyHint, { color: colors.textFaint }]}>
               Your credentials are provided by your agency admin.

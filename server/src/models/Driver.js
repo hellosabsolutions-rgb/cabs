@@ -86,6 +86,18 @@ const driverSchema = new mongoose.Schema(
       default: 0,
       min: 0
     },
+    dutyStartLocation: {
+      latitude: { type: Number, default: null },
+      longitude: { type: Number, default: null },
+      address: { type: String, trim: true, default: null },
+      time: { type: String, default: null }
+    },
+    currentLocation: {
+      latitude: { type: Number, default: null },
+      longitude: { type: Number, default: null },
+      address: { type: String, trim: true, default: null },
+      updatedAt: { type: Date, default: null }
+    },
     lastLoginAt: {
       type: Date,
       default: null

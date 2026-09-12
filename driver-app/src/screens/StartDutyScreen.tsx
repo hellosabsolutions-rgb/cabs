@@ -16,7 +16,6 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { BlurView, type ExperimentalBlurMethod } from 'expo-blur';
 import { CameraView, useCameraPermissions, type FlashMode } from 'expo-camera';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -26,11 +25,11 @@ import { dutyApi } from '../services/api';
 import { km } from '../data/format';
 import { pickFromCamera } from '../media/pick';
 import type { Attachment } from '../media/types';
+import { FrostedGlassCard, GlassButton, GlassCircleButton, GlassPill } from '../components/GlassChrome';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'StartDuty'>;
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const BLUR_METHOD: ExperimentalBlurMethod = 'dimezisBlurViewSdk31Plus';
 
 function formatIST(timestamp: number): string {
   try {
@@ -47,93 +46,6 @@ function formatIST(timestamp: number): string {
   } catch {
     return new Date(timestamp).toLocaleString('en-IN');
   }
-}
-
-/**
- * Frosted Glass Card using `expo-blur` with `experimentalBlurMethod`.
- * Provides optical native blur on iOS (UIKit) and Android (dimezisBlurViewSdk31Plus).
- */
-function FrostedBlurCard({
-  children,
-  style,
-  borderRadius = 24,
-  intensity = 55,
-}: {
-  children: React.ReactNode;
-  style?: any;
-  borderRadius?: number;
-  intensity?: number;
-}) {
-  return (
-    <View style={[styles.frostedCardWrap, { borderRadius }, style]}>
-      <BlurView
-        intensity={intensity}
-        tint="dark"
-        experimentalBlurMethod={BLUR_METHOD}
-        style={StyleSheet.absoluteFill}
-      />
-      {children}
-    </View>
-  );
-}
-
-/**
- * Frosted Glass Pill using `expo-blur` with `experimentalBlurMethod`.
- */
-function FrostedBlurPill({
-  children,
-  style,
-  borderRadius = 20,
-  intensity = 45,
-}: {
-  children: React.ReactNode;
-  style?: any;
-  borderRadius?: number;
-  intensity?: number;
-}) {
-  return (
-    <View style={[styles.frostedPillWrap, { borderRadius }, style]}>
-      <BlurView
-        intensity={intensity}
-        tint="dark"
-        experimentalBlurMethod={BLUR_METHOD}
-        style={StyleSheet.absoluteFill}
-      />
-      {children}
-    </View>
-  );
-}
-
-/**
- * Frosted Circle Button using `expo-blur` with `experimentalBlurMethod`.
- */
-function FrostedCircleButton({
-  onPress,
-  children,
-  style,
-}: {
-  onPress: () => void;
-  children: React.ReactNode;
-  style?: any;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [
-        styles.circleBtnWrap,
-        pressed && { opacity: 0.75, transform: [{ scale: 0.95 }] },
-        style,
-      ]}
-    >
-      <BlurView
-        intensity={45}
-        tint="dark"
-        experimentalBlurMethod={BLUR_METHOD}
-        style={StyleSheet.absoluteFill}
-      />
-      {children}
-    </Pressable>
-  );
 }
 
 export function StartDutyScreen({ navigation }: Props) {
@@ -421,13 +333,17 @@ export function StartDutyScreen({ navigation }: Props) {
         </View>
       )}
 
-      {/* FLOATING TOP BAR: EXPO BLUR EXPERIMENTAL BLUR ON IOS & ANDROID */}
+      {/* FLOATING TOP BAR: iOS 26 liquid glass · iOS 18 / Android blur */}
       <View style={[styles.topBar, { top: insets.top + 8 }]}>
-        <FrostedCircleButton onPress={() => navigation.goBack()}>
-          <Ionicons name="chevron-back" size={22} color="#FFFFFF" />
-        </FrostedCircleButton>
+        <GlassCircleButton
+          onPress={() => navigation.goBack()}
+          icon="chevron-back"
+          iconSize={22}
+          tone="dark"
+          accessibilityLabel="Go back"
+        />
 
-        <FrostedBlurPill style={styles.vehicleBadgePill}>
+        <GlassPill tone="dark" style={styles.vehicleBadgePill}>
           <View style={styles.pulseDot} />
           <Ionicons name="car-outline" size={15} color="#FFFFFF" style={{ marginRight: 6 }} />
           <Text style={styles.vehicleBadgeReg}>
@@ -436,16 +352,19 @@ export function StartDutyScreen({ navigation }: Props) {
           <Text style={styles.vehicleBadgeModel}>
             • {session.vehicle?.model || 'Commercial'}
           </Text>
-        </FrostedBlurPill>
+        </GlassPill>
 
-        {!capturedPhoto && (
-          <FrostedCircleButton onPress={toggleFlash}>
-            <Ionicons
-              name={flash === 'on' ? 'flash' : flash === 'auto' ? 'flash-outline' : 'flash-off-outline'}
-              size={18}
-              color={flash !== 'off' ? '#FFFFFF' : '#A1A1AA'}
-            />
-          </FrostedCircleButton>
+        {!capturedPhoto ? (
+          <GlassCircleButton
+            onPress={toggleFlash}
+            icon={flash === 'on' ? 'flash' : flash === 'auto' ? 'flash-outline' : 'flash-off-outline'}
+            iconSize={18}
+            iconColor={flash !== 'off' ? '#FFFFFF' : '#A1A1AA'}
+            tone="dark"
+            accessibilityLabel="Toggle flash"
+          />
+        ) : (
+          <View style={{ width: 42 }} />
         )}
       </View>
 
@@ -484,10 +403,10 @@ export function StartDutyScreen({ navigation }: Props) {
       {/* POST-CAPTURE SUCCESS BADGE */}
       {capturedPhoto && (
         <View style={[styles.successBadgeWrap, { top: insets.top + 60 }]}>
-          <FrostedBlurPill style={styles.successBadge}>
+          <GlassPill tone="dark" style={styles.successBadge}>
             <Ionicons name="checkmark-circle" size={17} color="#FFFFFF" style={{ marginRight: 6 }} />
             <Text style={styles.successBadgeText}>Odometer Photo Captured & Verified</Text>
-          </FrostedBlurPill>
+          </GlassPill>
         </View>
       )}
 
@@ -498,7 +417,7 @@ export function StartDutyScreen({ navigation }: Props) {
       >
         {/* PRE-CAPTURE MODE: FLOATING ODOMETER BAR + LEICA/APPLE MONOCHROME SHUTTER BUTTON */}
         {!capturedPhoto ? (
-          <FrostedBlurCard style={styles.preCaptureCard}>
+          <FrostedGlassCard style={styles.preCaptureCard}>
             {/* Odometer Quick Input Strip */}
             <View style={styles.floatingOdoStrip}>
               <View style={{ flex: 1 }}>
@@ -555,10 +474,10 @@ export function StartDutyScreen({ navigation }: Props) {
               </Pressable>
               <Text style={styles.shutterInstruction}>Tap shutter to capture photo</Text>
             </View>
-          </FrostedBlurCard>
+          </FrostedGlassCard>
         ) : (
           /* POST-CAPTURE MODE: FLOATING VERIFICATION CARD & HIGH CONTRAST POWER BUTTON */
-          <FrostedBlurCard style={styles.postCaptureContainer}>
+          <FrostedGlassCard style={styles.postCaptureContainer}>
             <ScrollView
               bounces={false}
               showsVerticalScrollIndicator={false}
@@ -701,17 +620,15 @@ export function StartDutyScreen({ navigation }: Props) {
 
               {/* ACTION BUTTONS ROW: POWER BLACK & WHITE THEME */}
               <View style={styles.actionButtonsRow}>
-                {/* Retake Button (Frosted Glass) */}
-                <Pressable
+                <GlassButton
+                  title="Retake"
+                  icon="camera-reverse-outline"
+                  variant="secondary"
                   onPress={() => setCapturedPhoto(null)}
                   disabled={isSubmitting}
-                  style={styles.retakeBtn}
-                >
-                  <Ionicons name="camera-reverse-outline" size={18} color="#FFFFFF" style={{ marginRight: 6 }} />
-                  <Text style={styles.retakeBtnText}>Retake</Text>
-                </Pressable>
-
-                {/* Start Duty Primary Button (Pure White Power Accent) */}
+                  style={styles.flexBtn}
+                  tone="dark"
+                />
                 <Pressable
                   onPress={handleStartDuty}
                   disabled={isSubmitting || !hasAssignedVehicle}
@@ -732,7 +649,7 @@ export function StartDutyScreen({ navigation }: Props) {
                 </Pressable>
               </View>
             </ScrollView>
-          </FrostedBlurCard>
+          </FrostedGlassCard>
         )}
       </KeyboardAvoidingView>
     </View>
@@ -791,37 +708,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
 
-  /* EXPO BLUR FROSTED CONTAINERS (IOS & ANDROID) */
-  frostedCardWrap: {
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-    backgroundColor: 'rgba(18, 18, 20, 0.55)',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.55,
-    shadowRadius: 20,
-    elevation: 8,
-  },
-
-  frostedPillWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    overflow: 'hidden',
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.22)',
-    backgroundColor: 'rgba(18, 18, 20, 0.65)',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-
-
   /* FLOATING TOP BAR */
   topBar: {
     position: 'absolute',
@@ -832,26 +718,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  circleBtnWrap: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    overflow: 'hidden',
-    backgroundColor: 'rgba(18, 18, 20, 0.65)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.22)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    elevation: 3,
-  },
-
-  vehicleBadgePill: {
-    // Layout handled inside FrostedBlurPill
-  },
+  vehicleBadgePill: {},
   pulseDot: {
     width: 7,
     height: 7,
@@ -1298,6 +1165,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 12,
     marginTop: 4,
+  },
+  flexBtn: {
+    flex: 1,
   },
   retakeBtn: {
     flex: 1,

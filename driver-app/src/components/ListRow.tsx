@@ -1,7 +1,8 @@
 import React from 'react';
-import { Pressable, StyleSheet, Text, View, ViewStyle } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { radius, space } from '../theme/colors';
+import { GlassSurface } from './GlassChrome';
+import { space } from '../theme/colors';
 import { useAppTheme } from '../theme/ThemeProvider';
 
 type Props = {
@@ -14,11 +15,6 @@ type Props = {
 
 export function ListRow({ icon, title, subtitle, trailing, onPress }: Props) {
   const { colors, type } = useAppTheme();
-
-  const rowStyle: ViewStyle[] = [
-    styles.row,
-    { backgroundColor: colors.surface, borderColor: colors.border },
-  ];
 
   const body = (
     <>
@@ -35,27 +31,33 @@ export function ListRow({ icon, title, subtitle, trailing, onPress }: Props) {
     </>
   );
 
+  const inner = <View style={styles.rowInner}>{body}</View>;
+
   if (onPress) {
     return (
-      <Pressable onPress={onPress} style={({ pressed }) => [...rowStyle, pressed && { opacity: 0.86 }]}>
-        {body}
+      <Pressable onPress={onPress} style={({ pressed }) => [styles.wrap, pressed && { opacity: 0.86 }]}>
+        <GlassSurface>{inner}</GlassSurface>
       </Pressable>
     );
   }
 
-  return <View style={rowStyle}>{body}</View>;
+  return (
+    <View style={styles.wrap}>
+      <GlassSurface>{inner}</GlassSurface>
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
-  row: {
+  wrap: {
+    marginBottom: space.sm,
+  },
+  rowInner: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: space.md,
-    borderWidth: 1,
-    borderRadius: radius.md,
     paddingVertical: 12,
     paddingHorizontal: space.md,
-    marginBottom: space.sm,
   },
   icon: {
     width: 32,
