@@ -107,58 +107,6 @@ function getGreetingDetails(hour: number): {
   return { key: 'home.goodNight', icon: 'moon', color: '#C7D2FE' };
 }
 
-/**
- * Smooth Multi-Stop Gradient Fade Transition
- * Fades seamlessly from the hero royal blue through lighter shades of sky & ice blue,
- * merging softly into the white / surface background without any harsh borders or drop shadows.
- * Pure React Native layout (no native linear gradient module required).
- */
-function HeroBottomFade({ isDark, targetBg }: { isDark: boolean; targetBg: string }) {
-  const slices = useMemo(() => {
-    const count = 28;
-    // Light mode stops:
-    // 0.00: Hero Royal Blue (#1267DE / rgb(18, 103, 222))
-    // 0.25: Vibrant Azure / Sky Blue (#3B82F6 / rgb(59, 130, 246))
-    // 0.55: Soft Powder Blue (#93C5FD / rgb(147, 197, 253))
-    // 0.80: Whispering Ice Blue (#DBEAFE / rgb(219, 234, 254))
-    // 1.00: Target background (#FFFFFF / rgb(255, 255, 255))
-    const startRgb = isDark ? [13, 72, 153] : [18, 103, 222];
-    const mid1Rgb = isDark ? [15, 56, 115] : [59, 130, 246];
-    const mid2Rgb = isDark ? [15, 38, 75] : [147, 197, 253];
-    const mid3Rgb = isDark ? [13, 24, 45] : [219, 234, 254];
-    const endRgb = isDark ? [11, 11, 11] : [255, 255, 255];
-
-    const items: string[] = [];
-    for (let i = 0; i < count; i++) {
-      const t = i / (count - 1);
-      let c: number[];
-      if (t < 0.25) {
-        const localT = t / 0.25;
-        c = startRgb.map((s, idx) => Math.round(s + (mid1Rgb[idx] - s) * localT));
-      } else if (t < 0.55) {
-        const localT = (t - 0.25) / 0.30;
-        c = mid1Rgb.map((s, idx) => Math.round(s + (mid2Rgb[idx] - s) * localT));
-      } else if (t < 0.80) {
-        const localT = (t - 0.55) / 0.25;
-        c = mid2Rgb.map((s, idx) => Math.round(s + (mid3Rgb[idx] - s) * localT));
-      } else {
-        const localT = (t - 0.80) / 0.20;
-        c = mid3Rgb.map((s, idx) => Math.round(s + (endRgb[idx] - s) * localT));
-      }
-      items.push(`rgb(${c[0]}, ${c[1]}, ${c[2]})`);
-    }
-    return items;
-  }, [isDark]);
-
-  return (
-    <View style={styles.fadeContainer} pointerEvents="none">
-      {slices.map((bg, idx) => (
-        <View key={idx} style={[styles.fadeSlice, { backgroundColor: bg }]} />
-      ))}
-    </View>
-  );
-}
-
 export function HomeScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
   const { colors, scheme, t } = useAppTheme();
@@ -389,18 +337,6 @@ export function HomeScreen({ navigation }: Props) {
           />
         }
       >
-        {/* Top overscroll bounce cover (seamless royal blue on iOS pull-down) */}
-        <View
-          style={{
-            position: 'absolute',
-            top: -600,
-            left: 0,
-            right: 0,
-            height: 600,
-            backgroundColor: isDark ? '#0D4899' : '#1267DE',
-          }}
-        />
-
         {/* ─── UNIFIED BLUE HERO (MERGED HEADER + COCKPIT) ─── */}
         <View
           style={[
@@ -567,9 +503,6 @@ export function HomeScreen({ navigation }: Props) {
             </Pressable>
           </View>
         </View>
-
-        {/* ─── HERO BOTTOM GRADIENT FADE (BLUE -> LIGHT SHADE -> WHITE) ─── */}
-        <HeroBottomFade isDark={isDark} targetBg={colors.bg} />
 
         {/* ─── PAGE BODY (BELOW HERO) ─── */}
         <View style={styles.pageBody}>
@@ -739,18 +672,17 @@ const styles = StyleSheet.create({
   heroContainer: {
     width: '100%',
     paddingHorizontal: space.lg,
-    paddingBottom: 14,
+    paddingBottom: 22,
+    borderBottomLeftRadius: 28,
+    borderBottomRightRadius: 28,
+    borderCurve: 'continuous',
+    shadowColor: '#0848AA',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.22,
+    shadowRadius: 16,
+    elevation: 8,
     position: 'relative',
     overflow: 'hidden',
-  },
-  fadeContainer: {
-    width: '100%',
-    height: 68,
-    overflow: 'hidden',
-  },
-  fadeSlice: {
-    width: '100%',
-    height: 2.5,
   },
   ambientGlowTop: {
     position: 'absolute',
@@ -763,12 +695,12 @@ const styles = StyleSheet.create({
   },
   ambientGlowBottom: {
     position: 'absolute',
-    bottom: -40,
-    left: -30,
+    bottom: -60,
+    left: -40,
     width: 200,
     height: 200,
     borderRadius: 100,
-    backgroundColor: 'rgba(59, 130, 246, 0.22)',
+    backgroundColor: 'rgba(6, 40, 105, 0.38)',
   },
   heroHeaderRow: {
     flexDirection: 'row',
@@ -1030,7 +962,7 @@ const styles = StyleSheet.create({
   /* ─── PAGE BODY (BELOW HERO) ─── */
   pageBody: {
     paddingHorizontal: space.lg,
-    paddingTop: 8,
+    paddingTop: space.md,
   },
 
   /* ─── QUICK ACTIONS GRID ─── */
