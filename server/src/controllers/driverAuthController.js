@@ -1,7 +1,10 @@
 import { Driver } from '../models/Driver.js';
 import { Vehicle } from '../models/Vehicle.js';
+import { DriverAttendance } from '../models/DriverAttendance.js';
+import { DailyDutyLog } from '../models/DailyDutyLog.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import { verifyGoogleIdentity } from '../services/googleAuth.js';
+import { emitToDriver, broadcastAll } from '../services/socketService.js';
 import {
   findAssignedVehicle,
   findDriverByIdentifier,
@@ -162,6 +165,46 @@ export const startDriverDuty = asyncHandler(async (req, res) => {
     hour12: true
   });
   const istFormatted = istFormatter.format(now);
+  const istTime = new Intl.DateTimeFormat('en-IN', {
+    timeZone: 'Asia/Kolkata',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true
+  }).format(now);
+  const todayDate = now.toISOString().slice(0, 10);
+
+  // Auto-record / update attendance for today as Present
+  try {
+    await DriverAttendance.findOneAndUpdate(
+      { driverId: driver._id.toString(), date: todayDate },
+      {
+        $setOnInsert: {
+          driverId: driver._id.toString(),
+          driverName: driver.name,
+          date: todayDate,
+          dutyType: 'Department Duty'
+        },
+        $set: {
+          status: 'Present',
+          checkIn: istTime,
+          assignedVehicle: vehicle.registrationNumber
+        }
+      },
+      { upsert: true, new: true }
+    );
+  } catch (attErr) {
+    console.warn('Could not auto-log attendance on start duty:', attErr.message);
+  }
+
+  // Socket emissions for real-time dashboard and mobile sync
+  try {
+    emitToDriver(driver._id, 'driver:status', { onDuty: true, status: 'On duty', vehicle: vehicle.registrationNumber });
+    emitToDriver(driver._id, 'driver:updated', { id: driver._id.toString(), status: 'On duty' });
+    broadcastAll('driver:any_change', { driverId: driver._id.toString(), status: 'On duty' });
+    broadcastAll('vehicle:updated', { vehicleId: vehicle._id.toString(), status: 'Running', odometer: odoNumber });
+  } catch (sockErr) {
+    console.warn('Socket emission warning on startDuty:', sockErr.message);
+  }
 
   res.status(200).json({
     success: true,
@@ -175,5 +218,163 @@ export const startDriverDuty = asyncHandler(async (req, res) => {
       model: vehicle.model || '—',
       odometer: odoNumber
     }
+  });
+});
+
+/**
+ * @desc    End driver duty
+ * @route   POST /api/auth/driver/duty/end
+ * @access  Private (driver)
+ */
+export const endDriverDuty = asyncHandler(async (req, res) => {
+  const driver = req.driver;
+  let vehicle = await findAssignedVehicle(driver);
+  if (!vehicle && driver.assignedVehicle && driver.assignedVehicle !== '—') {
+    vehicle = await Vehicle.findOne({ registrationNumber: driver.assignedVehicle });
+  }
+
+  const { endOdometer, remarks, photoUrl, location } = req.body;
+  const odoNumber = Number(endOdometer);
+
+  if (isNaN(odoNumber) || odoNumber <= 0) {
+    return res.status(400).json({
+      success: false,
+      error: 'Please provide a valid ending odometer reading.'
+    });
+  }
+
+  const currentVehicleOdo = vehicle?.odometer || 0;
+  if (currentVehicleOdo > 0 && odoNumber < currentVehicleOdo) {
+    return res.status(400).json({
+      success: false,
+      error: `Ending odometer (${odoNumber} km) cannot be less than current odometer (${currentVehicleOdo} km).`
+    });
+  }
+
+  const kmRun = Math.max(0, odoNumber - currentVehicleOdo);
+
+  // Update driver status to Off duty
+  await Driver.findByIdAndUpdate(driver._id, {
+    status: 'Off duty'
+  });
+
+  // Update vehicle status & odometer if vehicle exists
+  if (vehicle) {
+    await Vehicle.findByIdAndUpdate(vehicle._id, {
+      status: 'Active',
+      odometer: Math.max(vehicle.odometer || 0, odoNumber)
+    });
+  }
+
+  const now = new Date();
+  const istFormatter = new Intl.DateTimeFormat('en-IN', {
+    timeZone: 'Asia/Kolkata',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: true
+  });
+  const istFormatted = istFormatter.format(now);
+  const istTime = new Intl.DateTimeFormat('en-IN', {
+    timeZone: 'Asia/Kolkata',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true
+  }).format(now);
+  const todayDate = now.toISOString().slice(0, 10);
+
+  // Update attendance checkout time & working hours if record exists
+  try {
+    const attRecord = await DriverAttendance.findOne({
+      driverId: driver._id.toString(),
+      date: todayDate
+    });
+    if (attRecord) {
+      attRecord.checkOut = istTime;
+      if (attRecord.checkIn) {
+        try {
+          const parseTime = (tStr) => {
+            const [time, modifier] = tStr.split(' ');
+            let [hours, minutes] = time.split(':').map(Number);
+            if (modifier === 'PM' && hours < 12) hours += 12;
+            if (modifier === 'AM' && hours === 12) hours = 0;
+            return hours + minutes / 60;
+          };
+          const startH = parseTime(attRecord.checkIn);
+          const endH = parseTime(istTime);
+          const diff = endH >= startH ? endH - startH : (24 - startH) + endH;
+          attRecord.workingHours = Number(diff.toFixed(1));
+        } catch {
+          // Ignore parsing issues
+        }
+      }
+      if (remarks) {
+        attRecord.notes = attRecord.notes ? `${attRecord.notes}; ${remarks}` : remarks;
+      }
+      await attRecord.save();
+    }
+  } catch (attErr) {
+    console.warn('Could not auto-update attendance on end duty:', attErr.message);
+  }
+
+  // Create DailyDutyLog entry for official duty bookkeeping
+  try {
+    const startKm = currentVehicleOdo || odoNumber;
+    const dutySlipNumber = `SLIP-${Date.now().toString().slice(-6)}`;
+    const monthNames = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+    const currentMonth = monthNames[now.getMonth()];
+
+    await DailyDutyLog.create({
+      dutySlipNumber,
+      logBookPageNo: String(Math.floor(100 + Math.random() * 900)),
+      month: currentMonth,
+      date: todayDate,
+      departmentName: vehicle?.departmentName || 'General Operations',
+      vehicle: vehicle ? vehicle.registrationNumber : (driver.assignedVehicle || 'Fleet'),
+      driverName: driver.name || 'Driver',
+      dutyType: 'Official Department Duty',
+      startKm,
+      endKm: odoNumber,
+      totalKm: Math.max(0, odoNumber - startKm),
+      endTime: istTime,
+      dutySlipPhoto: photoUrl || null,
+      notes: remarks || '',
+      status: 'Approved'
+    });
+  } catch (logErr) {
+    console.warn('Could not auto-create DailyDutyLog on end duty:', logErr.message);
+  }
+
+  // Real-time socket broadcast
+  try {
+    emitToDriver(driver._id, 'driver:status', { onDuty: false, status: 'Off duty' });
+    emitToDriver(driver._id, 'driver:updated', { id: driver._id.toString(), status: 'Off duty' });
+    broadcastAll('driver:any_change', { driverId: driver._id.toString(), status: 'Off duty' });
+    if (vehicle) {
+      broadcastAll('vehicle:updated', { vehicleId: vehicle._id.toString(), status: 'Active', odometer: odoNumber });
+    }
+  } catch (sockErr) {
+    console.warn('Socket emission warning on endDuty:', sockErr.message);
+  }
+
+  res.status(200).json({
+    success: true,
+    message: 'Duty ended successfully.',
+    endedAt: istFormatted,
+    timestamp: now.getTime(),
+    endOdometer: odoNumber,
+    kmRun,
+    remarks: remarks || '',
+    vehicle: vehicle ? {
+      id: vehicle._id.toString(),
+      reg: vehicle.registrationNumber,
+      odometer: odoNumber
+    } : null
   });
 });

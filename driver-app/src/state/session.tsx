@@ -112,8 +112,8 @@ type SessionValue = {
   advances: AdvanceEntry[];
   documents: DocEntry[];
   txns: Txn[];
-  startDuty: (startOdo: number, photoUri?: string) => void | Promise<void>;
-  endDuty: (endOdo: number, remarks: string) => void;
+  startDuty: (startOdo: number, photoUri?: string) => Promise<void>;
+  endDuty: (endOdo: number, remarks?: string, photoUri?: string) => Promise<void>;
   addFuel: (entry: Omit<FuelEntry, 'id' | 'at'>) => void | Promise<void>;
   addExpense: (entry: Omit<ExpenseEntry, 'id' | 'at' | 'status'>) => void;
   addAdvance: (amount: number, reason: string) => void;
@@ -416,32 +416,60 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       documents,
       txns,
       startDuty: async (startOdo, photoUri) => {
-        try {
-          await dutyApi.startDuty({ startOdometer: startOdo, photoUrl: photoUri });
-        } catch (e) {
-          console.warn('duty/start server sync fallback:', e);
-        }
+        const res = await dutyApi.startDuty({ startOdometer: startOdo, photoUrl: photoUri });
         setOnDuty(true);
         setOdometer(startOdo);
         setDuties((prev) => [
-          { id: uid('d'), startedAt: nowStamp(), startOdo, photo: true },
+          { id: uid('d'), startedAt: res?.startedAt || nowStamp(), startOdo, photo: !!photoUri },
           ...prev,
         ]);
+        try {
+          await refreshProfile();
+        } catch (err) {
+          console.warn('Could not refresh profile after startDuty:', err);
+        }
       },
-      endDuty: (endOdo, remarks) => {
-        const kmRun = Math.max(0, endOdo - odometer);
+      endDuty: async (endOdo, remarks, photoUri) => {
+        const res = await dutyApi.endDuty({ endOdometer: endOdo, remarks, photoUrl: photoUri });
+        const kmRun = res?.kmRun ?? Math.max(0, endOdo - odometer);
         setOnDuty(false);
         setOdometer(endOdo);
         setTodayKm((prev) => prev + kmRun);
         setDuties((prev) => {
           const open = prev.find((d) => !d.endedAt);
-          if (!open) return prev;
+          if (!open) {
+            return [
+              {
+                id: uid('d'),
+                startedAt: nowStamp(),
+                endedAt: res?.endedAt || nowStamp(),
+                startOdo: odometer,
+                endOdo,
+                km: kmRun,
+                remarks,
+                photo: !!photoUri,
+              },
+              ...prev,
+            ];
+          }
           return prev.map((d) =>
             d.id === open.id
-              ? { ...d, endedAt: nowStamp(), endOdo, km: endOdo - d.startOdo, remarks }
+              ? {
+                  ...d,
+                  endedAt: res?.endedAt || nowStamp(),
+                  endOdo,
+                  km: kmRun,
+                  remarks: remarks || d.remarks,
+                  photo: !!photoUri || d.photo,
+                }
               : d
           );
         });
+        try {
+          await refreshProfile();
+        } catch (err) {
+          console.warn('Could not refresh profile after endDuty:', err);
+        }
       },
       addFuel: async (entry) => {
         const nextWallet = walletRemaining - entry.cost;

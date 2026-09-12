@@ -276,6 +276,25 @@ export const dutyApi = {
       method: 'POST',
       data,
     }),
+
+  endDuty: (data: { endOdometer: number; remarks?: string; photoUrl?: string; location?: string }) =>
+    apiRequest<{
+      success: boolean;
+      message: string;
+      endedAt: string;
+      timestamp: number;
+      endOdometer: number;
+      kmRun: number;
+      remarks?: string;
+      vehicle?: {
+        id: string;
+        reg: string;
+        odometer: number;
+      } | null;
+    }>('/auth/driver/duty/end', {
+      method: 'POST',
+      data,
+    }),
 };
 
 export type FuelLogPayload = {

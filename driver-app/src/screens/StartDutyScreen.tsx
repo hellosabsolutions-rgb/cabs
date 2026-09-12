@@ -167,8 +167,8 @@ export function StartDutyScreen({ navigation }: Props) {
         `Duty started successfully.\n\nVehicle: ${session.vehicle.reg}\nType: ${session.vehicle.type || 'Fleet'}\nOdometer: ${km(value)}`,
         [{ text: 'OK', onPress: () => navigation.goBack() }]
       );
-    } catch {
-      Alert.alert('Error', 'Failed to record duty start. Please try again.');
+    } catch (err: any) {
+      Alert.alert('Error', err?.message || 'Failed to record duty start. Please try again.');
     } finally {
       setIsSubmitting(false);
     }

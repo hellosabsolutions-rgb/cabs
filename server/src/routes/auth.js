@@ -16,7 +16,8 @@ import {
   driverLogin,
   driverGoogleLogin,
   getDriverMe,
-  startDriverDuty
+  startDriverDuty,
+  endDriverDuty
 } from '../controllers/driverAuthController.js';
 import { protect, protectDriver } from '../middleware/authMiddleware.js';
 
@@ -32,6 +33,7 @@ router.post('/driver/login', driverLogin);
 router.post('/driver/google', driverGoogleLogin);
 router.get('/driver/me', protectDriver, getDriverMe);
 router.post('/driver/duty/start', protectDriver, startDriverDuty);
+router.post('/driver/duty/end', protectDriver, endDriverDuty);
 
 router.get('/me', protect, getMe);
 router.put('/profile', protect, updateProfile);
