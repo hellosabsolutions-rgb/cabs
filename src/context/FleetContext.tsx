@@ -2745,7 +2745,7 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const assignBookingDriver = async (id: string, driver: string, vehicle?: string) => {
     try {
-      const res = await api.patch(`/bookings/${id}/assign`, { driver, vehicle });
+      const res = await api.patch(`/bookings/${id}/assign`, { driver, driverName: driver, vehicle });
       if (res && res.data) {
         const updated = res.data;
         setTrips(prev =>

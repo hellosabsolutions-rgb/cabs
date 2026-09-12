@@ -545,7 +545,8 @@ export const BookingsView: React.FC = () => {
                               onChange={(e) => {
                                 const selectedDriver = e.target.value;
                                 const drvObj = drivers.find(d => d.name === selectedDriver);
-                                assignBookingDriver(b.id, selectedDriver, drvObj?.assignedVehicle || undefined);
+                                const bookingId = b.id || b._id;
+                                assignBookingDriver(bookingId, selectedDriver, drvObj?.assignedVehicle || undefined);
                               }}
                               style={{
                                 fontSize: '11px',

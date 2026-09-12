@@ -281,17 +281,13 @@ export const getMyBookings = async (req, res, next) => {
     }
 
     const driverName = driver.name?.trim();
-    const vehicleReg = driver.assignedVehicle?.trim();
-
-    const queryOr = [];
-    if (driverName) {
-      queryOr.push({ driverName: new RegExp(`^${driverName}$`, 'i') });
-    }
-    if (vehicleReg && vehicleReg !== '—' && vehicleReg !== 'None' && vehicleReg !== 'Unassigned') {
-      queryOr.push({ vehicle: new RegExp(`^${vehicleReg}$`, 'i') });
+    if (!driverName) {
+      return res.status(200).json({ success: true, count: 0, data: [] });
     }
 
-    const query = queryOr.length > 0 ? { $or: queryOr } : { driverName };
+    const query = {
+      driverName: new RegExp(`^${driverName}$`, 'i')
+    };
 
     if (req.query.status && req.query.status !== 'All') {
       query.status = req.query.status;
@@ -491,23 +487,35 @@ export const updateBookingStatus = async (req, res, next) => {
 export const assignBookingDriver = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { driverName, vehicle } = req.body;
+    const resolvedDriverName = (req.body.driverName || req.body.driver || '').trim();
+    const { vehicle } = req.body;
 
-    const booking = await Booking.findById(id);
+    const mongoose = (await import('mongoose')).default;
+    const booking = mongoose.Types.ObjectId.isValid(id)
+      ? await Booking.findById(id)
+      : await Booking.findOne({ $or: [{ bookingNumber: id }, { tripNumber: id }] });
+
     if (!booking) {
       return res.status(404).json({ success: false, error: 'Booking not found' });
     }
 
     const prevDriver = booking.driverName;
-    const isUnassigning = !driverName || driverName === 'None' || driverName === '—' || driverName === 'Unassigned';
+    const isUnassigning = !resolvedDriverName || resolvedDriverName === 'None' || resolvedDriverName === '—' || resolvedDriverName === 'Unassigned';
 
     if (isUnassigning) {
       booking.driverName = 'Unassigned';
     } else {
-      booking.driverName = driverName.trim();
+      booking.driverName = resolvedDriverName;
+      // Auto-assign vehicle if driver has one assigned and booking doesn't specify
+      if (!vehicle || vehicle === '—') {
+        const driverDoc = await Driver.findOne({ name: new RegExp(`^${resolvedDriverName}$`, 'i') });
+        if (driverDoc && driverDoc.assignedVehicle && driverDoc.assignedVehicle !== '—') {
+          booking.vehicle = driverDoc.assignedVehicle;
+        }
+      }
     }
 
-    if (vehicle) {
+    if (vehicle && vehicle !== '—' && vehicle !== 'None') {
       booking.vehicle = vehicle.trim();
     }
 
@@ -521,6 +529,11 @@ export const assignBookingDriver = async (req, res, next) => {
         booking,
         previousDriverName: prevDriver
       });
+      broadcastAll('booking:unassigned', {
+        bookingId: booking._id?.toString(),
+        bookingNumber: booking.bookingNumber,
+        previousDriverName: prevDriver
+      });
     }
 
     if (!isUnassigning && booking.driverName) {
@@ -530,10 +543,14 @@ export const assignBookingDriver = async (req, res, next) => {
         booking,
         driverName: booking.driverName
       });
+      broadcastAll('booking:assigned', {
+        booking,
+        driverName: booking.driverName
+      });
     }
 
     broadcastAll('booking:updated', { booking, action: isUnassigning ? 'unassigned' : 'assigned' });
-    broadcastAll('driver:any_change', { action: 'booking:assignment', bookingId: booking._id });
+    broadcastAll('driver:any_change', { action: 'booking:assignment', bookingId: booking._id, driverName: booking.driverName });
 
     res.status(200).json({
       success: true,
