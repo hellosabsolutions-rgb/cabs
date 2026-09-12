@@ -364,7 +364,6 @@ export function HomeScreen({ navigation }: Props) {
             paddingTop: topInset + (Platform.OS === 'android' ? 6 : 0),
             backgroundColor: stickyBg,
             borderBottomColor: stickyBorder,
-            shadowOpacity: stickyShadow,
           },
         ]}
         pointerEvents={scrolledPast ? 'auto' : 'none'}
@@ -710,10 +709,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.lg,
     paddingBottom: 10,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 8,
-    elevation: 4,
   },
   stickyHeaderContent: {
     flexDirection: 'row',
@@ -789,11 +784,6 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 28,
     borderBottomRightRadius: 28,
     borderCurve: 'continuous',
-    shadowColor: '#0848AA',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.22,
-    shadowRadius: 16,
-    elevation: 8,
     position: 'relative',
     overflow: 'hidden',
   },

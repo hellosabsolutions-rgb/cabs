@@ -49,7 +49,7 @@ export function RootNavigator() {
           headerStyle: { backgroundColor: scheme === 'dark' ? '#121212' : '#FFFFFF' },
           headerTintColor: colors.text,
           headerTitleStyle: { fontWeight: '700', fontSize: 17 },
-          headerShadowVisible: true,
+          headerShadowVisible: false,
           headerTitleAlign: 'center',
           contentStyle: { backgroundColor: colors.bg },
         }}
