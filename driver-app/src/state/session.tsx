@@ -60,6 +60,8 @@ export type DocEntry = {
   status: 'uploaded' | 'pending';
   fileName?: string;
   kind?: 'image' | 'pdf';
+  uri?: string;
+  size?: string;
 };
 
 export type Txn = {
@@ -230,10 +232,50 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     },
   ]);
   const [documents, setDocuments] = useState<DocEntry[]>([
-    { id: 'doc1', type: 'Delivery Challan', at: '11 Sep, 08:30', tripId: 'TRP-8841', status: 'uploaded' },
-    { id: 'doc2', type: 'POD', at: '11 Sep, 09:10', tripId: 'TRP-8841', status: 'pending' },
-    { id: 'doc3', type: 'Invoice', at: '10 Sep, 18:40', tripId: 'TRP-8830', status: 'uploaded' },
-    { id: 'doc4', type: 'Vehicle Documents', at: '01 Sep, 10:00', tripId: 'TRP-8841', status: 'uploaded' },
+    {
+      id: 'doc1',
+      type: 'Delivery Challan',
+      at: '11 Sep, 08:30',
+      tripId: 'TRP-8841',
+      status: 'uploaded',
+      fileName: 'challan_signed_8841.pdf',
+      kind: 'pdf',
+      size: '1.4 MB',
+      uri: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&q=80',
+    },
+    {
+      id: 'doc2',
+      type: 'POD',
+      at: '11 Sep, 09:10',
+      tripId: 'TRP-8841',
+      status: 'pending',
+      fileName: 'pod_receipt_8841.jpg',
+      kind: 'image',
+      size: '850 KB',
+      uri: 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&w=800&q=80',
+    },
+    {
+      id: 'doc3',
+      type: 'Invoice',
+      at: '10 Sep, 18:40',
+      tripId: 'TRP-8830',
+      status: 'uploaded',
+      fileName: 'tax_invoice_8830.pdf',
+      kind: 'pdf',
+      size: '2.1 MB',
+      uri: 'https://images.unsplash.com/photo-1554224154-26032ffc0d07?auto=format&fit=crop&w=800&q=80',
+    },
+    {
+      id: 'doc4',
+      type: 'Vehicle Documents',
+      at: '01 Sep, 10:00',
+      tripId: 'TRP-8841',
+      status: 'uploaded',
+      fileName: 'rc_fitness_insurance.pdf',
+      kind: 'pdf',
+      size: '3.6 MB',
+      uri: 'https://images.unsplash.com/photo-1586281380349-632531db7ed4?auto=format&fit=crop&w=800&q=80',
+    },
   ]);
   const [txns, setTxns] = useState<Txn[]>(seedTxns);
 
@@ -476,8 +518,10 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
             at: nowStamp(),
             tripId: 'TRP-8841',
             status: 'uploaded',
-            fileName: file?.name,
-            kind: file?.kind,
+            fileName: file?.name || `${type.toLowerCase().replace(/\s+/g, '_')}.pdf`,
+            kind: file?.kind || 'pdf',
+            uri: file?.uri,
+            size: '1.2 MB',
           },
           ...prev,
         ]);

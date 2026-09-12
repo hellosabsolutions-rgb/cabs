@@ -72,7 +72,7 @@ export function RootNavigator() {
             <Stack.Screen name="AddExpense" component={AddExpenseScreen} options={{ title: t('nav.addExpense') }} />
             <Stack.Screen name="AdvanceRequest" component={AdvanceRequestScreen} options={{ title: t('nav.advanceRequest') }} />
             <Stack.Screen name="DigitalId" component={DigitalIdScreen} options={{ title: t('nav.digitalId') }} />
-            <Stack.Screen name="Documents" component={DocumentsScreen} options={{ title: t('docs.title') }} />
+            <Stack.Screen name="Documents" component={DocumentsScreen} options={{ headerShown: false }} />
             <Stack.Screen name="Settings" component={SettingsScreen} options={{ title: t('nav.settings') }} />
           </>
         ) : (
