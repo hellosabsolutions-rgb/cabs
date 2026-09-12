@@ -259,6 +259,19 @@ export const dutyApi = {
       ist: string;
     }>('/server-time', { auth: false }),
 
+  detectOdometer: (data: { image: string; currentOdo?: number }) =>
+    apiRequest<{
+      success: boolean;
+      detected: boolean;
+      odometer: number | null;
+      confidence?: number;
+      allNumbers?: number[];
+      rawText?: string;
+    }>('/auth/driver/duty/detect-odometer', {
+      method: 'POST',
+      data,
+    }),
+
   startDuty: (data: { startOdometer: number; photoUrl?: string; location?: string }) =>
     apiRequest<{
       success: boolean;

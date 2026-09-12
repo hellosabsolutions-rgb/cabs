@@ -378,3 +378,25 @@ export const endDriverDuty = asyncHandler(async (req, res) => {
     } : null
   });
 });
+
+/**
+ * @desc    Auto-detect odometer integers from live odometer photo
+ * @route   POST /api/auth/driver/duty/detect-odometer
+ * @access  Public / Driver
+ */
+export const detectOdometer = asyncHandler(async (req, res) => {
+  const { image, currentOdo } = req.body;
+
+  if (!image) {
+    return res.status(400).json({
+      success: false,
+      error: 'Please provide an image (base64) to detect odometer reading.'
+    });
+  }
+
+  const { detectOdometerFromImage } = await import('../services/odometerOcrService.js');
+  const result = await detectOdometerFromImage(image, Number(currentOdo) || 0);
+
+  res.status(200).json(result);
+});
+

@@ -48,6 +48,12 @@ PODS:
     - RecaptchaInterop
   - ExpoAsset (57.0.16):
     - ExpoModulesCore
+  - ExpoBlur (57.0.3):
+    - ExpoModulesCore
+  - ExpoCamera (57.0.5):
+    - ExpoModulesCore
+  - ExpoCameraBarcodeScanning (57.0.5):
+    - ExpoCamera
   - ExpoDocumentPicker (57.0.2):
     - ExpoModulesCore
   - ExpoDomWebView (57.0.1):
@@ -1544,6 +1550,53 @@ PODS:
     - ReactCommon/turbomodule/core
     - ReactNativeDependencies
     - Yoga
+  - react-native-maps (1.27.2):
+    - react-native-maps/Maps (= 1.27.2)
+  - react-native-maps/Generated (1.27.2):
+    - hermes-engine
+    - RCTRequired
+    - RCTTypeSafety
+    - React-Core
+    - React-Core-prebuilt
+    - React-debug
+    - React-Fabric
+    - React-featureflags
+    - React-graphics
+    - React-ImageManager
+    - React-jsi
+    - React-NativeModulesApple
+    - React-RCTFabric
+    - React-renderercss
+    - React-rendererdebug
+    - React-utils
+    - ReactCodegen
+    - ReactCommon/turbomodule/bridging
+    - ReactCommon/turbomodule/core
+    - ReactNativeDependencies
+    - Yoga
+  - react-native-maps/Maps (1.27.2):
+    - hermes-engine
+    - RCTRequired
+    - RCTTypeSafety
+    - React-Core
+    - React-Core-prebuilt
+    - React-debug
+    - React-Fabric
+    - React-featureflags
+    - React-graphics
+    - React-ImageManager
+    - React-jsi
+    - react-native-maps/Generated
+    - React-NativeModulesApple
+    - React-RCTFabric
+    - React-renderercss
+    - React-rendererdebug
+    - React-utils
+    - ReactCodegen
+    - ReactCommon/turbomodule/bridging
+    - ReactCommon/turbomodule/core
+    - ReactNativeDependencies
+    - Yoga
   - react-native-safe-area-context (5.7.0):
     - hermes-engine
     - RCTRequired
@@ -2088,6 +2141,9 @@ DEPENDENCIES:
   - Expo (from `../node_modules/expo`)
   - "ExpoAdapterGoogleSignIn (from `../node_modules/@react-native-google-signin/google-signin/expo/ios`)"
   - ExpoAsset (from `../node_modules/expo/node_modules/expo-asset/ios`)
+  - ExpoBlur (from `../node_modules/expo-blur/ios`)
+  - ExpoCamera (from `../node_modules/expo-camera/ios/ExpoCamera.podspec`)
+  - ExpoCameraBarcodeScanning (from `../node_modules/expo-camera/ios/ExpoCameraBarcodeScanning.podspec`)
   - ExpoDocumentPicker (from `../node_modules/expo-document-picker/ios`)
   - "ExpoDomWebView (from `../node_modules/expo/node_modules/@expo/dom-webview/ios`)"
   - ExpoFileSystem (from `../node_modules/expo/node_modules/expo-file-system/ios/ExpoFileSystem.podspec`)
@@ -2140,6 +2196,7 @@ DEPENDENCIES:
   - React-Mapbuffer (from `../node_modules/react-native/ReactCommon`)
   - React-microtasksnativemodule (from `../node_modules/react-native/ReactCommon/react/nativemodule/microtasks`)
   - React-mutationobservernativemodule (from `../node_modules/react-native/ReactCommon/react/nativemodule/mutationobserver`)
+  - react-native-maps (from `../node_modules/react-native-maps`)
   - react-native-safe-area-context (from `../node_modules/react-native-safe-area-context`)
   - React-NativeModulesApple (from `../node_modules/react-native/ReactCommon/react/nativemodule/core/platform/ios`)
   - React-networking (from `../node_modules/react-native/ReactCommon/react/networking`)
@@ -2201,6 +2258,12 @@ EXTERNAL SOURCES:
     :path: "../node_modules/@react-native-google-signin/google-signin/expo/ios"
   ExpoAsset:
     :path: "../node_modules/expo/node_modules/expo-asset/ios"
+  ExpoBlur:
+    :path: "../node_modules/expo-blur/ios"
+  ExpoCamera:
+    :podspec: "../node_modules/expo-camera/ios/ExpoCamera.podspec"
+  ExpoCameraBarcodeScanning:
+    :podspec: "../node_modules/expo-camera/ios/ExpoCameraBarcodeScanning.podspec"
   ExpoDocumentPicker:
     :path: "../node_modules/expo-document-picker/ios"
   ExpoDomWebView:
@@ -2304,6 +2367,8 @@ EXTERNAL SOURCES:
     :path: "../node_modules/react-native/ReactCommon/react/nativemodule/microtasks"
   React-mutationobservernativemodule:
     :path: "../node_modules/react-native/ReactCommon/react/nativemodule/mutationobserver"
+  react-native-maps:
+    :path: "../node_modules/react-native-maps"
   react-native-safe-area-context:
     :path: "../node_modules/react-native-safe-area-context"
   React-NativeModulesApple:
@@ -2390,6 +2455,9 @@ SPEC CHECKSUMS:
   Expo: 8fcd49c9918bb861a881ea9844a3f099a9b0bd3b
   ExpoAdapterGoogleSignIn: dd506e5b1d8b9a172843ff6fc72875e0a9d241e1
   ExpoAsset: bea9115098b9f4ddfb0456961c8a7d2779ccc8f5
+  ExpoBlur: 975b78b65b3c8f475c44bd8f8b53948146b1ff9b
+  ExpoCamera: c4c16b83b6db376e5a0e538fe2a04deafbb5b6d8
+  ExpoCameraBarcodeScanning: 69275ab8ecd76f338da22df825c59405bcf36472
   ExpoDocumentPicker: fe03a24855e39af0f9b5aee17e7eb4813f6e44a6
   ExpoDomWebView: beaec034e51bd028428b98bb1f2633ab79c6d095
   ExpoFileSystem: cc500f33804065aacc7b3366007267b84deca8c8
@@ -2447,6 +2515,7 @@ SPEC CHECKSUMS:
   React-Mapbuffer: 3c805ea54675b00ef1755f23b3c1fccf34962b93
   React-microtasksnativemodule: 97a771dbbb4315c71579995b53e4e3e351a99d89
   React-mutationobservernativemodule: 530bff1bba9511a5133e3cf8170e3b2c0df49e89
+  react-native-maps: cb32168a32e30f83beb08198325ff96b70dd5c9f
   react-native-safe-area-context: 6b4966397ada0f7dd481e4486a2ef936834861a1
   React-NativeModulesApple: 2b658272ca69df0694cf5d54f9510aa7c33977bc
   React-networking: 6be0b80e18e710dd30e77b04838ec46666a7bb78

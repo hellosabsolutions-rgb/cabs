@@ -18,6 +18,7 @@ export async function pickFromCamera(): Promise<Attachment | null> {
   const result = await ImagePicker.launchCameraAsync({
     quality: 0.8,
     allowsEditing: false,
+    base64: true,
   });
   if (result.canceled || !result.assets[0]) return null;
 
@@ -27,6 +28,7 @@ export async function pickFromCamera(): Promise<Attachment | null> {
     name: asset.fileName ?? imageName(asset.uri),
     mime: asset.mimeType ?? 'image/jpeg',
     kind: 'image',
+    base64: asset.base64 || undefined,
   };
 }
 

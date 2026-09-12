@@ -7,4 +7,5 @@ yarn-error.log*
 
 # Firebase & Google Cloud Service Account Keys / Secrets
 *firebase-adminsdk*.json
-opsiva-*.json
+# OCR Traineddata
+*.traineddata

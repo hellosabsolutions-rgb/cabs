@@ -17,7 +17,8 @@ import {
   driverGoogleLogin,
   getDriverMe,
   startDriverDuty,
-  endDriverDuty
+  endDriverDuty,
+  detectOdometer
 } from '../controllers/driverAuthController.js';
 import { protect, protectDriver } from '../middleware/authMiddleware.js';
 
@@ -34,6 +35,7 @@ router.post('/driver/google', driverGoogleLogin);
 router.get('/driver/me', protectDriver, getDriverMe);
 router.post('/driver/duty/start', protectDriver, startDriverDuty);
 router.post('/driver/duty/end', protectDriver, endDriverDuty);
+router.post('/driver/duty/detect-odometer', detectOdometer);
 
 router.get('/me', protect, getMe);
 router.put('/profile', protect, updateProfile);

@@ -62,6 +62,8 @@ export function StartDutyScreen({ navigation }: Props) {
   const [odometer, setOdometer] = useState(initialOdo);
   const [capturedPhoto, setCapturedPhoto] = useState<Attachment | null>(null);
   const [isCapturing, setIsCapturing] = useState(false);
+  const [isDetectingOdo, setIsDetectingOdo] = useState(false);
+  const [detectedOdo, setDetectedOdo] = useState<number | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
 
@@ -147,26 +149,56 @@ export function StartDutyScreen({ navigation }: Props) {
     };
   }, []);
 
+  // Run OCR detection on captured photo base64
+  const runOdometerDetection = async (base64Image: string) => {
+    try {
+      setIsDetectingOdo(true);
+      const currentVal = Number(odometer.replace(/,/g, '')) || Number(session.vehicle?.odometer) || 0;
+      const res = await dutyApi.detectOdometer({
+        image: base64Image,
+        currentOdo: currentVal,
+      });
+
+      if (res?.detected && res.odometer) {
+        setOdometer(String(res.odometer));
+        setDetectedOdo(res.odometer);
+        setError('');
+      }
+    } catch (detectErr) {
+      console.warn('[StartDutyScreen] Auto-detect odometer warning:', detectErr);
+    } finally {
+      setIsDetectingOdo(false);
+    }
+  };
+
   // Capture Photo
   const handleCapture = async () => {
     if (isCapturing) return;
     try {
       setIsCapturing(true);
+      setDetectedOdo(null);
 
       // Attempt capture via CameraView if ref is ready
       if (cameraRef.current && isCameraReady) {
         try {
           const photo = await cameraRef.current.takePictureAsync({
             quality: 0.85,
+            base64: true,
           });
           if (photo?.uri) {
-            setCapturedPhoto({
+            const photoItem: Attachment = {
               uri: photo.uri,
               name: `odo-${Date.now()}.jpg`,
               mime: 'image/jpeg',
               kind: 'image',
-            });
+              base64: photo.base64,
+            };
+            setCapturedPhoto(photoItem);
             setIsCapturing(false);
+
+            if (photo.base64) {
+              void runOdometerDetection(photo.base64);
+            }
             return;
           }
         } catch (camErr) {
@@ -178,6 +210,9 @@ export function StartDutyScreen({ navigation }: Props) {
       const picked = await pickFromCamera();
       if (picked) {
         setCapturedPhoto(picked);
+        if (picked.base64) {
+          void runOdometerDetection(picked.base64);
+        }
       }
     } catch (err: any) {
       Alert.alert('Capture Failed', err?.message || 'Unable to capture photo. Please try again.');
@@ -439,7 +474,30 @@ export function StartDutyScreen({ navigation }: Props) {
                 <Text style={styles.fieldCurrentKm}>Current: {km(session.vehicle?.odometer || session.lastValidOdo)}</Text>
               </View>
 
-              <View style={styles.odoLargeInputBox}>
+              {/* AI Detection in progress banner */}
+              {isDetectingOdo && (
+                <View style={styles.detectingBanner}>
+                  <ActivityIndicator size="small" color="#38BDF8" style={{ marginRight: 8 }} />
+                  <Text style={styles.detectingBannerText}>
+                    AI scanning integers from odometer photo...
+                  </Text>
+                </View>
+              )}
+
+              {/* AI Auto-detected successfully banner */}
+              {detectedOdo && !isDetectingOdo ? (
+                <View style={styles.detectedSuccessBanner}>
+                  <Ionicons name="sparkles" size={14} color="#22C55E" style={{ marginRight: 6 }} />
+                  <Text style={styles.detectedSuccessText}>
+                    Auto-detected {km(detectedOdo)} from photo • Auto-filled
+                  </Text>
+                </View>
+              ) : null}
+
+              <View style={[
+                styles.odoLargeInputBox,
+                detectedOdo && !isDetectingOdo ? styles.odoLargeInputBoxDetected : null
+              ]}>
                 <TextInput
                   value={odometer}
                   onChangeText={(v) => {
@@ -451,7 +509,7 @@ export function StartDutyScreen({ navigation }: Props) {
                   placeholder="45470"
                   placeholderTextColor="#64748B"
                 />
-                <Text style={styles.odoLargeKm}>KM</Text>
+                <Text style={[styles.odoLargeKm, Boolean(detectedOdo && !isDetectingOdo) ? { color: '#22C55E' } : null]}>KM</Text>
               </View>
 
               {error ? <Text style={styles.errorText}>{error}</Text> : null}
@@ -908,6 +966,40 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '600',
   },
+  detectingBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(56, 189, 248, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(56, 189, 248, 0.3)',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginVertical: 4,
+  },
+  detectingBannerText: {
+    color: '#38BDF8',
+    fontSize: 12,
+    fontWeight: '700',
+    flex: 1,
+  },
+  detectedSuccessBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(34, 197, 94, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(34, 197, 94, 0.35)',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginVertical: 4,
+  },
+  detectedSuccessText: {
+    color: '#4ADE80',
+    fontSize: 12,
+    fontWeight: '700',
+    flex: 1,
+  },
   odoLargeInputBox: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -917,6 +1009,10 @@ const styles = StyleSheet.create({
     borderColor: '#38BDF8',
     paddingHorizontal: 16,
     paddingVertical: 10,
+  },
+  odoLargeInputBoxDetected: {
+    borderColor: '#22C55E',
+    backgroundColor: 'rgba(34, 197, 94, 0.08)',
   },
   odoLargeInput: {
     flex: 1,

@@ -5,4 +5,5 @@ export type Attachment = {
   name: string;
   mime: string;
   kind: AttachmentKind;
+  base64?: string;
 };
