@@ -274,8 +274,7 @@ export const getDriverExpenseAnalytics = asyncHandler(async (req, res) => {
           pendingAmount: dPending,
           transactionCount: dRecords.length
         };
-      })
-      .filter(d => d.transactionCount > 0);
+      });
 
     let overallTotal = 0;
     let overallPaid = 0;
@@ -383,8 +382,7 @@ export const getDriverExpenseAnalytics = asyncHandler(async (req, res) => {
           id: r._id.toString()
         }))
       };
-    })
-    .filter(d => d.transactionCount > 0);
+    });
 
   // Driver specific summary if filtered
   const driverFilter = req.query.driverId || req.query.driverName || req.query.driver;

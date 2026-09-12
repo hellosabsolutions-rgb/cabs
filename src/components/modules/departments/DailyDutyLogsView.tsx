@@ -5,6 +5,7 @@ import { AddDutyLogModal } from './AddDutyLogModal';
 import { LogBookPrintModal } from './LogBookPrintModal';
 import { WeekendTripBillModal } from './WeekendTripBillModal';
 import { DailyDutyLog } from '../../../types/fleet';
+import { CustomStatusDropdown, StatusOption } from '../../common/CustomStatusDropdown';
 import { Pagination } from '../../common/Pagination';
 import { usePagination } from '../../../hooks/usePagination';
 import {
@@ -151,73 +152,36 @@ export const DailyDutyLogsView: React.FC = () => {
   };
 
   const renderStatusDropdown = (status: DailyDutyLog['status'], id: string) => {
-    const getStatusStyle = (s: DailyDutyLog['status']) => {
-      switch (s) {
-        case 'Approved':
-          return {
-            background: 'rgba(57, 255, 110, 0.12)',
-            color: 'var(--success)',
-            borderColor: 'rgba(57, 255, 110, 0.35)'
-          };
-        case 'Pending':
-          return {
-            background: 'rgba(255, 193, 7, 0.12)',
-            color: '#ffc107',
-            borderColor: 'rgba(255, 193, 7, 0.35)'
-          };
-        case 'Rejected':
-          return {
-            background: 'rgba(255, 92, 92, 0.12)',
-            color: 'var(--danger, #ff5c5c)',
-            borderColor: 'rgba(255, 92, 92, 0.35)'
-          };
-        default:
-          return {
-            background: 'var(--surface-3)',
-            color: 'var(--text)',
-            borderColor: 'var(--border)'
-          };
+    const dutyOptions: StatusOption<DailyDutyLog['status']>[] = [
+      {
+        value: 'Approved',
+        label: 'Approved',
+        color: 'var(--success, #26b8d8)',
+        bg: 'rgba(38, 184, 216, 0.12)',
+        borderColor: 'rgba(38, 184, 216, 0.35)'
+      },
+      {
+        value: 'Pending',
+        label: 'Pending',
+        color: '#ffc107',
+        bg: 'rgba(255, 193, 7, 0.12)',
+        borderColor: 'rgba(255, 193, 7, 0.35)'
+      },
+      {
+        value: 'Rejected',
+        label: 'Rejected',
+        color: 'var(--danger, #ff5c5c)',
+        bg: 'rgba(255, 92, 92, 0.12)',
+        borderColor: 'rgba(255, 92, 92, 0.35)'
       }
-    };
-
-    const style = getStatusStyle(status);
+    ];
 
     return (
-      <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
-        <select
-          value={status}
-          onChange={e => updateDailyDutyLogStatus(id, e.target.value as DailyDutyLog['status'])}
-          style={{
-            background: style.background,
-            color: style.color,
-            border: `1px solid ${style.borderColor}`,
-            padding: '4px 22px 4px 10px',
-            borderRadius: '20px',
-            fontSize: '11.5px',
-            fontWeight: 700,
-            cursor: 'pointer',
-            outline: 'none',
-            appearance: 'none',
-            WebkitAppearance: 'none',
-            lineHeight: 1.4
-          }}
-          title="Select duty status"
-        >
-          <option value="Approved" style={{ background: 'var(--surface-1, #1e293b)', color: 'var(--success)' }}>● Approved</option>
-          <option value="Pending" style={{ background: 'var(--surface-1, #1e293b)', color: '#ffc107' }}>● Pending</option>
-          <option value="Rejected" style={{ background: 'var(--surface-1, #1e293b)', color: '#ff5c5c' }}>● Rejected</option>
-        </select>
-        <ChevronDown
-          size={11}
-          style={{
-            position: 'absolute',
-            right: '7px',
-            pointerEvents: 'none',
-            color: style.color,
-            opacity: 0.85
-          }}
-        />
-      </div>
+      <CustomStatusDropdown
+        value={status}
+        options={dutyOptions}
+        onChange={(newStatus) => updateDailyDutyLogStatus(id, newStatus)}
+      />
     );
   };
 

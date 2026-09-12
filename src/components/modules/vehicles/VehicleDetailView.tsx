@@ -134,48 +134,55 @@ export const VehicleDetailView: React.FC<VehicleDetailViewProps> = ({
   // Cross-reference Trips & Bookings
   const vehicleTrips = useMemo(() => {
     if (!vehicle) return [];
-    const reg = vehicle.registrationNumber.toLowerCase();
+    const normReg = vehicle.registrationNumber.toLowerCase().replace(/\s+/g, '');
     const all = [...trips, ...bookings];
-    return all.filter(
-      t =>
-        t.vehicle && t.vehicle.toLowerCase() === reg
-    );
+    return all.filter(t => {
+      const v1 = (t.assignedVehicle || '').toLowerCase().replace(/\s+/g, '');
+      const v2 = (t.cabNumber || '').toLowerCase().replace(/\s+/g, '');
+      const v3 = (t.vehicle || '').toLowerCase().replace(/\s+/g, '');
+      return v1 === normReg || v2 === normReg || v3 === normReg;
+    });
   }, [trips, bookings, vehicle?.registrationNumber]);
 
   // Cross-reference Daily Duty Logs (Department)
   const vehicleDutyLogs = useMemo(() => {
     if (!vehicle) return [];
-    const reg = vehicle.registrationNumber.toLowerCase();
-    return dailyDutyLogs.filter(
-      d => d.vehicle && d.vehicle.toLowerCase() === reg
-    );
+    const normReg = vehicle.registrationNumber.toLowerCase().replace(/\s+/g, '');
+    return dailyDutyLogs.filter(d => {
+      const v1 = (d.vehicle || '').toLowerCase().replace(/\s+/g, '');
+      const v2 = (d.vehicleNumber || '').toLowerCase().replace(/\s+/g, '');
+      return v1 === normReg || v2 === normReg;
+    });
   }, [dailyDutyLogs, vehicle?.registrationNumber]);
 
   // Cross-reference Fuel Logs
   const vehicleFuelLogs = useMemo(() => {
     if (!vehicle) return [];
-    const reg = vehicle.registrationNumber.toLowerCase();
-    return fuelLogs.filter(
-      f => f.vehicle && f.vehicle.toLowerCase() === reg
-    );
+    const normReg = vehicle.registrationNumber.toLowerCase().replace(/\s+/g, '');
+    return fuelLogs.filter(f => {
+      const v = (f.vehicle || '').toLowerCase().replace(/\s+/g, '');
+      return v === normReg;
+    });
   }, [fuelLogs, vehicle?.registrationNumber]);
 
   // Cross-reference FASTag Transactions
   const vehicleFastagTolls = useMemo(() => {
     if (!vehicle) return [];
-    const reg = vehicle.registrationNumber.toLowerCase();
-    return fastagTransactions.filter(
-      t => t.vehicle && t.vehicle.toLowerCase() === reg
-    );
+    const normReg = vehicle.registrationNumber.toLowerCase().replace(/\s+/g, '');
+    return fastagTransactions.filter(t => {
+      const v = (t.vehicle || '').toLowerCase().replace(/\s+/g, '');
+      return v === normReg;
+    });
   }, [fastagTransactions, vehicle?.registrationNumber]);
 
   // Cross-reference Maintenance records
   const vehicleMaintenance = useMemo(() => {
     if (!vehicle) return [];
-    const reg = vehicle.registrationNumber.toLowerCase();
-    return maintenanceRecords.filter(
-      m => m.vehicle && m.vehicle.toLowerCase() === reg
-    );
+    const normReg = vehicle.registrationNumber.toLowerCase().replace(/\s+/g, '');
+    return maintenanceRecords.filter(m => {
+      const v = (m.vehicle || '').toLowerCase().replace(/\s+/g, '');
+      return v === normReg;
+    });
   }, [maintenanceRecords, vehicle?.registrationNumber]);
 
   if (!vehicle) {
@@ -438,14 +445,14 @@ export const VehicleDetailView: React.FC<VehicleDetailViewProps> = ({
                       vehicle.status === 'Running' || vehicle.status === 'Active'
                         ? 'rgba(34, 197, 94, 0.15)'
                         : vehicle.status === 'Maintenance'
-                        ? 'rgba(239, 68, 68, 0.15)'
-                        : 'rgba(148, 163, 184, 0.15)',
+                          ? 'rgba(239, 68, 68, 0.15)'
+                          : 'rgba(148, 163, 184, 0.15)',
                     color:
                       vehicle.status === 'Running' || vehicle.status === 'Active'
                         ? '#4ade80'
                         : vehicle.status === 'Maintenance'
-                        ? '#f87171'
-                        : '#cbd5e1'
+                          ? '#f87171'
+                          : '#cbd5e1'
                   }}
                 >
                   <span
@@ -827,13 +834,12 @@ export const VehicleDetailView: React.FC<VehicleDetailViewProps> = ({
                   display: 'flex',
                   flexDirection: 'column',
                   gap: '12px',
-                  border: `1px solid ${
-                    doc.statusType === 'late'
+                  border: `1px solid ${doc.statusType === 'late'
                       ? 'rgba(239, 68, 68, 0.4)'
                       : doc.statusType === 'soon'
-                      ? 'rgba(245, 158, 11, 0.4)'
-                      : 'var(--border)'
-                  }`
+                        ? 'rgba(245, 158, 11, 0.4)'
+                        : 'var(--border)'
+                    }`
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -853,18 +859,18 @@ export const VehicleDetailView: React.FC<VehicleDetailViewProps> = ({
                         doc.statusType === 'late'
                           ? 'rgba(239, 68, 68, 0.15)'
                           : doc.statusType === 'soon'
-                          ? 'rgba(245, 158, 11, 0.15)'
-                          : doc.statusType === 'ok'
-                          ? 'rgba(34, 197, 94, 0.15)'
-                          : 'rgba(148, 163, 184, 0.15)',
+                            ? 'rgba(245, 158, 11, 0.15)'
+                            : doc.statusType === 'ok'
+                              ? 'rgba(34, 197, 94, 0.15)'
+                              : 'rgba(148, 163, 184, 0.15)',
                       color:
                         doc.statusType === 'late'
                           ? '#f87171'
                           : doc.statusType === 'soon'
-                          ? '#fbbf24'
-                          : doc.statusType === 'ok'
-                          ? '#4ade80'
-                          : '#94a3b8'
+                            ? '#fbbf24'
+                            : doc.statusType === 'ok'
+                              ? '#4ade80'
+                              : '#94a3b8'
                     }}
                   >
                     {doc.label}

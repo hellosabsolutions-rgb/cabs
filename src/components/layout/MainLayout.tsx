@@ -12,6 +12,7 @@ import { BookingsView } from '../modules/bookings/BookingsView';
 import { TripsView } from '../modules/trips/TripsView';
 import { ExpensesView } from '../modules/expenses/ExpensesView';
 import { ProfitabilityView } from '../modules/profitability/ProfitabilityView';
+import { RevenueView } from '../modules/revenue/RevenueView';
 import { ComplianceView } from '../modules/compliance/ComplianceView';
 import { MaintenanceView } from '../modules/maintenance/MaintenanceView';
 import { NotificationsView } from '../modules/notifications/NotificationsView';
@@ -117,8 +118,9 @@ export const MainLayout: React.FC = () => {
               <Route path="/expenses/all" element={<ExpensesView />} />
               <Route path="/expenses/trips" element={<ExpensesView />} />
 
-              {/* Profitability */}
+              {/* Profitability & Revenue */}
               <Route path="/profitability" element={<ProfitabilityView />} />
+              <Route path="/revenue" element={<RevenueView />} />
 
               {/* Compliance & Maintenance */}
               <Route path="/compliance" element={<ComplianceView />} />

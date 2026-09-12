@@ -138,22 +138,27 @@ export const getAttendanceSummary = asyncHandler(async (req, res) => {
     totalWorkingHours += Number(r.workingHours) || 0;
   });
 
-  const activeCount = present + onTrip + late;
-  const avgDutyHours = activeCount > 0 ? (totalWorkingHours / activeCount).toFixed(1) : '0.0';
+  // Drivers without an explicit attendance log for this date default to Present (10 hrs)
+  const unrecordedDrivers = Math.max(0, totalDrivers - records.length);
+  const effectivePresent = present + unrecordedDrivers;
+  const effectiveWorkingHours = totalWorkingHours + (unrecordedDrivers * 10);
+
+  const activeCount = effectivePresent + onTrip + late;
+  const avgDutyHours = activeCount > 0 ? (effectiveWorkingHours / activeCount).toFixed(1) : '10.0';
 
   res.status(200).json({
     success: true,
     date: queryDate,
     stats: {
       totalRegisteredDrivers: totalDrivers,
-      presentOnDuty: present + onTrip,
-      presentOnly: present,
+      presentOnDuty: effectivePresent + onTrip,
+      presentOnly: effectivePresent,
       onTrip,
       late,
       absent,
       onLeave,
       lateAbsentLeave: late + absent + onLeave,
-      totalWorkingHours: Number(totalWorkingHours.toFixed(1)),
+      totalWorkingHours: Number(effectiveWorkingHours.toFixed(1)),
       avgDutyHours: Number(avgDutyHours),
       totalLogged: records.length
     }

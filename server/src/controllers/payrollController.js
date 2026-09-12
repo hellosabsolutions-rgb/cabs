@@ -2,6 +2,7 @@ import { Driver } from '../models/Driver.js';
 import { DriverAdvance } from '../models/DriverAdvance.js';
 import { DriverPenalty } from '../models/DriverPenalty.js';
 import { DriverPayrollSettlement } from '../models/DriverPayrollSettlement.js';
+import { DriverAttendance } from '../models/DriverAttendance.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import mongoose from 'mongoose';
 
@@ -28,7 +29,7 @@ export const findDriverByIdOrAny = async (driverId) => {
     driver = await Driver.findOne({ id: driverId });
   }
   if (!driver) {
-    driver = await Driver.findOne({ name: new RegExp(`^${driverId}$`, 'i') });
+    driver = await Driver.findOne({ name: driverId });
   }
   return driver;
 };
@@ -45,11 +46,11 @@ export const getPayrollSummary = asyncHandler(async (req, res) => {
   const driverFilter = agencyId ? { agencyId } : {};
   const drivers = await Driver.find(driverFilter).sort({ name: 1 });
 
-  // Fetch all active advances, active penalties, and current month settlements
+  // Fetch all active advances, active penalties, current month settlements, and absent attendance records
   const driverIds = drivers.map(d => d._id.toString());
   const driverNames = drivers.map(d => d.name);
 
-  const [activeAdvances, activePenalties, settlements] = await Promise.all([
+  const [activeAdvances, activePenalties, settlements, monthAbsentAttendance] = await Promise.all([
     DriverAdvance.find({
       $or: [
         { driverId: { $in: driverIds } },
@@ -67,16 +68,25 @@ export const getPayrollSummary = asyncHandler(async (req, res) => {
         { driverId: { $in: driverIds }, month },
         { driverName: { $in: driverNames }, month }
       ]
-    })
+    }),
+    DriverAttendance.find({
+      $or: [
+        { driverId: { $in: driverIds } },
+        { driverName: { $in: driverNames } }
+      ],
+      date: { $regex: `^${month}` },
+      status: 'Absent'
+    }).lean()
   ]);
 
-  // Index by driverId and driverName
+  // Index settlements by driverId and driverName
   const settlementsByDriver = new Map();
   settlements.forEach(s => {
     settlementsByDriver.set(s.driverId, s);
     if (s.driverName) settlementsByDriver.set(s.driverName, s);
   });
 
+  // Index advances
   const advancesByDriver = new Map();
   activeAdvances.forEach(adv => {
     const key = adv.driverId;
@@ -89,6 +99,7 @@ export const getPayrollSummary = asyncHandler(async (req, res) => {
     }
   });
 
+  // Index penalties
   const penaltiesByDriver = new Map();
   activePenalties.forEach(pen => {
     const key = pen.driverId;
@@ -101,6 +112,19 @@ export const getPayrollSummary = asyncHandler(async (req, res) => {
     }
   });
 
+  // Index absent attendance records
+  const absentsByDriver = new Map();
+  monthAbsentAttendance.forEach(att => {
+    const key = att.driverId;
+    if (!absentsByDriver.has(key)) absentsByDriver.set(key, []);
+    absentsByDriver.get(key).push(att);
+
+    if (att.driverName && att.driverName !== key) {
+      if (!absentsByDriver.has(att.driverName)) absentsByDriver.set(att.driverName, []);
+      absentsByDriver.get(att.driverName).push(att);
+    }
+  });
+
   const summary = drivers.map(driver => {
     const id = driver._id.toString();
     const settlement = settlementsByDriver.get(id) || settlementsByDriver.get(driver.name) || null;
@@ -108,6 +132,7 @@ export const getPayrollSummary = asyncHandler(async (req, res) => {
 
     const driverAdvances = advancesByDriver.get(id) || advancesByDriver.get(driver.name) || [];
     const driverPenalties = penaltiesByDriver.get(id) || penaltiesByDriver.get(driver.name) || [];
+    const driverAbsents = absentsByDriver.get(id) || absentsByDriver.get(driver.name) || [];
 
     // Active advances (or those settled in this month if settled)
     const activeAdvList = isSettled
@@ -127,9 +152,23 @@ export const getPayrollSummary = asyncHandler(async (req, res) => {
       : activePenList.reduce((sum, p) => sum + (p.amount || 0), 0);
 
     const baseSalary = driver.monthlySalary || 0;
+
+    // Absent days calculation
+    const absentDays = isSettled
+      ? (settlement.absentDays ?? driverAbsents.length)
+      : driverAbsents.length;
+    const absentDates = driverAbsents.map(a => a.date);
+
+    // Calculated daily rate based on 30 calendar days
+    const perDaySalary = baseSalary > 0 ? Math.round(baseSalary / 30) : 0;
+    const suggestedAbsentDeduction = perDaySalary * absentDays;
+    const absentDeduction = isSettled
+      ? (settlement.absentDeduction ?? suggestedAbsentDeduction)
+      : suggestedAbsentDeduction;
+
     const netPayable = isSettled
       ? settlement.netPaid
-      : Math.max(0, baseSalary - advanceBalance - challanBalance);
+      : Math.max(0, baseSalary - advanceBalance - challanBalance - absentDeduction);
 
     let status = 'DUE';
     if (isSettled) {
@@ -151,6 +190,11 @@ export const getPayrollSummary = asyncHandler(async (req, res) => {
       monthlySalary: baseSalary,
       advanceBalance,
       challanBalance,
+      absentDays,
+      absentDates,
+      perDaySalary,
+      suggestedAbsentDeduction,
+      absentDeduction,
       netPayable,
       status,
       settlement: settlement
@@ -160,6 +204,8 @@ export const getPayrollSummary = asyncHandler(async (req, res) => {
             paidAmount: settlement.netPaid,
             paymentMode: settlement.paymentMode,
             paymentDate: settlement.paymentDate,
+            absentDays: settlement.absentDays || 0,
+            absentDeduction: settlement.absentDeduction || 0,
             remarks: settlement.remarks
           }
         : null,
@@ -279,7 +325,16 @@ export const recordPenalty = asyncHandler(async (req, res) => {
  * @access  Public / Private
  */
 export const settleSalary = asyncHandler(async (req, res) => {
-  const { driverId, month, paymentMode, paymentDate, remarks } = req.body;
+  const {
+    driverId,
+    month,
+    paymentMode,
+    paymentDate,
+    remarks,
+    absentDeduction = 0,
+    absentDays = 0,
+    advanceDeduction
+  } = req.body;
 
   if (!driverId) {
     return res.status(400).json({ success: false, error: 'Driver is required' });
@@ -313,22 +368,64 @@ export const settleSalary = asyncHandler(async (req, res) => {
     })
   ]);
 
-  const advancesDeducted = activeAdvances.reduce((sum, a) => sum + (a.amount || 0), 0);
+  const totalActiveAdvances = activeAdvances.reduce((sum, a) => sum + (a.amount || 0), 0);
+  const advancesDeducted = advanceDeduction !== undefined
+    ? Math.min(totalActiveAdvances, Math.max(0, Number(advanceDeduction) || 0))
+    : totalActiveAdvances;
+
   const challansDeducted = activePenalties.reduce((sum, p) => sum + (p.amount || 0), 0);
   const baseSalary = driver.monthlySalary || 0;
-  const netPaid = Math.max(0, baseSalary - advancesDeducted - challansDeducted);
+  const numAbsentDeduction = Math.max(0, Number(absentDeduction) || 0);
+  const numAbsentDays = Math.max(0, Number(absentDays) || 0);
+  const netPaid = Math.max(0, baseSalary - advancesDeducted - challansDeducted - numAbsentDeduction);
 
-  const advanceIds = activeAdvances.map(a => a._id.toString());
-  const penaltyIds = activePenalties.map(p => p._id.toString());
-
-  // Mark all deducted advances and penalties as SETTLED for this month
-  if (advanceIds.length > 0) {
+  const settledAdvanceIds = [];
+  if (advancesDeducted >= totalActiveAdvances && totalActiveAdvances > 0) {
+    // All active advances are settled
+    const advanceIds = activeAdvances.map(a => a._id.toString());
     await DriverAdvance.updateMany(
       { _id: { $in: advanceIds } },
       { $set: { status: 'SETTLED', settledInMonth: settleMonth } }
     );
+    settledAdvanceIds.push(...advanceIds);
+  } else if (advancesDeducted > 0) {
+    // Partial advance deduction: deduct from oldest advances first
+    let remainingToDeduct = advancesDeducted;
+    const sortedAdvances = [...activeAdvances].sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+    for (const adv of sortedAdvances) {
+      if (remainingToDeduct <= 0) break;
+      const advAmount = adv.amount || 0;
+      if (advAmount <= remainingToDeduct) {
+        adv.status = 'SETTLED';
+        adv.settledInMonth = settleMonth;
+        await adv.save();
+        settledAdvanceIds.push(adv._id.toString());
+        remainingToDeduct -= advAmount;
+      } else {
+        const deductedPortion = remainingToDeduct;
+        const remainingPortion = advAmount - deductedPortion;
+        adv.amount = remainingPortion;
+        await adv.save();
+
+        const settledPart = await DriverAdvance.create({
+          driverId: adv.driverId,
+          driverName: adv.driverName,
+          amount: deductedPortion,
+          date: adv.date,
+          paymentMode: adv.paymentMode,
+          reason: `${adv.reason || 'Advance'} (Deducted in ${settleMonth})`,
+          status: 'SETTLED',
+          settledInMonth: settleMonth,
+          remarks: adv.remarks || '',
+          agencyId: adv.agencyId
+        });
+        settledAdvanceIds.push(settledPart._id.toString());
+        remainingToDeduct = 0;
+      }
+    }
   }
 
+  const penaltyIds = activePenalties.map(p => p._id.toString());
   if (penaltyIds.length > 0) {
     await DriverPenalty.updateMany(
       { _id: { $in: penaltyIds } },
@@ -343,6 +440,8 @@ export const settleSalary = asyncHandler(async (req, res) => {
       driverName: driver.name,
       month: settleMonth,
       baseSalary,
+      absentDays: numAbsentDays,
+      absentDeduction: numAbsentDeduction,
       advancesDeducted,
       challansDeducted,
       netPaid,
@@ -350,7 +449,7 @@ export const settleSalary = asyncHandler(async (req, res) => {
       paymentDate: paymentDate || new Date().toISOString().split('T')[0],
       paymentStatus: 'PAID',
       remarks: remarks || '',
-      deductedAdvanceIds: advanceIds,
+      deductedAdvanceIds: settledAdvanceIds,
       deductedPenaltyIds: penaltyIds,
       settledAt: new Date(),
       agencyId: driver.agencyId
@@ -360,7 +459,7 @@ export const settleSalary = asyncHandler(async (req, res) => {
 
   res.status(200).json({
     success: true,
-    message: `Salary for ${driver.name} marked as PAID for ${settleMonth}`,
+    message: `Salary for ${driver.name} marked as PAID for ${settleMonth} (Net: ₹${netPaid.toLocaleString('en-IN')})`,
     data: settlement
   });
 });
@@ -442,7 +541,7 @@ export const getDriverPayrollDetail = asyncHandler(async (req, res) => {
 
   const strDriverId = driver._id.toString();
 
-  const [advances, penalties, settlements] = await Promise.all([
+  const [advances, penalties, settlements, monthAbsents] = await Promise.all([
     DriverAdvance.find({
       $or: [{ driverId: strDriverId }, { driverName: driver.name }, { driverId: driver.id }]
     }).sort({ date: -1, createdAt: -1 }),
@@ -451,7 +550,12 @@ export const getDriverPayrollDetail = asyncHandler(async (req, res) => {
     }).sort({ date: -1, createdAt: -1 }),
     DriverPayrollSettlement.find({
       $or: [{ driverId: strDriverId }, { driverName: driver.name }, { driverId: driver.id }]
-    }).sort({ month: -1, createdAt: -1 })
+    }).sort({ month: -1, createdAt: -1 }),
+    DriverAttendance.find({
+      $or: [{ driverId: strDriverId }, { driverName: driver.name }, { driverId: driver.id }],
+      date: { $regex: `^${month}` },
+      status: 'Absent'
+    }).sort({ date: 1 }).lean()
   ]);
 
   // Current month settlement if any
@@ -476,9 +580,21 @@ export const getDriverPayrollDetail = asyncHandler(async (req, res) => {
     : activePenList.reduce((sum, p) => sum + (p.amount || 0), 0);
 
   const baseSalary = driver.monthlySalary || 0;
+
+  // Absent days calculation
+  const absentDays = isSettled
+    ? (monthSettlement.absentDays ?? monthAbsents.length)
+    : monthAbsents.length;
+  const absentDates = monthAbsents.map(a => a.date);
+  const perDaySalary = baseSalary > 0 ? Math.round(baseSalary / 30) : 0;
+  const suggestedAbsentDeduction = perDaySalary * absentDays;
+  const absentDeduction = isSettled
+    ? (monthSettlement.absentDeduction ?? suggestedAbsentDeduction)
+    : suggestedAbsentDeduction;
+
   const netPayable = isSettled
     ? monthSettlement.netPaid
-    : Math.max(0, baseSalary - advanceBalance - challanBalance);
+    : Math.max(0, baseSalary - advanceBalance - challanBalance - absentDeduction);
 
   let status = 'DUE';
   if (isSettled) {
@@ -504,6 +620,23 @@ export const getDriverPayrollDetail = asyncHandler(async (req, res) => {
     isDeduction: false,
     dateRaw: `${month}-01`
   });
+
+  // 1b. Absenteeism deduction entry if driver was absent
+  if (absentDays > 0 || absentDeduction > 0) {
+    ledger.push({
+      id: `absent_${month}`,
+      type: 'ABSENTEEISM',
+      date: `${absentDays} day${absentDays > 1 ? 's' : ''} absent`,
+      entryLabel: 'ABSENT DEDUCTION',
+      note: `Absent on ${absentDates.join(', ') || 'dates in month'} (${absentDays} days @ ₹${perDaySalary.toLocaleString('en-IN')}/day)`,
+      amount: absentDeduction,
+      rawAmount: -absentDeduction,
+      isDeduction: true,
+      absentDays,
+      absentDates,
+      dateRaw: `${month}-25`
+    });
+  }
 
   // 2. Advances
   advances.forEach(adv => {
@@ -586,6 +719,11 @@ export const getDriverPayrollDetail = asyncHandler(async (req, res) => {
         baseSalary,
         advanceBalance,
         challanBalance,
+        absentDays,
+        absentDates,
+        perDaySalary,
+        suggestedAbsentDeduction,
+        absentDeduction,
         netPayable,
         status,
         settlement: monthSettlement

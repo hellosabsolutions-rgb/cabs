@@ -4,6 +4,7 @@ import { StatCard } from '../../common/StatCard';
 import { LogAttendanceModal } from './LogAttendanceModal';
 import { EditAttendanceModal } from './EditAttendanceModal';
 import { AttendanceStatus, DriverAttendance } from '../../../types/fleet';
+import { CustomStatusDropdown, StatusOption } from '../../common/CustomStatusDropdown';
 import { DatePicker } from '../../common/DatePicker';
 import {
   Calendar,
@@ -99,18 +100,18 @@ export const DriverAttendanceView: React.FC = () => {
     return drivers.map(d => {
       const existing = currentDayRecords.find(r => r.driverId === d.id);
       if (existing) return existing;
-      // Default placeholder if not marked yet
+      // Default placeholder if not marked yet: All drivers are Present by default
       return {
         id: 'temp_' + d.id,
         driverId: d.id,
         driverName: d.name,
         date: selectedDate,
-        status: (d.status === 'On duty' ? 'Present' : 'Absent') as AttendanceStatus,
-        checkIn: d.status === 'On duty' ? '08:30 AM' : '—',
-        checkOut: d.status === 'On duty' ? '06:30 PM' : '—',
-        assignedVehicle: d.assignedVehicle,
+        status: 'Present' as AttendanceStatus,
+        checkIn: '08:30 AM',
+        checkOut: '06:30 PM',
+        assignedVehicle: d.assignedVehicle || '—',
         dutyType: 'Department Duty' as const,
-        workingHours: d.status === 'On duty' ? 10 : 0,
+        workingHours: 10,
         notes: undefined
       };
     });
@@ -243,46 +244,50 @@ export const DriverAttendanceView: React.FC = () => {
       }
     };
 
-    const style = getStatusColorStyle(status);
+    const attendanceOptions: StatusOption<AttendanceStatus>[] = [
+      {
+        value: 'Present',
+        label: 'Present',
+        color: '#22c55e',
+        bg: 'rgba(34, 197, 94, 0.12)',
+        borderColor: 'rgba(34, 197, 94, 0.35)'
+      },
+      {
+        value: 'On Trip',
+        label: 'On Booking',
+        color: '#38bdf8',
+        bg: 'rgba(56, 189, 248, 0.12)',
+        borderColor: 'rgba(56, 189, 248, 0.35)'
+      },
+      {
+        value: 'Late',
+        label: 'Late',
+        color: '#eab308',
+        bg: 'rgba(234, 179, 8, 0.12)',
+        borderColor: 'rgba(234, 179, 8, 0.35)'
+      },
+      {
+        value: 'Absent',
+        label: 'Absent',
+        color: '#ef4444',
+        bg: 'rgba(239, 68, 68, 0.12)',
+        borderColor: 'rgba(239, 68, 68, 0.35)'
+      },
+      {
+        value: 'On Leave',
+        label: 'On Leave',
+        color: 'var(--text-dim)',
+        bg: 'var(--surface-3)',
+        borderColor: 'var(--border)'
+      }
+    ];
 
     return (
-      <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
-        <select
-          value={status}
-          onChange={e => handleStatusSelect(e.target.value as AttendanceStatus)}
-          style={{
-            background: style.background,
-            color: style.color,
-            border: `1px solid ${style.borderColor}`,
-            padding: '4px 24px 4px 10px',
-            borderRadius: '20px',
-            fontSize: '11.5px',
-            fontWeight: 600,
-            cursor: 'pointer',
-            outline: 'none',
-            appearance: 'none',
-            WebkitAppearance: 'none',
-            lineHeight: 1.4
-          }}
-          title="Click to select status from dropdown"
-        >
-          <option value="Present" style={{ background: 'var(--surface-1)', color: 'var(--text)' }}>● Present</option>
-          <option value="On Trip" style={{ background: 'var(--surface-1)', color: 'var(--text)' }}>● On Booking</option>
-          <option value="Late" style={{ background: 'var(--surface-1)', color: 'var(--text)' }}>● Late</option>
-          <option value="Absent" style={{ background: 'var(--surface-1)', color: 'var(--text)' }}>● Absent</option>
-          <option value="On Leave" style={{ background: 'var(--surface-1)', color: 'var(--text)' }}>● On Leave</option>
-        </select>
-        <ChevronDown
-          size={11}
-          style={{
-            position: 'absolute',
-            right: '8px',
-            pointerEvents: 'none',
-            color: style.color,
-            opacity: 0.8
-          }}
-        />
-      </div>
+      <CustomStatusDropdown
+        value={status}
+        options={attendanceOptions}
+        onChange={handleStatusSelect}
+      />
     );
   };
 

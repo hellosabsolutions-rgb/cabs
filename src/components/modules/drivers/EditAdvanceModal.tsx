@@ -86,13 +86,13 @@ export const EditAdvanceModal: React.FC<EditAdvanceModalProps> = ({
         left: 0,
         right: 0,
         bottom: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.55)',
-        backdropFilter: 'blur(3px)',
+        backgroundColor: 'rgba(0, 0, 0, 0.65)',
+        backdropFilter: 'blur(6px)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         zIndex: 9999,
-        padding: '16px'
+        padding: '20px'
       }}
     >
       <div
@@ -101,11 +101,12 @@ export const EditAdvanceModal: React.FC<EditAdvanceModalProps> = ({
         style={{
           background: 'var(--surface)',
           color: 'var(--text)',
-          borderRadius: '12px',
+          borderRadius: '16px',
           width: '100%',
-          maxWidth: '460px',
+          maxWidth: '480px',
+          margin: 'auto',
           border: '1px solid var(--border)',
-          boxShadow: '0 20px 40px rgba(0, 0, 0, 0.25)',
+          boxShadow: '0 20px 50px rgba(0, 0, 0, 0.4), 0 0 0 1px var(--border)',
           overflow: 'hidden',
           fontFamily: "'Poppins', sans-serif"
         }}

@@ -118,10 +118,10 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
           </div>
 
           <div>
-            <label className="input-label">Amount Received (₹) *</label>
+            <label className="form-label" style={{ fontWeight: 600 }}>Amount Received (₹) *</label>
             <input
               type="number"
-              className="input-field"
+              className="form-input"
               value={collectAmount}
               onChange={e => setCollectAmount(e.target.value)}
               max={pendingAmount}
@@ -133,11 +133,12 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
             <div>
-              <label className="input-label">Payment Mode *</label>
+              <label className="form-label" style={{ fontWeight: 600 }}>Payment Mode *</label>
               <select
-                className="input-field"
+                className="form-input"
                 value={paymentMode}
                 onChange={e => setPaymentMode(e.target.value as PaymentMode)}
+                style={{ cursor: 'pointer' }}
               >
                 <option value="UPI">UPI (GPay / PhonePe / Paytm)</option>
                 <option value="Cash">Cash</option>
@@ -147,7 +148,7 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
             </div>
 
             <div>
-              <label className="input-label">Date Received *</label>
+              <label className="form-label" style={{ fontWeight: 600 }}>Date Received *</label>
               <DatePicker
                 value={paymentDate}
                 onChange={date => setPaymentDate(date)}
@@ -157,10 +158,10 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
           </div>
 
           <div>
-            <label className="input-label">Payment Note / Ref Number</label>
+            <label className="form-label" style={{ fontWeight: 600 }}>Payment Note / Ref Number</label>
             <input
               type="text"
-              className="input-field"
+              className="form-input"
               value={notes}
               onChange={e => setNotes(e.target.value)}
               placeholder="e.g. UTR #12345678 or Cash handed to driver"
@@ -168,10 +169,10 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
           </div>
 
           <div className="modal-footer" style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '6px' }}>
-            <button type="button" className="btn-secondary" onClick={onClose}>
+            <button type="button" className="btn-secondary" onClick={onClose} style={{ padding: '8px 16px', fontSize: '13px' }}>
               Cancel
             </button>
-            <button type="submit" className="btn-primary-action">
+            <button type="submit" className="btn-primary" style={{ padding: '8px 20px', fontSize: '13px' }}>
               Save Payment
             </button>
           </div>

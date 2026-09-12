@@ -36,6 +36,7 @@ import uploadRoutes from './routes/upload.js';
 import driverAssignmentRoutes from './routes/driverAssignments.js';
 import sosRoutes from './routes/sos.js';
 import activityRoutes from './routes/activities.js';
+import revenueRoutes from './routes/revenue.js';
 
 const app = express();
 
@@ -156,6 +157,7 @@ app.use('/api/upload', uploadRoutes);
 app.use('/api/driver-assignments', driverAssignmentRoutes);
 app.use('/api/sos', sosRoutes);
 app.use('/api/activities', activityRoutes);
+app.use('/api/revenue', revenueRoutes);
 
 // Root route
 app.get('/', (req, res) => {

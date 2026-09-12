@@ -329,6 +329,24 @@ export const updateBooking = async (req, res, next) => {
     const prevDriver = booking.driverName;
     const prevDriverId = booking.driverId;
 
+    // Sanitize numeric inputs
+    if (req.body.fuelCost !== undefined) req.body.fuelCost = Number(req.body.fuelCost) || 0;
+    if (req.body.fastagCost !== undefined) req.body.fastagCost = Number(req.body.fastagCost) || 0;
+    if (req.body.driverBata !== undefined) req.body.driverBata = Number(req.body.driverBata) || 0;
+    if (req.body.otherExpenses !== undefined) req.body.otherExpenses = Number(req.body.otherExpenses) || 0;
+    if (req.body.revenue !== undefined) {
+      req.body.revenue = Number(req.body.revenue) || 0;
+      req.body.totalAmount = req.body.revenue;
+    }
+    if (req.body.advanceAmount !== undefined) req.body.advanceAmount = Number(req.body.advanceAmount) || 0;
+    if (req.body.balancePaid !== undefined) req.body.balancePaid = Number(req.body.balancePaid) || 0;
+    if (req.body.startOdometer !== undefined) req.body.startOdometer = Number(req.body.startOdometer) || 0;
+    if (req.body.endOdometer !== undefined) {
+      req.body.endOdometer = Number(req.body.endOdometer) || 0;
+      const startKm = req.body.startOdometer !== undefined ? req.body.startOdometer : (booking.startOdometer || 0);
+      req.body.totalKmRun = Math.max(0, req.body.endOdometer - startKm);
+    }
+
     Object.assign(booking, req.body);
 
     const isUnassignedNow = !booking.driverName || booking.driverName === 'None' || booking.driverName === '—' || booking.driverName === 'Unassigned';
@@ -343,6 +361,16 @@ export const updateBooking = async (req, res, next) => {
       try {
         const driverDoc = await Driver.findOne({ name: new RegExp(`^${booking.driverName.trim()}$`, 'i') }).select('_id');
         if (driverDoc) booking.driverId = driverDoc._id;
+      } catch (_) {}
+    }
+
+    // If booking is completed and has endOdometer, sync to vehicle
+    if (booking.status === 'Completed' && booking.vehicle && booking.endOdometer) {
+      try {
+        await Vehicle.findOneAndUpdate(
+          { registrationNumber: booking.vehicle },
+          { odometer: booking.endOdometer }
+        );
       } catch (_) {}
     }
 

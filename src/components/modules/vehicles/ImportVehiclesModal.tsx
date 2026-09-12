@@ -159,33 +159,34 @@ export const ImportVehiclesModal: React.FC<ImportVehiclesModalProps> = ({
       style={{
         position: 'fixed',
         inset: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.75)',
+        backgroundColor: 'rgba(0, 0, 0, 0.65)',
         backdropFilter: 'blur(6px)',
         zIndex: 9999,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: '16px',
-        animation: 'fadeIn 0.2s ease-out'
+        padding: '20px',
+        animation: 'modalFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards'
       }}
       onClick={e => {
         if (e.target === e.currentTarget) handleClose();
       }}
     >
       <div
-        className="modal-content panel"
+        className="modal-content panel modal-dialog"
         style={{
           width: '100%',
           maxWidth: '880px',
           maxHeight: '90vh',
           display: 'flex',
           flexDirection: 'column',
-          backgroundColor: 'var(--surface, #1e222d)',
+          backgroundColor: 'var(--surface)',
           borderRadius: '16px',
-          border: '1px solid var(--border, rgba(255,255,255,0.1))',
-          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+          border: '1px solid var(--border)',
+          boxShadow: '0 20px 60px rgba(0, 0, 0, 0.4), 0 0 0 1px var(--border)',
           overflow: 'hidden',
-          animation: 'slideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1)'
+          margin: 'auto',
+          animation: 'modalPopIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards'
         }}
       >
         {/* MODAL HEADER */}
