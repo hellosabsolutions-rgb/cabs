@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { StyleSheet, View, ActivityIndicator, Text, StyleProp, ViewStyle, Pressable } from 'react-native';
+import { StyleSheet, View, ActivityIndicator, Text, StyleProp, ViewStyle, Pressable, Platform } from 'react-native';
 import { requireNativeViewManager } from 'expo-modules-core';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -91,13 +91,18 @@ export const GoogleMapView: React.FC<GoogleMapViewProps> = ({
         </View>
       )}
 
-      {/* Map Style Switcher (Roadmap / Satellite) with Liquid Glass */}
+      {/* Map Style Switcher (Roadmap / Satellite) - Liquid Glass on iOS, Normal Button on Android */}
       <View style={[styles.controlsBar, { top: topOffset }]}>
         <Pressable
           onPress={() => setMapType(mapType === 'm' ? 'k' : 'm')}
-          style={({ pressed }) => [styles.controlBtn, { opacity: pressed ? 0.8 : 1 }]}
+          android_ripple={{ color: 'rgba(0,0,0,0.1)', borderless: true }}
+          style={({ pressed }) => [
+            styles.controlBtn,
+            Platform.OS === 'ios' ? styles.controlBtnIos : styles.controlBtnAndroid,
+            { opacity: pressed ? 0.8 : 1 },
+          ]}
         >
-          <View style={styles.liquidGlossHighlight} />
+          {Platform.OS === 'ios' && <View style={styles.liquidGlossHighlight} />}
           <Ionicons
             name={mapType === 'm' ? 'earth' : 'map'}
             size={13}
@@ -145,19 +150,26 @@ const styles = StyleSheet.create({
   controlBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.75)',
     paddingHorizontal: 12,
     paddingVertical: 7,
     borderRadius: 20,
+    gap: 5,
+    overflow: 'hidden',
+  },
+  controlBtnIos: {
+    backgroundColor: 'rgba(255, 255, 255, 0.75)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.85)',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.18,
     shadowRadius: 10,
-    elevation: 6,
-    borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.85)',
-    gap: 5,
-    overflow: 'hidden',
+  },
+  controlBtnAndroid: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    elevation: 3,
   },
   liquidGlossHighlight: {
     position: 'absolute',

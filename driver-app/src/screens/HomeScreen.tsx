@@ -1026,24 +1026,33 @@ const styles = StyleSheet.create({
   cockpitCta: {
     marginTop: 14,
     height: 46,
-    borderRadius: 14,
-    borderCurve: 'continuous',
+    borderRadius: Platform.OS === 'ios' ? 14 : 8,
+    borderCurve: Platform.OS === 'ios' ? 'continuous' : undefined,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowRadius: 6,
-    elevation: 3,
+    ...(Platform.OS === 'ios'
+      ? {
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 3 },
+          shadowRadius: 6,
+        }
+      : {
+          elevation: 2,
+        }),
   },
   cockpitCtaStart: {
     backgroundColor: '#FFFFFF',
-    shadowOpacity: 0.18,
+    ...(Platform.OS === 'ios' ? { shadowOpacity: 0.18 } : {}),
   },
   cockpitCtaEnd: {
     backgroundColor: '#EF4444',
-    shadowColor: '#EF4444',
-    shadowOpacity: 0.35,
+    ...(Platform.OS === 'ios'
+      ? {
+          shadowColor: '#EF4444',
+          shadowOpacity: 0.35,
+        }
+      : {}),
   },
   cockpitCtaText: {
     fontSize: 15,

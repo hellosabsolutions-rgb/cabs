@@ -220,35 +220,50 @@ export function BookingDetailScreen({ route, navigation }: Props) {
         />
       </View>
 
-      {/* FLOATING TOP BAR: IOS 18/26 LIQUID GLASS BACK BUTTON */}
+      {/* FLOATING TOP BAR: IOS LIQUID GLASS vs ANDROID NORMAL BUTTON */}
       <Pressable
         onPress={() => navigation.goBack()}
+        android_ripple={{ color: 'rgba(0,0,0,0.12)', borderless: true }}
         style={({ pressed }) => [
           styles.floatingBackBtn,
           {
             top: insets.top + 8,
-            backgroundColor: isDark ? 'rgba(15, 23, 42, 0.65)' : 'rgba(255, 255, 255, 0.72)',
-            borderColor: isDark ? 'rgba(255, 255, 255, 0.25)' : 'rgba(255, 255, 255, 0.85)',
+            backgroundColor: Platform.OS === 'ios'
+              ? (isDark ? 'rgba(15, 23, 42, 0.65)' : 'rgba(255, 255, 255, 0.72)')
+              : (isDark ? '#1E293B' : '#FFFFFF'),
+            borderColor: Platform.OS === 'ios'
+              ? (isDark ? 'rgba(255, 255, 255, 0.25)' : 'rgba(255, 255, 255, 0.85)')
+              : (isDark ? '#334155' : '#E2E8F0'),
+            borderWidth: Platform.OS === 'ios' ? 1.5 : 1,
             opacity: pressed ? 0.75 : 1,
           },
         ]}
       >
-        <View style={styles.liquidGlossHighlight} />
-        <Ionicons name="arrow-back" size={20} color={primaryText} />
+        {Platform.OS === 'ios' && <View style={styles.liquidGlossHighlight} />}
+        <Ionicons
+          name={Platform.OS === 'ios' ? 'chevron-back' : 'arrow-back'}
+          size={Platform.OS === 'ios' ? 22 : 20}
+          color={primaryText}
+        />
       </Pressable>
 
-      {/* FLOATING ROUTE DISTANCE/ETA BADGE WITH LIQUID GLASS */}
+      {/* FLOATING ROUTE DISTANCE/ETA BADGE: IOS LIQUID GLASS vs ANDROID NORMAL BADGE */}
       <View
         style={[
           styles.floatingRouteBadge,
           {
             top: insets.top + 8,
-            backgroundColor: isDark ? 'rgba(15, 23, 42, 0.65)' : 'rgba(255, 255, 255, 0.75)',
-            borderColor: isDark ? 'rgba(255, 255, 255, 0.25)' : 'rgba(255, 255, 255, 0.85)',
+            backgroundColor: Platform.OS === 'ios'
+              ? (isDark ? 'rgba(15, 23, 42, 0.65)' : 'rgba(255, 255, 255, 0.75)')
+              : (isDark ? '#1E293B' : '#FFFFFF'),
+            borderColor: Platform.OS === 'ios'
+              ? (isDark ? 'rgba(255, 255, 255, 0.25)' : 'rgba(255, 255, 255, 0.85)')
+              : (isDark ? '#334155' : '#E2E8F0'),
+            borderWidth: Platform.OS === 'ios' ? 1.5 : 1,
           },
         ]}
       >
-        <View style={styles.routeBadgeGloss} />
+        {Platform.OS === 'ios' && <View style={styles.routeBadgeGloss} />}
         <View style={styles.routeBadgeDot} />
         <Text style={[styles.floatingRouteBadgeText, { color: primaryText }]}>
           {booking.routeDistanceKm} km · ~{booking.estimatedDurationMins} min
@@ -304,9 +319,20 @@ export function BookingDetailScreen({ route, navigation }: Props) {
             <View style={styles.profileActionsRow}>
               <Pressable
                 onPress={smsPassenger}
+                android_ripple={{ color: 'rgba(0,0,0,0.1)', borderless: true }}
                 style={({ pressed }) => [
                   styles.circleActionBtn,
-                  { backgroundColor: isDark ? '#1E293B' : '#F1F5F9', opacity: pressed ? 0.7 : 1 },
+                  Platform.OS === 'ios'
+                    ? {
+                        backgroundColor: isDark ? '#1E293B' : '#F1F5F9',
+                        opacity: pressed ? 0.7 : 1,
+                      }
+                    : {
+                        backgroundColor: isDark ? '#1E293B' : '#FFFFFF',
+                        borderColor: isDark ? '#334155' : '#E2E8F0',
+                        borderWidth: 1,
+                        opacity: pressed ? 0.85 : 1,
+                      },
                 ]}
               >
                 <Ionicons name="chatbubble-ellipses" size={18} color={primaryText} />
@@ -314,9 +340,20 @@ export function BookingDetailScreen({ route, navigation }: Props) {
 
               <Pressable
                 onPress={callPassenger}
+                android_ripple={{ color: 'rgba(0,0,0,0.1)', borderless: true }}
                 style={({ pressed }) => [
                   styles.circleActionBtn,
-                  { backgroundColor: isDark ? '#1E293B' : '#F1F5F9', opacity: pressed ? 0.7 : 1 },
+                  Platform.OS === 'ios'
+                    ? {
+                        backgroundColor: isDark ? '#1E293B' : '#F1F5F9',
+                        opacity: pressed ? 0.7 : 1,
+                      }
+                    : {
+                        backgroundColor: isDark ? '#1E293B' : '#FFFFFF',
+                        borderColor: isDark ? '#334155' : '#E2E8F0',
+                        borderWidth: 1,
+                        opacity: pressed ? 0.85 : 1,
+                      },
                 ]}
               >
                 <Ionicons name="call" size={17} color={primaryText} />
@@ -427,9 +464,23 @@ export function BookingDetailScreen({ route, navigation }: Props) {
           {/* 4. TURN-BY-TURN NAVIGATION BUTTON */}
           <Pressable
             onPress={openNavigation}
+            android_ripple={{ color: 'rgba(255,255,255,0.2)' }}
             style={({ pressed }) => [
               styles.startNavigationBtn,
-              { opacity: pressed ? 0.88 : 1 },
+              Platform.OS === 'ios'
+                ? {
+                    borderRadius: 14,
+                    shadowColor: '#2563EB',
+                    shadowOffset: { width: 0, height: 6 },
+                    shadowOpacity: 0.35,
+                    shadowRadius: 12,
+                    opacity: pressed ? 0.88 : 1,
+                  }
+                : {
+                    borderRadius: 8,
+                    elevation: 2,
+                    opacity: pressed ? 0.92 : 1,
+                  },
             ]}
           >
             <Ionicons name="navigate" size={16} color="#FFFFFF" />
@@ -683,14 +734,18 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.28,
-    shadowRadius: 14,
-    elevation: 8,
-    borderWidth: 1.5,
     zIndex: 50,
     overflow: 'hidden',
+    ...(Platform.OS === 'ios'
+      ? {
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 6 },
+          shadowOpacity: 0.28,
+          shadowRadius: 14,
+        }
+      : {
+          elevation: 4,
+        }),
   },
   liquidGlossHighlight: {
     position: 'absolute',
@@ -711,14 +766,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 22,
-    borderWidth: 1.5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.25,
-    shadowRadius: 12,
-    elevation: 8,
     zIndex: 50,
     overflow: 'hidden',
+    ...(Platform.OS === 'ios'
+      ? {
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 6 },
+          shadowOpacity: 0.25,
+          shadowRadius: 12,
+        }
+      : {
+          elevation: 3,
+        }),
   },
   routeBadgeGloss: {
     position: 'absolute',
@@ -925,13 +984,7 @@ const styles = StyleSheet.create({
     gap: 8,
     backgroundColor: '#2563EB',
     paddingVertical: 13,
-    borderRadius: 12,
     marginBottom: 16,
-    shadowColor: '#2563EB',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.35,
-    shadowRadius: 6,
-    elevation: 3,
   },
   startNavigationBtnText: {
     color: '#FFFFFF',
