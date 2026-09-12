@@ -3,7 +3,6 @@
   "version": "1.0.0",
   "main": "index.ts",
   "dependencies": {
-    "@callstack/liquid-glass": "^0.8.1",
     "@expo/vector-icons": "^15.0.2",
     "@react-native-google-signin/google-signin": "^16.1.5",
     "@react-navigation/bottom-tabs": "^7.18.18",
@@ -14,8 +13,6 @@
     "expo-camera": "~57.0.5",
     "expo-document-picker": "~57.0.2",
     "expo-image-picker": "~57.0.17",
-    "expo-liquid-glass": "^1.0.0",
-    "expo-liquid-glass-view": "^0.1.11",
     "expo-location": "^57.0.17",
     "expo-secure-store": "~57.0.3",
     "expo-status-bar": "~57.0.1",

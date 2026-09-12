@@ -13,12 +13,10 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  UIManager,
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { BlurView } from 'expo-blur';
-import { LiquidGlassView } from 'expo-liquid-glass-view';
+import { BlurView, type ExperimentalBlurMethod } from 'expo-blur';
 import { CameraView, useCameraPermissions, type FlashMode } from 'expo-camera';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -32,6 +30,7 @@ import type { Attachment } from '../media/types';
 type Props = NativeStackScreenProps<RootStackParamList, 'StartDuty'>;
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const BLUR_METHOD: ExperimentalBlurMethod = 'dimezisBlurViewSdk31Plus';
 
 function formatIST(timestamp: number): string {
   try {
@@ -51,128 +50,73 @@ function formatIST(timestamp: number): string {
 }
 
 /**
- * Checks if ExpoLiquidGlass native component is registered in the running iOS binary.
- * When compiled into the binary -> uses Apple's native UIGlassEffect via `expo-liquid-glass-view`.
- * Before binary rebuild -> gracefully falls back to native `BlurView` (which is already linked in the binary).
+ * Frosted Glass Card using `expo-blur` with `experimentalBlurMethod`.
+ * Provides optical native blur on iOS (UIKit) and Android (dimezisBlurViewSdk31Plus).
  */
-const isExpoLiquidGlassLinked = (() => {
-  if (Platform.OS !== 'ios') return false;
-  try {
-    if (typeof UIManager?.getViewManagerConfig === 'function') {
-      const config =
-        UIManager.getViewManagerConfig('ViewManagerAdapter_ExpoLiquidGlass_LiquidGlassView') ||
-        UIManager.getViewManagerConfig('ExpoLiquidGlass') ||
-        UIManager.getViewManagerConfig('LiquidGlassView');
-      return Boolean(config);
-    }
-  } catch {
-    return false;
-  }
-  return false;
-})();
-
-/**
- * Native Liquid Glass Card for iOS using `expo-liquid-glass-view` (Apple UIGlassEffect).
- * Falls back to native BlurView before rebuild, and obsidian dark on Android.
- */
-function LiquidGlassCard({
+function FrostedBlurCard({
   children,
   style,
   borderRadius = 24,
+  intensity = 55,
 }: {
   children: React.ReactNode;
   style?: any;
   borderRadius?: number;
+  intensity?: number;
 }) {
-  if (Platform.OS === 'ios') {
-    if (isExpoLiquidGlassLinked) {
-      return (
-        <LiquidGlassView
-          variant="regular"
-          cornerRadius={borderRadius}
-          tint="rgba(10, 10, 14, 0.65)"
-          style={[styles.iosLiquidCardWrap, { borderRadius }, style]}
-        >
-          {children}
-        </LiquidGlassView>
-      );
-    }
-
-    return (
-      <View style={[styles.iosLiquidCardWrap, { borderRadius }, style]}>
-        <BlurView intensity={55} tint="dark" style={StyleSheet.absoluteFill} />
-        <View
-          style={[
-            styles.liquidTopSpecularEdge,
-            { borderTopLeftRadius: borderRadius, borderTopRightRadius: borderRadius },
-          ]}
-          pointerEvents="none"
-        />
-        <View
-          style={[
-            styles.liquidTopGlossWash,
-            { borderTopLeftRadius: borderRadius, borderTopRightRadius: borderRadius },
-          ]}
-          pointerEvents="none"
-        />
-        {children}
-      </View>
-    );
-  }
-
   return (
-    <View style={[styles.androidSolidCardWrap, { borderRadius }, style]}>
+    <View style={[styles.frostedCardWrap, { borderRadius }, style]}>
+      <BlurView
+        intensity={intensity}
+        tint="dark"
+        experimentalBlurMethod={BLUR_METHOD}
+        style={StyleSheet.absoluteFill}
+      />
+      {/* Specular Top Border Highlight */}
+      <View
+        style={[
+          styles.specularTopEdge,
+          { borderTopLeftRadius: borderRadius, borderTopRightRadius: borderRadius },
+        ]}
+        pointerEvents="none"
+      />
       {children}
     </View>
   );
 }
 
 /**
- * Native Liquid Glass Pill for iOS header badges.
+ * Frosted Glass Pill using `expo-blur` with `experimentalBlurMethod`.
  */
-function LiquidGlassPill({
+function FrostedBlurPill({
   children,
   style,
   borderRadius = 20,
+  intensity = 45,
 }: {
   children: React.ReactNode;
   style?: any;
   borderRadius?: number;
+  intensity?: number;
 }) {
-  if (Platform.OS === 'ios') {
-    if (isExpoLiquidGlassLinked) {
-      return (
-        <LiquidGlassView
-          variant="regular"
-          cornerRadius={borderRadius}
-          tint="rgba(10, 10, 14, 0.6)"
-          style={[styles.iosLiquidPillWrap, style]}
-        >
-          {children}
-        </LiquidGlassView>
-      );
-    }
-
-    return (
-      <View style={[styles.iosLiquidPillWrap, style]}>
-        <BlurView intensity={45} tint="dark" style={StyleSheet.absoluteFill} />
-        <View style={styles.liquidPillSpecularEdge} pointerEvents="none" />
-        {children}
-      </View>
-    );
-  }
-
   return (
-    <View style={[styles.androidSolidPillWrap, style]}>
+    <View style={[styles.frostedPillWrap, { borderRadius }, style]}>
+      <BlurView
+        intensity={intensity}
+        tint="dark"
+        experimentalBlurMethod={BLUR_METHOD}
+        style={StyleSheet.absoluteFill}
+      />
+      <View style={styles.pillSpecularEdge} pointerEvents="none" />
       {children}
     </View>
   );
 }
 
 /**
- * Circle Button with native Liquid Glass on iOS / Normal obsidian on Android
+ * Frosted Circle Button using `expo-blur` with `experimentalBlurMethod`.
  */
-function GlassCircleButton({
+function FrostedCircleButton({
   onPress,
   children,
   style,
@@ -181,34 +125,22 @@ function GlassCircleButton({
   children: React.ReactNode;
   style?: any;
 }) {
-  if (Platform.OS === 'ios') {
-    if (isExpoLiquidGlassLinked) {
-      return (
-        <LiquidGlassView
-          variant="regular"
-          cornerRadius={21}
-          tint="rgba(10, 10, 14, 0.6)"
-          interactive
-          style={[styles.glassCircleBtn, style]}
-        >
-          <Pressable onPress={onPress} style={styles.glassCircleBtnInner}>
-            {children}
-          </Pressable>
-        </LiquidGlassView>
-      );
-    }
-
-    return (
-      <Pressable onPress={onPress} style={[styles.glassCircleBtn, style]}>
-        <BlurView intensity={45} tint="dark" style={StyleSheet.absoluteFill} />
-        <View style={styles.liquidCircleSpecular} pointerEvents="none" />
-        {children}
-      </Pressable>
-    );
-  }
-
   return (
-    <Pressable onPress={onPress} style={[styles.glassCircleBtnAndroid, style]}>
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.circleBtnWrap,
+        pressed && { opacity: 0.75, transform: [{ scale: 0.95 }] },
+        style,
+      ]}
+    >
+      <BlurView
+        intensity={45}
+        tint="dark"
+        experimentalBlurMethod={BLUR_METHOD}
+        style={StyleSheet.absoluteFill}
+      />
+      <View style={styles.circleSpecular} pointerEvents="none" />
       {children}
     </Pressable>
   );
@@ -499,13 +431,13 @@ export function StartDutyScreen({ navigation }: Props) {
         </View>
       )}
 
-      {/* FLOATING TOP BAR: EXPO LIQUID GLASS ON IOS / SOLID LUXURY OBSIDIAN ON ANDROID */}
+      {/* FLOATING TOP BAR: EXPO BLUR EXPERIMENTAL BLUR ON IOS & ANDROID */}
       <View style={[styles.topBar, { top: insets.top + 8 }]}>
-        <GlassCircleButton onPress={() => navigation.goBack()}>
+        <FrostedCircleButton onPress={() => navigation.goBack()}>
           <Ionicons name="chevron-back" size={22} color="#FFFFFF" />
-        </GlassCircleButton>
+        </FrostedCircleButton>
 
-        <LiquidGlassPill style={styles.vehicleBadgePill}>
+        <FrostedBlurPill style={styles.vehicleBadgePill}>
           <View style={styles.pulseDot} />
           <Ionicons name="car-outline" size={15} color="#FFFFFF" style={{ marginRight: 6 }} />
           <Text style={styles.vehicleBadgeReg}>
@@ -514,16 +446,16 @@ export function StartDutyScreen({ navigation }: Props) {
           <Text style={styles.vehicleBadgeModel}>
             • {session.vehicle?.model || 'Commercial'}
           </Text>
-        </LiquidGlassPill>
+        </FrostedBlurPill>
 
         {!capturedPhoto && (
-          <GlassCircleButton onPress={toggleFlash}>
+          <FrostedCircleButton onPress={toggleFlash}>
             <Ionicons
               name={flash === 'on' ? 'flash' : flash === 'auto' ? 'flash-outline' : 'flash-off-outline'}
               size={18}
               color={flash !== 'off' ? '#FFFFFF' : '#A1A1AA'}
             />
-          </GlassCircleButton>
+          </FrostedCircleButton>
         )}
       </View>
 
@@ -562,10 +494,10 @@ export function StartDutyScreen({ navigation }: Props) {
       {/* POST-CAPTURE SUCCESS BADGE */}
       {capturedPhoto && (
         <View style={[styles.successBadgeWrap, { top: insets.top + 60 }]}>
-          <LiquidGlassPill style={styles.successBadge}>
+          <FrostedBlurPill style={styles.successBadge}>
             <Ionicons name="checkmark-circle" size={17} color="#FFFFFF" style={{ marginRight: 6 }} />
             <Text style={styles.successBadgeText}>Odometer Photo Captured & Verified</Text>
-          </LiquidGlassPill>
+          </FrostedBlurPill>
         </View>
       )}
 
@@ -576,7 +508,7 @@ export function StartDutyScreen({ navigation }: Props) {
       >
         {/* PRE-CAPTURE MODE: FLOATING ODOMETER BAR + LEICA/APPLE MONOCHROME SHUTTER BUTTON */}
         {!capturedPhoto ? (
-          <LiquidGlassCard style={styles.preCaptureCard}>
+          <FrostedBlurCard style={styles.preCaptureCard}>
             {/* Odometer Quick Input Strip */}
             <View style={styles.floatingOdoStrip}>
               <View style={{ flex: 1 }}>
@@ -633,10 +565,10 @@ export function StartDutyScreen({ navigation }: Props) {
               </Pressable>
               <Text style={styles.shutterInstruction}>Tap shutter to capture photo</Text>
             </View>
-          </LiquidGlassCard>
+          </FrostedBlurCard>
         ) : (
           /* POST-CAPTURE MODE: FLOATING VERIFICATION CARD & HIGH CONTRAST POWER BUTTON */
-          <LiquidGlassCard style={styles.postCaptureContainer}>
+          <FrostedBlurCard style={styles.postCaptureContainer}>
             <ScrollView
               bounces={false}
               showsVerticalScrollIndicator={false}
@@ -810,7 +742,7 @@ export function StartDutyScreen({ navigation }: Props) {
                 </Pressable>
               </View>
             </ScrollView>
-          </LiquidGlassCard>
+          </FrostedBlurCard>
         )}
       </KeyboardAvoidingView>
     </View>
@@ -869,48 +801,34 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
 
-  /* EXPO NATIVE LIQUID GLASS (IOS 26+) & SOLID CONTAINERS (ANDROID) */
-  iosLiquidCardWrap: {
+  /* EXPO BLUR FROSTED CONTAINERS (IOS & ANDROID) */
+  frostedCardWrap: {
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.18)',
-    backgroundColor: 'rgba(18, 18, 20, 0.58)',
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: 'rgba(18, 18, 20, 0.55)',
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.55,
     shadowRadius: 20,
-  },
-  androidSolidCardWrap: {
-    backgroundColor: '#121214',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.14)',
     elevation: 8,
   },
-  liquidTopSpecularEdge: {
+  specularTopEdge: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
     height: 1.5,
-    backgroundColor: 'rgba(255, 255, 255, 0.45)',
+    backgroundColor: 'rgba(255, 255, 255, 0.4)',
     zIndex: 2,
   },
-  liquidTopGlossWash: {
-    position: 'absolute',
-    top: 1,
-    left: 1,
-    right: 1,
-    height: 32,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    zIndex: 1,
-  },
-  iosLiquidPillWrap: {
+  frostedPillWrap: {
     flexDirection: 'row',
     alignItems: 'center',
     overflow: 'hidden',
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
+    borderColor: 'rgba(255, 255, 255, 0.22)',
     backgroundColor: 'rgba(18, 18, 20, 0.65)',
     paddingHorizontal: 14,
     paddingVertical: 8,
@@ -918,25 +836,15 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.35,
     shadowRadius: 8,
-  },
-  androidSolidPillWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.16)',
-    backgroundColor: '#18181B',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
     elevation: 4,
   },
-  liquidPillSpecularEdge: {
+  pillSpecularEdge: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
     height: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.4)',
+    backgroundColor: 'rgba(255, 255, 255, 0.45)',
   },
 
   /* FLOATING TOP BAR */
@@ -949,39 +857,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  glassCircleBtn: {
+  circleBtnWrap: {
     width: 42,
     height: 42,
     borderRadius: 21,
     overflow: 'hidden',
     backgroundColor: 'rgba(18, 18, 20, 0.65)',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
+    borderColor: 'rgba(255, 255, 255, 0.22)',
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.3,
     shadowRadius: 6,
-  },
-  glassCircleBtnInner: {
-    width: 42,
-    height: 42,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  glassCircleBtnAndroid: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: '#18181B',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.16)',
-    alignItems: 'center',
-    justifyContent: 'center',
     elevation: 3,
   },
-  liquidCircleSpecular: {
+  circleSpecular: {
     position: 'absolute',
     top: 0,
     left: 0,
@@ -990,7 +882,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.5)',
   },
   vehicleBadgePill: {
-    // Layout handled inside LiquidGlassPill
+    // Layout handled inside FrostedBlurPill
   },
   pulseDot: {
     width: 7,
