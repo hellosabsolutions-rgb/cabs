@@ -29,7 +29,7 @@ export function MainTabs() {
       icon: {
         ios: 'calendar',
         iosFocused: 'calendar',
-        android: { type: 'image', source: require('../assets/tabs/docs.png') },
+        android: { type: 'image', source: require('../assets/tabs/bookings.png') },
       },
     },
     {
