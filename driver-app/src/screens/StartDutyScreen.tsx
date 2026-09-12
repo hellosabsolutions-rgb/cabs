@@ -64,6 +64,7 @@ export function StartDutyScreen({ navigation }: Props) {
   const [isCapturing, setIsCapturing] = useState(false);
   const [isDetectingOdo, setIsDetectingOdo] = useState(false);
   const [detectedOdo, setDetectedOdo] = useState<number | null>(null);
+  const [candidates, setCandidates] = useState<number[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
 
@@ -162,7 +163,12 @@ export function StartDutyScreen({ navigation }: Props) {
       if (res?.detected && res.odometer) {
         setOdometer(String(res.odometer));
         setDetectedOdo(res.odometer);
+        if (res.candidates && Array.isArray(res.candidates)) {
+          setCandidates(res.candidates);
+        }
         setError('');
+      } else if (res?.candidates && res.candidates.length > 0) {
+        setCandidates(res.candidates);
       }
     } catch (detectErr) {
       console.warn('[StartDutyScreen] Auto-detect odometer warning:', detectErr);
@@ -177,6 +183,7 @@ export function StartDutyScreen({ navigation }: Props) {
     try {
       setIsCapturing(true);
       setDetectedOdo(null);
+      setCandidates([]);
 
       // Attempt capture via CameraView if ref is ready
       if (cameraRef.current && isCameraReady) {
@@ -529,6 +536,42 @@ export function StartDutyScreen({ navigation }: Props) {
                   <Text style={styles.deltaChipText}>+50</Text>
                 </Pressable>
               </View>
+
+              {/* Detected candidates selector chips if multiple numbers found in cluster */}
+              {candidates.length > 1 && (
+                <View style={styles.candidatesSection}>
+                  <Text style={styles.candidatesLabel}>Detected in cluster photo (tap to choose):</Text>
+                  <View style={styles.candidatesRow}>
+                    {candidates.map((cand) => {
+                      const isSelected = Number(odometer.replace(/,/g, '')) === cand;
+                      return (
+                        <Pressable
+                          key={cand}
+                          onPress={() => {
+                            setOdometer(String(cand));
+                            setDetectedOdo(cand);
+                            setError('');
+                          }}
+                          style={[
+                            styles.candidateChip,
+                            isSelected && styles.candidateChipSelected,
+                          ]}
+                        >
+                          <Ionicons
+                            name={isSelected ? 'checkmark-circle' : 'speedometer-outline'}
+                            size={12}
+                            color={isSelected ? '#22C55E' : '#38BDF8'}
+                            style={{ marginRight: 4 }}
+                          />
+                          <Text style={[styles.candidateChipText, isSelected && styles.candidateChipTextSelected]}>
+                            {km(cand)}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                </View>
+              )}
             </View>
 
             {/* Vehicle & Verification Summary */}
@@ -1046,6 +1089,43 @@ const styles = StyleSheet.create({
     color: '#E2E8F0',
     fontSize: 12,
     fontWeight: '700',
+  },
+  candidatesSection: {
+    marginTop: 6,
+    gap: 4,
+  },
+  candidatesLabel: {
+    color: '#94A3B8',
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.3,
+  },
+  candidatesRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  candidateChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(56, 189, 248, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(56, 189, 248, 0.3)',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  candidateChipSelected: {
+    backgroundColor: 'rgba(34, 197, 94, 0.15)',
+    borderColor: '#22C55E',
+  },
+  candidateChipText: {
+    color: '#38BDF8',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  candidateChipTextSelected: {
+    color: '#4ADE80',
   },
 
   /* SUMMARY BOX */

@@ -265,6 +265,7 @@ export const dutyApi = {
       detected: boolean;
       odometer: number | null;
       confidence?: number;
+      candidates?: number[];
       allNumbers?: number[];
       rawText?: string;
     }>('/auth/driver/duty/detect-odometer', {
