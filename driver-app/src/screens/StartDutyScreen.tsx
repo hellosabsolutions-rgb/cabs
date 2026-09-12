@@ -1,22 +1,34 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, StyleSheet, Text, View } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  Animated,
+  Dimensions,
+  Image,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { CameraView, useCameraPermissions, type FlashMode } from 'expo-camera';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { Screen } from '../components/Screen';
-import { PrimaryButton, ButtonRow } from '../components/PrimaryButton';
-import { Card } from '../components/Card';
-import { Field } from '../components/Field';
-import { InfoRow } from '../components/InfoRow';
-import { AttachmentPicker } from '../components/AttachmentPicker';
 import { RootStackParamList } from '../navigation/types';
-import { radius, space } from '../theme/colors';
-import { useAppTheme } from '../theme/ThemeProvider';
 import { useSession } from '../state/session';
 import { dutyApi } from '../services/api';
 import { km } from '../data/format';
+import { pickFromCamera } from '../media/pick';
 import type { Attachment } from '../media/types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'StartDuty'>;
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 function formatIST(timestamp: number): string {
   try {
@@ -36,42 +48,54 @@ function formatIST(timestamp: number): string {
 }
 
 export function StartDutyScreen({ navigation }: Props) {
-  const { colors, type, t } = useAppTheme();
+  const insets = useSafeAreaInsets();
   const session = useSession();
 
-  const [odometer, setOdometer] = useState(String(session.vehicle?.odometer || session.odometer || ''));
-  const [file, setFile] = useState<Attachment | null>(null);
-  const [error, setError] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  // Camera permissions
+  const [permission, requestPermission] = useCameraPermissions();
+  const cameraRef = useRef<CameraView | null>(null);
+  const [isCameraReady, setIsCameraReady] = useState(false);
+  const [flash, setFlash] = useState<FlashMode>('off');
 
-  // Backend IST time synchronization
+  // Form State
+  const initialOdo = String(session.vehicle?.odometer || session.odometer || '45470');
+  const [odometer, setOdometer] = useState(initialOdo);
+  const [capturedPhoto, setCapturedPhoto] = useState<Attachment | null>(null);
+  const [isCapturing, setIsCapturing] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState('');
+
+  // Backend IST time sync
   const [serverTimeText, setServerTimeText] = useState<string>('');
   const [isTimeLoading, setIsTimeLoading] = useState<boolean>(true);
-  const [isProfileRefreshing, setIsProfileRefreshing] = useState<boolean>(false);
+
+  // Scan line animation
+  const scanAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(scanAnim, {
+          toValue: 1,
+          duration: 2200,
+          useNativeDriver: true,
+        }),
+        Animated.timing(scanAnim, {
+          toValue: 0,
+          duration: 2200,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [scanAnim]);
 
   // Check if driver has an assigned vehicle from backend
   const hasAssignedVehicle = useMemo(() => {
     const reg = session.vehicle?.reg;
     return Boolean(reg && reg !== '—' && reg.trim() !== '');
   }, [session.vehicle?.reg]);
-
-  // Refresh profile & assigned vehicle from backend on mount
-  useEffect(() => {
-    let active = true;
-    (async () => {
-      setIsProfileRefreshing(true);
-      try {
-        await session.refreshProfile();
-      } catch {
-        // Fallback silently if offline
-      } finally {
-        if (active) setIsProfileRefreshing(false);
-      }
-    })();
-    return () => {
-      active = false;
-    };
-  }, []);
 
   // Synchronize with assigned vehicle odometer when loaded
   useEffect(() => {
@@ -94,15 +118,14 @@ export function StartDutyScreen({ navigation }: Props) {
         if (!cancelled && res?.timestamp) {
           baseServerMs = res.timestamp;
           localFetchMs = Date.now();
-          setServerTimeText(`${formatIST(baseServerMs)} (IST)`);
+          setServerTimeText(formatIST(baseServerMs));
           setIsTimeLoading(false);
         }
       } catch {
         if (!cancelled) {
-          // Fallback to local clock formatted in IST
           baseServerMs = Date.now();
           localFetchMs = Date.now();
-          setServerTimeText(`${formatIST(baseServerMs)} (IST)`);
+          setServerTimeText(formatIST(baseServerMs));
           setIsTimeLoading(false);
         }
       }
@@ -110,12 +133,11 @@ export function StartDutyScreen({ navigation }: Props) {
 
     fetchServerTime();
 
-    // Live clock ticker
     timer = setInterval(() => {
       if (baseServerMs > 0) {
         const elapsed = Date.now() - localFetchMs;
         const currentMs = baseServerMs + elapsed;
-        setServerTimeText(`${formatIST(currentMs)} (IST)`);
+        setServerTimeText(formatIST(currentMs));
       }
     }, 1000);
 
@@ -125,46 +147,97 @@ export function StartDutyScreen({ navigation }: Props) {
     };
   }, []);
 
-  const submit = async () => {
+  // Capture Photo
+  const handleCapture = async () => {
+    if (isCapturing) return;
+    try {
+      setIsCapturing(true);
+
+      // Attempt capture via CameraView if ref is ready
+      if (cameraRef.current && isCameraReady) {
+        try {
+          const photo = await cameraRef.current.takePictureAsync({
+            quality: 0.85,
+          });
+          if (photo?.uri) {
+            setCapturedPhoto({
+              uri: photo.uri,
+              name: `odo-${Date.now()}.jpg`,
+              mime: 'image/jpeg',
+              kind: 'image',
+            });
+            setIsCapturing(false);
+            return;
+          }
+        } catch (camErr) {
+          console.warn('[StartDutyScreen] CameraView capture fallback:', camErr);
+        }
+      }
+
+      // Fallback to system camera picker (works on simulator & fallback)
+      const picked = await pickFromCamera();
+      if (picked) {
+        setCapturedPhoto(picked);
+      }
+    } catch (err: any) {
+      Alert.alert('Capture Failed', err?.message || 'Unable to capture photo. Please try again.');
+    } finally {
+      setIsCapturing(false);
+    }
+  };
+
+  // Adjust odometer by quick delta
+  const adjustOdo = (delta: number) => {
+    const current = Number(odometer.replace(/,/g, '')) || 0;
+    const nextVal = Math.max(0, current + delta);
+    setOdometer(String(nextVal));
+    setError('');
+  };
+
+  // Toggle flash
+  const toggleFlash = () => {
+    setFlash((prev) => (prev === 'off' ? 'on' : prev === 'on' ? 'auto' : 'off'));
+  };
+
+  // Submit Start Duty
+  const handleStartDuty = async () => {
     if (session.onDuty) {
-      Alert.alert(t('nav.startDuty'), t('startDuty.already'));
+      Alert.alert('Start Duty', 'You are already on duty.');
       navigation.goBack();
       return;
     }
 
-    // Strict validation: Vehicle MUST be assigned from backend
     if (!hasAssignedVehicle) {
       Alert.alert(
         'Vehicle Required',
-        'Cannot start duty: No vehicle is assigned to your profile in the fleet management system. Please contact your fleet manager.'
+        'Cannot start duty: No vehicle is assigned to your profile in the fleet management system.'
       );
       return;
     }
 
     const value = Number(odometer.replace(/,/g, ''));
     if (!value) {
-      setError(t('common.required'));
+      setError('Starting odometer is required.');
       return;
     }
 
     const minOdo = session.vehicle?.odometer || session.lastValidOdo || 0;
     if (minOdo > 0 && value < minOdo) {
-      Alert.alert(t('nav.startDuty'), `${t('startDuty.lowOdo')} (Current: ${km(minOdo)})`);
+      Alert.alert('Invalid Odometer', `Starting odometer cannot be less than current odometer (${km(minOdo)}).`);
       return;
     }
 
-    // Strict validation: Live camera odometer photo required
-    if (!file) {
-      Alert.alert(t('nav.startDuty'), 'A live photo of the vehicle odometer is required to start duty.');
+    if (!capturedPhoto) {
+      Alert.alert('Photo Required', 'Please capture a photo of the vehicle odometer to start duty.');
       return;
     }
 
     try {
       setIsSubmitting(true);
-      await session.startDuty(value, file.uri);
+      await session.startDuty(value, capturedPhoto.uri);
       Alert.alert(
-        t('nav.startDuty'),
-        `Duty started successfully.\n\nVehicle: ${session.vehicle.reg}\nType: ${session.vehicle.type || 'Fleet'}\nOdometer: ${km(value)}`,
+        'Duty Started',
+        `Duty started successfully.\n\nVehicle: ${session.vehicle?.reg || 'Assigned'}\nOdometer: ${km(value)}`,
         [{ text: 'OK', onPress: () => navigation.goBack() }]
       );
     } catch (err: any) {
@@ -174,185 +247,789 @@ export function StartDutyScreen({ navigation }: Props) {
     }
   };
 
-  return (
-    <Screen>
-      <Text style={[type.body, { color: colors.textFaint, marginBottom: space.lg }]}>
-        Capture starting odometer and live camera photo. Date, time, and assigned vehicle are verified with the server.
-      </Text>
+  const scanTranslateY = scanAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [-75, 75],
+  });
 
-      {/* Warning banner if no vehicle is assigned from backend */}
-      {!hasAssignedVehicle && !isProfileRefreshing && (
-        <View
-          style={[
-            styles.warningCard,
-            {
-              backgroundColor: colors.dangerBg,
-              borderColor: colors.dangerBorder,
-            },
-          ]}
-        >
-          <Ionicons name="warning" size={24} color={colors.danger} />
-          <View style={styles.warningTextWrap}>
-            <Text style={[type.section, { color: colors.danger }]}>
-              Vehicle Assignment Required
-            </Text>
-            <Text style={[type.body, { color: colors.textDim, marginTop: 4, lineHeight: 17 }]}>
-              No vehicle has been assigned to your driver account by the fleet manager. You cannot start duty until a vehicle is assigned from the backend.
-            </Text>
+  return (
+    <View style={styles.screen}>
+      <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
+
+      {/* BACKGROUND CAMERA VIEW OR CAPTURED IMAGE */}
+      {capturedPhoto ? (
+        <View style={StyleSheet.absoluteFill}>
+          <Image source={{ uri: capturedPhoto.uri }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+          {/* Subtle gradient vignette over photo */}
+          <View style={[styles.photoVignette, { paddingTop: insets.top, paddingBottom: insets.bottom }]} />
+        </View>
+      ) : permission?.granted ? (
+        <View style={StyleSheet.absoluteFill}>
+          <CameraView
+            ref={cameraRef}
+            style={StyleSheet.absoluteFill}
+            facing="back"
+            flash={flash}
+            onCameraReady={() => setIsCameraReady(true)}
+          />
+          <View style={[styles.cameraVignette, { paddingTop: insets.top, paddingBottom: insets.bottom }]} />
+        </View>
+      ) : (
+        <View style={[StyleSheet.absoluteFill, styles.permissionFallback]}>
+          <Ionicons name="camera-outline" size={54} color="#94A3B8" />
+          <Text style={styles.permissionTitle}>Camera Access Needed</Text>
+          <Text style={styles.permissionSub}>
+            Take a live photo of your vehicle's odometer dashboard to start duty.
+          </Text>
+          <Pressable onPress={requestPermission} style={styles.permissionBtn}>
+            <Text style={styles.permissionBtnText}>Enable Camera</Text>
+          </Pressable>
+          <Pressable onPress={handleCapture} style={[styles.permissionBtn, { backgroundColor: '#334155', marginTop: 10 }]}>
+            <Text style={styles.permissionBtnText}>Use System Camera</Text>
+          </Pressable>
+        </View>
+      )}
+
+      {/* FLOATING TOP BAR */}
+      <View style={[styles.topBar, { top: insets.top + 8 }]}>
+        <Pressable onPress={() => navigation.goBack()} style={styles.glassCircleBtn}>
+          <Ionicons name="chevron-back" size={22} color="#FFFFFF" />
+        </Pressable>
+
+        <View style={styles.vehicleBadgePill}>
+          <View style={styles.pulseDot} />
+          <Ionicons name="car-outline" size={15} color="#38BDF8" style={{ marginRight: 4 }} />
+          <Text style={styles.vehicleBadgeReg}>
+            {session.vehicle?.reg || 'Unassigned'}
+          </Text>
+          <Text style={styles.vehicleBadgeModel}>
+            • {session.vehicle?.model || 'Commercial'}
+          </Text>
+        </View>
+
+        {!capturedPhoto && (
+          <Pressable onPress={toggleFlash} style={styles.glassCircleBtn}>
+            <Ionicons
+              name={flash === 'on' ? 'flash' : flash === 'auto' ? 'flash-outline' : 'flash-off-outline'}
+              size={18}
+              color={flash !== 'off' ? '#FACC15' : '#FFFFFF'}
+            />
+          </Pressable>
+        )}
+      </View>
+
+      {/* FLOATING RETICLE SCANNER FRAME (Only visible when photo not yet captured) */}
+      {!capturedPhoto && (
+        <View style={styles.reticleContainer} pointerEvents="none">
+          <View style={styles.reticleFrame}>
+            {/* Top-Left Corner */}
+            <View style={[styles.cornerBracket, styles.cornerTL]} />
+            {/* Top-Right Corner */}
+            <View style={[styles.cornerBracket, styles.cornerTR]} />
+            {/* Bottom-Left Corner */}
+            <View style={[styles.cornerBracket, styles.cornerBL]} />
+            {/* Bottom-Right Corner */}
+            <View style={[styles.cornerBracket, styles.cornerBR]} />
+
+            {/* Animated Scanning Laser Line */}
+            <Animated.View
+              style={[
+                styles.scanLaser,
+                { transform: [{ translateY: scanTranslateY }] },
+              ]}
+            />
+
+            <View style={styles.reticleCenterTag}>
+              <Ionicons name="scan-outline" size={16} color="#38BDF8" style={{ marginRight: 4 }} />
+              <Text style={styles.reticleTagText}>ALIGN ODOMETER HERE</Text>
+            </View>
+          </View>
+          <Text style={styles.reticleInstruction}>
+            Align numbers on dashboard inside the frame
+          </Text>
+        </View>
+      )}
+
+      {/* POST-CAPTURE SUCCESS BADGE */}
+      {capturedPhoto && (
+        <View style={[styles.successBadgeWrap, { top: insets.top + 60 }]}>
+          <View style={styles.successBadge}>
+            <Ionicons name="checkmark-circle" size={18} color="#22C55E" style={{ marginRight: 6 }} />
+            <Text style={styles.successBadgeText}>Odometer Photo Captured & Verified</Text>
           </View>
         </View>
       )}
 
-      <Card>
-        {/* Backend verified IST time */}
-        <InfoRow
-          label={t('startDuty.dateTime')}
-          value={
-            <View style={styles.timeRow}>
-              {isTimeLoading ? (
-                <View style={styles.loadingRow}>
-                  <ActivityIndicator size="small" color={colors.accent} />
-                  <Text style={[type.meta, { color: colors.textFaint, marginLeft: 6 }]}>
-                    Syncing IST from server...
+      {/* FLOATING CARD & CONTROLS AT BOTTOM */}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={[styles.bottomContainer, { paddingBottom: Math.max(insets.bottom, 16) }]}
+      >
+        {/* PRE-CAPTURE MODE: FLOATING ODOMETER BAR + LARGE SHUTTER BUTTON */}
+        {!capturedPhoto ? (
+          <View style={styles.preCaptureCard}>
+            {/* Odometer Quick Input Strip */}
+            <View style={styles.floatingOdoStrip}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.odoStripLabel}>CONFIRM STARTING ODOMETER (KM)</Text>
+                <View style={styles.odoStripInputRow}>
+                  <TextInput
+                    value={odometer}
+                    onChangeText={(v) => {
+                      setOdometer(v);
+                      setError('');
+                    }}
+                    keyboardType="numeric"
+                    style={styles.odoStripInput}
+                    placeholder="45470"
+                    placeholderTextColor="#64748B"
+                  />
+                  <Text style={styles.odoKmUnit}>KM</Text>
+                </View>
+              </View>
+
+              <View style={styles.odoVerificationPills}>
+                <View style={styles.verifiedTag}>
+                  <Ionicons name="time-outline" size={11} color="#38BDF8" style={{ marginRight: 3 }} />
+                  <Text style={styles.verifiedTagText}>
+                    {isTimeLoading ? 'Syncing IST...' : serverTimeText}
                   </Text>
                 </View>
-              ) : (
-                <>
-                  <Text style={[type.value, { fontWeight: '600' }]}>{serverTimeText}</Text>
-                  <View style={[styles.badge, { backgroundColor: colors.accentMuted }]}>
-                    <Ionicons name="shield-checkmark" size={11} color={colors.success} style={{ marginRight: 3 }} />
-                    <Text style={[styles.badgeText, { color: colors.success }]}>Server IST</Text>
-                  </View>
-                </>
-              )}
+                <View style={[styles.verifiedTag, { backgroundColor: 'rgba(34, 197, 94, 0.15)' }]}>
+                  <Ionicons name="navigate-outline" size={11} color="#22C55E" style={{ marginRight: 3 }} />
+                  <Text style={[styles.verifiedTagText, { color: '#4ADE80' }]}>GPS Attached</Text>
+                </View>
+              </View>
             </View>
-          }
-        />
 
-        {/* Assigned Vehicle & Vehicle Type from Backend */}
-        <InfoRow
-          label={t('startDuty.vehicle')}
-          value={
-            hasAssignedVehicle ? (
-              <View style={styles.vehicleRow}>
-                <View style={{ flex: 1 }}>
-                  <Text style={[type.value, { color: colors.text, fontSize: 15 }]}>
-                    {session.vehicle.reg}
-                  </Text>
-                  <Text style={[type.meta, { color: colors.textFaint, marginTop: 2 }]}>
-                    {session.vehicle.model && session.vehicle.model !== '—'
-                      ? `${session.vehicle.model} • `
-                      : ''}
-                    {session.vehicle.type || 'Fleet Vehicle'}
-                  </Text>
-                </View>
-                <View style={[styles.badge, { backgroundColor: colors.accentMuted }]}>
-                  <Text style={[styles.badgeText, { color: colors.accent }]}>
-                    {session.vehicle.type || 'Assigned'}
-                  </Text>
-                </View>
+            {error ? <Text style={styles.errorText}>{error}</Text> : null}
+
+            {/* SHUTTER CAPTURE BUTTON */}
+            <View style={styles.shutterRow}>
+              <Pressable
+                onPress={handleCapture}
+                disabled={isCapturing}
+                style={({ pressed }) => [
+                  styles.shutterOuterRing,
+                  pressed && { transform: [{ scale: 0.94 }] },
+                ]}
+              >
+                {isCapturing ? (
+                  <ActivityIndicator size="small" color="#0284C7" />
+                ) : (
+                  <View style={styles.shutterInnerCircle}>
+                    <View style={styles.shutterDot} />
+                  </View>
+                )}
+              </Pressable>
+              <Text style={styles.shutterInstruction}>Tap shutter to capture photo</Text>
+            </View>
+          </View>
+        ) : (
+          /* POST-CAPTURE MODE: FLOATING VERIFICATION CARD & PROMINENT START DUTY BUTTON */
+          <ScrollView
+            bounces={false}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.postCaptureCard}
+          >
+            {/* Odometer Verification Input */}
+            <View style={styles.fieldSection}>
+              <View style={styles.fieldHeaderRow}>
+                <Text style={styles.fieldSectionTitle}>STARTING ODOMETER</Text>
+                <Text style={styles.fieldCurrentKm}>Current: {km(session.vehicle?.odometer || session.lastValidOdo)}</Text>
               </View>
-            ) : (
-              <View style={styles.vehicleRow}>
-                <Text style={[type.value, { color: colors.danger }]}>
-                  {isProfileRefreshing ? 'Checking assignment...' : '— No vehicle assigned'}
+
+              <View style={styles.odoLargeInputBox}>
+                <TextInput
+                  value={odometer}
+                  onChangeText={(v) => {
+                    setOdometer(v);
+                    setError('');
+                  }}
+                  keyboardType="numeric"
+                  style={styles.odoLargeInput}
+                  placeholder="45470"
+                  placeholderTextColor="#64748B"
+                />
+                <Text style={styles.odoLargeKm}>KM</Text>
+              </View>
+
+              {error ? <Text style={styles.errorText}>{error}</Text> : null}
+
+              {/* Quick delta fine-tuning chips */}
+              <View style={styles.deltaChipsRow}>
+                <Pressable onPress={() => adjustOdo(-50)} style={styles.deltaChip}>
+                  <Text style={styles.deltaChipText}>-50</Text>
+                </Pressable>
+                <Pressable onPress={() => adjustOdo(-10)} style={styles.deltaChip}>
+                  <Text style={styles.deltaChipText}>-10</Text>
+                </Pressable>
+                <Pressable onPress={() => adjustOdo(10)} style={styles.deltaChip}>
+                  <Text style={styles.deltaChipText}>+10</Text>
+                </Pressable>
+                <Pressable onPress={() => adjustOdo(50)} style={styles.deltaChip}>
+                  <Text style={styles.deltaChipText}>+50</Text>
+                </Pressable>
+              </View>
+            </View>
+
+            {/* Vehicle & Verification Summary */}
+            <View style={styles.summaryBox}>
+              <View style={styles.summaryRow}>
+                <View style={styles.summaryIconWrap}>
+                  <Ionicons name="car-sport" size={14} color="#38BDF8" />
+                </View>
+                <Text style={styles.summaryLabel}>Vehicle:</Text>
+                <Text style={styles.summaryValue}>
+                  {session.vehicle?.reg || 'Unassigned'} ({session.vehicle?.model || 'Fleet'})
                 </Text>
-                <View style={[styles.badge, { backgroundColor: colors.dangerBg }]}>
-                  <Text style={[styles.badgeText, { color: colors.danger }]}>Unassigned</Text>
-                </View>
               </View>
-            )
-          }
-        />
 
-        <InfoRow label={t('startDuty.gps')} value={t('startDuty.gpsOn')} />
+              <View style={styles.summaryDivider} />
 
-        <Field
-          label={t('startDuty.startingOdometer')}
-          value={odometer}
-          onChangeText={(v) => {
-            setOdometer(v);
-            setError('');
-          }}
-          keyboardType="numeric"
-          hint={`${t('home.odometer')}: ${km(session.vehicle?.odometer || session.lastValidOdo)}`}
-          error={error}
-        />
+              <View style={styles.summaryRow}>
+                <View style={[styles.summaryIconWrap, { backgroundColor: 'rgba(34, 197, 94, 0.15)' }]}>
+                  <Ionicons name="time" size={14} color="#22C55E" />
+                </View>
+                <Text style={styles.summaryLabel}>Time:</Text>
+                <Text style={styles.summaryValue}>
+                  {serverTimeText || 'Live'} (Server IST)
+                </Text>
+              </View>
 
-        {/* Live Odometer Photo ONLY (Camera Only, no gallery/PDF) */}
-        <AttachmentPicker
-          label="Live Odometer Photo"
-          value={file}
-          onChange={setFile}
-          cameraOnly={true}
-          hint="Live camera only • Anti-tamper verified"
-        />
-      </Card>
+              <View style={styles.summaryDivider} />
 
-      <ButtonRow>
-        <PrimaryButton
-          title={t('common.cancel')}
-          variant="secondary"
-          onPress={() => navigation.goBack()}
-          style={styles.flex}
-        />
-        <PrimaryButton
-          title={isSubmitting ? 'Starting...' : t('startDuty.confirm')}
-          onPress={submit}
-          disabled={!hasAssignedVehicle || isSubmitting}
-          loading={isSubmitting}
-          style={styles.flex}
-        />
-      </ButtonRow>
-    </Screen>
+              <View style={styles.summaryRow}>
+                <View style={[styles.summaryIconWrap, { backgroundColor: 'rgba(168, 85, 247, 0.15)' }]}>
+                  <Ionicons name="location" size={14} color="#C084FC" />
+                </View>
+                <Text style={styles.summaryLabel}>GPS:</Text>
+                <Text style={styles.summaryValue}>Attached & Anti-Tamper Verified</Text>
+              </View>
+            </View>
+
+            {/* ACTION BUTTONS ROW */}
+            <View style={styles.actionButtonsRow}>
+              {/* Retake Button */}
+              <Pressable
+                onPress={() => setCapturedPhoto(null)}
+                disabled={isSubmitting}
+                style={styles.retakeBtn}
+              >
+                <Ionicons name="camera-reverse-outline" size={18} color="#FFFFFF" style={{ marginRight: 6 }} />
+                <Text style={styles.retakeBtnText}>Retake</Text>
+              </Pressable>
+
+              {/* Start Duty Primary Button */}
+              <Pressable
+                onPress={handleStartDuty}
+                disabled={isSubmitting || !hasAssignedVehicle}
+                style={({ pressed }) => [
+                  styles.startDutyBtn,
+                  pressed && { opacity: 0.9, transform: [{ scale: 0.98 }] },
+                  (!hasAssignedVehicle || isSubmitting) && { opacity: 0.6 },
+                ]}
+              >
+                {isSubmitting ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <>
+                    <Ionicons name="play" size={18} color="#FFFFFF" style={{ marginRight: 8 }} />
+                    <Text style={styles.startDutyBtnText}>Start Duty</Text>
+                  </>
+                )}
+              </Pressable>
+            </View>
+          </ScrollView>
+        )}
+      </KeyboardAvoidingView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1 },
-  warningCard: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 12,
-    padding: space.md,
-    borderRadius: radius.md,
-    borderCurve: 'continuous',
-    borderWidth: 1,
-    marginBottom: space.lg,
-  },
-  warningTextWrap: {
+  screen: {
     flex: 1,
+    backgroundColor: '#020617',
   },
-  timeRow: {
+  photoVignette: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: 'rgba(2, 6, 23, 0.42)',
+  },
+  cameraVignette: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: 'rgba(2, 6, 23, 0.22)',
+  },
+  permissionFallback: {
+    backgroundColor: '#0F172A',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
+  },
+  permissionTitle: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '700',
+    marginTop: 16,
+  },
+  permissionSub: {
+    color: '#94A3B8',
+    fontSize: 13,
+    textAlign: 'center',
+    marginTop: 8,
+    maxWidth: '85%',
+    lineHeight: 18,
+  },
+  permissionBtn: {
+    backgroundColor: '#0284C7',
+    paddingHorizontal: 22,
+    paddingVertical: 12,
+    borderRadius: 24,
+    marginTop: 20,
+  },
+  permissionBtnText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: 14,
+  },
+
+  /* FLOATING TOP BAR */
+  topBar: {
+    position: 'absolute',
+    left: 16,
+    right: 16,
+    zIndex: 20,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 8,
-    marginTop: 2,
   },
-  loadingRow: {
+  glassCircleBtn: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: 'rgba(15, 23, 42, 0.75)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  vehicleBadgePill: {
     flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: 'rgba(15, 23, 42, 0.85)',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(56, 189, 248, 0.35)',
   },
-  vehicleRow: {
+  pulseDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#22C55E',
+    marginRight: 8,
+  },
+  vehicleBadgeReg: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  vehicleBadgeModel: {
+    color: '#94A3B8',
+    fontSize: 11,
+    fontWeight: '600',
+    marginLeft: 3,
+  },
+
+  /* RETICLE SCANNER FRAME */
+  reticleContainer: {
+    ...StyleSheet.absoluteFill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 10,
+  },
+  reticleFrame: {
+    width: SCREEN_WIDTH * 0.82,
+    height: 160,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(56, 189, 248, 0.35)',
+    backgroundColor: 'rgba(15, 23, 42, 0.18)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  cornerBracket: {
+    position: 'absolute',
+    width: 24,
+    height: 24,
+    borderColor: '#38BDF8',
+  },
+  cornerTL: {
+    top: -2,
+    left: -2,
+    borderTopWidth: 4,
+    borderLeftWidth: 4,
+    borderTopLeftRadius: 10,
+  },
+  cornerTR: {
+    top: -2,
+    right: -2,
+    borderTopWidth: 4,
+    borderRightWidth: 4,
+    borderTopRightRadius: 10,
+  },
+  cornerBL: {
+    bottom: -2,
+    left: -2,
+    borderBottomWidth: 4,
+    borderLeftWidth: 4,
+    borderBottomLeftRadius: 10,
+  },
+  cornerBR: {
+    bottom: -2,
+    right: -2,
+    borderBottomWidth: 4,
+    borderRightWidth: 4,
+    borderBottomRightRadius: 10,
+  },
+  scanLaser: {
+    width: '90%',
+    height: 2,
+    backgroundColor: '#38BDF8',
+    shadowColor: '#38BDF8',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.9,
+    shadowRadius: 6,
+  },
+  reticleCenterTag: {
+    position: 'absolute',
+    bottom: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(2, 6, 23, 0.75)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  reticleTagText: {
+    color: '#38BDF8',
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.8,
+  },
+  reticleInstruction: {
+    color: '#E2E8F0',
+    fontSize: 12,
+    fontWeight: '600',
+    marginTop: 12,
+    textShadowColor: 'rgba(0, 0, 0, 0.8)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
+  },
+
+  /* SUCCESS BADGE */
+  successBadgeWrap: {
+    position: 'absolute',
+    left: 16,
+    right: 16,
+    zIndex: 25,
+    alignItems: 'center',
+  },
+  successBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(15, 23, 42, 0.92)',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#22C55E',
+    shadowColor: '#22C55E',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+  },
+  successBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+
+  /* BOTTOM CONTAINER */
+  bottomContainer: {
+    position: 'absolute',
+    left: 16,
+    right: 16,
+    bottom: 0,
+    zIndex: 30,
+  },
+
+  /* PRE-CAPTURE CARD */
+  preCaptureCard: {
+    backgroundColor: 'rgba(15, 23, 42, 0.92)',
+    borderRadius: 24,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.14)',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.5,
+    shadowRadius: 16,
+  },
+  floatingOdoStrip: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 10,
+    paddingBottom: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  odoStripLabel: {
+    color: '#94A3B8',
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  odoStripInputRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
     marginTop: 2,
   },
-  badge: {
+  odoStripInput: {
+    color: '#FFFFFF',
+    fontSize: 26,
+    fontWeight: '800',
+    minWidth: 110,
+    paddingVertical: 0,
+  },
+  odoKmUnit: {
+    color: '#38BDF8',
+    fontSize: 14,
+    fontWeight: '700',
+    marginLeft: 4,
+  },
+  odoVerificationPills: {
+    alignItems: 'flex-end',
+    gap: 5,
+  },
+  verifiedTag: {
     flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: 'rgba(56, 189, 248, 0.12)',
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 6,
-    borderCurve: 'continuous',
   },
-  badgeText: {
+  verifiedTagText: {
+    color: '#38BDF8',
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  errorText: {
+    color: '#EF4444',
+    fontSize: 11,
+    fontWeight: '600',
+    marginTop: 6,
+  },
+
+  /* SHUTTER BUTTON */
+  shutterRow: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingTop: 14,
+  },
+  shutterOuterRing: {
+    width: 76,
+    height: 76,
+    borderRadius: 38,
+    borderWidth: 4,
+    borderColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    shadowColor: '#38BDF8',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.5,
+    shadowRadius: 10,
+  },
+  shutterInnerCircle: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  shutterDot: {
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: '#0284C7',
+  },
+  shutterInstruction: {
+    color: '#CBD5E1',
+    fontSize: 12,
+    fontWeight: '600',
+    marginTop: 8,
+  },
+
+  /* POST-CAPTURE VERIFICATION CARD */
+  postCaptureCard: {
+    backgroundColor: 'rgba(15, 23, 42, 0.94)',
+    borderRadius: 24,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.16)',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.6,
+    shadowRadius: 20,
+    gap: 14,
+  },
+  fieldSection: {
+    gap: 6,
+  },
+  fieldHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  fieldSectionTitle: {
+    color: '#94A3B8',
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  fieldCurrentKm: {
+    color: '#64748B',
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  odoLargeInputBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(2, 6, 23, 0.65)',
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: '#38BDF8',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+  odoLargeInput: {
+    flex: 1,
+    color: '#FFFFFF',
+    fontSize: 28,
+    fontWeight: '900',
+    letterSpacing: 1,
+  },
+  odoLargeKm: {
+    color: '#38BDF8',
+    fontSize: 16,
+    fontWeight: '800',
+    marginLeft: 6,
+  },
+  deltaChipsRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 4,
+  },
+  deltaChip: {
+    flex: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    paddingVertical: 7,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  deltaChipText: {
+    color: '#E2E8F0',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+
+  /* SUMMARY BOX */
+  summaryBox: {
+    backgroundColor: 'rgba(2, 6, 23, 0.5)',
+    borderRadius: 14,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    gap: 8,
+  },
+  summaryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  summaryIconWrap: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: 'rgba(56, 189, 248, 0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  summaryLabel: {
+    color: '#94A3B8',
     fontSize: 11,
     fontWeight: '700',
-    letterSpacing: 0.2,
+  },
+  summaryValue: {
+    flex: 1,
+    color: '#F1F5F9',
+    fontSize: 12,
+    fontWeight: '600',
+    textAlign: 'right',
+  },
+  summaryDivider: {
+    height: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+  },
+
+  /* ACTION BUTTONS ROW */
+  actionButtonsRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 4,
+  },
+  retakeBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.22)',
+    paddingVertical: 14,
+    borderRadius: 16,
+  },
+  retakeBtnText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  startDutyBtn: {
+    flex: 2,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#0284C7',
+    paddingVertical: 14,
+    borderRadius: 16,
+    shadowColor: '#0284C7',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.5,
+    shadowRadius: 10,
+  },
+  startDutyBtnText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '800',
+    letterSpacing: 0.3,
   },
 });
-
