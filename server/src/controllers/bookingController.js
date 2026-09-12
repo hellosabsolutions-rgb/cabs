@@ -327,6 +327,7 @@ export const updateBooking = async (req, res, next) => {
     }
 
     const prevDriver = booking.driverName;
+    const prevDriverId = booking.driverId;
 
     Object.assign(booking, req.body);
 
@@ -337,32 +338,45 @@ export const updateBooking = async (req, res, next) => {
       booking.driverPhone = '';
     }
 
+    // Resolve new driver _id by name for direct socket targeting
+    if (!isUnassignedNow && !booking.driverId && booking.driverName) {
+      try {
+        const driverDoc = await Driver.findOne({ name: new RegExp(`^${booking.driverName.trim()}$`, 'i') }).select('_id');
+        if (driverDoc) booking.driverId = driverDoc._id;
+      } catch (_) {}
+    }
+
     await booking.save();
 
     // Check if driver was re-assigned or unassigned
     if (req.body.driverName !== undefined && req.body.driverName !== prevDriver) {
+      // Notify OLD driver they are unassigned
       if (prevDriver && prevDriver !== 'None' && prevDriver !== '—' && prevDriver !== 'Unassigned') {
+        const unassignPayload = {
+          bookingId: booking._id?.toString(),
+          bookingNumber: booking.bookingNumber,
+          previousDriverName: prevDriver,
+          booking
+        };
+        // Direct emit by driver _id (fastest, no DB lookup needed)
+        if (prevDriverId) emitToDriver(prevDriverId, 'booking:unassigned', unassignPayload);
+        // Fallback: name-based lookup
         emitBookingUnassigned({
           userId: req.user?._id,
           agencyId: req.user?.currentAgency,
           booking,
           previousDriverName: prevDriver
         });
-        broadcastAll('booking:unassigned', {
-          bookingId: booking._id?.toString(),
-          bookingNumber: booking.bookingNumber,
-          previousDriverName: prevDriver,
-          booking
-        });
       }
+      // Notify NEW driver they are assigned
       if (!isUnassignedNow) {
+        const assignPayload = { booking, driverName: booking.driverName };
+        // Direct emit by driver _id
+        if (booking.driverId) emitToDriver(booking.driverId, 'booking:assigned', assignPayload);
+        // Fallback: name-based lookup
         emitBookingAssigned({
           userId: req.user?._id,
           agencyId: req.user?.currentAgency,
-          booking,
-          driverName: booking.driverName
-        });
-        broadcastAll('booking:assigned', {
           booking,
           driverName: booking.driverName
         });

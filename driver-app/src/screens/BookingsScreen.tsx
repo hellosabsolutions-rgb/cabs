@@ -127,56 +127,121 @@ export function BookingsScreen({ navigation }: Props) {
   useEffect(() => {
     fetchBookings();
 
-    // Listen to real-time driver socket events
+    const myName = () => (session.driver?.name || '').trim().toLowerCase();
+
+    // ── booking:assigned ──────────────────────────────────────────────────
+    // Server sends this both targeted (emitToDriver) AND via broadcastAll.
+    // Only add/alert if the booking belongs to THIS driver.
     const unsubAssigned = driverSocket.on('booking:assigned', (data: any) => {
-      console.log('⚡ [BookingsScreen] New booking assigned via socket:', data);
+      console.log('⚡ [BookingsScreen] booking:assigned received:', data);
+      const b = data?.booking || data;
+      const bDriverName = (b?.driverName || '').trim().toLowerCase();
+      const me = myName();
+
+      // If driver name matches OR the event was targeted (no driverName filter needed
+      // because server already targeted our socket room), show alert & refresh.
+      if (!bDriverName || !me || bDriverName === me) {
+        const bId = b?._id || b?.id;
+        const bNumber = b?.bookingNumber || '';
+
+        // Optimistic add: insert into list immediately so it appears without waiting for fetch
+        if (b && bId) {
+          setBookings((prev) => {
+            const alreadyExists = prev.some(
+              (item) => item.id === bId || item.bookingNumber === bNumber
+            );
+            if (alreadyExists) return prev;
+            const newBooking: BookingItem = {
+              id: bId,
+              bookingNumber: bNumber || 'BK-NEW',
+              status: b.status || 'Scheduled',
+              tripType: b.tripType || 'One-way (Single)',
+              startDate: b.startDate || new Date().toISOString().split('T')[0],
+              startTime: b.startTime || '09:00 AM',
+              endDate: b.endDate,
+              endTime: b.endTime,
+              customerName: b.customerName || 'Passenger',
+              customerPhone: b.customerPhone || '',
+              passengersCount: b.passengersCount || 1,
+              luggageCount: b.luggageCount || 0,
+              pickupLocation: b.pickupLocation || 'Pickup Point',
+              pickupLandmark: b.pickupLandmark,
+              dropLocation: b.dropLocation || 'Drop Location',
+              dropLandmark: b.dropLandmark,
+              route: b.route || `${b.pickupLocation || ''} → ${b.dropLocation || ''}`,
+              routeDistanceKm: Number(b.routeDistanceKm || 0),
+              estimatedDurationMins: Number(b.estimatedDurationMins || 0),
+              vehicle: b.vehicle || '',
+              vehicleModel: b.vehicleModel || 'Commercial Vehicle',
+              driverName: b.driverName || '',
+              totalAmount: Number(b.revenue || b.totalAmount || 0),
+              advanceAmount: Number(b.advanceAmount || 0),
+              pendingAmount: Number(b.pendingAmount || 0),
+              paymentStatus: b.paymentStatus || 'Unpaid',
+              specialRequests: b.specialRequests || '',
+              notes: b.notes || '',
+              startOdometer: b.startOdometer,
+              endOdometer: b.endOdometer,
+              totalKmRun: b.totalKmRun,
+            };
+            return [newBooking, ...prev];
+          });
+        }
+
+        Alert.alert(
+          '🚖 New Trip Assigned',
+          `Booking #${bNumber} has been assigned to you by dispatch.`
+        );
+        // Then fetch from server to get authoritative state
+        fetchBookings();
+      }
+    });
+
+    // ── booking:unassigned ────────────────────────────────────────────────
+    // Server calls notifyDriverByName → emitToDriver (targeted), so this
+    // event reaches ONLY the driver being unassigned. Remove immediately.
+    const unsubUnassigned = driverSocket.on('booking:unassigned', (data: any) => {
+      console.log('⚡ [BookingsScreen] booking:unassigned received:', data);
+      const targetId = data?.bookingId || data?.id || data?.booking?._id;
+      const targetNumber = data?.bookingNumber || data?.booking?.bookingNumber;
+
+      // Immediately purge from UI (no name-match guard needed — server targeted us)
+      setBookings((prev) =>
+        prev.filter((b) => {
+          if (targetId && (b.id === targetId || (b as any)._id === targetId)) return false;
+          if (targetNumber && b.bookingNumber === targetNumber) return false;
+          return true;
+        })
+      );
       Alert.alert(
-        'New Trip Assigned',
-        `A new booking #${data?.booking?.bookingNumber || ''} has been assigned to you.`
+        '❌ Trip Unassigned',
+        `Booking #${targetNumber || ''} has been removed by dispatch.`
       );
       fetchBookings();
     });
 
-    const unsubUnassigned = driverSocket.on('booking:unassigned', (data: any) => {
-      console.log('⚡ [BookingsScreen] Booking unassigned via socket:', data);
-      const targetId = data?.bookingId || data?.id || data?.booking?._id;
-      const targetNumber = data?.bookingNumber || data?.booking?.bookingNumber;
-      const prevDriver = (data?.previousDriverName || '').toLowerCase().trim();
-      const myName = (session.driver?.name || '').toLowerCase().trim();
-
-      // Immediately purge this booking from state so it vanishes from the UI
-      if (!prevDriver || !myName || prevDriver === myName) {
-        setBookings((prev) =>
-          prev.filter((b) => {
-            if (targetId && (b.id === targetId || (b as any)._id === targetId)) return false;
-            if (targetNumber && b.bookingNumber === targetNumber) return false;
-            return true;
-          })
-        );
-        Alert.alert(
-          'Trip Unassigned',
-          `Booking #${targetNumber || ''} has been unassigned by dispatch.`
-        );
-      }
-      fetchBookings();
-    });
-
+    // ── booking:updated ───────────────────────────────────────────────────
     const unsubUpdated = driverSocket.on('booking:updated', (data: any) => {
-      console.log('⚡ [BookingsScreen] Booking updated via socket:', data);
+      console.log('⚡ [BookingsScreen] booking:updated received:', data);
       const b = data?.booking || data;
       if (b) {
         const bDriver = (b.driverName || b.driver || '').trim().toLowerCase();
-        const myName = (session.driver?.name || '').trim().toLowerCase();
-        const isUnassigned = !bDriver || bDriver === 'unassigned' || bDriver === 'none' || bDriver === '—';
-        const isDifferentDriver = myName && bDriver && bDriver !== myName;
+        const me = myName();
+        const isUnassigned =
+          !bDriver ||
+          bDriver === 'unassigned' ||
+          bDriver === 'none' ||
+          bDriver === '—';
+        const isDifferentDriver = me && bDriver && bDriver !== me;
 
-        // If unassigned or given to another driver, immediately purge it
+        // If unassigned or reassigned to another driver → remove immediately
         if (isUnassigned || isDifferentDriver) {
+          const bId = b._id || b.id;
           setBookings((prev) =>
             prev.filter(
               (item) =>
-                item.id !== b._id &&
-                item.id !== b.id &&
+                item.id !== bId &&
+                (b._id ? item.id !== b._id : true) &&
                 item.bookingNumber !== b.bookingNumber
             )
           );
@@ -185,8 +250,9 @@ export function BookingsScreen({ navigation }: Props) {
       fetchBookings();
     });
 
+    // ── booking:deleted ───────────────────────────────────────────────────
     const unsubDeleted = driverSocket.on('booking:deleted', (data: any) => {
-      console.log('⚡ [BookingsScreen] Booking deleted via socket:', data);
+      console.log('⚡ [BookingsScreen] booking:deleted received:', data);
       const targetId = data?.bookingId || data?.id;
       const targetNumber = data?.bookingNumber;
       setBookings((prev) =>
@@ -199,13 +265,19 @@ export function BookingsScreen({ navigation }: Props) {
       fetchBookings();
     });
 
-    const unsubCompleted = driverSocket.on('booking:completed', (data: any) => {
-      console.log('⚡ [BookingsScreen] Booking completed via socket:', data);
+    // ── booking:completed ─────────────────────────────────────────────────
+    const unsubCompleted = driverSocket.on('booking:completed', () => {
       fetchBookings();
     });
 
-    const unsubAny = driverSocket.on('driver:any_change', (data: any) => {
-      fetchBookings();
+    // ── driver:any_change (catch-all) ─────────────────────────────────────
+    // Debounce to avoid multiple rapid fetches when several events fire at once
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+    const unsubAny = driverSocket.on('driver:any_change', () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        fetchBookings();
+      }, 500);
     });
 
     return () => {
@@ -215,8 +287,9 @@ export function BookingsScreen({ navigation }: Props) {
       unsubDeleted();
       unsubCompleted();
       unsubAny();
+      if (debounceTimer) clearTimeout(debounceTimer);
     };
-  }, [fetchBookings]);
+  }, [fetchBookings, session.driver?.name]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
