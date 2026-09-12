@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  ActivityIndicator,
   FlatList,
   Linking,
   Platform,
@@ -21,7 +22,7 @@ import { ScreenHeader } from '../components/ScreenHeader';
 import { useAppTheme } from '../theme/ThemeProvider';
 import { useSession } from '../state/session';
 import { API_BASE_URL } from '../constants/config';
-import { BookingItem, generateMockBookings } from '../types/booking';
+import { BookingItem } from '../types/booking';
 import { bookingApi } from '../services/api';
 import { driverSocket } from '../services/socket';
 
@@ -67,14 +68,15 @@ export function BookingsScreen({ navigation }: Props) {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   });
 
-  const [bookings, setBookings] = useState<BookingItem[]>(() => generateMockBookings());
+  const [bookings, setBookings] = useState<BookingItem[]>([]);
+  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   const fetchBookings = useCallback(async () => {
     try {
-      // 1. Try authenticated driver endpoint
+      setLoading(true);
       const res = await bookingApi.getMyBookings();
-      if (res?.data && Array.isArray(res.data) && res.data.length > 0) {
+      if (res?.data && Array.isArray(res.data)) {
         const serverBookings: BookingItem[] = res.data.map((b: any) => ({
           id: b._id || b.id || `bk-${Math.random()}`,
           bookingNumber: b.bookingNumber || b.tripNumber || 'BK-LIVE',
@@ -85,38 +87,42 @@ export function BookingsScreen({ navigation }: Props) {
           endDate: b.endDate,
           endTime: b.endTime,
           customerName: b.customerName || 'Passenger',
-          customerPhone: b.customerPhone || '+91 98000 00000',
-          passengersCount: b.passengersCount || 2,
-          luggageCount: b.luggageCount || 2,
+          customerPhone: b.customerPhone || '',
+          passengersCount: b.passengersCount || 1,
+          luggageCount: b.luggageCount || 0,
           pickupLocation: b.pickupLocation || 'Pickup Point',
           pickupLandmark: b.pickupLandmark,
           dropLocation: b.dropLocation || 'Drop Location',
           dropLandmark: b.dropLandmark,
           route: b.route || `${b.pickupLocation} → ${b.dropLocation}`,
-          routeDistanceKm: b.routeDistanceKm || 24,
-          estimatedDurationMins: b.estimatedDurationMins || 40,
-          vehicle: b.vehicle || session.vehicle.reg || 'TRP-8841',
-          vehicleModel: b.vehicleModel || 'Toyota Innova Crysta',
-          driverName: b.driverName || session.driver.name,
+          routeDistanceKm: Number(b.routeDistanceKm || 0),
+          estimatedDurationMins: Number(b.estimatedDurationMins || 0),
+          vehicle: b.vehicle || session.vehicle?.reg || '',
+          vehicleModel: b.vehicleModel || 'Commercial Vehicle',
+          driverName: b.driverName || session.driver?.name || '',
           totalAmount: Number(b.revenue || b.totalAmount || 0),
           advanceAmount: Number(b.advanceAmount || 0),
           pendingAmount: Number(b.pendingAmount || 0),
           paymentStatus: b.paymentStatus || 'Unpaid',
-          specialRequests: b.notes || b.specialRequests || 'Standard commercial trip request.',
-          notes: b.paymentNotes || b.notes,
+          specialRequests: b.specialRequests || '',
+          notes: b.notes || b.paymentNotes || '',
+          startOdometer: b.startOdometer,
+          endOdometer: b.endOdometer,
+          totalKmRun: b.totalKmRun,
         }));
 
-        const mock = generateMockBookings();
-        const existingIds = new Set(serverBookings.map((sb) => sb.bookingNumber));
-        const combined = [...serverBookings, ...mock.filter((m) => !existingIds.has(m.bookingNumber))];
-        setBookings(combined);
+        setBookings(serverBookings);
         return;
       }
+      setBookings([]);
     } catch (err) {
-      console.warn('[BookingsScreen] Server fetch fallback:', err);
+      console.warn('[BookingsScreen] Server fetch error:', err);
+      setBookings([]);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
     }
-    setBookings(generateMockBookings());
-  }, [session.driver.name, session.vehicle.reg]);
+  }, [session.driver?.name, session.vehicle?.reg]);
 
   useEffect(() => {
     fetchBookings();
@@ -451,23 +457,43 @@ export function BookingsScreen({ navigation }: Props) {
         ]}
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <View style={[styles.emptyIconCircle, { backgroundColor: isDark ? '#232933' : '#F1F5F9' }]}>
-              <Ionicons name="calendar-outline" size={38} color={colors.textDim} />
+          loading && !refreshing ? (
+            <View style={styles.emptyContainer}>
+              <ActivityIndicator size="large" color={colors.accent} />
+              <Text style={[styles.emptySubtitle, { color: colors.textDim, marginTop: 12 }]}>
+                Loading assigned bookings...
+              </Text>
             </View>
-            <Text style={[styles.emptyTitle, { color: colors.text }]}>
-              No Trips Found
-            </Text>
-            <Text style={[styles.emptySubtitle, { color: colors.textDim }]}>
-              No bookings scheduled for the selected period.
-            </Text>
-            <Pressable
-              onPress={() => setFilter('today-tomorrow')}
-              style={[styles.emptyResetBtn, { backgroundColor: colors.accent }]}
-            >
-              <Text style={styles.emptyResetBtnText}>View Today & Tomorrow</Text>
-            </Pressable>
-          </View>
+          ) : (
+            <View style={styles.emptyContainer}>
+              <View style={[styles.emptyIconCircle, { backgroundColor: isDark ? '#232933' : '#F1F5F9' }]}>
+                <Ionicons name="calendar-outline" size={38} color={colors.textDim} />
+              </View>
+              <Text style={[styles.emptyTitle, { color: colors.text }]}>
+                {bookings.length === 0 ? 'No Bookings Assigned' : 'No Trips Found'}
+              </Text>
+              <Text style={[styles.emptySubtitle, { color: colors.textDim }]}>
+                {bookings.length === 0
+                  ? 'You currently have no bookings assigned. Real trips assigned by dispatch will appear here.'
+                  : 'No bookings scheduled for the selected period.'}
+              </Text>
+              {bookings.length > 0 && filter !== 'month' ? (
+                <Pressable
+                  onPress={() => setFilter('month')}
+                  style={[styles.emptyResetBtn, { backgroundColor: colors.accent }]}
+                >
+                  <Text style={styles.emptyResetBtnText}>View All Month Trips</Text>
+                </Pressable>
+              ) : (
+                <Pressable
+                  onPress={onRefresh}
+                  style={[styles.emptyResetBtn, { backgroundColor: colors.accent }]}
+                >
+                  <Text style={styles.emptyResetBtnText}>Refresh Bookings</Text>
+                </Pressable>
+              )}
+            </View>
+          )
         }
         renderItem={({ item }) => (
           <Pressable
