@@ -1,4 +1,21 @@
 import { notify } from './notificationService.js';
+import { emitToDriver } from './socketService.js';
+import { Driver } from '../models/Driver.js';
+
+async function notifyDriverByName(name, event, data) {
+  if (!name || name === 'None' || name === '—') return;
+  try {
+    const driver = await Driver.findOne({
+      name: new RegExp(`^${name.trim()}$`, 'i')
+    }).select('_id');
+    if (driver) {
+      emitToDriver(driver._id, event, data);
+      emitToDriver(driver._id, 'driver:updated', { action: event, ...data });
+    }
+  } catch (err) {
+    console.warn('notifyDriverByName error:', err.message);
+  }
+}
 
 /**
  * NotificationEmitter
@@ -21,6 +38,10 @@ export const emitBookingCreated = ({ userId, agencyId, booking }) => {
     message: `Booking #${booking.bookingNumber || booking.id?.slice(-6)} — ${booking.vehicle || 'Vehicle'} for ${booking.customerName || 'Customer'} on ${booking.startDate}.`,
     metadata: { bookingId: booking._id?.toString(), bookingNumber: booking.bookingNumber }
   });
+
+  if (booking.driverName) {
+    notifyDriverByName(booking.driverName, 'booking:assigned', { booking });
+  }
 };
 
 export const emitBookingUpdated = ({ userId, agencyId, booking, changes = '' }) => {
@@ -32,6 +53,10 @@ export const emitBookingUpdated = ({ userId, agencyId, booking, changes = '' }) 
     message: `Booking #${booking.bookingNumber || booking.id?.slice(-6)} has been updated. ${changes}`,
     metadata: { bookingId: booking._id?.toString() }
   });
+
+  if (booking.driverName) {
+    notifyDriverByName(booking.driverName, 'booking:updated', { booking, changes });
+  }
 };
 
 export const emitBookingCompleted = ({ userId, agencyId, booking }) => {
@@ -43,6 +68,10 @@ export const emitBookingCompleted = ({ userId, agencyId, booking }) => {
     message: `Trip #${booking.bookingNumber || booking.id?.slice(-6)} completed. Revenue: ₹${(booking.revenue || booking.totalAmount || 0).toLocaleString('en-IN')}.`,
     metadata: { bookingId: booking._id?.toString(), revenue: booking.revenue }
   });
+
+  if (booking.driverName) {
+    notifyDriverByName(booking.driverName, 'booking:completed', { booking });
+  }
 };
 
 export const emitBookingCancelled = ({ userId, agencyId, booking }) => {
@@ -90,6 +119,13 @@ export const emitDriverAssigned = ({ userId, agencyId, vehicle, driverName }) =>
     message: `${driverName} has been assigned to ${vehicle.registrationNumber}.`,
     metadata: { vehicleId: vehicle._id?.toString(), driverName }
   });
+
+  if (driverName) {
+    notifyDriverByName(driverName, 'driver:vehicle-assigned', {
+      vehicleRegistration: vehicle.registrationNumber,
+      vehicleId: vehicle._id?.toString()
+    });
+  }
 };
 
 export const emitDriverAdded = ({ userId, agencyId, driver }) => {

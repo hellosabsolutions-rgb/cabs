@@ -147,7 +147,21 @@ export async function findDriverByIdentifier(identifier) {
 
   const or = [{ code }, { email: emailLike }];
   if (phone.length >= 8) {
+    // Exact stored value & full digit-string suffix match
     or.push({ phone: raw }, { phone: { $regex: `${phone}$` } });
+
+    // Cross-match: login with +91XXXXXXXXXX should find stored 10-digit number
+    // and vice versa (stored +91XXXXXXXXXX should find login with raw 10-digit)
+    const last10 = phone.slice(-10);
+    if (last10.length === 10 && last10 !== phone) {
+      // e.g. login sends +919682578167 → also try regex ending in 9682578167
+      or.push({ phone: { $regex: `${last10}$` } });
+    }
+    if (phone.length === 10) {
+      // e.g. stored as +919682578167, login sends 9682578167 → already handled by suffix regex above
+      // Also try with common Indian prefix
+      or.push({ phone: `+91${phone}` }, { phone: `91${phone}` });
+    }
   }
 
   return Driver.findOne({ $or: or }).select('+password');

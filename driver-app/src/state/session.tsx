@@ -4,6 +4,7 @@ import type { Attachment } from '../media/types';
 import { driverAuthApi, dutyApi, fuelApi, restoreDriverSession, type DriverAuthPayload } from '../services/api';
 import { clearTokens, saveLastIdentifier, saveTokens } from '../services/authStorage';
 import { signOutGoogleNative } from '../services/googleAuth';
+import { driverSocket } from '../services/socket';
 
 export type ApprovalStatus = 'pending' | 'approved' | 'rejected' | 'paid' | 'settled';
 
@@ -289,6 +290,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       const accessToken = payload.accessToken || payload.token;
       if (accessToken) {
         await saveTokens(accessToken, payload.refreshToken, rememberMe);
+        void driverSocket.connect(accessToken);
       }
       if (options?.identifier) {
         await saveLastIdentifier(options.identifier);
@@ -299,6 +301,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   );
 
   const signOut = useCallback(async () => {
+    driverSocket.disconnect();
     await driverAuthApi.logout();
     await signOutGoogleNative();
     await clearTokens();
@@ -324,6 +327,29 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       cancelled = true;
     };
   }, [applyProfile]);
+
+  // ─── Real-time Dashboard Sync via WebSocket ───
+  useEffect(() => {
+    if (!signedIn) {
+      driverSocket.disconnect();
+      return;
+    }
+
+    void driverSocket.connect();
+
+    const unsubscribe = driverSocket.on('driver:any_change', async (eventData: any) => {
+      console.log('🔄 [Session] Dashboard action detected via socket, refreshing driver profile...', eventData);
+      try {
+        await refreshProfile();
+      } catch (err) {
+        console.warn('Could not refresh profile after socket event:', err);
+      }
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [signedIn, refreshProfile]);
 
   const value = useMemo<SessionValue>(
     () => ({

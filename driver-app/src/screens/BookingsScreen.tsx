@@ -15,7 +15,9 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+
 import type { RootStackParamList } from '../navigation/types';
+import { ScreenHeader } from '../components/ScreenHeader';
 import { useAppTheme } from '../theme/ThemeProvider';
 import { useSession } from '../state/session';
 import { API_BASE_URL } from '../constants/config';
@@ -209,24 +211,18 @@ export function BookingsScreen({ navigation }: Props) {
     <View style={[styles.screenWrap, { backgroundColor: colors.bg }]}>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
 
-      {/* TOP NATIVE HEADER */}
-      <View style={[styles.headerContainer, { paddingTop: Math.max(insets.top, 16) }]}>
-        <View style={styles.headerTitleRow}>
-          <View>
-            <Text style={[styles.screenTitle, { color: colors.text }]}>
-              {t('tab.bookings') || 'Bookings'}
-            </Text>
-            <Text style={[styles.screenSubtitle, { color: colors.textDim }]}>
-              Scheduled & assigned trips
-            </Text>
-          </View>
-
+      {/* TOP NATIVE REUSABLE HEADER */}
+      <ScreenHeader
+        title={t('tab.bookings') || 'Bookings'}
+        subtitle="Scheduled & assigned trips"
+        rightAction={
           <View style={[styles.tripCountBadge, { backgroundColor: isDark ? 'rgba(59, 130, 246, 0.2)' : '#EFF6FF' }]}>
             <Text style={[styles.tripCountBadgeText, { color: '#2563EB' }]}>
               {filteredBookings.length} {filteredBookings.length === 1 ? 'Trip' : 'Trips'}
             </Text>
           </View>
-        </View>
+        }
+      >
 
         {/* HORIZONTAL FILTER PILLS */}
         <ScrollView
@@ -403,7 +399,7 @@ export function BookingsScreen({ navigation }: Props) {
             </Text>
           </View>
         </View>
-      </View>
+      </ScreenHeader>
 
       {/* FULL-SCREEN BOOKINGS LIST */}
       <FlatList

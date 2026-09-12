@@ -20,20 +20,33 @@ function nextDriverCode() {
  */
 export const driverLogin = asyncHandler(async (req, res) => {
   const { identifier, email, password, rememberMe } = req.body;
+  console.log(req.body)
   const loginId = identifier || email;
 
   if (!loginId || !password) {
     return res.status(400).json({
       success: false,
-      error: 'Please provide your mobile, email or driver ID, and password.'
+      error: 'Please provide your mobile number or email, and password.'
     });
   }
 
+  // Step 1: Check if driver exists at all
   const driver = await findDriverByIdentifier(loginId);
-  if (!driver || !(await driver.matchPassword(password))) {
+  if (!driver) {
     return res.status(401).json({
       success: false,
-      error: 'Invalid credentials.'
+      error: 'No driver account found. Please contact your agency or fleet manager to get your login credentials.',
+      code: 'DRIVER_NOT_REGISTERED'
+    });
+  }
+
+  // Step 2: Validate password
+  const passwordMatch = await driver.matchPassword(password);
+  if (!passwordMatch) {
+    return res.status(401).json({
+      success: false,
+      error: 'Incorrect password. Please use the credentials shared by your agency.',
+      code: 'INVALID_PASSWORD'
     });
   }
 

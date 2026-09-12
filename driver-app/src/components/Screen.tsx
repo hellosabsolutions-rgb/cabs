@@ -6,35 +6,57 @@ import { useAppTheme } from '../theme/ThemeProvider';
 
 type Props = {
   children: React.ReactNode;
+  header?: React.ReactNode;
   scroll?: boolean;
   style?: ViewStyle;
   inTab?: boolean;
 };
 
-export function Screen({ children, scroll = true, style, inTab = false }: Props) {
+export function Screen({ children, header, scroll = true, style, inTab = false }: Props) {
   const { colors } = useAppTheme();
 
-  if (scroll) {
-    return (
-      <ScrollView
-        style={[styles.flex, { backgroundColor: colors.bg }]}
-        contentContainerStyle={[styles.content, inTab && styles.tabContent, style]}
-        contentInsetAdjustmentBehavior="automatic"
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-      >
-        {children}
-      </ScrollView>
-    );
-  }
-
   return (
-    <SafeAreaView
-      style={[styles.safe, { backgroundColor: colors.bg }]}
-      edges={inTab ? { top: true, left: true, right: true } : { top: true, bottom: true, left: true, right: true }}
-    >
-      <View style={[styles.content, inTab && styles.tabContent, style]}>{children}</View>
-    </SafeAreaView>
+    <View style={[styles.flex, { backgroundColor: colors.bg }]}>
+      {header}
+      {scroll ? (
+        <ScrollView
+          style={styles.flex}
+          contentContainerStyle={[
+            styles.content,
+            header ? styles.contentWithHeader : undefined,
+            inTab ? styles.tabContent : undefined,
+            style,
+          ]}
+          contentInsetAdjustmentBehavior="automatic"
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          {children}
+        </ScrollView>
+      ) : (
+        <SafeAreaView
+          style={[styles.safe, { backgroundColor: colors.bg }]}
+          edges={
+            header
+              ? { left: true, right: true, bottom: !inTab }
+              : inTab
+              ? { top: true, left: true, right: true }
+              : { top: true, bottom: true, left: true, right: true }
+          }
+        >
+          <View
+            style={[
+              styles.content,
+              header ? styles.contentWithHeader : undefined,
+              inTab ? styles.tabContent : undefined,
+              style,
+            ]}
+          >
+            {children}
+          </View>
+        </SafeAreaView>
+      )}
+    </View>
   );
 }
 
@@ -50,6 +72,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: space.lg,
     paddingTop: space.lg,
     paddingBottom: space.xxl,
+  },
+  contentWithHeader: {
+    paddingTop: space.md,
   },
   tabContent: {
     paddingBottom: 96,

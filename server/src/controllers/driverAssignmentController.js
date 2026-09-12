@@ -3,6 +3,7 @@ import DriverAssignment from '../models/DriverAssignment.js';
 import Driver from '../models/Driver.js';
 import Vehicle from '../models/Vehicle.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
+import { emitToDriver } from '../services/socketService.js';
 
 function normalizePlate(plate) {
   if (!plate || typeof plate !== 'string') return '';
@@ -105,6 +106,20 @@ export async function recordAssignment({
       notes
     });
 
+    if (assignment && driverId) {
+      emitToDriver(driverId, 'driver:vehicle-assigned', {
+        action: 'vehicle_assigned',
+        vehicleRegistration: cleanPlate,
+        vehicleId: vId,
+        assignedAt: now,
+        reason
+      });
+      emitToDriver(driverId, 'driver:updated', {
+        action: 'vehicle_assigned',
+        assignedVehicle: cleanPlate
+      });
+    }
+
     return assignment;
   } catch (err) {
     console.error('Failed to record driver assignment:', err.message);
@@ -151,6 +166,19 @@ export async function recordUnassignment({
     }
 
     const updated = await DriverAssignment.updateMany(filter, { $set: updateDoc });
+
+    if (driverId) {
+      emitToDriver(driverId, 'driver:vehicle-unassigned', {
+        action: 'vehicle_unassigned',
+        vehicleRegistration,
+        reason
+      });
+      emitToDriver(driverId, 'driver:updated', {
+        action: 'vehicle_unassigned',
+        assignedVehicle: '—'
+      });
+    }
+
     return updated;
   } catch (err) {
     console.error('Failed to record unassignment:', err.message);

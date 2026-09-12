@@ -16,6 +16,13 @@ export const API_BASE_URL =
       trim(process.env.EXPO_PUBLIC_API_BASE_URL_IOS) || 'http://localhost:5001/api',
   })!;
 
+/**
+ * Socket.IO server root URL (without /api suffix)
+ */
+export const SOCKET_SERVER_URL =
+  trim(process.env.EXPO_PUBLIC_SOCKET_SERVER_URL) ||
+  API_BASE_URL.replace(/\/api\/?$/, '');
+
 export const APP_NAME = trim(process.env.EXPO_PUBLIC_APP_NAME) || 'KABPRO Driver';
 
 /** Android OAuth client ID. Used as webClientId so Android can return an ID token. */

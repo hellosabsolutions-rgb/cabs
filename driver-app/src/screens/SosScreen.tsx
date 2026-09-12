@@ -15,7 +15,7 @@ import { NativeBottomTabScreenProps } from '@react-navigation/bottom-tabs/unstab
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { Screen } from '../components/Screen';
-import { ScreenHeader } from '../components/ScreenHeader';
+import { ScreenHeader, HeaderIconButton } from '../components/ScreenHeader';
 import { Card } from '../components/Card';
 import { MainTabParamList } from '../navigation/types';
 import { useAppTheme } from '../theme/ThemeProvider';
@@ -289,11 +289,23 @@ export function SosScreen({ navigation }: Props) {
   };
 
   return (
-    <Screen inTab>
-      <ScreenHeader
-        title={t('sos.title')}
-        subtitle={t('sos.sub')}
-      />
+    <Screen
+      inTab
+      header={
+        <ScreenHeader
+          title={t('tab.sos') || 'SOS Emergency'}
+          subtitle="Location & alert are sent instantly to dispatch"
+          rightAction={
+            <HeaderIconButton
+              icon="call"
+              size={18}
+              accessibilityLabel="Call Emergency 112"
+              onPress={() => callEmergencyNumber('112')}
+            />
+          }
+        />
+      }
+    >
 
       {/* Driver & Duty Context Badge */}
       <View style={[styles.contextPill, { backgroundColor: colors.surface, borderColor: colors.border }]}>

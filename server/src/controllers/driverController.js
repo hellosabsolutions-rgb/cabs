@@ -1,6 +1,7 @@
 import { Driver } from '../models/Driver.js';
 import { Vehicle } from '../models/Vehicle.js';
 import { Compliance } from '../models/Compliance.js';
+import { Agency } from '../models/Agency.js';
 import DriverAssignment from '../models/DriverAssignment.js';
 import { recordAssignment, recordUnassignment } from './driverAssignmentController.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
@@ -8,7 +9,22 @@ import { createCrudController } from './crudFactory.js';
 import { calculateExpiryMeta } from './complianceController.js';
 import { emitDriverAdded } from '../services/notificationEmitter.js';
 import { uploadToCloudinary } from '../services/cloudinaryService.js';
+import { emitToDriver, emitToAgency } from '../services/socketService.js';
 import mongoose from 'mongoose';
+
+/**
+ * Generate a simple, memorable password for a driver.
+ * Format: <agencySlug>@<4-digit-phone-suffix>
+ * Example: agency "KABPRO Tours" + phone "9876543210" → kabpro@3210
+ */
+function generateDriverPassword(agencyName = 'fleet', phone = '') {
+  const agencySlug = agencyName
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '')
+    .slice(0, 8);
+  const phoneSuffix = String(phone).replace(/\D/g, '').slice(-4) || '0000';
+  return `${agencySlug}@${phoneSuffix}`;
+}
 
 // Base CRUD controller for drivers
 const baseDriverController = createCrudController(Driver, [
@@ -167,7 +183,20 @@ export const createDriver = asyncHandler(async (req, res) => {
     }
   }
 
-  // 3. Create driver document
+  // 3. Resolve agency name for password generation
+  let agencyName = 'fleet';
+  const resolvedAgencyId = agencyId || req.user?.currentAgency;
+  if (resolvedAgencyId) {
+    try {
+      const agency = await Agency.findById(resolvedAgencyId).select('name').lean();
+      if (agency?.name) agencyName = agency.name;
+    } catch (_) { /* non-blocking */ }
+  }
+
+  // Auto-generate a simple password: <agencySlug>@<last4digits>
+  const plainPassword = generateDriverPassword(agencyName, cleanPhone);
+
+  // 4. Create driver document
   const driver = await Driver.create({
     name: cleanName,
     phone: cleanPhone,
@@ -183,7 +212,8 @@ export const createDriver = asyncHandler(async (req, res) => {
     joiningDate: cleanJoiningDate,
     status: status || 'On duty',
     monthlySalary: Number(monthlySalary) || 0,
-    agencyId: agencyId || undefined
+    agencyId: resolvedAgencyId || undefined,
+    password: plainPassword   // will be bcrypt-hashed by pre-save hook
   });
 
   // 4. If assigned vehicle is provided, update vehicle's assignedDriver & record assignment
@@ -246,10 +276,17 @@ export const createDriver = asyncHandler(async (req, res) => {
     driver
   });
 
+  // Return the plain-text password ONCE so admin can share it.
+  // After this the password is stored as bcrypt hash and never returned again.
   res.status(201).json({
     success: true,
     message: `Driver ${cleanName} successfully added to the roster`,
-    data: driver
+    data: driver,
+    credentials: {
+      loginId: cleanPhone,
+      password: plainPassword,
+      hint: `Share these credentials with the driver. They can log in using their mobile number and this password.`
+    }
   });
 });
 
@@ -278,10 +315,20 @@ export const updateDriver = asyncHandler(async (req, res) => {
     req.body.assignedVehicle = newVehicle;
   }
 
-  const updatedDriver = await Driver.findOneAndUpdate(query, req.body, {
+  // Extract password before the bulk update — must be handled via .save() to
+  // trigger the bcrypt pre-save hook (findOneAndUpdate bypasses it).
+  const { password: rawNewPassword, ...safeBody } = req.body;
+
+  const updatedDriver = await Driver.findOneAndUpdate(query, safeBody, {
     new: true,
     runValidators: true
   });
+
+  // If a new password was provided, hash it via .save()
+  if (rawNewPassword && rawNewPassword.trim()) {
+    updatedDriver.password = rawNewPassword.trim();
+    await updatedDriver.save();
+  }
 
   // Sync vehicle if assignment changed or driver name changed
   if (newVehicle !== undefined && normalizeAssignedVehicle(prevVehicle) !== newVehicle) {
@@ -401,6 +448,15 @@ export const updateDriver = asyncHandler(async (req, res) => {
   const driverObj = updatedDriver.toObject ? updatedDriver.toObject() : updatedDriver;
   driverObj.id = updatedDriver._id ? updatedDriver._id.toString() : updatedDriver.id;
 
+  // Real-time sync: notify driver mobile app immediately via WebSocket
+  emitToDriver(updatedDriver._id, 'driver:updated', {
+    action: 'profile_updated',
+    driver: driverObj,
+    assignedVehicle: updatedDriver.assignedVehicle,
+    status: updatedDriver.status,
+    message: 'Your profile has been updated from the dashboard'
+  });
+
   res.status(200).json({
     success: true,
     message: `Driver ${updatedDriver.name} updated successfully`,
@@ -437,6 +493,19 @@ export const updateDriverStatus = asyncHandler(async (req, res) => {
       error: `Driver not found with ID ${id}`
     });
   }
+
+  // Real-time sync: notify driver mobile app immediately via WebSocket
+  emitToDriver(driver._id, 'driver:status', {
+    action: 'status_changed',
+    status: driver.status,
+    driverId: driver._id.toString(),
+    message: `Your duty status was updated to ${status} from the dashboard`
+  });
+  emitToDriver(driver._id, 'driver:updated', {
+    action: 'status_changed',
+    status: driver.status,
+    driverId: driver._id.toString()
+  });
 
   res.status(200).json({
     success: true,
@@ -475,6 +544,13 @@ export const deleteDriver = asyncHandler(async (req, res) => {
       reason: 'Driver removed from roster'
     });
   }
+
+  // Real-time sync: notify driver mobile app
+  emitToDriver(driver._id, 'driver:removed', {
+    action: 'driver_removed',
+    driverId: driver._id.toString(),
+    message: 'Your driver profile has been removed from the roster'
+  });
 
   res.status(200).json({
     success: true,

@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useFleet } from '../../../context/FleetContext';
 import { Driver, DriverAssignment } from '../../../types/fleet';
-import { driverAssignmentsApi } from '../../../services/api';
+import { driverAssignmentsApi, api } from '../../../services/api';
 import {
   ArrowLeft,
   Phone,
@@ -21,6 +21,7 @@ import {
   Navigation,
   ExternalLink,
   Eye,
+  EyeOff,
   X,
   History,
   Fuel,
@@ -29,7 +30,10 @@ import {
   RefreshCw,
   Check,
   Loader2,
-  KeyRound
+  KeyRound,
+  Copy,
+  Lock,
+  ShieldAlert
 } from 'lucide-react';
 import { StatCard } from '../../common/StatCard';
 import { resolveAssignedVehicle, plateKey } from '../../../utils/assignment';
@@ -75,6 +79,65 @@ export const DriverDetailView: React.FC<DriverDetailViewProps> = ({
     assignedVehiclePlate || 'unassign'
   );
   const [isAssigning, setIsAssigning] = useState(false);
+
+  // ── Credentials panel state ───────────────────────────────────────────────
+  const [credsEditMode, setCredsEditMode] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [newPhone, setNewPhone] = useState(currentDriver.phone || '');
+  const [newEmail, setNewEmail] = useState(currentDriver.email || '');
+  const [showPassword, setShowPassword] = useState(false);
+  const [isSavingCreds, setIsSavingCreds] = useState(false);
+  const [copiedCred, setCopiedCred] = useState<'phone' | 'email' | 'pass' | 'all' | null>(null);
+  // Stores the plain-text password temporarily after admin sets/resets it
+  const [lastSavedPassword, setLastSavedPassword] = useState<string | null>(null);
+
+  const phoneDigits = String(newPhone || currentDriver.phone || '').replace(/\D/g, '');
+  const defaultPassword = `kabpro@${phoneDigits.slice(-4) || '1234'}`;
+  const effectivePassword = lastSavedPassword || defaultPassword;
+
+  const copyText = useCallback(async (text: string, field: 'phone' | 'email' | 'pass' | 'all') => {
+    try { await navigator.clipboard.writeText(text); } catch (_) {}
+    setCopiedCred(field);
+    setTimeout(() => setCopiedCred(null), 2000);
+  }, []);
+
+  const handleSaveCreds = async () => {
+    const plainPass = newPassword.trim();
+    const cleanEmail = newEmail.trim().toLowerCase();
+    const cleanPhone = newPhone.trim();
+
+    const passChanged = Boolean(plainPass);
+    const emailChanged = cleanEmail !== (currentDriver.email || '').toLowerCase();
+    const phoneChanged = Boolean(cleanPhone && cleanPhone !== (currentDriver.phone || ''));
+
+    if (!passChanged && !emailChanged && !phoneChanged) {
+      setCredsEditMode(false);
+      return;
+    }
+    setIsSavingCreds(true);
+    try {
+      const payload: Record<string, string> = {};
+      if (passChanged) payload.password = plainPass;
+      if (emailChanged) payload.email = cleanEmail;
+      if (phoneChanged) payload.phone = cleanPhone;
+
+      await updateDriver(driverId, payload as any);
+      if (plainPass) setLastSavedPassword(plainPass);
+      showToast('success', 'Driver credentials updated successfully.', 'Credentials Saved');
+      setNewPassword('');
+      setCredsEditMode(false);
+    } catch (err: any) {
+      showToast('error', err.message || 'Failed to update credentials.', 'Error');
+    } finally {
+      setIsSavingCreds(false);
+    }
+  };
+
+  const generateNewPassword = () => {
+    const digits = String(newPhone || currentDriver.phone || '').replace(/\D/g, '').slice(-4) || '1234';
+    setNewPassword(`kabpro@${digits}`);
+  };
+  // ─────────────────────────────────────────────────────────────────────────
 
   useEffect(() => {
     setSelectedVehicleForAssign(assignedVehiclePlate || 'unassign');
@@ -736,6 +799,210 @@ export const DriverDetailView: React.FC<DriverDetailViewProps> = ({
               </div>
             </div>
           </div>
+
+          {/* ─── Login Credentials Panel ─────────────────────────────────── */}
+          <div className="panel" id="driver-credentials-panel">
+            <div className="panel-head">
+              <span className="panel-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <KeyRound size={16} color="var(--accent)" /> Login Credentials
+              </span>
+              {!credsEditMode ? (
+                <button
+                  onClick={() => {
+                    setCredsEditMode(true);
+                    setNewPhone(currentDriver.phone || '');
+                    setNewEmail(currentDriver.email || '');
+                    setNewPassword('');
+                  }}
+                  style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: 600, padding: '5px 12px', borderRadius: '8px', border: '1px solid var(--border-soft)', background: 'var(--surface-muted)', color: 'var(--text-dim)', cursor: 'pointer' }}
+                >
+                  <Edit2 size={12} /> Edit Credentials
+                </button>
+              ) : (
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button
+                    onClick={() => { setCredsEditMode(false); setNewPassword(''); }}
+                    style={{ fontSize: '12px', fontWeight: 600, padding: '5px 12px', borderRadius: '8px', border: '1px solid var(--border-soft)', background: 'transparent', color: 'var(--text-faint)', cursor: 'pointer' }}
+                  >Cancel</button>
+                  <button
+                    onClick={handleSaveCreds}
+                    disabled={isSavingCreds}
+                    style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: 600, padding: '5px 12px', borderRadius: '8px', border: 'none', background: 'var(--accent)', color: '#fff', cursor: 'pointer', opacity: isSavingCreds ? 0.7 : 1 }}
+                  >
+                    {isSavingCreds ? <Loader2 size={12} style={{ animation: 'spin 0.8s linear infinite' }} /> : <Check size={12} />}
+                    Save
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', padding: '4px 0' }}>
+              {/* Info note */}
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', padding: '10px 12px', borderRadius: '8px', background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.2)' }}>
+                <ShieldAlert size={14} color="#818cf8" style={{ marginTop: '1px', flexShrink: 0 }} />
+                <p style={{ margin: 0, fontSize: '12px', color: 'var(--text-dim)', lineHeight: 1.6 }}>
+                  These are the driver's app login credentials. Share them securely via WhatsApp or SMS. The driver uses this mobile number and password to log in.
+                </p>
+              </div>
+
+              {/* Mobile / Login ID */}
+              <div>
+                <div style={{ fontSize: '11px', color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px' }}>
+                  Mobile Number (Login ID)
+                </div>
+                {credsEditMode ? (
+                  <input
+                    type="tel"
+                    value={newPhone}
+                    onChange={e => setNewPhone(e.target.value)}
+                    placeholder="+91 9876543210"
+                    style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', background: 'var(--surface)', border: '1px solid var(--border-soft)', color: 'var(--text)', fontSize: '14px', outline: 'none', boxSizing: 'border-box' }}
+                  />
+                ) : (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 14px', borderRadius: '8px', background: 'var(--surface-muted)', border: '1px solid var(--border-soft)' }}>
+                    <Phone size={14} color="var(--text-faint)" />
+                    <code style={{ flex: 1, fontSize: '14px', fontWeight: 700, color: 'var(--text)' }}>{currentDriver.phone || '—'}</code>
+                    {currentDriver.phone && (
+                      <button onClick={() => copyText(currentDriver.phone!, 'phone')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: copiedCred === 'phone' ? '#22c55e' : 'var(--text-faint)', padding: '2px', display: 'flex' }}>
+                        {copiedCred === 'phone' ? <Check size={14} /> : <Copy size={14} />}
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Email */}
+              <div>
+                <div style={{ fontSize: '11px', color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px' }}>Email (Optional Login)</div>
+                {credsEditMode ? (
+                  <input
+                    type="email"
+                    value={newEmail}
+                    onChange={e => setNewEmail(e.target.value)}
+                    placeholder="driver@example.com"
+                    style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', background: 'var(--surface)', border: '1px solid var(--border-soft)', color: 'var(--text)', fontSize: '14px', outline: 'none', boxSizing: 'border-box' }}
+                  />
+                ) : (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 14px', borderRadius: '8px', background: 'var(--surface-muted)', border: '1px solid var(--border-soft)' }}>
+                    <code style={{ flex: 1, fontSize: '14px', fontWeight: currentDriver.email ? 700 : 400, color: currentDriver.email ? 'var(--text)' : 'var(--text-faint)', fontStyle: currentDriver.email ? 'normal' : 'italic' }}>
+                      {currentDriver.email || 'No email registered'}
+                    </code>
+                    {currentDriver.email && (
+                      <button onClick={() => copyText(currentDriver.email!, 'email')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: copiedCred === 'email' ? '#22c55e' : 'var(--text-faint)', padding: '2px', display: 'flex' }}>
+                        {copiedCred === 'email' ? <Check size={14} /> : <Copy size={14} />}
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Password */}
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                  <span style={{ fontSize: '11px', color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                    {credsEditMode ? 'New Password' : 'Driver App Password'}
+                  </span>
+                  {!credsEditMode && (
+                    <span style={{ fontSize: '11px', color: 'var(--text-faint)', background: 'var(--surface-muted)', padding: '2px 8px', borderRadius: '4px', border: '1px solid var(--border-soft)' }}>
+                      {lastSavedPassword ? 'Custom Password' : 'Auto-generated'}
+                    </span>
+                  )}
+                </div>
+
+                {credsEditMode ? (
+                  <div>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 14px', borderRadius: '8px', background: 'var(--surface)', border: '1px solid var(--border-soft)' }}>
+                        <Lock size={14} color="var(--text-faint)" />
+                        <input
+                          type={showPassword ? 'text' : 'password'}
+                          value={newPassword}
+                          onChange={e => setNewPassword(e.target.value)}
+                          placeholder="Enter new password"
+                          style={{ flex: 1, background: 'none', border: 'none', outline: 'none', fontSize: '14px', color: 'var(--text)', fontFamily: 'monospace' }}
+                        />
+                        <button type="button" onClick={() => setShowPassword(p => !p)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-faint)', display: 'flex', padding: '2px' }}>
+                          {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
+                        </button>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={generateNewPassword}
+                        title="Auto-generate password"
+                        style={{ padding: '10px 14px', borderRadius: '8px', border: '1px dashed var(--border-soft)', background: 'var(--surface-muted)', color: 'var(--text-dim)', cursor: 'pointer', fontSize: '12px', fontWeight: 600, whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '6px' }}
+                      >
+                        <RefreshCw size={12} /> Auto-generate
+                      </button>
+                    </div>
+                    {newPassword && (
+                      <div style={{ marginTop: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <code style={{ flex: 1, fontSize: '13px', color: 'var(--text-dim)', padding: '6px 10px', background: 'var(--surface-muted)', borderRadius: '6px', border: '1px solid var(--border-soft)' }}>
+                          Preview: <strong>{newPassword}</strong>
+                        </code>
+                        <button type="button" onClick={() => copyText(newPassword, 'pass')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: copiedCred === 'pass' ? '#22c55e' : 'var(--text-faint)', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px' }}>
+                          {copiedCred === 'pass' ? <><Check size={12} /> Copied</> : <><Copy size={12} /> Copy</>}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 14px', borderRadius: '8px', background: 'var(--surface-muted)', border: '1px solid var(--border-soft)' }}>
+                    <Lock size={14} color="var(--text-faint)" />
+                    <code style={{ flex: 1, fontSize: '14px', fontWeight: 700, color: 'var(--text)', letterSpacing: showPassword ? 'normal' : '2px', fontFamily: 'monospace' }}>
+                      {showPassword ? effectivePassword : '••••••••'}
+                    </code>
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(p => !p)}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-faint)', display: 'flex', padding: '2px' }}
+                      title={showPassword ? 'Hide password' : 'Show password'}
+                    >
+                      {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => copyText(effectivePassword, 'pass')}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: copiedCred === 'pass' ? '#22c55e' : 'var(--text-faint)', padding: '2px', display: 'flex' }}
+                      title="Copy password"
+                    >
+                      {copiedCred === 'pass' ? <Check size={14} /> : <Copy size={14} />}
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Share via WhatsApp & Copy Actions */}
+              {!credsEditMode && currentDriver.phone && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '4px' }}>
+                  <a
+                    href={`https://wa.me/${String(currentDriver.phone).replace(/\D/g, '')}?text=${encodeURIComponent(`Hi ${currentDriver.name},
+
+Your KABPRO Driver App login:
+📱 Mobile: ${currentDriver.phone}
+🔐 Password: ${effectivePassword}
+
+Download the app and log in to start your duty.
+
+— ${(currentDriver as any).agencyName || 'Your Fleet Manager'}`)}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '10px 16px', borderRadius: '8px', background: '#16a34a', color: '#ffffff', textDecoration: 'none', fontSize: '13px', fontWeight: 600, boxShadow: '0 2px 8px rgba(22, 163, 74, 0.25)' }}
+                  >
+                    <ExternalLink size={14} /> Share Login Info via WhatsApp
+                  </a>
+
+                  <button
+                    type="button"
+                    onClick={() => copyText(`Hi ${currentDriver.name},\n\nYour KABPRO Driver App login:\n📱 Mobile: ${currentDriver.phone}\n🔐 Password: ${effectivePassword}\n\nDownload the app and log in to start your duty.\n\n— ${(currentDriver as any).agencyName || 'Your Fleet Manager'}`, 'all')}
+                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '9px 14px', borderRadius: '8px', border: '1px dashed var(--border-soft)', background: 'var(--surface-muted)', color: copiedCred === 'all' ? '#22c55e' : 'var(--text-dim)', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}
+                  >
+                    {copiedCred === 'all' ? <><Check size={13} /> Full Login Message Copied!</> : <><Copy size={13} /> Copy Full Login Message</>}
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+          {/* ─────────────────────────────────────────────────────────────── */}
 
           {/* Assigned Vehicle & Fleet Allocation Panel */}
           <div className="panel" id="assigned-vehicle-panel">

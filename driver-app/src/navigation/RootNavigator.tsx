@@ -46,10 +46,11 @@ export function RootNavigator() {
     <NavigationContainer theme={navTheme}>
       <Stack.Navigator
         screenOptions={{
-          headerStyle: { backgroundColor: colors.surface },
+          headerStyle: { backgroundColor: scheme === 'dark' ? '#121212' : '#FFFFFF' },
           headerTintColor: colors.text,
-          headerTitleStyle: { fontWeight: '600', fontSize: 15 },
-          headerShadowVisible: false,
+          headerTitleStyle: { fontWeight: '700', fontSize: 17 },
+          headerShadowVisible: true,
+          headerTitleAlign: 'center',
           contentStyle: { backgroundColor: colors.bg },
         }}
       >

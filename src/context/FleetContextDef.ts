@@ -74,7 +74,7 @@ export interface FleetContextType {
   setDriverSubTab: (tab: DriverSubTab) => void;
   drivers: Driver[];
   fetchLiveDrivers: () => Promise<Driver[]>;
-  addDriver: (driver: Omit<Driver, 'id'>) => Promise<{ success: boolean; driver?: Driver; error?: string } | void> | void;
+  addDriver: (driver: Omit<Driver, 'id'>) => Promise<{ success: boolean; driver?: Driver; error?: string; credentials?: { loginId: string; password: string; hint?: string } } | void> | void;
   updateDriverStatus: (id: string, status: 'On duty' | 'Off duty') => Promise<void>;
   updateDriver: (id: string, data: Partial<Driver>) => Promise<{ success: boolean; driver?: Driver; error?: string }>;
   deleteDriver: (id: string) => Promise<{ success: boolean; error?: string }>;

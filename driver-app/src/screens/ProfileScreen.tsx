@@ -18,7 +18,8 @@ type Props = CompositeScreenProps<
 >;
 
 export function ProfileScreen({ navigation }: Props) {
-  const { colors, t } = useAppTheme();
+  const { colors, scheme, t } = useAppTheme();
+  const isDark = scheme === 'dark';
   const session = useSession();
   const pulse = useRef(new Animated.Value(1)).current;
 
@@ -65,16 +66,23 @@ export function ProfileScreen({ navigation }: Props) {
   }
 
   return (
-    <Screen inTab>
-      <ScreenHeader
-        title={t('profile.title')}
-        right={
-          <HeaderIconButton onPress={() => navigation.navigate('Settings')}>
-            <Ionicons name="settings-outline" size={18} color={colors.text} />
-          </HeaderIconButton>
-        }
-      />
-
+    <Screen
+      inTab
+      header={
+        <ScreenHeader
+          title={t('profile.title')}
+          subtitle={`${session.driver.name} · ${session.driver.id}`}
+          rightAction={
+            <HeaderIconButton
+              icon="settings-outline"
+              size={19}
+              accessibilityLabel={t('nav.settings')}
+              onPress={() => navigation.navigate('Settings')}
+            />
+          }
+        />
+      }
+    >
       <View style={styles.hero}>
         <View style={styles.heroTop}>
           <View style={styles.flex}>

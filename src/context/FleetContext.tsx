@@ -1574,7 +1574,7 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           );
           await fetchLiveDrivers();
           await fetchPayrollSummary(selectedPayrollMonth);
-          return { success: true, driver: serverDriver };
+          return { success: true, driver: serverDriver, credentials: res.credentials };
         } else if (res.error) {
           showToast('error', res.error, 'Registration Error');
           return { success: false, error: res.error };

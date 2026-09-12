@@ -22,6 +22,7 @@ export type NativeTabItem<ParamList extends ParamListBase> = {
   component: React.ComponentType<any>;
   icon: NativeTabGlyph;
   badge?: string | number;
+  options?: Partial<NativeBottomTabNavigationOptions>;
 };
 
 export function nativeTabBarIcon(icon: NativeTabGlyph) {
@@ -77,6 +78,7 @@ export function NativeBottomTabs<ParamList extends ParamListBase>({
             tabBarLabel: tab.title,
             tabBarIcon: nativeTabBarIcon(tab.icon),
             tabBarBadge: tab.badge,
+            ...tab.options,
           }}
         />
       ))}

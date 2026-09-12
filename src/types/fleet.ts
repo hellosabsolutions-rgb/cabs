@@ -93,6 +93,7 @@ export interface Driver {
   id: string;
   name: string;
   phone?: string;
+  email?: string;
   photo?: string;
   address?: string;
   emergencyContact?: string;

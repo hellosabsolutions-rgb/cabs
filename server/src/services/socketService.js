@@ -1,6 +1,7 @@
 import { Server } from 'socket.io';
 import jwt from 'jsonwebtoken';
 import { User } from '../models/User.js';
+import { Driver } from '../models/Driver.js';
 
 /**
  * SocketService
@@ -8,18 +9,20 @@ import { User } from '../models/User.js';
  * Singleton that manages the Socket.IO server instance.
  *
  * Namespaces
- *   /notifications  ← active
+ *   / (root)        ← active (supports driver mobile app & web clients)
+ *   /notifications  ← active (web dashboard & mobile notifications)
  *   /chat           ← reserved for future
  *   /tracking       ← reserved for future driver GPS
  *
  * Rooms
- *   user:<userId>       ← personal notifications
+ *   user:<userId>       ← personal user notifications
+ *   driver:<driverId>   ← direct driver app push events
  *   agency:<agencyId>   ← fleet-wide broadcasts
  */
 
 let io = null;
 
-// Map of userId → Set of socket IDs (for presence tracking)
+// Map of userId/driverId → Set of socket IDs (for presence tracking)
 const onlineUsers = new Map();
 
 /**
@@ -29,7 +32,7 @@ const onlineUsers = new Map();
 export const initSocket = (httpServer) => {
   io = new Server(httpServer, {
     cors: {
-      origin: process.env.CLIENT_URL || 'http://localhost:3000',
+      origin: '*', // Allow web dashboard, mobile apps (Expo/React Native), and local dev
       credentials: true,
       methods: ['GET', 'POST']
     },
@@ -56,6 +59,23 @@ export const initSocket = (httpServer) => {
         process.env.JWT_SECRET || 'fleetos_default_fallback_jwt_secret'
       );
 
+      // Check if this is a driver token
+      if (decoded.kind === 'driver') {
+        const driver = await Driver.findById(decoded.id).select('_id name phone status assignedVehicle agencyId');
+        if (!driver) {
+          return next(new Error('AUTH_INVALID: Driver not found'));
+        }
+
+        socket.userId = driver._id.toString();
+        socket.driverId = driver._id.toString();
+        socket.isDriver = true;
+        socket.userRole = 'driver';
+        socket.agencyId = driver.agencyId?.toString() || null;
+        socket.userName = driver.name;
+        return next();
+      }
+
+      // Otherwise, standard dashboard user
       const user = await User.findById(decoded.id).select('_id name email role currentAgency status');
       if (!user || user.status === 'Suspended') {
         return next(new Error('AUTH_INVALID: User not found or suspended'));
@@ -65,6 +85,7 @@ export const initSocket = (httpServer) => {
       socket.userRole = user.role;
       socket.agencyId = user.currentAgency?.toString() || null;
       socket.userName = user.name;
+      socket.isDriver = false;
 
       next();
     } catch (err) {
@@ -72,47 +93,57 @@ export const initSocket = (httpServer) => {
     }
   };
 
-  // ─── /notifications Namespace ─────────────────────────────────────────────
-  const notifNs = io.of('/notifications');
-  notifNs.use(authMiddleware);
+  // ─── Common Connection Setup for Namespaces ─────────────────────────────
+  const setupNamespaceEvents = (ns, nsName) => {
+    ns.use(authMiddleware);
 
-  notifNs.on('connection', (socket) => {
-    const { userId, agencyId, userName } = socket;
+    ns.on('connection', (socket) => {
+      const { userId, agencyId, userName, isDriver, driverId } = socket;
 
-    // Join personal + agency rooms
-    socket.join(`user:${userId}`);
-    if (agencyId) socket.join(`agency:${agencyId}`);
-
-    // Track online presence
-    if (!onlineUsers.has(userId)) onlineUsers.set(userId, new Set());
-    onlineUsers.get(userId).add(socket.id);
-
-    console.log(`🔌 [Socket] ${userName} (${userId}) connected to /notifications [${socket.id}]`);
-
-    // ── Client events ────────────────────────────────────────────────────
-    socket.on('notification:mark-read', (notificationId) => {
-      // Acknowledge — actual DB update done via REST; socket just broadcasts state
-      socket.emit('notification:read-ack', { id: notificationId });
-    });
-
-    socket.on('notification:mark-all-read', () => {
-      socket.emit('notification:all-read-ack', { userId });
-    });
-
-    // Presence ping from client
-    socket.on('ping:presence', () => {
-      socket.emit('pong:presence', { ts: Date.now(), userId });
-    });
-
-    socket.on('disconnect', (reason) => {
-      console.log(`🔌 [Socket] ${userName} disconnected from /notifications [${reason}]`);
-      const sockets = onlineUsers.get(userId);
-      if (sockets) {
-        sockets.delete(socket.id);
-        if (sockets.size === 0) onlineUsers.delete(userId);
+      // Join personal & driver rooms
+      socket.join(`user:${userId}`);
+      if (isDriver && driverId) {
+        socket.join(`driver:${driverId}`);
       }
+      if (agencyId) {
+        socket.join(`agency:${agencyId}`);
+      }
+
+      // Track online presence
+      const presenceKey = isDriver ? `driver:${driverId}` : userId;
+      if (!onlineUsers.has(presenceKey)) onlineUsers.set(presenceKey, new Set());
+      onlineUsers.get(presenceKey).add(socket.id);
+
+      console.log(`🔌 [Socket] ${userName} (${isDriver ? 'Driver' : 'User'} ${userId}) connected to ${nsName} [${socket.id}]`);
+
+      // ── Client events ────────────────────────────────────────────────────
+      socket.on('notification:mark-read', (notificationId) => {
+        socket.emit('notification:read-ack', { id: notificationId });
+      });
+
+      socket.on('notification:mark-all-read', () => {
+        socket.emit('notification:all-read-ack', { userId });
+      });
+
+      socket.on('ping:presence', () => {
+        socket.emit('pong:presence', { ts: Date.now(), userId });
+      });
+
+      socket.on('disconnect', (reason) => {
+        console.log(`🔌 [Socket] ${userName} disconnected from ${nsName} [${reason}]`);
+        const sockets = onlineUsers.get(presenceKey);
+        if (sockets) {
+          sockets.delete(socket.id);
+          if (sockets.size === 0) onlineUsers.delete(presenceKey);
+        }
+      });
     });
-  });
+  };
+
+  // Setup default root namespace and /notifications namespace
+  setupNamespaceEvents(io, '/');
+  const notifNs = io.of('/notifications');
+  setupNamespaceEvents(notifNs, '/notifications');
 
   // ─── /chat Namespace (reserved for future) ────────────────────────────────
   const chatNs = io.of('/chat');
@@ -120,14 +151,12 @@ export const initSocket = (httpServer) => {
   chatNs.on('connection', (socket) => {
     console.log(`💬 [Socket/chat] ${socket.userName} connected [reserved]`);
 
-    // Rooms: join:room → chat room join
     socket.on('chat:join', (roomId) => {
       socket.join(`chat:${roomId}`);
       socket.emit('chat:joined', { roomId });
     });
 
     socket.on('chat:message', ({ roomId, message }) => {
-      // TODO: persist & broadcast
       chatNs.to(`chat:${roomId}`).emit('chat:message', {
         id: Date.now().toString(),
         roomId,
@@ -150,7 +179,6 @@ export const initSocket = (httpServer) => {
     console.log(`📍 [Socket/tracking] ${socket.userName} connected [reserved]`);
 
     socket.on('location:update', ({ vehicleId, lat, lng, speed }) => {
-      // TODO: persist + broadcast to dashboard listeners
       trackNs.to(`vehicle:${vehicleId}`).emit('location:update', {
         vehicleId, lat, lng, speed, ts: Date.now()
       });
@@ -159,7 +187,7 @@ export const initSocket = (httpServer) => {
     socket.on('disconnect', () => {});
   });
 
-  console.log('🔌 Socket.IO initialized — namespaces: /notifications, /chat, /tracking');
+  console.log('🔌 Socket.IO initialized — namespaces: /, /notifications, /chat, /tracking');
   return io;
 };
 
@@ -173,11 +201,27 @@ export const getIO = () => {
 };
 
 /**
+ * Emit an event to a specific driver's socket room across both root and /notifications.
+ */
+export const emitToDriver = (driverId, event, data) => {
+  if (!io) return;
+  const idStr = driverId?.toString();
+  if (!idStr) return;
+  io.to(`driver:${idStr}`).emit(event, data);
+  io.to(`user:${idStr}`).emit(event, data);
+  io.of('/notifications').to(`driver:${idStr}`).emit(event, data);
+  io.of('/notifications').to(`user:${idStr}`).emit(event, data);
+};
+
+/**
  * Emit an event to a specific user's socket room.
  */
 export const emitToUser = (userId, event, data) => {
   if (!io) return;
-  io.of('/notifications').to(`user:${userId}`).emit(event, data);
+  const idStr = userId?.toString();
+  if (!idStr) return;
+  io.to(`user:${idStr}`).emit(event, data);
+  io.of('/notifications').to(`user:${idStr}`).emit(event, data);
 };
 
 /**
@@ -185,22 +229,30 @@ export const emitToUser = (userId, event, data) => {
  */
 export const emitToAgency = (agencyId, event, data) => {
   if (!io) return;
-  io.of('/notifications').to(`agency:${agencyId}`).emit(event, data);
+  const idStr = agencyId?.toString();
+  if (!idStr) return;
+  io.to(`agency:${idStr}`).emit(event, data);
+  io.of('/notifications').to(`agency:${idStr}`).emit(event, data);
 };
 
 /**
- * Broadcast to ALL connected notification sockets (admin-only use).
+ * Broadcast to ALL connected notification sockets.
  */
 export const broadcastAll = (event, data) => {
   if (!io) return;
+  io.emit(event, data);
   io.of('/notifications').emit(event, data);
 };
 
 /**
- * Check if a user has any active socket connections.
+ * Check if a user or driver has any active socket connections.
  */
 export const isUserOnline = (userId) => {
-  return onlineUsers.has(userId.toString()) && onlineUsers.get(userId.toString()).size > 0;
+  const idStr = userId?.toString();
+  return (
+    (onlineUsers.has(idStr) && onlineUsers.get(idStr).size > 0) ||
+    (onlineUsers.has(`driver:${idStr}`) && onlineUsers.get(`driver:${idStr}`).size > 0)
+  );
 };
 
 /**

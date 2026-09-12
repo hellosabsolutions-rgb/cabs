@@ -63,6 +63,7 @@ const hi: Catalog = {
   'home.sos': 'एसओएस',
   'home.goodAfternoon': 'शुभ दोपहर',
   'home.goodEvening': 'शुभ संध्या',
+  'home.goodNight': 'शुभ रात्रि',
   'home.live': 'लाइव',
   'home.since': '{time} से',
   'startDuty.sub': 'शुरुआती ओडोमीटर और फोटो लें। तारीख और समय अपने आप सेव होंगे।',

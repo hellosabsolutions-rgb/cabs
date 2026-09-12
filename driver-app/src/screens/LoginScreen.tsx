@@ -28,6 +28,7 @@ import {
   signInWithGoogleNative,
 } from '../services/googleAuth';
 
+
 type Props = NativeStackScreenProps<RootStackParamList, 'Login'>;
 type LoginKind = 'mobile' | 'email' | 'userId';
 
@@ -113,8 +114,22 @@ export function LoginScreen({ navigation: _navigation }: Props) {
     try {
       const payload = await driverAuthApi.login(loginId, password, rememberMe);
       await session.applyAuth(payload, { rememberMe, identifier: loginId });
-    } catch (error) {
-      Alert.alert(t('login.signIn'), error instanceof Error ? error.message : t('login.failed'));
+    } catch (error: unknown) {
+      // Distinguish "not onboarded" from "wrong password"
+      const msg = error instanceof Error ? error.message : t('login.failed');
+      const isNotRegistered =
+        msg.toLowerCase().includes('contact your agency') ||
+        (error as { code?: string })?.code === 'DRIVER_NOT_REGISTERED';
+
+      if (isNotRegistered) {
+        Alert.alert(
+          '🚫 Not Registered',
+          'Your number is not registered. Please contact your agency or fleet manager to get your login credentials.',
+          [{ text: 'OK', style: 'default' }]
+        );
+      } else {
+        Alert.alert(t('login.signIn'), msg);
+      }
     } finally {
       setBusy(null);
     }
@@ -250,7 +265,7 @@ export function LoginScreen({ navigation: _navigation }: Props) {
               style={({ pressed }) => [
                 styles.signIn,
                 { backgroundColor: colors.accent },
-                (pressed || busy) && styles.pressed,
+                (pressed || busy) && { opacity: 0.8 },
               ]}
             >
               {busy === 'password' ? (
@@ -262,40 +277,10 @@ export function LoginScreen({ navigation: _navigation }: Props) {
               )}
             </Pressable>
 
-            <Text style={[styles.or, { color: colors.textFaint }]}>{t('login.or')}</Text>
-
-            <Pressable
-              onPress={googleSignIn}
-              disabled={Boolean(busy)}
-              style={({ pressed }) => [
-                styles.google,
-                {
-                  backgroundColor: colors.surface,
-                  borderColor: colors.border,
-                },
-                (pressed || busy) && styles.pressed,
-              ]}
-            >
-              {busy === 'google' ? (
-                <ActivityIndicator color={colors.text} />
-              ) : (
-                <>
-                  <Ionicons name="logo-google" size={18} color={colors.text} />
-                  <Text style={[styles.googleText, { color: colors.text }]}>{t('login.google')}</Text>
-                </>
-              )}
-            </Pressable>
-          </View>
-
-          <Pressable
-            onPress={() => Alert.alert(t('login.signUp'), t('login.signUpHint'))}
-            style={styles.footer}
-          >
-            <Text style={[styles.footerText, { color: colors.textFaint }]}>
-              {t('login.noAccount')}{' '}
-              <Text style={{ color: colors.textDim, fontWeight: '600' }}>{t('login.signUp')}</Text>
+            <Text style={[styles.agencyHint, { color: colors.textFaint }]}>
+              Your credentials are provided by your agency admin.
             </Text>
-          </Pressable>
+          </View>
         </ScrollView>
       </KeyboardAvoidingView>
 
@@ -427,9 +412,13 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
   },
-  pressed: {
-    opacity: 0.86,
+  agencyHint: {
+    fontSize: 12,
+    textAlign: 'center',
+    marginTop: 20,
+    opacity: 0.6,
   },
+
   footer: {
     alignItems: 'center',
     paddingVertical: space.xl,

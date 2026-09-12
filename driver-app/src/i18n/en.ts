@@ -45,6 +45,7 @@ export const en = {
   'home.goodMorning': 'Good morning',
   'home.goodAfternoon': 'Good afternoon',
   'home.goodEvening': 'Good evening',
+  'home.goodNight': 'Good night',
   'home.live': 'Live',
   'home.since': 'Since {time}',
   'home.assignedVehicle': 'Assigned vehicle',

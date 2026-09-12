@@ -9,7 +9,7 @@ import type { MainTabParamList } from './types';
 import { useAppTheme } from '../theme/ThemeProvider';
 
 export function MainTabs() {
-  const { t } = useAppTheme();
+  const { t, colors, scheme } = useAppTheme();
 
   const tabs: NativeTabItem<MainTabParamList>[] = [
     {
