@@ -13,10 +13,12 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  UIManager,
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { LiquidGlassView, LiquidGlassContainer, supportsNativeGlass } from 'expo-liquid-glass-view';
+import { BlurView } from 'expo-blur';
+import { LiquidGlassView } from 'expo-liquid-glass-view';
 import { CameraView, useCameraPermissions, type FlashMode } from 'expo-camera';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -49,8 +51,29 @@ function formatIST(timestamp: number): string {
 }
 
 /**
- * Native Liquid Glass Card for iOS 26 using `expo-liquid-glass-view` (Apple UIGlassEffect).
- * On Android, renders a solid, ultra-smooth obsidian dark surface.
+ * Checks if ExpoLiquidGlass native component is registered in the running iOS binary.
+ * When compiled into the binary -> uses Apple's native UIGlassEffect via `expo-liquid-glass-view`.
+ * Before binary rebuild -> gracefully falls back to native `BlurView` (which is already linked in the binary).
+ */
+const isExpoLiquidGlassLinked = (() => {
+  if (Platform.OS !== 'ios') return false;
+  try {
+    if (typeof UIManager?.getViewManagerConfig === 'function') {
+      const config =
+        UIManager.getViewManagerConfig('ViewManagerAdapter_ExpoLiquidGlass_LiquidGlassView') ||
+        UIManager.getViewManagerConfig('ExpoLiquidGlass') ||
+        UIManager.getViewManagerConfig('LiquidGlassView');
+      return Boolean(config);
+    }
+  } catch {
+    return false;
+  }
+  return false;
+})();
+
+/**
+ * Native Liquid Glass Card for iOS using `expo-liquid-glass-view` (Apple UIGlassEffect).
+ * Falls back to native BlurView before rebuild, and obsidian dark on Android.
  */
 function LiquidGlassCard({
   children,
@@ -62,15 +85,38 @@ function LiquidGlassCard({
   borderRadius?: number;
 }) {
   if (Platform.OS === 'ios') {
+    if (isExpoLiquidGlassLinked) {
+      return (
+        <LiquidGlassView
+          variant="regular"
+          cornerRadius={borderRadius}
+          tint="rgba(10, 10, 14, 0.65)"
+          style={[styles.iosLiquidCardWrap, { borderRadius }, style]}
+        >
+          {children}
+        </LiquidGlassView>
+      );
+    }
+
     return (
-      <LiquidGlassView
-        variant="regular"
-        cornerRadius={borderRadius}
-        tint="rgba(10, 10, 14, 0.65)"
-        style={[styles.iosLiquidCardWrap, { borderRadius }, style]}
-      >
+      <View style={[styles.iosLiquidCardWrap, { borderRadius }, style]}>
+        <BlurView intensity={55} tint="dark" style={StyleSheet.absoluteFill} />
+        <View
+          style={[
+            styles.liquidTopSpecularEdge,
+            { borderTopLeftRadius: borderRadius, borderTopRightRadius: borderRadius },
+          ]}
+          pointerEvents="none"
+        />
+        <View
+          style={[
+            styles.liquidTopGlossWash,
+            { borderTopLeftRadius: borderRadius, borderTopRightRadius: borderRadius },
+          ]}
+          pointerEvents="none"
+        />
         {children}
-      </LiquidGlassView>
+      </View>
     );
   }
 
@@ -82,8 +128,7 @@ function LiquidGlassCard({
 }
 
 /**
- * Native Liquid Glass Pill for iOS 26 header badges using `expo-liquid-glass-view`.
- * On Android, renders a solid luxury dark pill.
+ * Native Liquid Glass Pill for iOS header badges.
  */
 function LiquidGlassPill({
   children,
@@ -95,15 +140,25 @@ function LiquidGlassPill({
   borderRadius?: number;
 }) {
   if (Platform.OS === 'ios') {
+    if (isExpoLiquidGlassLinked) {
+      return (
+        <LiquidGlassView
+          variant="regular"
+          cornerRadius={borderRadius}
+          tint="rgba(10, 10, 14, 0.6)"
+          style={[styles.iosLiquidPillWrap, style]}
+        >
+          {children}
+        </LiquidGlassView>
+      );
+    }
+
     return (
-      <LiquidGlassView
-        variant="regular"
-        cornerRadius={borderRadius}
-        tint="rgba(10, 10, 14, 0.6)"
-        style={[styles.iosLiquidPillWrap, style]}
-      >
+      <View style={[styles.iosLiquidPillWrap, style]}>
+        <BlurView intensity={45} tint="dark" style={StyleSheet.absoluteFill} />
+        <View style={styles.liquidPillSpecularEdge} pointerEvents="none" />
         {children}
-      </LiquidGlassView>
+      </View>
     );
   }
 
@@ -111,6 +166,51 @@ function LiquidGlassPill({
     <View style={[styles.androidSolidPillWrap, style]}>
       {children}
     </View>
+  );
+}
+
+/**
+ * Circle Button with native Liquid Glass on iOS / Normal obsidian on Android
+ */
+function GlassCircleButton({
+  onPress,
+  children,
+  style,
+}: {
+  onPress: () => void;
+  children: React.ReactNode;
+  style?: any;
+}) {
+  if (Platform.OS === 'ios') {
+    if (isExpoLiquidGlassLinked) {
+      return (
+        <LiquidGlassView
+          variant="regular"
+          cornerRadius={21}
+          tint="rgba(10, 10, 14, 0.6)"
+          interactive
+          style={[styles.glassCircleBtn, style]}
+        >
+          <Pressable onPress={onPress} style={styles.glassCircleBtnInner}>
+            {children}
+          </Pressable>
+        </LiquidGlassView>
+      );
+    }
+
+    return (
+      <Pressable onPress={onPress} style={[styles.glassCircleBtn, style]}>
+        <BlurView intensity={45} tint="dark" style={StyleSheet.absoluteFill} />
+        <View style={styles.liquidCircleSpecular} pointerEvents="none" />
+        {children}
+      </Pressable>
+    );
+  }
+
+  return (
+    <Pressable onPress={onPress} style={[styles.glassCircleBtnAndroid, style]}>
+      {children}
+    </Pressable>
   );
 }
 
@@ -399,25 +499,11 @@ export function StartDutyScreen({ navigation }: Props) {
         </View>
       )}
 
-      {/* FLOATING TOP BAR: EXPO LIQUID GLASS ON IOS 26 / SOLID LUXURY OBSIDIAN ON ANDROID */}
+      {/* FLOATING TOP BAR: EXPO LIQUID GLASS ON IOS / SOLID LUXURY OBSIDIAN ON ANDROID */}
       <View style={[styles.topBar, { top: insets.top + 8 }]}>
-        {Platform.OS === 'ios' ? (
-          <LiquidGlassView
-            variant="regular"
-            cornerRadius={21}
-            tint="rgba(10, 10, 14, 0.6)"
-            interactive
-            style={styles.glassCircleBtn}
-          >
-            <Pressable onPress={() => navigation.goBack()} style={styles.glassCircleBtnInner}>
-              <Ionicons name="chevron-back" size={22} color="#FFFFFF" />
-            </Pressable>
-          </LiquidGlassView>
-        ) : (
-          <Pressable onPress={() => navigation.goBack()} style={styles.glassCircleBtnAndroid}>
-            <Ionicons name="chevron-back" size={22} color="#FFFFFF" />
-          </Pressable>
-        )}
+        <GlassCircleButton onPress={() => navigation.goBack()}>
+          <Ionicons name="chevron-back" size={22} color="#FFFFFF" />
+        </GlassCircleButton>
 
         <LiquidGlassPill style={styles.vehicleBadgePill}>
           <View style={styles.pulseDot} />
@@ -431,31 +517,13 @@ export function StartDutyScreen({ navigation }: Props) {
         </LiquidGlassPill>
 
         {!capturedPhoto && (
-          Platform.OS === 'ios' ? (
-            <LiquidGlassView
-              variant="regular"
-              cornerRadius={21}
-              tint="rgba(10, 10, 14, 0.6)"
-              interactive
-              style={styles.glassCircleBtn}
-            >
-              <Pressable onPress={toggleFlash} style={styles.glassCircleBtnInner}>
-                <Ionicons
-                  name={flash === 'on' ? 'flash' : flash === 'auto' ? 'flash-outline' : 'flash-off-outline'}
-                  size={18}
-                  color={flash !== 'off' ? '#FFFFFF' : '#A1A1AA'}
-                />
-              </Pressable>
-            </LiquidGlassView>
-          ) : (
-            <Pressable onPress={toggleFlash} style={styles.glassCircleBtnAndroid}>
-              <Ionicons
-                name={flash === 'on' ? 'flash' : flash === 'auto' ? 'flash-outline' : 'flash-off-outline'}
-                size={18}
-                color={flash !== 'off' ? '#FFFFFF' : '#A1A1AA'}
-              />
-            </Pressable>
-          )
+          <GlassCircleButton onPress={toggleFlash}>
+            <Ionicons
+              name={flash === 'on' ? 'flash' : flash === 'auto' ? 'flash-outline' : 'flash-off-outline'}
+              size={18}
+              color={flash !== 'off' ? '#FFFFFF' : '#A1A1AA'}
+            />
+          </GlassCircleButton>
         )}
       </View>
 
@@ -806,6 +874,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.18)',
+    backgroundColor: 'rgba(18, 18, 20, 0.58)',
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.55,
@@ -817,6 +886,24 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 255, 255, 0.14)',
     elevation: 8,
   },
+  liquidTopSpecularEdge: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 1.5,
+    backgroundColor: 'rgba(255, 255, 255, 0.45)',
+    zIndex: 2,
+  },
+  liquidTopGlossWash: {
+    position: 'absolute',
+    top: 1,
+    left: 1,
+    right: 1,
+    height: 32,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    zIndex: 1,
+  },
   iosLiquidPillWrap: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -824,6 +911,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: 'rgba(18, 18, 20, 0.65)',
     paddingHorizontal: 14,
     paddingVertical: 8,
     shadowColor: '#000000',
@@ -842,6 +930,14 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     elevation: 4,
   },
+  liquidPillSpecularEdge: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.4)',
+  },
 
   /* FLOATING TOP BAR */
   topBar: {
@@ -858,8 +954,11 @@ const styles = StyleSheet.create({
     height: 42,
     borderRadius: 21,
     overflow: 'hidden',
+    backgroundColor: 'rgba(18, 18, 20, 0.65)',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.3,
@@ -881,6 +980,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     elevation: 3,
+  },
+  liquidCircleSpecular: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.5)',
   },
   vehicleBadgePill: {
     // Layout handled inside LiquidGlassPill
