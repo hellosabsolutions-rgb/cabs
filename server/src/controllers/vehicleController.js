@@ -577,9 +577,155 @@ export const updateVehicle = asyncHandler(async (req, res) => {
   });
 });
 
+/**
+ * @desc    Bulk onboard multiple vehicles via Excel / CSV without images
+ * @route   POST /api/vehicles/bulk
+ * @access  Public / Private
+ */
+export const bulkCreateVehicles = asyncHandler(async (req, res) => {
+  const vehiclesList = req.body.vehicles;
+  if (!Array.isArray(vehiclesList) || vehiclesList.length === 0) {
+    return res.status(400).json({
+      success: false,
+      error: 'Please provide an array of vehicles to import.'
+    });
+  }
+
+  const results = {
+    total: vehiclesList.length,
+    created: 0,
+    updated: 0,
+    skipped: 0,
+    errors: []
+  };
+
+  const calcComplianceMeta = (expDateStr) => {
+    if (!expDateStr) return { statusType: 'ok', daysLeft: 365, expiryLabel: 'Valid' };
+    const exp = new Date(expDateStr);
+    const now = new Date();
+    const diffDays = Math.ceil((exp.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    if (isNaN(diffDays)) return { statusType: 'ok', daysLeft: 365, expiryLabel: 'Valid' };
+    if (diffDays < 0) {
+      return { statusType: 'late', daysLeft: diffDays, expiryLabel: `Expired ${Math.abs(diffDays)}d ago` };
+    } else if (diffDays <= 30) {
+      return { statusType: 'soon', daysLeft: diffDays, expiryLabel: `Expires in ${diffDays}d` };
+    }
+    return { statusType: 'ok', daysLeft: diffDays, expiryLabel: `Valid (${diffDays}d left)` };
+  };
+
+  for (let i = 0; i < vehiclesList.length; i++) {
+    const item = vehiclesList[i];
+    const rowNum = i + 1;
+
+    if (!item.registrationNumber || !String(item.registrationNumber).trim()) {
+      results.errors.push(`Row #${rowNum}: Vehicle registration number is required.`);
+      results.skipped++;
+      continue;
+    }
+
+    const cleanReg = String(item.registrationNumber).trim().toUpperCase().replace(/\s+/g, '');
+    const agencyId = req.user?.currentAgency || item.agencyId;
+
+    const cleanType = (item.type && String(item.type).toLowerCase().includes('dept')) ? 'Department' : 'Trip-based';
+    let assignedTo = item.assignedTo ? String(item.assignedTo).trim() : (cleanType === 'Department' ? 'Department Contract' : 'General / Retail Bookings');
+    const assignedDriver = item.assignedDriver && item.assignedDriver !== '—' && item.assignedDriver !== 'Unassigned'
+      ? String(item.assignedDriver).trim()
+      : undefined;
+
+    const payload = {
+      registrationNumber: cleanReg,
+      type: cleanType,
+      assignedTo,
+      departmentName: cleanType === 'Department' ? assignedTo : (item.departmentName || undefined),
+      model: item.model ? String(item.model).trim() : 'Commercial Vehicle',
+      fuelType: item.fuelType || 'Diesel',
+      seatingCapacity: Number(item.seatingCapacity) || 5,
+      assignedDriver,
+      odometer: Number(item.odometer) || 0,
+      fastagTagId: item.fastagTagId ? String(item.fastagTagId).trim() : undefined,
+      fastagBank: item.fastagBank ? String(item.fastagBank).trim() : undefined,
+      fastagBalance: Number(item.fastagBalance) || 0,
+      gpsImei: item.gpsImei ? String(item.gpsImei).trim() : undefined,
+      status: item.status || 'Idle',
+      rcExpiry: item.rcExpiry || undefined,
+      insuranceExpiry: item.insuranceExpiry || undefined,
+      pollutionExpiry: item.pollutionExpiry || item.puccExpiry || undefined,
+      permitExpiry: item.permitExpiry || undefined,
+      authExpiry: item.authExpiry || undefined,
+      fitnessExpiry: item.fitnessExpiry || undefined,
+      revenue: Number(item.revenue) || 0,
+      expense: Number(item.expense) || 0,
+      profit: (Number(item.revenue) || 0) - (Number(item.expense) || 0),
+      ...(agencyId ? { agencyId } : {})
+    };
+
+    try {
+      const existing = await Vehicle.findOne({
+        registrationNumber: cleanReg,
+        ...(agencyId ? { agencyId } : {})
+      });
+
+      if (existing) {
+        await Vehicle.findByIdAndUpdate(existing._id, { $set: payload }, { runValidators: true });
+        results.updated++;
+      } else {
+        await Vehicle.create(payload);
+        results.created++;
+      }
+
+      // Sync Compliance records for expiry dates
+      const syncDoc = async (docName, expDate) => {
+        if (!expDate) return;
+        const meta = calcComplianceMeta(expDate);
+        const compData = {
+          entityName: cleanReg,
+          entityType: 'Vehicle',
+          documentName: docName,
+          expiryDate: expDate,
+          expiryLabel: meta.expiryLabel,
+          statusType: meta.statusType,
+          daysLeft: meta.daysLeft,
+          ...(agencyId ? { agencyId } : {})
+        };
+
+        const existingDoc = await Compliance.findOne({
+          entityName: cleanReg,
+          entityType: 'Vehicle',
+          documentName: docName,
+          ...(agencyId ? { agencyId } : {})
+        });
+
+        if (existingDoc) {
+          await Compliance.findByIdAndUpdate(existingDoc._id, { $set: compData });
+        } else {
+          await Compliance.create(compData);
+        }
+      };
+
+      await syncDoc('RC', payload.rcExpiry);
+      await syncDoc('Insurance', payload.insuranceExpiry);
+      await syncDoc('PUC', payload.pollutionExpiry);
+      await syncDoc('Permit', payload.permitExpiry);
+      await syncDoc('Fitness', payload.fitnessExpiry);
+
+    } catch (err) {
+      results.errors.push(`Row #${rowNum} (${cleanReg}): ${err.message}`);
+      results.skipped++;
+    }
+  }
+
+  res.status(200).json({
+    success: true,
+    message: `Bulk vehicle onboarding processed: ${results.created} created, ${results.updated} updated, ${results.skipped} skipped.`,
+    summary: results,
+    count: results.created + results.updated
+  });
+});
+
 export const vehicleController = {
   ...baseVehicleController,
   getById: getVehicleById,
   create: onboardVehicle,
-  update: updateVehicle
+  update: updateVehicle,
+  bulkCreate: bulkCreateVehicles
 };

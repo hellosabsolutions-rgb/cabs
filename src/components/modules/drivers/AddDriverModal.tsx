@@ -171,10 +171,11 @@ export const AddDriverModal: React.FC<AddDriverModalProps> = ({ isOpen, onClose 
       setIsSubmitting(false);
 
       // Show generated credentials if backend returned them
-      if (res?.credentials) {
+      const resAny = res as any;
+      if (resAny?.credentials) {
         setGeneratedCreds({
-          loginId: res.credentials.loginId || fullPhone,
-          password: res.credentials.password,
+          loginId: resAny.credentials.loginId || fullPhone,
+          password: resAny.credentials.password,
           driverName: driverFullName
         });
       } else {

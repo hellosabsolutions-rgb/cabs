@@ -5,6 +5,7 @@ import { Sidebar } from './Sidebar';
 import { Topbar } from './Topbar';
 import { DashboardView } from '../modules/dashboard/DashboardView';
 import { VehiclesView } from '../modules/vehicles/VehiclesView';
+import { VehicleDetailView } from '../modules/vehicles/VehicleDetailView';
 import { DriversView } from '../modules/drivers/DriversView';
 import { DepartmentsView } from '../modules/departments/DepartmentsView';
 import { BookingsView } from '../modules/bookings/BookingsView';
@@ -88,6 +89,7 @@ export const MainLayout: React.FC = () => {
 
               {/* Vehicles */}
               <Route path="/vehicles" element={<VehiclesView />} />
+              <Route path="/vehicles/:id" element={<VehicleDetailView />} />
 
               {/* Drivers & Subtabs */}
               <Route path="/drivers" element={<Navigate to="/drivers/list" replace />} />

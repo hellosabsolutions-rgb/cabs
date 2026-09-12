@@ -559,10 +559,153 @@ export const deleteDriver = asyncHandler(async (req, res) => {
   });
 });
 
+/**
+ * @desc    Bulk onboard drivers from CSV import
+ * @route   POST /api/drivers/bulk
+ * @access  Public / Private
+ */
+export const bulkCreateDrivers = asyncHandler(async (req, res) => {
+  const driversList = req.body.drivers;
+  if (!Array.isArray(driversList) || driversList.length === 0) {
+    return res.status(400).json({
+      success: false,
+      error: 'Please provide an array of drivers to import.'
+    });
+  }
+
+  const results = {
+    total: driversList.length,
+    created: 0,
+    updated: 0,
+    skipped: 0,
+    errors: []
+  };
+
+  const processedDrivers = [];
+
+  for (let i = 0; i < driversList.length; i++) {
+    const item = driversList[i];
+    const rowNum = i + 1;
+
+    if (!item.name || !String(item.name).trim()) {
+      results.errors.push(`Row #${rowNum}: Driver name is required.`);
+      results.skipped++;
+      continue;
+    }
+
+    if (!item.phone || !String(item.phone).trim()) {
+      results.errors.push(`Row #${rowNum} (${item.name}): Phone number is required.`);
+      results.skipped++;
+      continue;
+    }
+
+    const cleanName = String(item.name).trim();
+    const cleanPhone = String(item.phone).trim();
+    const agencyId = req.user?.agencyId || item.agencyId;
+
+    const cleanVehicle = item.assignedVehicle && item.assignedVehicle !== '—' && item.assignedVehicle.toLowerCase() !== 'unassigned'
+      ? String(item.assignedVehicle).trim()
+      : '—';
+
+    const cleanJoiningDate = item.joiningDate || new Date().toISOString().split('T')[0];
+
+    const driverPayload = {
+      name: cleanName,
+      phone: cleanPhone,
+      address: item.address ? String(item.address).trim() : undefined,
+      emergencyContact: item.emergencyContact ? String(item.emergencyContact).trim() : undefined,
+      licenseNumber: item.licenseNumber ? String(item.licenseNumber).trim().toUpperCase() : undefined,
+      licenseExpiry: item.licenseExpiry || undefined,
+      driverType: item.driverType || 'Full Time',
+      assignedVehicle: cleanVehicle,
+      joiningDate: cleanJoiningDate,
+      status: item.status || 'On duty',
+      monthlySalary: Number(item.monthlySalary) || 0,
+      ...(agencyId ? { agencyId } : {})
+    };
+
+    try {
+      // Check existing driver by phone
+      const existing = await Driver.findOne({
+        phone: cleanPhone,
+        ...(agencyId ? { agencyId } : {})
+      });
+
+      let savedDriver;
+      if (existing) {
+        Object.assign(existing, driverPayload);
+        savedDriver = await existing.save();
+        results.updated++;
+      } else {
+        savedDriver = await Driver.create(driverPayload);
+        results.created++;
+      }
+
+      processedDrivers.push(savedDriver);
+
+      // 1. Sync vehicle assignedDriver if valid vehicle was given
+      if (cleanVehicle !== '—') {
+        try {
+          await Vehicle.findOneAndUpdate(
+            { registrationNumber: cleanVehicle },
+            { assignedDriver: cleanName }
+          );
+        } catch (vErr) {
+          console.warn('Could not auto-sync assignedDriver to vehicle:', vErr.message);
+        }
+      }
+
+      // 2. Sync compliance document for driver license if licenseNumber is provided
+      if (driverPayload.licenseNumber) {
+        try {
+          const expDateStr = driverPayload.licenseExpiry || (() => {
+            const d = new Date();
+            d.setFullYear(d.getFullYear() + 3);
+            return d.toISOString().split('T')[0];
+          })();
+          const meta = calculateExpiryMeta(expDateStr);
+
+          await Compliance.findOneAndUpdate(
+            {
+              entityName: cleanName,
+              entityType: 'Driver',
+              documentName: 'Driving licence'
+            },
+            {
+              documentNumber: driverPayload.licenseNumber,
+              issueDate: cleanJoiningDate,
+              expiryDate: expDateStr,
+              issuingAuthority: 'Regional Transport Office (RTO)',
+              expiryLabel: meta.expiryLabel,
+              statusType: meta.statusType,
+              daysLeft: meta.daysLeft,
+              ...(agencyId ? { agencyId } : {})
+            },
+            { upsert: true, new: true }
+          );
+        } catch (cErr) {
+          console.warn('Could not auto-create license compliance:', cErr.message);
+        }
+      }
+    } catch (err) {
+      results.errors.push(`Row #${rowNum} (${cleanName}): ${err.message}`);
+      results.skipped++;
+    }
+  }
+
+  res.status(200).json({
+    success: true,
+    message: `Processed ${results.total} drivers: ${results.created} created, ${results.updated} updated, ${results.skipped} skipped.`,
+    data: processedDrivers,
+    summary: results
+  });
+});
+
 export const driverController = {
   getAll: getDrivers,
   getById: getDriverById,
   create: createDriver,
+  bulkCreate: bulkCreateDrivers,
   update: updateDriver,
   updateStatus: updateDriverStatus,
   delete: deleteDriver

@@ -5,18 +5,22 @@ import { StatusChip } from '../../common/StatusChip';
 import { StatusDropdown } from '../../common/StatusDropdown';
 import { AddVehicleModal } from './AddVehicleModal';
 import { EditVehicleModal } from './EditVehicleModal';
+import { ImportVehiclesModal } from './ImportVehiclesModal';
+import { VehicleDetailView } from './VehicleDetailView';
 import { VehicleAvailabilityModal } from '../bookings/VehicleAvailabilityModal';
 import { Vehicle, VehicleStatus, VehicleType } from '../../../types/fleet';
-import { Truck, Briefcase, Building2, Plus, FileText, RotateCcw, MapPin, Fuel, AlertTriangle, Shield, Wind, FileCheck, Award, Eye, Calendar, Edit2, Trash2 } from 'lucide-react';
+import { Briefcase, Building2, Plus, FileText, RotateCcw, MapPin, Fuel, AlertTriangle, Shield, Wind, FileCheck, Award, Eye, Calendar, Edit2, Trash2, Download, FileSpreadsheet } from 'lucide-react';
+import { downloadVehicleExcelTemplate } from '../../../utils/csvHelper';
 import { SkeletonCard, SkeletonTable, SoftRefreshBar } from '../../common/Skeleton';
 
 export const VehiclesView: React.FC = () => {
   const { vehicles, searchQuery, updateVehicleStatus, switchVehicleMode, deleteVehicle, isLoading, isLoadingVehicles } = useFleet();
 
   const [typeFilter, setTypeFilter] = useState<'All' | VehicleType>('All');
-  const [statusFilter, setStatusFilter] = useState<string>('All');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [editingVehicle, setEditingVehicle] = useState<Vehicle | null>(null);
+  const [selectedVehicleForDetail, setSelectedVehicleForDetail] = useState<Vehicle | null>(null);
   const [isAvailabilityModalOpen, setIsAvailabilityModalOpen] = useState(false);
   const [viewRc, setViewRc] = useState<string | null>(null);
   const [selectedVehicleDocs, setSelectedVehicleDocs] = useState<Vehicle | null>(null);
@@ -37,11 +41,10 @@ export const VehiclesView: React.FC = () => {
         typeFilter === 'All' ||
         v.type === typeFilter ||
         (typeFilter === 'Trip-based' && v.currentOperationMode === 'Trip-based');
-      const matchStatus = statusFilter === 'All' || v.status === statusFilter;
 
-      return matchSearch && matchType && matchStatus;
+      return matchSearch && matchType;
     });
-  }, [vehicles, searchQuery, typeFilter, statusFilter]);
+  }, [vehicles, searchQuery, typeFilter]);
 
   const stats = useMemo(() => {
     let running = 0;
@@ -84,6 +87,24 @@ export const VehiclesView: React.FC = () => {
     );
   }
 
+  if (selectedVehicleForDetail) {
+    const currentVeh = vehicles.find(v => v.id === selectedVehicleForDetail.id) || selectedVehicleForDetail;
+    return (
+      <>
+        <VehicleDetailView
+          vehicle={currentVeh}
+          onBack={() => setSelectedVehicleForDetail(null)}
+          onEdit={v => setEditingVehicle(v)}
+        />
+        <EditVehicleModal
+          isOpen={Boolean(editingVehicle)}
+          onClose={() => setEditingVehicle(null)}
+          vehicle={editingVehicle}
+        />
+      </>
+    );
+  }
+
   return (
     <div className="section active" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       <SoftRefreshBar visible={isLoadingVehicles && vehicles.length > 0} label="Syncing vehicles…" />
@@ -106,54 +127,54 @@ export const VehiclesView: React.FC = () => {
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-            {/* Vehicle Type Filter (All, Booking, Department) */}
-            <button
-              className={`subtab-btn ${typeFilter === 'All' ? 'active' : ''}`}
-              onClick={() => setTypeFilter('All')}
-              style={{ padding: '5px 12px', fontSize: '12px' }}
-            >
-              <Truck size={13} />
-              All Vehicles ({vehicles.length})
-            </button>
-
-            <button
-              className={`subtab-btn ${typeFilter === 'Trip-based' ? 'active' : ''}`}
-              onClick={() => setTypeFilter('Trip-based')}
-              style={{
-                padding: '5px 12px',
-                fontSize: '12px',
-                color: typeFilter === 'Trip-based' ? '#38bdf8' : undefined
-              }}
-            >
-              <Briefcase size={13} />
-              Booking Vehicles ({tripCount})
-            </button>
-
-            <button
-              className={`subtab-btn ${typeFilter === 'Department' ? 'active' : ''}`}
-              onClick={() => setTypeFilter('Department')}
-              style={{
-                padding: '5px 12px',
-                fontSize: '12px',
-                color: typeFilter === 'Department' ? '#ffcc4d' : undefined
-              }}
-            >
-              <Building2 size={13} />
-              Department Vehicles ({deptCount})
-            </button>
-
-            {/* Status Filter Dropdown */}
+            {/* Vehicle Type Filter Dropdown */}
             <select
               className="form-input"
               style={{ width: 'auto', padding: '5px 10px', fontSize: '12px' }}
-              value={statusFilter}
-              onChange={e => setStatusFilter(e.target.value)}
+              value={typeFilter}
+              onChange={e => setTypeFilter(e.target.value as 'All' | VehicleType)}
             >
-              <option value="All">All Statuses</option>
-              <option value="Running">Running / Active</option>
-              <option value="Idle">Idle in Yard</option>
-              <option value="Maintenance">Maintenance</option>
+              <option value="All">All Vehicles ({vehicles.length})</option>
+              <option value="Trip-based">Booking Vehicles ({tripCount})</option>
+              <option value="Department">Department Vehicles ({deptCount})</option>
             </select>
+
+
+            {/* Download Dummy Excel Template Button */}
+            <button
+              className="btn-secondary"
+              style={{
+                fontSize: '12px',
+                padding: '6px 12px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                borderColor: 'rgba(56, 189, 248, 0.3)',
+                color: 'var(--text)'
+              }}
+              onClick={() => downloadVehicleExcelTemplate()}
+              title="Download dummy Excel (.xlsx) template for vehicle bulk onboarding"
+            >
+              <Download size={13} color="#38bdf8" /> Dummy Template
+            </button>
+
+            {/* Bulk Onboard Vehicles Button */}
+            <button
+              className="btn-secondary"
+              style={{
+                fontSize: '12px',
+                padding: '6px 12px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                borderColor: 'rgba(56, 189, 248, 0.4)',
+                color: '#38bdf8'
+              }}
+              onClick={() => setIsImportModalOpen(true)}
+              title="Bulk onboard fleet vehicles from Excel or CSV spreadsheet"
+            >
+              <FileSpreadsheet size={13} /> Bulk Onboard (Excel)
+            </button>
 
             {/* Check Date Availability Button */}
             <button
@@ -214,7 +235,7 @@ export const VehiclesView: React.FC = () => {
                     <td>
                       <div>
                         <div
-                          onClick={() => setEditingVehicle(v)}
+                          onClick={() => setSelectedVehicleForDetail(v)}
                           style={{
                             fontWeight: 700,
                             color: 'var(--text)',
@@ -224,12 +245,18 @@ export const VehiclesView: React.FC = () => {
                             cursor: 'pointer',
                             display: 'inline-flex',
                             alignItems: 'center',
-                            gap: '5px'
+                            gap: '6px'
                           }}
-                          title="Click to edit vehicle details"
+                          title="Click to view full vehicle details & history"
                         >
-                          <span>{v.registrationNumber}</span>
-                          <Edit2 size={11} color="var(--accent)" style={{ opacity: 0.7 }} />
+                          <span
+                            style={{ transition: 'color 0.15s ease' }}
+                            onMouseEnter={e => (e.currentTarget.style.color = '#38bdf8')}
+                            onMouseLeave={e => (e.currentTarget.style.color = 'var(--text)')}
+                          >
+                            {v.registrationNumber}
+                          </span>
+                          <Eye size={12} color="#38bdf8" style={{ opacity: 0.85 }} />
                         </div>
                         <div
                           className="cell-truncate-md"
@@ -245,13 +272,12 @@ export const VehiclesView: React.FC = () => {
                     <td>
                       <div>
                         <span
-                          className={`tag ${
-                            v.currentOperationMode === 'Trip-based'
+                          className={`tag ${v.currentOperationMode === 'Trip-based'
                               ? 'trip'
                               : v.type === 'Department'
-                              ? 'dept'
-                              : 'trip'
-                          }`}
+                                ? 'dept'
+                                : 'trip'
+                            }`}
                           style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', whiteSpace: 'nowrap' }}
                         >
                           {v.currentOperationMode === 'Trip-based' && v.type === 'Department' ? (
@@ -502,6 +528,12 @@ export const VehiclesView: React.FC = () => {
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
         defaultType={typeFilter !== 'All' ? typeFilter : 'Trip-based'}
+      />
+
+      {/* Bulk Import Vehicles Modal */}
+      <ImportVehiclesModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
       />
 
       {/* Edit Vehicle Modal Form */}

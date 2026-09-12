@@ -9,6 +9,10 @@ router
   .post(driverController.create);
 
 router
+  .route('/bulk')
+  .post(driverController.bulkCreate);
+
+router
   .route('/:id')
   .get(driverController.getById)
   .put(driverController.update)
