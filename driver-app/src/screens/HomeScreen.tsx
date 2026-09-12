@@ -115,35 +115,45 @@ function getGreetingDetails(hour: number): {
  */
 function HeroBottomFade({ isDark, targetBg }: { isDark: boolean; targetBg: string }) {
   const slices = useMemo(() => {
-    const count = 28;
-    // Light mode stops:
-    // 0.00: Hero Royal Blue (#1267DE / rgb(18, 103, 222))
-    // 0.25: Vibrant Azure / Sky Blue (#3B82F6 / rgb(59, 130, 246))
-    // 0.55: Soft Powder Blue (#93C5FD / rgb(147, 197, 253))
-    // 0.80: Whispering Ice Blue (#DBEAFE / rgb(219, 234, 254))
-    // 1.00: Target background (#FFFFFF / rgb(255, 255, 255))
-    const startRgb = isDark ? [13, 72, 153] : [18, 103, 222];
-    const mid1Rgb = isDark ? [15, 56, 115] : [59, 130, 246];
-    const mid2Rgb = isDark ? [15, 38, 75] : [147, 197, 253];
-    const mid3Rgb = isDark ? [13, 24, 45] : [219, 234, 254];
+    const count = 34;
+    // Light mode stops (significantly lighter, airier gradient curve):
+    // 0.00: Hero Blue (#1A73E8 / rgb(26, 115, 232))
+    // 0.10: Sky Blue (#60A5FA / rgb(96, 165, 250))
+    // 0.25: Soft Powder Blue (#93C5FD / rgb(147, 197, 253))
+    // 0.45: Light Ice Blue (#BAE6FD / rgb(186, 230, 253))
+    // 0.65: Ethereal Mist Blue (#E0F2FE / rgb(224, 242, 254))
+    // 0.85: Whispering Cloud Blue (#F0F9FF / rgb(240, 249, 255))
+    // 1.00: Pure White / Target BG (#FFFFFF / rgb(255, 255, 255))
+    const startRgb = isDark ? [13, 72, 153] : [26, 115, 232];
+    const stop1 = isDark ? [15, 52, 105] : [96, 165, 250];
+    const stop2 = isDark ? [16, 38, 75] : [147, 197, 253];
+    const stop3 = isDark ? [14, 26, 52] : [186, 230, 253];
+    const stop4 = isDark ? [13, 19, 36] : [224, 242, 254];
+    const stop5 = isDark ? [12, 14, 22] : [240, 249, 255];
     const endRgb = isDark ? [11, 11, 11] : [255, 255, 255];
 
     const items: string[] = [];
     for (let i = 0; i < count; i++) {
       const t = i / (count - 1);
       let c: number[];
-      if (t < 0.25) {
-        const localT = t / 0.25;
-        c = startRgb.map((s, idx) => Math.round(s + (mid1Rgb[idx] - s) * localT));
-      } else if (t < 0.55) {
-        const localT = (t - 0.25) / 0.30;
-        c = mid1Rgb.map((s, idx) => Math.round(s + (mid2Rgb[idx] - s) * localT));
-      } else if (t < 0.80) {
-        const localT = (t - 0.55) / 0.25;
-        c = mid2Rgb.map((s, idx) => Math.round(s + (mid3Rgb[idx] - s) * localT));
+      if (t < 0.10) {
+        const localT = t / 0.10;
+        c = startRgb.map((s, idx) => Math.round(s + (stop1[idx] - s) * localT));
+      } else if (t < 0.25) {
+        const localT = (t - 0.10) / 0.15;
+        c = stop1.map((s, idx) => Math.round(s + (stop2[idx] - s) * localT));
+      } else if (t < 0.45) {
+        const localT = (t - 0.25) / 0.20;
+        c = stop2.map((s, idx) => Math.round(s + (stop3[idx] - s) * localT));
+      } else if (t < 0.65) {
+        const localT = (t - 0.45) / 0.20;
+        c = stop3.map((s, idx) => Math.round(s + (stop4[idx] - s) * localT));
+      } else if (t < 0.85) {
+        const localT = (t - 0.65) / 0.20;
+        c = stop4.map((s, idx) => Math.round(s + (stop5[idx] - s) * localT));
       } else {
-        const localT = (t - 0.80) / 0.20;
-        c = mid3Rgb.map((s, idx) => Math.round(s + (endRgb[idx] - s) * localT));
+        const localT = (t - 0.85) / 0.15;
+        c = stop5.map((s, idx) => Math.round(s + (endRgb[idx] - s) * localT));
       }
       items.push(`rgb(${c[0]}, ${c[1]}, ${c[2]})`);
     }
@@ -739,13 +749,13 @@ const styles = StyleSheet.create({
   heroContainer: {
     width: '100%',
     paddingHorizontal: space.lg,
-    paddingBottom: 14,
+    paddingBottom: 2,
     position: 'relative',
     overflow: 'hidden',
   },
   fadeContainer: {
     width: '100%',
-    height: 68,
+    height: 85,
     overflow: 'hidden',
   },
   fadeSlice: {
@@ -763,12 +773,12 @@ const styles = StyleSheet.create({
   },
   ambientGlowBottom: {
     position: 'absolute',
-    bottom: -40,
-    left: -30,
-    width: 200,
-    height: 200,
-    borderRadius: 100,
-    backgroundColor: 'rgba(59, 130, 246, 0.22)',
+    bottom: -60,
+    left: -40,
+    width: 260,
+    height: 220,
+    borderRadius: 110,
+    backgroundColor: 'rgba(147, 197, 253, 0.32)',
   },
   heroHeaderRow: {
     flexDirection: 'row',
