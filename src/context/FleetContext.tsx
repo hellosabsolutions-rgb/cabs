@@ -21,6 +21,7 @@ import {
   ContractDepartment,
   TripFinancial,
   ExpenseRecord,
+  TripExpenseRecord,
   DocumentCompliance,
   MaintenanceRecord,
   ToastNotification,
@@ -64,7 +65,7 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [vehicleSubTab, setVehicleSubTab] = useState<VehicleSubTab>('all');
   const [driverSubTab, setDriverSubTab] = useState<DriverSubTab>('list');
   const [departmentSubTab, setDepartmentSubTab] = useState<DepartmentSubTab>('contracts');
-  const [expenseSubTab, setExpenseSubTab] = useState<'fuel' | 'fastag' | 'all'>('fastag');
+  const [expenseSubTab, setExpenseSubTab] = useState<'fuel' | 'fastag' | 'all' | 'trips'>('fastag');
   
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
@@ -83,6 +84,7 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [contracts] = useState<ContractDepartment[]>([]);
   const [trips, setTrips] = useState<TripFinancial[]>([]);
   const [expenses, setExpenses] = useState<ExpenseRecord[]>([]);
+  const [tripExpenses, setTripExpenses] = useState<TripExpenseRecord[]>([]);
   const [vehicleCompliance, setVehicleCompliance] = useState<DocumentCompliance[]>([]);
   const [driverCompliance, setDriverCompliance] = useState<DocumentCompliance[]>([]);
   
@@ -131,6 +133,7 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setActivePage('expenses');
       if (path.includes('/fuel')) setExpenseSubTab('fuel');
       else if (path.includes('/all')) setExpenseSubTab('all');
+      else if (path.includes('/trips')) setExpenseSubTab('trips');
       else setExpenseSubTab('fastag');
     } else if (path.startsWith('/profitability')) {
       setActivePage('profitability');
@@ -166,7 +169,13 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       departments: departmentSubTab === 'duty-logs' ? '/departments/duty-logs' : departmentSubTab === 'billing' ? '/departments/billing' : departmentSubTab === 'payments' ? '/departments/payments' : '/departments/contracts',
       bookings: '/booking',
       trips: '/booking',
-      expenses: expenseSubTab === 'fuel' ? '/expenses/fuel' : expenseSubTab === 'all' ? '/expenses/all' : '/expenses/fastag',
+      expenses: expenseSubTab === 'fuel'
+        ? '/expenses/fuel'
+        : expenseSubTab === 'all'
+        ? '/expenses/all'
+        : expenseSubTab === 'trips'
+        ? '/expenses/trips'
+        : '/expenses/fastag',
       profitability: '/profitability',
       compliance: '/compliance',
       maintenance: '/maintenance'
@@ -193,7 +202,7 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
-  const handleSetExpenseSubTab = (tab: 'fuel' | 'fastag' | 'all') => {
+  const handleSetExpenseSubTab = (tab: 'fuel' | 'fastag' | 'all' | 'trips') => {
     setExpenseSubTab(tab);
     const target = `/expenses/${tab}`;
     if (location.pathname !== target) {
@@ -344,7 +353,15 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
       const res = await api.get(endpoint);
       if (res && res.success && Array.isArray(res.data)) {
-        setDriverExpenses(res.data);
+        setDriverExpenses(
+          res.data.map((item: any) => ({
+            ...item,
+            id: item.id || item._id,
+            amount: Number(item.amount || 0),
+            source: 'driver' as const,
+            createdBy: item.createdBy === 'driver' ? 'driver' : 'admin'
+          }))
+        );
       }
     } catch (err) {
       console.warn('Backend driver expenses API not reachable:', err);
@@ -439,6 +456,35 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
+  const fetchLiveTripExpenses = async (queryParam?: { bookingId?: string; driverId?: string; category?: string }) => {
+    try {
+      let endpoint = '/trip-expenses?limit=500';
+      if (queryParam) {
+        const params = new URLSearchParams();
+        if (queryParam.bookingId) params.append('bookingId', queryParam.bookingId);
+        if (queryParam.driverId) params.append('driverId', queryParam.driverId);
+        if (queryParam.category) params.append('category', queryParam.category);
+        const qStr = params.toString();
+        if (qStr) endpoint += `&${qStr}`;
+      }
+      const res = await api.get(endpoint);
+      if (res && res.success && Array.isArray(res.data)) {
+        setTripExpenses(
+          res.data.map((item: any) => ({
+            ...item,
+            id: item.id || item._id,
+            bookingId: String(item.bookingId || ''),
+            amount: Number(item.amount || 0),
+            createdBy: item.createdBy === 'admin' ? 'admin' : 'driver',
+            status: item.status === 'Paid' ? 'Paid' : item.status === 'Approved' ? 'Approved' : 'Pending'
+          }))
+        );
+      }
+    } catch (err) {
+      console.warn('Backend trip expenses API not reachable:', err);
+    }
+  };
+
   const fetchLiveMonthlyBills = async (queryParam?: { month?: string; department?: string; status?: string; search?: string }) => {
     try {
       let endpoint = '/bills?limit=100';
@@ -492,6 +538,7 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     fetchLiveBookings();
     fetchLiveDailyDutyLogs();
     fetchLiveFastagTransactions();
+    fetchLiveTripExpenses();
     fetchLiveMonthlyBills();
     fetchPayrollSummary();
     fetchLiveDashboardStats();
@@ -682,6 +729,96 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (data?.attendance) upsertAttendance({ record: data.attendance });
     };
 
+    const normalizeTripExpense = (item: any): TripExpenseRecord | null => {
+      if (!item) return null;
+      const id = item.id || item._id;
+      if (!id) return null;
+      return {
+        ...item,
+        id,
+        bookingId: String(item.bookingId || ''),
+        amount: Number(item.amount || 0),
+        createdBy: item.createdBy === 'admin' ? 'admin' : 'driver',
+        status: item.status === 'Paid' ? 'Paid' : item.status === 'Approved' ? 'Approved' : 'Pending'
+      };
+    };
+
+    const handleTripExpenseCreated = (data: any) => {
+      const normalized = normalizeTripExpense(data?.expense || data);
+      if (!normalized) return;
+      setTripExpenses(prev => {
+        if (prev.some(e => e.id === normalized.id)) {
+          return prev.map(e => (e.id === normalized.id ? { ...e, ...normalized } : e));
+        }
+        return [normalized, ...prev];
+      });
+      showToast(
+        'info',
+        `${normalized.category} · ₹${Number(normalized.amount).toLocaleString('en-IN')} on ${normalized.bookingNumber || 'trip'}`,
+        'Trip expense added'
+      );
+    };
+
+    const handleTripExpenseUpdated = (data: any) => {
+      const normalized = normalizeTripExpense(data?.expense || data);
+      if (!normalized) return;
+      setTripExpenses(prev => {
+        const exists = prev.some(e => e.id === normalized.id);
+        if (!exists) return [normalized, ...prev];
+        return prev.map(e => (e.id === normalized.id ? { ...e, ...normalized } : e));
+      });
+    };
+
+    const handleTripExpenseDeleted = (data: any) => {
+      const id = data?.expenseId || data?.id || data?._id || data?.expense?.id || data?.expense?._id;
+      if (!id) return;
+      setTripExpenses(prev => prev.filter(e => e.id !== id));
+    };
+
+    const normalizeDriverExpense = (item: any): DriverExpenseItem | null => {
+      if (!item) return null;
+      const id = item.id || item._id;
+      if (!id) return null;
+      return {
+        ...item,
+        id,
+        amount: Number(item.amount || 0),
+        source: 'driver',
+        createdBy: item.createdBy === 'driver' ? 'driver' : 'admin'
+      };
+    };
+
+    const handleDriverExpenseCreated = (data: any) => {
+      const normalized = normalizeDriverExpense(data?.expense || data);
+      if (!normalized) return;
+      setDriverExpenses(prev => {
+        if (prev.some(e => e.id === normalized.id)) {
+          return prev.map(e => (e.id === normalized.id ? { ...e, ...normalized } : e));
+        }
+        return [normalized, ...prev];
+      });
+      showToast(
+        'info',
+        `${normalized.category} · ₹${Number(normalized.amount).toLocaleString('en-IN')} for ${normalized.driverName}`,
+        'Driver expense added'
+      );
+    };
+
+    const handleDriverExpenseUpdated = (data: any) => {
+      const normalized = normalizeDriverExpense(data?.expense || data);
+      if (!normalized) return;
+      setDriverExpenses(prev => {
+        if (!prev.some(e => e.id === normalized.id)) return [normalized, ...prev];
+        return prev.map(e => (e.id === normalized.id ? { ...e, ...normalized } : e));
+      });
+    };
+
+    const handleDriverExpenseDeleted = (data: any) => {
+      const id = data?.expenseId || data?.id || data?._id || data?.expense?.id || data?.expense?._id;
+      if (!id) return;
+      setDriverExpenses(prev => prev.filter(e => e.id !== id));
+    };
+
     socket.on('booking:created', handleBookingCreated);
     socket.on('booking:updated', handleBookingUpdated);
     socket.on('booking:completed', handleBookingCompleted);
@@ -696,6 +833,12 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     socket.on('attendance:deleted', handleAttendanceDeleted);
     socket.on('driver:duty_started', handleDutyStarted);
     socket.on('driver:duty_ended', handleDutyEnded);
+    socket.on('trip-expense:created', handleTripExpenseCreated);
+    socket.on('trip-expense:updated', handleTripExpenseUpdated);
+    socket.on('trip-expense:deleted', handleTripExpenseDeleted);
+    socket.on('driver-expense:created', handleDriverExpenseCreated);
+    socket.on('driver-expense:updated', handleDriverExpenseUpdated);
+    socket.on('driver-expense:deleted', handleDriverExpenseDeleted);
 
     return () => {
       socket.off('booking:created', handleBookingCreated);
@@ -712,6 +855,12 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       socket.off('attendance:deleted', handleAttendanceDeleted);
       socket.off('driver:duty_started', handleDutyStarted);
       socket.off('driver:duty_ended', handleDutyEnded);
+      socket.off('trip-expense:created', handleTripExpenseCreated);
+      socket.off('trip-expense:updated', handleTripExpenseUpdated);
+      socket.off('trip-expense:deleted', handleTripExpenseDeleted);
+      socket.off('driver-expense:created', handleDriverExpenseCreated);
+      socket.off('driver-expense:updated', handleDriverExpenseUpdated);
+      socket.off('driver-expense:deleted', handleDriverExpenseDeleted);
     };
   }, []);
 
@@ -730,6 +879,7 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         fetchLiveDrivers();
         fetchLiveAttendance();
         fetchLiveDriverExpenses();
+        fetchLiveTripExpenses();
         break;
       case 'departments':
         fetchLiveContracts();
@@ -739,9 +889,11 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       case 'bookings':
       case 'trips':
         fetchLiveBookings();
+        fetchLiveTripExpenses();
         break;
       case 'expenses':
         fetchLiveFastagTransactions();
+        fetchLiveTripExpenses();
         break;
       case 'compliance':
         fetchLiveCompliance();
@@ -776,6 +928,7 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         fetchLiveBookings(),
         fetchLiveDailyDutyLogs(),
         fetchLiveFastagTransactions(),
+        fetchLiveTripExpenses(),
         fetchLiveMonthlyBills(),
         fetchPayrollSummary(),
         fetchLiveDashboardStats()
@@ -1458,6 +1611,132 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     } catch (err) {
       console.error('Failed to add expense', err);
       showToast('error', 'Failed to log expense.', 'Error');
+    }
+  };
+
+  const addTripExpense = async (expenseData: {
+    bookingId: string;
+    category: TripExpenseRecord['category'];
+    amount: number;
+    notes?: string;
+    receipt?: string | null;
+    date?: string;
+    driverId?: string;
+  }) => {
+    try {
+      const res = await api.post('/trip-expenses', expenseData);
+      if (res && res.success && res.data) {
+        const saved: TripExpenseRecord = {
+          ...res.data,
+          id: res.data.id || res.data._id,
+          bookingId: String(res.data.bookingId || ''),
+          amount: Number(res.data.amount || 0),
+          createdBy: res.data.createdBy === 'admin' ? 'admin' : 'driver',
+          status: res.data.status === 'Paid' ? 'Paid' : res.data.status === 'Approved' ? 'Approved' : 'Pending'
+        };
+        setTripExpenses(prev => {
+          if (prev.some(e => e.id === saved.id)) {
+            return prev.map(e => (e.id === saved.id ? { ...e, ...saved } : e));
+          }
+          return [saved, ...prev];
+        });
+        showToast(
+          'success',
+          `${saved.category} · ₹${saved.amount.toLocaleString('en-IN')} added on ${saved.bookingNumber || 'trip'}.`,
+          'Trip expense added'
+        );
+        return { success: true, data: saved };
+      }
+      return { success: false, error: res?.error || 'Failed to add trip expense.' };
+    } catch (err: any) {
+      const message = err?.message || 'Failed to add trip expense.';
+      showToast('error', message, 'Trip expense');
+      return { success: false, error: message };
+    }
+  };
+
+  const updateTripExpense = async (id: string, data: Partial<TripExpenseRecord>) => {
+    try {
+      const res = await api.put(`/trip-expenses/${id}`, data);
+      if (res && res.success && res.data) {
+        const saved: TripExpenseRecord = {
+          ...res.data,
+          id: res.data.id || res.data._id,
+          bookingId: String(res.data.bookingId || ''),
+          amount: Number(res.data.amount || 0),
+          createdBy: res.data.createdBy === 'admin' ? 'admin' : 'driver',
+          status: res.data.status === 'Paid' ? 'Paid' : res.data.status === 'Approved' ? 'Approved' : 'Pending'
+        };
+        setTripExpenses(prev => {
+          if (!prev.some(e => e.id === saved.id)) return [saved, ...prev];
+          return prev.map(e => (e.id === saved.id ? { ...e, ...saved } : e));
+        });
+        showToast('success', 'Trip expense updated.', 'Expense Updated');
+        return { success: true, data: saved };
+      }
+      return { success: false, error: res?.error || 'Failed to update trip expense.' };
+    } catch (err: any) {
+      const message = err?.message || 'Failed to update trip expense.';
+      showToast('error', message, 'Trip expense');
+      return { success: false, error: message };
+    }
+  };
+
+  const updateTripExpenseStatus = async (id: string, status: 'Approved' | 'Pending' | 'Paid') => {
+    try {
+      setTripExpenses(prev => prev.map(item => (item.id === id ? { ...item, status } : item)));
+      const res = await api.patch(`/trip-expenses/${id}/status`, { status });
+      if (res.success && res.data) {
+        showToast('info', `Expense status updated to ${status}.`, 'Status Updated');
+        return { success: true, data: res.data };
+      }
+      return { success: true };
+    } catch (err: any) {
+      showToast('error', 'Could not update expense status.', 'Error');
+      return { success: false, error: err.message };
+    }
+  };
+
+  const deleteTripExpense = async (id: string) => {
+    try {
+      setTripExpenses(prev => prev.filter(item => item.id !== id));
+      await api.delete(`/trip-expenses/${id}`);
+      showToast('info', 'Trip expense record removed.', 'Deleted');
+      return { success: true };
+    } catch (err: any) {
+      showToast('error', 'Could not delete trip expense.', 'Error');
+      return { success: false, error: err.message };
+    }
+  };
+
+  const bulkMarkExpensesPaid = async (items: Array<{ id: string; source: 'driver' | 'trip' }>) => {
+    const driverIds = items.filter(i => i.source !== 'trip').map(i => i.id);
+    const tripIds = items.filter(i => i.source === 'trip').map(i => i.id);
+    if (driverIds.length === 0 && tripIds.length === 0) {
+      return { success: false, error: 'No expenses selected.' };
+    }
+    try {
+      if (driverIds.length) {
+        setDriverExpenses(prev =>
+          prev.map(item => (driverIds.includes(item.id) ? { ...item, status: 'Paid' } : item))
+        );
+        await api.patch('/driver-expenses/bulk-status', { ids: driverIds, status: 'Paid' });
+      }
+      if (tripIds.length) {
+        setTripExpenses(prev =>
+          prev.map(item => (tripIds.includes(item.id) ? { ...item, status: 'Paid' } : item))
+        );
+        await api.patch('/trip-expenses/bulk-status', { ids: tripIds, status: 'Paid' });
+      }
+      showToast(
+        'success',
+        `${items.length} expense${items.length === 1 ? '' : 's'} marked as paid.`,
+        'Marked Paid'
+      );
+      return { success: true };
+    } catch (err: any) {
+      showToast('error', err?.message || 'Could not mark expenses as paid.', 'Error');
+      return { success: false, error: err?.message };
     }
   };
 
@@ -3261,6 +3540,7 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         updateDriverExpense,
         updateDriverExpenseStatus,
         deleteDriverExpense,
+        bulkMarkExpensesPaid,
         payrollItems,
         isPayrollLoading,
         selectedPayrollMonth,
@@ -3290,6 +3570,12 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         checkVehicleAvailability,
         expenses,
         addExpense,
+        tripExpenses,
+        fetchLiveTripExpenses,
+        addTripExpense,
+        updateTripExpense,
+        updateTripExpenseStatus,
+        deleteTripExpense,
         expenseSubTab,
         setExpenseSubTab: handleSetExpenseSubTab,
         fuelLogs,

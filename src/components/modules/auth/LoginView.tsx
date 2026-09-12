@@ -129,28 +129,17 @@ export const LoginView: React.FC = () => {
                 width: 38,
                 height: 38,
                 borderRadius: '10px',
-                background: theme === 'dark' ? '#14273d' : '#eef6ff',
-                border: '1px solid rgba(22, 135, 245, 0.25)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 boxShadow: '0 2px 10px rgba(22, 135, 245, 0.2)',
-                overflow: 'hidden',
-                padding: '2px'
+                overflow: 'hidden'
               }}
             >
               <img
-                src={theme === 'dark' ? '/logo-dark.jpg' : '/logo-light.png'}
+                src="/kabpro.png?v=2"
                 alt="KABPRO Logo"
-                style={{ width: '100%', height: '100%', objectFit: 'contain', borderRadius: '8px' }}
-                onError={(e) => {
-                  (e.currentTarget.parentNode as HTMLElement).innerHTML = `
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                      <polyline points="16 18 22 12 16 6"></polyline>
-                      <polyline points="8 6 2 12 8 18"></polyline>
-                    </svg>
-                  `;
-                }}
+                style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
               />
             </div>
             <span

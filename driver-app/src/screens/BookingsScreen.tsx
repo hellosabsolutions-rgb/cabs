@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -6,7 +6,6 @@ import {
   Platform,
   Pressable,
   RefreshControl,
-  ScrollView,
   StatusBar,
   StyleSheet,
   Text,
@@ -29,7 +28,7 @@ import { driverSocket } from '../services/socket';
 
 type Props = NativeStackScreenProps<RootStackParamList, any>;
 
-type FilterTab = 'today-tomorrow' | 'week' | 'month' | 'custom-date' | 'all';
+type StatusFilter = 'upcoming' | 'ongoing' | 'completed';
 
 function formatDisplayDate(dateStr: string): string {
   try {
@@ -63,11 +62,8 @@ export function BookingsScreen({ navigation }: Props) {
   const { colors, scheme, t } = useAppTheme();
   const session = useSession();
 
-  const [filter, setFilter] = useState<FilterTab>('all');
-  const [selectedDate, setSelectedDate] = useState<string>(() => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-  });
+  const [filter, setFilter] = useState<StatusFilter>('upcoming');
+  const prevHasOngoing = useRef(false);
 
   const [bookings, setBookings] = useState<BookingItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -291,82 +287,44 @@ export function BookingsScreen({ navigation }: Props) {
     setRefreshing(false);
   }, [fetchBookings]);
 
-  // Filter logic
+  const upcomingBookings = useMemo(
+    () => bookings.filter((b) => b.status === 'Scheduled'),
+    [bookings]
+  );
+  const ongoingBookings = useMemo(
+    () => bookings.filter((b) => b.status === 'Ongoing'),
+    [bookings]
+  );
+  const completedBookings = useMemo(
+    () => bookings.filter((b) => b.status === 'Completed'),
+    [bookings]
+  );
+  const hasOngoing = ongoingBookings.length > 0;
+
+  useEffect(() => {
+    if (hasOngoing && !prevHasOngoing.current) {
+      setFilter('ongoing');
+    } else if (!hasOngoing && filter === 'ongoing') {
+      setFilter('upcoming');
+    }
+    prevHasOngoing.current = hasOngoing;
+  }, [hasOngoing, filter]);
+
   const filteredBookings = useMemo(() => {
-    const today = new Date();
-    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    if (filter === 'ongoing') return ongoingBookings;
+    if (filter === 'completed') return completedBookings;
+    return upcomingBookings;
+  }, [filter, upcomingBookings, ongoingBookings, completedBookings]);
 
-    const tomorrow = new Date(today);
-    tomorrow.setDate(today.getDate() + 1);
-    const tomorrowStr = `${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, '0')}-${String(tomorrow.getDate()).padStart(2, '0')}`;
-
-    const dayOfWeek = today.getDay();
-    const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-    const startOfWeek = new Date(today);
-    startOfWeek.setDate(today.getDate() + diffToMonday);
-    startOfWeek.setHours(0, 0, 0, 0);
-
-    const endOfWeek = new Date(startOfWeek);
-    endOfWeek.setDate(startOfWeek.getDate() + 6);
-    endOfWeek.setHours(23, 59, 59, 999);
-
-    const startOfWeekStr = `${startOfWeek.getFullYear()}-${String(startOfWeek.getMonth() + 1).padStart(2, '0')}-${String(startOfWeek.getDate()).padStart(2, '0')}`;
-    const endOfWeekStr = `${endOfWeek.getFullYear()}-${String(endOfWeek.getMonth() + 1).padStart(2, '0')}-${String(endOfWeek.getDate()).padStart(2, '0')}`;
-
-    const currentMonthPrefix = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
-
-    if (filter === 'all') {
-      return bookings;
-    }
-    if (filter === 'today-tomorrow') {
-      const matched = bookings.filter((b) => b.status === 'Ongoing' || b.startDate === todayStr || b.startDate === tomorrowStr);
-      return matched.length > 0 ? matched : bookings;
-    }
-    if (filter === 'week') {
-      const matched = bookings.filter((b) => b.startDate >= startOfWeekStr && b.startDate <= endOfWeekStr);
-      return matched.length > 0 ? matched : bookings;
-    }
-    if (filter === 'month') {
-      const matched = bookings.filter((b) => b.startDate.startsWith(currentMonthPrefix));
-      return matched.length > 0 ? matched : bookings;
-    }
-    if (filter === 'custom-date') {
-      return bookings.filter((b) => b.startDate === selectedDate);
-    }
-    return bookings;
-  }, [bookings, filter, selectedDate]);
-
-  const totalFare = useMemo(
-    () => filteredBookings.reduce((sum, b) => sum + (b.totalAmount || 0), 0),
-    [filteredBookings]
-  );
-  const totalPending = useMemo(
-    () => filteredBookings.reduce((sum, b) => sum + (b.pendingAmount || 0), 0),
-    [filteredBookings]
-  );
+  const selectFilter = (next: StatusFilter) => {
+    setFilter(next);
+  };
 
   const callPassenger = (phone: string, name: string) => {
     Linking.openURL(`tel:${phone}`).catch(() => {
       Alert.alert('Cannot Call', `Unable to call ${name} at ${phone}. Please dial manually.`);
     });
   };
-
-  const selectableDates = useMemo(() => {
-    const dates: { dateStr: string; label: string; day: string; num: string }[] = [];
-    const base = new Date();
-    for (let i = -3; i <= 14; i++) {
-      const d = new Date(base);
-      d.setDate(base.getDate() + i);
-      const str = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-      dates.push({
-        dateStr: str,
-        label: i === 0 ? 'Today' : i === 1 ? 'Tmrw' : d.toLocaleDateString('en-US', { weekday: 'short' }),
-        day: d.toLocaleDateString('en-US', { weekday: 'narrow' }),
-        num: String(d.getDate()),
-      });
-    }
-    return dates;
-  }, []);
 
   const isDark = scheme === 'dark';
   const subBorder = isDark ? 'rgba(255, 255, 255, 0.08)' : '#F1F5F9';
@@ -390,90 +348,25 @@ export function BookingsScreen({ navigation }: Props) {
         }
       >
 
-        {/* HORIZONTAL FILTER PILLS */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.filterScrollView}
-          contentContainerStyle={styles.filterPillsRow}
-        >
+        {/* STATUS FILTER PILLS */}
+        <View style={styles.statusPillsRow}>
           {([
-            { id: 'all' as const, label: `All Trips${bookings.length > 0 ? ` (${bookings.length})` : ''}` },
-            { id: 'today-tomorrow' as const, label: 'Today & Tomorrow' },
-            { id: 'week' as const, label: 'This Week' },
-            { id: 'month' as const, label: 'This Month' },
+            { id: 'upcoming' as const, label: `Upcoming${upcomingBookings.length ? ` (${upcomingBookings.length})` : ''}` },
+            ...(hasOngoing
+              ? [{ id: 'ongoing' as const, label: `Ongoing${ongoingBookings.length ? ` (${ongoingBookings.length})` : ''}` }]
+              : []),
+            { id: 'completed' as const, label: `Completed${completedBookings.length ? ` (${completedBookings.length})` : ''}` },
           ]).map((tab) => {
             const active = filter === tab.id;
             return (
-              <GlassPill key={tab.id} selected={active} onPress={() => setFilter(tab.id)}>
+              <GlassPill key={tab.id} selected={active} onPress={() => selectFilter(tab.id)}>
                 <Text style={[styles.filterPillText, { color: chipColor(active) }]}>
                   {tab.label}
                 </Text>
               </GlassPill>
             );
           })}
-
-          <GlassPill selected={filter === 'custom-date'} onPress={() => setFilter('custom-date')}>
-            <Ionicons
-              name="calendar-outline"
-              size={13}
-              color={chipColor(filter === 'custom-date')}
-              style={{ marginRight: 5 }}
-            />
-            <Text style={[styles.filterPillText, { color: chipColor(filter === 'custom-date') }]}>
-              {filter === 'custom-date' ? formatDisplayDate(selectedDate) : 'Date'}
-            </Text>
-          </GlassPill>
-        </ScrollView>
-
-        {/* CUSTOM DATE HORIZONTAL SELECTOR STRIP */}
-        {filter === 'custom-date' && (
-          <View style={styles.dateSelectorStrip}>
-            <FlatList
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              data={selectableDates}
-              keyExtractor={(item) => item.dateStr}
-              contentContainerStyle={{ paddingHorizontal: 2, gap: 8 }}
-              renderItem={({ item }) => {
-                const isSelected = item.dateStr === selectedDate;
-                return (
-                  <GlassPill
-                    selected={isSelected}
-                    onPress={() => setSelectedDate(item.dateStr)}
-                    style={styles.dateDayPill}
-                  >
-                    <View style={{ alignItems: 'center' }}>
-                      <Text style={[styles.dateDayLabel, { color: isSelected && filledChip ? '#FFFFFF' : colors.textDim }]}>
-                        {item.label}
-                      </Text>
-                      <Text style={[styles.dateDayNum, { color: chipColor(isSelected) }]}>
-                        {item.num}
-                      </Text>
-                    </View>
-                  </GlassPill>
-                );
-              }}
-            />
-          </View>
-        )}
-
-        {/* FINANCIAL SUMMARY KPI CARD */}
-        <GlassSurface style={styles.kpiCard}>
-          <View style={styles.kpiItem}>
-            <Text style={[styles.kpiLabel, { color: colors.textDim }]}>Total Est. Fare</Text>
-            <Text style={[styles.kpiValue, { color: colors.text }]}>
-              ₹{totalFare.toLocaleString('en-IN')}
-            </Text>
-          </View>
-          <View style={[styles.kpiDivider, { backgroundColor: subBorder }]} />
-          <View style={styles.kpiItem}>
-            <Text style={[styles.kpiLabel, { color: colors.textDim }]}>Pending Collect</Text>
-            <Text style={[styles.kpiValue, { color: totalPending > 0 ? '#F59E0B' : '#10B981' }]}>
-              ₹{totalPending.toLocaleString('en-IN')}
-            </Text>
-          </View>
-        </GlassSurface>
+        </View>
       </ScreenHeader>
 
       {/* FULL-SCREEN BOOKINGS LIST */}
@@ -501,17 +394,39 @@ export function BookingsScreen({ navigation }: Props) {
                 <Ionicons name="calendar-outline" size={38} color={colors.textDim} />
               </View>
               <Text style={[styles.emptyTitle, { color: colors.text }]}>
-                {bookings.length === 0 ? 'No Bookings Assigned' : 'No Trips Found'}
+                {bookings.length === 0
+                  ? 'No Bookings Assigned'
+                  : filter === 'ongoing'
+                  ? 'No Ongoing Trips'
+                  : filter === 'completed'
+                  ? 'No Completed Trips'
+                  : 'No Upcoming Trips'}
               </Text>
               <Text style={[styles.emptySubtitle, { color: colors.textDim }]}>
                 {bookings.length === 0
                   ? 'You currently have no bookings assigned. Real trips assigned by dispatch will appear here.'
-                  : 'No bookings scheduled for the selected period.'}
+                  : filter === 'ongoing'
+                  ? 'Start a scheduled trip to see it here.'
+                  : filter === 'completed'
+                  ? 'Completed trips will appear in this list.'
+                  : 'Scheduled trips assigned to you will appear here.'}
               </Text>
-              {bookings.length > 0 ? (
+              {bookings.length === 0 ? (
                 <GlassButton
-                  title={`View All Assigned Trips (${bookings.length})`}
-                  onPress={() => setFilter('all')}
+                  title="Refresh Bookings"
+                  onPress={onRefresh}
+                  style={styles.emptyResetBtn}
+                />
+              ) : filter !== 'upcoming' && upcomingBookings.length > 0 ? (
+                <GlassButton
+                  title={`View Upcoming (${upcomingBookings.length})`}
+                  onPress={() => selectFilter('upcoming')}
+                  style={styles.emptyResetBtn}
+                />
+              ) : filter !== 'completed' && completedBookings.length > 0 ? (
+                <GlassButton
+                  title={`View Completed (${completedBookings.length})`}
+                  onPress={() => selectFilter('completed')}
                   style={styles.emptyResetBtn}
                 />
               ) : (
@@ -736,6 +651,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     gap: 8,
+  },
+  statusPillsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 4,
   },
   filterPill: {
     flexDirection: 'row',

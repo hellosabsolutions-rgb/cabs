@@ -207,13 +207,20 @@ export interface DriverAttendance {
   notes?: string;
 }
 
-export type DriverExpenseCategory = 
+export type DriverExpenseCategory =
   | 'Daily Bata / Food'
   | 'Night Halt Allowance'
   | 'Advance Payout'
   | 'Overtime'
   | 'Toll / Cash Reimbursement'
-  | 'Uniform / Misc';
+  | 'Uniform / Misc'
+  | 'Toll'
+  | 'Food'
+  | 'Parking'
+  | 'Repair'
+  | 'Loading'
+  | 'Maintenance'
+  | 'Other';
 
 export interface DriverExpenseItem {
   id: string;
@@ -226,6 +233,11 @@ export interface DriverExpenseItem {
   status: 'Approved' | 'Pending' | 'Paid';
   remarks?: string;
   receipt?: string | null;
+  source?: 'driver' | 'trip';
+  createdBy?: 'driver' | 'admin';
+  createdByName?: string;
+  bookingId?: string;
+  bookingNumber?: string;
 }
 
 export interface DepartmentContract {
@@ -496,6 +508,32 @@ export interface ExpenseRecord {
   category: 'Fuel' | 'FASTag / Toll' | 'Driver' | 'Maintenance' | 'General';
   linkedTo: string;
   amount: number;
+}
+
+export type TripExpenseCategory =
+  | 'Toll'
+  | 'Food'
+  | 'Parking'
+  | 'Repair'
+  | 'Loading'
+  | 'Maintenance'
+  | 'Other';
+
+export interface TripExpenseRecord {
+  id: string;
+  bookingId: string;
+  bookingNumber: string;
+  driverId: string;
+  driverName: string;
+  vehicle: string;
+  date: string;
+  category: TripExpenseCategory;
+  amount: number;
+  notes?: string;
+  receipt?: string | null;
+  createdBy?: 'driver' | 'admin';
+  createdByName?: string;
+  status?: 'Approved' | 'Pending' | 'Paid';
 }
 
 export interface DocumentCompliance {

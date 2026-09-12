@@ -26,6 +26,7 @@ import {
   Printer
 } from 'lucide-react';
 import { BookingLiveMap } from './BookingLiveMap';
+import { AddTripExpenseModal } from '../expenses/AddTripExpenseModal';
 
 interface BookingDetailModalProps {
   isOpen: boolean;
@@ -42,7 +43,8 @@ export const BookingDetailModal: React.FC<BookingDetailModalProps> = ({
   onComplete,
   onCollectPayment
 }) => {
-  const { drivers, vehicles, updateDriverStatus, assignBookingDriver } = useFleet();
+  const { drivers, vehicles, updateDriverStatus, assignBookingDriver, tripExpenses } = useFleet();
+  const [isTripExpenseModalOpen, setIsTripExpenseModalOpen] = useState(false);
 
   // Find the driver object if assigned
   const assignedDriverObj = useMemo(() => {
@@ -80,7 +82,19 @@ export const BookingDetailModal: React.FC<BookingDetailModalProps> = ({
   const fastagCost = Number(booking?.fastagCost || 0);
   const driverBata = Number(booking?.driverBata || 0);
   const otherExpenses = Number(booking?.otherExpenses || 0);
-  const totalExpenses = fuelCost + fastagCost + driverBata + otherExpenses || Number(booking?.expenses || 0);
+
+  const bookingTripExpenses = useMemo(() => {
+    if (!booking) return [];
+    const bid = String(booking.id || (booking as any)._id || '');
+    const bnum = booking.bookingNumber || booking.tripNumber || '';
+    return tripExpenses.filter(
+      e => (bid && e.bookingId === bid) || (bnum && e.bookingNumber && e.bookingNumber === bnum)
+    );
+  }, [tripExpenses, booking]);
+
+  const tripExpenseTotal = bookingTripExpenses.reduce((sum, e) => sum + Number(e.amount || 0), 0);
+  const bookedExpenses = fuelCost + fastagCost + driverBata + otherExpenses || Number(booking?.expenses || 0);
+  const totalExpenses = bookedExpenses + tripExpenseTotal;
   const profit = totalFare - totalExpenses;
   const marginPct = totalFare > 0 ? ((profit / totalFare) * 100).toFixed(1) : '0';
 
@@ -114,6 +128,7 @@ export const BookingDetailModal: React.FC<BookingDetailModalProps> = ({
   const bookingCode = booking.bookingNumber || booking.tripNumber || `BKG-${booking.id?.slice(-5)}`;
 
   return (
+    <>
     <div
       className="modal-overlay"
       onClick={onClose}
@@ -741,9 +756,84 @@ export const BookingDetailModal: React.FC<BookingDetailModalProps> = ({
               {otherExpenses > 0 && (
                 <span>Other: <b style={{ color: 'var(--text, #f8fafc)' }}>₹{otherExpenses.toLocaleString('en-IN')}</b></span>
               )}
+              <span>Driver trip exp: <b style={{ color: 'var(--text, #f8fafc)' }}>₹{tripExpenseTotal.toLocaleString('en-IN')}</b></span>
               <span>Total Trip Exp: <b style={{ color: '#ef4444' }}>₹{totalExpenses.toLocaleString('en-IN')}</b></span>
             </div>
           </div>
+
+          {bookingTripExpenses.length >= 0 && (
+            <div
+              style={{
+                background: 'var(--surface-2, #1e293b)',
+                borderRadius: '10px',
+                padding: '12px 14px',
+                border: '1px solid var(--border-soft, #334155)'
+              }}
+            >
+              <div style={{ fontWeight: 700, color: 'var(--text-dim, #94a3b8)', marginBottom: '8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '5px' }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                  <IndianRupee size={13} /> Trip expenses
+                </span>
+                {isDriverAssigned && (
+                  <button
+                    type="button"
+                    className="panel-link"
+                    style={{ background: 'none', border: 0, cursor: 'pointer', color: 'var(--accent, #1687F5)' }}
+                    onClick={() => setIsTripExpenseModalOpen(true)}
+                  >
+                    + Add
+                  </button>
+                )}
+              </div>
+              {bookingTripExpenses.length === 0 ? (
+                <div style={{ fontSize: '12px', color: 'var(--text-faint, #64748b)' }}>
+                  No trip expenses yet. Office or driver can add toll, food and parking here.
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {bookingTripExpenses.map(exp => (
+                    <div
+                      key={exp.id}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: '10px',
+                        fontSize: '12.5px'
+                      }}
+                    >
+                      <div>
+                        <span style={{ fontWeight: 700, color: 'var(--text, #f8fafc)' }}>{exp.category}</span>
+                        <span style={{ color: 'var(--text-dim, #94a3b8)' }}>
+                          {exp.createdBy === 'admin' ? ' · Office' : ' · Driver'}
+                          {exp.status === 'Paid' ? ' · Paid' : ''}
+                        </span>
+                        {exp.notes ? (
+                          <span style={{ color: 'var(--text-dim, #94a3b8)' }}> · {exp.notes}</span>
+                        ) : null}
+                        <div style={{ fontSize: '11px', color: 'var(--text-faint, #64748b)' }}>{exp.date}</div>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        {exp.receipt && (
+                          <a
+                            href={exp.receipt}
+                            target="_blank"
+                            rel="noreferrer"
+                            style={{ fontSize: 11, color: 'var(--accent, #1687F5)', fontWeight: 700 }}
+                          >
+                            Receipt
+                          </a>
+                        )}
+                        <b style={{ color: 'var(--text, #f8fafc)', whiteSpace: 'nowrap' }}>
+                          ₹{Number(exp.amount).toLocaleString('en-IN')}
+                        </b>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* 4. SPECIAL NOTES IF ANY */}
           {booking.notes && (
@@ -889,5 +979,11 @@ export const BookingDetailModal: React.FC<BookingDetailModalProps> = ({
         </div>
       </div>
     </div>
+    <AddTripExpenseModal
+      isOpen={isTripExpenseModalOpen}
+      onClose={() => setIsTripExpenseModalOpen(false)}
+      bookingId={booking.id}
+    />
+    </>
   );
 };

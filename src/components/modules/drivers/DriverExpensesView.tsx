@@ -3,7 +3,7 @@ import { useFleet } from '../../../context/FleetContext';
 import { StatCard } from '../../common/StatCard';
 import { AddDriverExpenseModal } from './AddDriverExpenseModal';
 import { EditDriverExpenseModal } from './EditDriverExpenseModal';
-import { DriverExpenseCategory, DriverExpenseItem } from '../../../types/fleet';
+import { DriverExpenseCategory, DriverExpenseItem, TripExpenseRecord } from '../../../types/fleet';
 import { DatePicker } from '../../common/DatePicker';
 import {
   Calendar,
@@ -16,37 +16,97 @@ import {
   ChevronRight,
   ChevronDown,
   Users,
-  CreditCard,
-  PieChart,
   Loader2,
-  ArrowUpRight
+  ArrowUpRight,
+  Banknote
 } from 'lucide-react';
 import { api } from '../../../services/api';
 
 type ExpenseTimeFrame = 'daily' | 'monthly' | 'yearly';
 
+const FILTER_CATEGORIES: DriverExpenseCategory[] = [
+  'Daily Bata / Food',
+  'Night Halt Allowance',
+  'Advance Payout',
+  'Overtime',
+  'Toll / Cash Reimbursement',
+  'Uniform / Misc',
+  'Toll',
+  'Food',
+  'Parking',
+  'Repair',
+  'Loading',
+  'Maintenance',
+  'Other'
+];
+
+function todayIST() {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date());
+}
+
+function expenseKey(exp: { source?: string; id: string }) {
+  return `${exp.source === 'trip' ? 'trip' : 'driver'}:${exp.id}`;
+}
+
+function isBataCategory(cat: string) {
+  return cat === 'Daily Bata / Food' || cat === 'Food';
+}
+
+function isNightHaltCategory(cat: string) {
+  return cat === 'Night Halt Allowance' || cat === 'Overtime';
+}
+
+function mapTripToDriverExpense(e: TripExpenseRecord): DriverExpenseItem {
+  return {
+    id: e.id,
+    driverId: e.driverId,
+    driverName: e.driverName || '—',
+    vehicle: e.vehicle || '—',
+    date: e.date,
+    category: e.category,
+    amount: Number(e.amount || 0),
+    status: e.status === 'Paid' ? 'Paid' : e.status === 'Approved' ? 'Approved' : 'Pending',
+    remarks: e.notes || (e.bookingNumber ? `Trip ${e.bookingNumber}` : ''),
+    receipt: e.receipt,
+    source: 'trip',
+    createdBy: e.createdBy,
+    createdByName: e.createdByName,
+    bookingId: e.bookingId,
+    bookingNumber: e.bookingNumber
+  };
+}
+
 export const DriverExpensesView: React.FC = () => {
   const {
     driverExpenses,
+    tripExpenses,
     drivers,
     updateDriverExpenseStatus,
+    updateTripExpenseStatus,
     deleteDriverExpense,
+    deleteTripExpense,
+    bulkMarkExpensesPaid,
     fetchLiveDriverExpenses,
+    fetchLiveTripExpenses,
     searchQuery
   } = useFleet();
+
+  const today = todayIST();
 
   // Active View Mode: 'daily' | 'monthly' | 'yearly'
   const [timeFrame, setTimeFrame] = useState<ExpenseTimeFrame>('monthly');
 
   // Daily State
-  const [selectedDate, setSelectedDate] = useState('2026-09-01');
+  const [selectedDate, setSelectedDate] = useState(today);
 
   // Monthly State
-  const [selectedMonth, setSelectedMonth] = useState('2026-08'); // YYYY-MM
+  const [selectedMonth, setSelectedMonth] = useState(today.slice(0, 7)); // YYYY-MM
   const [monthSubTab, setMonthSubTab] = useState<'driverSummary' | 'dateWiseLogs'>('driverSummary');
 
   // Yearly State
-  const [selectedYear, setSelectedYear] = useState('2026'); // YYYY
+  const [selectedYear, setSelectedYear] = useState(today.slice(0, 4)); // YYYY
+
+  const [selectedKeys, setSelectedKeys] = useState<string[]>([]);
 
   // Filters
   const [driverFilter, setDriverFilter] = useState<string>('All');
@@ -66,6 +126,7 @@ export const DriverExpensesView: React.FC = () => {
 
   // Fetch live expenses & analytics when timeFrame, date/month/year, or driverFilter changes
   useEffect(() => {
+    fetchLiveTripExpenses();
     if (timeFrame === 'daily') {
       fetchLiveDriverExpenses({ date: selectedDate, driverName: driverFilter });
     } else if (timeFrame === 'monthly') {
@@ -76,6 +137,16 @@ export const DriverExpensesView: React.FC = () => {
       fetchAnalytics('year', selectedYear, driverFilter);
     }
   }, [timeFrame, selectedDate, selectedMonth, selectedYear, driverFilter]);
+
+  const allExpenses = useMemo<DriverExpenseItem[]>(() => {
+    const fromDrivers = driverExpenses.map(e => ({
+      ...e,
+      source: e.source || ('driver' as const),
+      amount: Number(e.amount || 0)
+    }));
+    const fromTrips = tripExpenses.map(mapTripToDriverExpense);
+    return [...fromDrivers, ...fromTrips].sort((a, b) => String(b.date).localeCompare(String(a.date)));
+  }, [driverExpenses, tripExpenses]);
 
   const fetchAnalytics = async (period: 'month' | 'year', value: string, drvFilter?: string) => {
     setIsLoadingAnalytics(true);
@@ -125,24 +196,22 @@ export const DriverExpensesView: React.FC = () => {
     }
   };
 
-  const renderStatusDropdown = (status: 'Approved' | 'Pending' | 'Paid', id: string) => {
+  const renderStatusDropdown = (exp: DriverExpenseItem) => {
     const handleStatusChange = async (newStatus: 'Approved' | 'Pending' | 'Paid') => {
-      if (newStatus === status) return;
-      await updateDriverExpenseStatus(id, newStatus);
-      // Refresh analytics if monthly or yearly
-      if (timeFrame === 'monthly') {
-        fetchAnalytics('month', selectedMonth);
-      } else if (timeFrame === 'yearly') {
-        fetchAnalytics('year', selectedYear);
+      if (newStatus === exp.status) return;
+      if (exp.source === 'trip') {
+        await updateTripExpenseStatus(exp.id, newStatus);
+      } else {
+        await updateDriverExpenseStatus(exp.id, newStatus);
       }
     };
 
-    const style = getStatusColorStyle(status);
+    const style = getStatusColorStyle(exp.status);
 
     return (
       <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
         <select
-          value={status}
+          value={exp.status}
           onChange={e => handleStatusChange(e.target.value as 'Approved' | 'Pending' | 'Paid')}
           style={{
             background: style.background,
@@ -178,9 +247,10 @@ export const DriverExpensesView: React.FC = () => {
     );
   };
 
-  const getCategoryColor = (cat: DriverExpenseCategory) => {
+  const getCategoryColor = (cat: string) => {
     switch (cat) {
       case 'Daily Bata / Food':
+      case 'Food':
         return 'rgba(57, 255, 110, 0.12)';
       case 'Night Halt Allowance':
         return 'rgba(168, 85, 247, 0.12)';
@@ -189,21 +259,92 @@ export const DriverExpensesView: React.FC = () => {
       case 'Overtime':
         return 'rgba(56, 189, 248, 0.12)';
       case 'Toll / Cash Reimbursement':
+      case 'Toll':
         return 'rgba(249, 115, 22, 0.12)';
+      case 'Parking':
+        return 'rgba(168, 85, 247, 0.12)';
+      case 'Repair':
+        return 'rgba(239, 68, 68, 0.12)';
+      case 'Loading':
+        return 'rgba(34, 197, 94, 0.12)';
+      case 'Maintenance':
+        return 'rgba(245, 158, 11, 0.12)';
       default:
         return 'var(--surface-3)';
     }
   };
 
-  const handleDeleteExpense = async (id: string, driverName: string, amount: number) => {
-    if (window.confirm(`Are you sure you want to delete the expense entry of ₹${amount} for ${driverName}?`)) {
-      await deleteDriverExpense(id);
-      if (timeFrame === 'monthly') {
-        fetchAnalytics('month', selectedMonth);
-      } else if (timeFrame === 'yearly') {
-        fetchAnalytics('year', selectedYear);
+  const handleDeleteExpense = async (exp: DriverExpenseItem) => {
+    if (window.confirm(`Are you sure you want to delete the expense entry of ₹${exp.amount} for ${exp.driverName}?`)) {
+      if (exp.source === 'trip') {
+        await deleteTripExpense(exp.id);
+      } else {
+        await deleteDriverExpense(exp.id);
       }
+      setSelectedKeys(prev => prev.filter(k => k !== expenseKey(exp)));
     }
+  };
+
+  const toggleSelected = (key: string) => {
+    setSelectedKeys(prev => (prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]));
+  };
+
+  const payItems = async (items: DriverExpenseItem[]) => {
+    const unpaid = items.filter(e => e.status !== 'Paid');
+    if (unpaid.length === 0) return;
+    await bulkMarkExpensesPaid(
+      unpaid.map(e => ({ id: e.id, source: e.source === 'trip' ? 'trip' : 'driver' }))
+    );
+    setSelectedKeys([]);
+  };
+
+  const renderPayControls = (rows: DriverExpenseItem[]) => {
+    const unpaid = rows.filter(e => e.status !== 'Paid');
+    const selectedRows = unpaid.filter(e => selectedKeys.includes(expenseKey(e)));
+    const allSelected = unpaid.length > 0 && unpaid.every(e => selectedKeys.includes(expenseKey(e)));
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+        <button
+          type="button"
+          className="btn-secondary"
+          disabled={selectedRows.length === 0}
+          onClick={() => payItems(selectedRows)}
+          style={{ fontSize: '12px', padding: '5px 10px', display: 'inline-flex', alignItems: 'center', gap: 6, opacity: selectedRows.length ? 1 : 0.5 }}
+        >
+          <Banknote size={13} /> Pay selected ({selectedRows.length})
+        </button>
+        <button
+          type="button"
+          className="btn-primary-action"
+          disabled={unpaid.length === 0}
+          onClick={() => payItems(unpaid)}
+          style={{ fontSize: '12px', padding: '5px 12px', display: 'inline-flex', alignItems: 'center', gap: 6, opacity: unpaid.length ? 1 : 0.5 }}
+        >
+          <Banknote size={13} /> Pay all pending ({unpaid.length})
+        </button>
+        <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text-dim)', cursor: unpaid.length ? 'pointer' : 'default' }}>
+          <input
+            type="checkbox"
+            checked={allSelected}
+            disabled={unpaid.length === 0}
+            onChange={() => {
+              if (allSelected) {
+                setSelectedKeys(prev => prev.filter(k => !unpaid.some(e => expenseKey(e) === k)));
+              } else {
+                setSelectedKeys(prev => Array.from(new Set([...prev, ...unpaid.map(expenseKey)])));
+              }
+            }}
+          />
+          Select all unpaid
+        </label>
+      </div>
+    );
+  };
+
+  const receiptLabel = (receipt: string) => {
+    if (receipt.startsWith('data:')) return 'View document';
+    if (receipt.startsWith('http')) return 'View receipt';
+    return receipt;
   };
 
   // -------------------------------------------------------------
@@ -226,8 +367,8 @@ export const DriverExpensesView: React.FC = () => {
   }, [selectedDate]);
 
   const dailyExpenses = useMemo(() => {
-    return driverExpenses.filter(r => r.date === selectedDate);
-  }, [driverExpenses, selectedDate]);
+    return allExpenses.filter(r => r.date === selectedDate);
+  }, [allExpenses, selectedDate]);
 
   // Drivers who have actual recorded expenses on the selected date
   const dailyDriversWithEntries = useMemo(() => {
@@ -292,8 +433,8 @@ export const DriverExpensesView: React.FC = () => {
   }, [selectedMonth]);
 
   const monthlyExpenses = useMemo(() => {
-    return driverExpenses.filter(r => r.date && r.date.startsWith(selectedMonth));
-  }, [driverExpenses, selectedMonth]);
+    return allExpenses.filter(r => r.date && r.date.startsWith(selectedMonth));
+  }, [allExpenses, selectedMonth]);
 
   // Drivers who have actual recorded expenses in the selected month
   const monthlyDriversWithEntries = useMemo(() => {
@@ -319,132 +460,69 @@ export const DriverExpensesView: React.FC = () => {
 
   // Monthly stats calculated separately ("total alag se dikhe monthly wise")
   const monthlyStats = useMemo(() => {
-    // If a specific driver is selected in the driverFilter
-    if (driverFilter !== 'All') {
-      if (
-        analyticsData?.driverSpecificSummary &&
-        analyticsData?.driverFilter?.toLowerCase() === driverFilter.toLowerCase()
-      ) {
-        const ds = analyticsData.driverSpecificSummary;
-        return {
-          labelSuffix: ` (${ds.driverName})`,
-          total: ds.totalExpenses,
-          paid: ds.paidAmount,
-          approved: ds.approvedAmount,
-          pending: ds.pendingAmount,
-          bata: ds.categoryBreakdown?.bataTotal || 0,
-          nightHaltAndOT: (ds.categoryBreakdown?.nightHaltTotal || 0) + (ds.categoryBreakdown?.overtimeTotal || 0),
-          advanceAndMisc: (ds.categoryBreakdown?.advanceTotal || 0) + (ds.categoryBreakdown?.tollTotal || 0) + (ds.categoryBreakdown?.miscTotal || 0),
-          count: ds.transactionCount
-        };
-      }
-
-      // Local fallback for specific driver
-      const drvRecords = monthlyExpenses.filter(
-        exp => exp.driverName.toLowerCase() === driverFilter.toLowerCase()
-      );
-      let total = 0, paid = 0, approved = 0, pending = 0, bata = 0, nightHaltAndOT = 0, advanceAndMisc = 0;
-      drvRecords.forEach(exp => {
-        total += exp.amount;
-        if (exp.status === 'Paid') paid += exp.amount;
-        else if (exp.status === 'Approved') approved += exp.amount;
-        else pending += exp.amount;
-
-        if (exp.category === 'Daily Bata / Food') {
-          bata += exp.amount;
-        } else if (exp.category === 'Night Halt Allowance' || exp.category === 'Overtime') {
-          nightHaltAndOT += exp.amount;
-        } else {
-          advanceAndMisc += exp.amount;
-        }
-      });
-
-      return {
-        labelSuffix: ` (${driverFilter})`,
-        total,
-        paid,
-        approved,
-        pending,
-        bata,
-        nightHaltAndOT,
-        advanceAndMisc,
-        count: drvRecords.length
-      };
-    }
-
-    // Default: Overall monthly calculations for all drivers combined
-    if (analyticsData?.period === 'month' && analyticsData?.month === selectedMonth && analyticsData?.summary) {
-      return {
-        labelSuffix: '',
-        total: analyticsData.summary.totalExpenses,
-        paid: analyticsData.summary.paidAmount,
-        approved: analyticsData.summary.approvedAmount,
-        pending: analyticsData.summary.pendingAmount,
-        bata: analyticsData.summary.categoryBreakdown?.bataTotal || 0,
-        nightHaltAndOT: (analyticsData.summary.categoryBreakdown?.nightHaltTotal || 0) + (analyticsData.summary.categoryBreakdown?.overtimeTotal || 0),
-        advanceAndMisc: (analyticsData.summary.categoryBreakdown?.advanceTotal || 0) + (analyticsData.summary.categoryBreakdown?.tollTotal || 0) + (analyticsData.summary.categoryBreakdown?.miscTotal || 0),
-        count: analyticsData.summary.transactionCount
-      };
-    }
+    const source =
+      driverFilter !== 'All'
+        ? monthlyExpenses.filter(exp => exp.driverName.toLowerCase() === driverFilter.toLowerCase())
+        : monthlyExpenses;
 
     let total = 0, paid = 0, approved = 0, pending = 0, bata = 0, nightHaltAndOT = 0, advanceAndMisc = 0;
-    monthlyExpenses.forEach(exp => {
+    source.forEach(exp => {
       total += exp.amount;
       if (exp.status === 'Paid') paid += exp.amount;
       else if (exp.status === 'Approved') approved += exp.amount;
       else pending += exp.amount;
 
-      if (exp.category === 'Daily Bata / Food') {
-        bata += exp.amount;
-      } else if (exp.category === 'Night Halt Allowance' || exp.category === 'Overtime') {
-        nightHaltAndOT += exp.amount;
-      } else {
-        advanceAndMisc += exp.amount;
-      }
+      if (isBataCategory(exp.category)) bata += exp.amount;
+      else if (isNightHaltCategory(exp.category)) nightHaltAndOT += exp.amount;
+      else advanceAndMisc += exp.amount;
     });
 
-    return { labelSuffix: '', total, paid, approved, pending, bata, nightHaltAndOT, advanceAndMisc, count: monthlyExpenses.length };
-  }, [analyticsData, monthlyExpenses, selectedMonth, driverFilter]);
+    return {
+      labelSuffix: driverFilter !== 'All' ? ` (${driverFilter})` : '',
+      total,
+      paid,
+      approved,
+      pending,
+      bata,
+      nightHaltAndOT,
+      advanceAndMisc,
+      count: source.length
+    };
+  }, [monthlyExpenses, driverFilter]);
 
   // Driver-wise Monthly Summary: "saare driver ka total kitna expense diya hai unko"
   const monthlyDriverSummary = useMemo(() => {
-    let list = [];
-    if (analyticsData?.period === 'month' && analyticsData?.month === selectedMonth && analyticsData?.driverTotals) {
-      list = analyticsData.driverTotals;
-    } else {
-      // Fallback calculation from client-side state
-      list = drivers.map(d => {
-        const records = monthlyExpenses.filter(
-          r => r.driverId === d.id || r.driverName.toLowerCase() === d.name.toLowerCase()
-        );
+    const list = drivers.map(d => {
+      const records = monthlyExpenses.filter(
+        r => r.driverId === d.id || r.driverName.toLowerCase() === d.name.toLowerCase()
+      );
 
-        let total = 0, paid = 0, pending = 0, bata = 0, nightHalt = 0, advances = 0;
-        records.forEach(r => {
-          total += r.amount;
-          if (r.status === 'Paid') paid += r.amount;
-          else pending += r.amount;
+      let total = 0, paid = 0, pending = 0, bata = 0, nightHalt = 0, advances = 0;
+      records.forEach(r => {
+        total += r.amount;
+        if (r.status === 'Paid') paid += r.amount;
+        else pending += r.amount;
 
-          if (r.category === 'Daily Bata / Food') bata += r.amount;
-          else if (r.category === 'Night Halt Allowance' || r.category === 'Overtime') nightHalt += r.amount;
-          else advances += r.amount;
-        });
-
-        return {
-          driverId: d.id,
-          driverName: d.name,
-          vehicle: d.assignedVehicle || '—',
-          driverType: d.driverType || 'Permanent',
-          totalAmount: total,
-          paidAmount: paid,
-          pendingAmount: pending,
-          bataAmount: bata,
-          nightHaltAmount: nightHalt,
-          advanceAmount: advances,
-          transactionCount: records.length,
-          records
-        };
+        if (isBataCategory(r.category)) bata += r.amount;
+        else if (isNightHaltCategory(r.category)) nightHalt += r.amount;
+        else advances += r.amount;
       });
-    }
+
+      return {
+        driverId: d.id,
+        driverName: d.name,
+        vehicle: d.assignedVehicle || '—',
+        driverType: d.driverType || 'Permanent',
+        totalAmount: total,
+        paidAmount: paid,
+        pendingAmount: pending,
+        bataAmount: bata,
+        nightHaltAmount: nightHalt,
+        advanceAmount: advances,
+        transactionCount: records.length,
+        records
+      };
+    });
 
     return list.filter((d: any) => {
       // User requirement: Detail only appears on actual entry. If no entry for driver in this month, do not show them.
@@ -474,34 +552,24 @@ export const DriverExpensesView: React.FC = () => {
   };
 
   const yearlyExpenses = useMemo(() => {
-    return driverExpenses.filter(r => r.date && r.date.startsWith(selectedYear));
-  }, [driverExpenses, selectedYear]);
+    return allExpenses.filter(r => r.date && r.date.startsWith(selectedYear));
+  }, [allExpenses, selectedYear]);
 
   const yearlyStats = useMemo(() => {
-    if (analyticsData?.period === 'year' && analyticsData?.year === selectedYear && analyticsData?.summary) {
-      return {
-        total: analyticsData.summary.totalExpenses,
-        paid: analyticsData.summary.paidAmount,
-        pending: analyticsData.summary.pendingAmount,
-        count: analyticsData.summary.transactionCount
-      };
-    }
-
+    const source =
+      driverFilter !== 'All'
+        ? yearlyExpenses.filter(r => r.driverName.toLowerCase() === driverFilter.toLowerCase())
+        : yearlyExpenses;
     let total = 0, paid = 0, pending = 0;
-    yearlyExpenses.forEach(r => {
+    source.forEach(r => {
       total += r.amount;
       if (r.status === 'Paid') paid += r.amount;
       else pending += r.amount;
     });
-
-    return { total, paid, pending, count: yearlyExpenses.length };
-  }, [analyticsData, yearlyExpenses, selectedYear]);
+    return { total, paid, pending, count: source.length };
+  }, [yearlyExpenses, driverFilter]);
 
   const monthlyBreakdownCards = useMemo(() => {
-    if (analyticsData?.period === 'year' && analyticsData?.year === selectedYear && analyticsData?.monthlyTrends) {
-      return analyticsData.monthlyTrends;
-    }
-
     const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     return monthNames.map((name, index) => {
       const monthNum = String(index + 1).padStart(2, '0');
@@ -527,16 +595,6 @@ export const DriverExpensesView: React.FC = () => {
   }, [analyticsData, selectedYear, yearlyExpenses]);
 
   const yearlyDriverSummary = useMemo(() => {
-    if (analyticsData?.period === 'year' && analyticsData?.year === selectedYear && analyticsData?.driverTotals) {
-      return analyticsData.driverTotals.filter((d: any) => {
-        const matchSearch =
-          d.driverName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          (d.vehicle && d.vehicle.toLowerCase().includes(searchQuery.toLowerCase()));
-        const matchDriver = driverFilter === 'All' || d.driverName.toLowerCase() === driverFilter.toLowerCase();
-        return matchSearch && matchDriver;
-      });
-    }
-
     return drivers
       .map(d => {
         const records = yearlyExpenses.filter(
@@ -562,6 +620,7 @@ export const DriverExpensesView: React.FC = () => {
         };
       })
       .filter(d => {
+        if (!d.transactionCount || d.transactionCount <= 0) return false;
         const matchSearch =
           d.driverName.toLowerCase().includes(searchQuery.toLowerCase()) ||
           (d.vehicle && d.vehicle.toLowerCase().includes(searchQuery.toLowerCase()));
@@ -668,7 +727,7 @@ export const DriverExpensesView: React.FC = () => {
                   type="button"
                   className="btn-secondary"
                   style={{ padding: '5px 12px', fontSize: '12px' }}
-                  onClick={() => setSelectedDate(new Date().toISOString().split('T')[0])}
+                  onClick={() => setSelectedDate(todayIST())}
                 >
                   Today
                 </button>
@@ -712,11 +771,11 @@ export const DriverExpensesView: React.FC = () => {
                   onChange={e => setCategoryFilter(e.target.value)}
                 >
                   <option value="All">All Categories</option>
-                  <option value="Daily Bata / Food">Daily Bata / Food</option>
-                  <option value="Night Halt Allowance">Night Halt Allowance</option>
-                  <option value="Advance Payout">Advance Payout</option>
-                  <option value="Overtime">Overtime</option>
-                  <option value="Toll / Cash Reimbursement">Toll / Reimbursement</option>
+                  {FILTER_CATEGORIES.map(cat => (
+                    <option key={`daily-${cat}`} value={cat}>
+                      {cat}
+                    </option>
+                  ))}
                 </select>
 
                 <select
@@ -730,10 +789,10 @@ export const DriverExpensesView: React.FC = () => {
                   <option value="Approved">Approved</option>
                   <option value="Pending">Pending</option>
                 </select>
+                {renderPayControls(filteredDailyExpenses)}
               </div>
             </div>
 
-            {/* Active Driver Filter Notification */}
             {driverFilter !== 'All' && (
               <div
                 style={{
@@ -768,8 +827,10 @@ export const DriverExpensesView: React.FC = () => {
               <table>
                 <thead>
                   <tr>
+                    <th style={{ width: 36 }}></th>
                     <th>Date</th>
                     <th>Driver</th>
+                    <th>Type</th>
                     <th>Vehicle</th>
                     <th>Category</th>
                     <th>Amount</th>
@@ -782,13 +843,24 @@ export const DriverExpensesView: React.FC = () => {
                 <tbody>
                   {filteredDailyExpenses.length === 0 ? (
                     <tr>
-                      <td colSpan={9} style={{ textAlign: 'center', color: 'var(--text-faint)', padding: '36px 0' }}>
+                      <td colSpan={11} style={{ textAlign: 'center', color: 'var(--text-faint)', padding: '36px 0' }}>
                         No driver expenses recorded for {formattedDateLabel} {driverFilter !== 'All' ? `for ${driverFilter}` : ''}. Click "+ Add Driver Expense" above.
                       </td>
                     </tr>
                   ) : (
-                    filteredDailyExpenses.map(exp => (
-                      <tr key={exp.id}>
+                    filteredDailyExpenses.map(exp => {
+                      const key = expenseKey(exp);
+                      const unpaid = exp.status !== 'Paid';
+                      return (
+                      <tr key={key}>
+                        <td>
+                          <input
+                            type="checkbox"
+                            disabled={!unpaid}
+                            checked={unpaid && selectedKeys.includes(key)}
+                            onChange={() => toggleSelected(key)}
+                          />
+                        </td>
                         <td style={{ fontSize: '12px', color: 'var(--text-dim)', whiteSpace: 'nowrap' }}>
                           {exp.date}
                         </td>
@@ -799,6 +871,17 @@ export const DriverExpensesView: React.FC = () => {
                             </div>
                             {exp.driverName}
                           </div>
+                        </td>
+                        <td>
+                          <span
+                            className="driver-type-badge"
+                            style={{
+                              background: exp.source === 'trip' ? 'rgba(56, 189, 248, 0.12)' : 'rgba(34, 197, 94, 0.12)',
+                              color: exp.source === 'trip' ? '#38bdf8' : '#22c55e'
+                            }}
+                          >
+                            {exp.source === 'trip' ? `Trip${exp.bookingNumber ? ` · ${exp.bookingNumber}` : ''}` : 'Driver'}
+                          </span>
                         </td>
                         <td style={{ fontWeight: 500 }}>{exp.vehicle}</td>
                         <td>
@@ -812,7 +895,7 @@ export const DriverExpensesView: React.FC = () => {
                         <td style={{ fontWeight: 600, color: 'var(--text)' }}>
                           {formatINR(exp.amount)}
                         </td>
-                        <td>{renderStatusDropdown(exp.status, exp.id)}</td>
+                        <td>{renderStatusDropdown(exp)}</td>
                         <td style={{ fontSize: '12px', color: 'var(--text-dim)', maxWidth: '200px' }}>
                           {exp.remarks || '—'}
                         </td>
@@ -823,7 +906,7 @@ export const DriverExpensesView: React.FC = () => {
                               style={{ fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}
                               onClick={() => setActiveReceipt(exp.receipt!)}
                             >
-                              <FileText size={12} /> {exp.receipt.startsWith('data:') ? 'View document' : exp.receipt}
+                              <FileText size={12} /> {receiptLabel(exp.receipt)}
                             </span>
                           ) : (
                             <span style={{ color: 'var(--text-faint)', fontSize: '12px' }}>—</span>
@@ -847,7 +930,7 @@ export const DriverExpensesView: React.FC = () => {
                                 color: 'var(--danger)',
                                 borderColor: 'rgba(255, 92, 92, 0.3)'
                               }}
-                              onClick={() => handleDeleteExpense(exp.id, exp.driverName, exp.amount)}
+                              onClick={() => handleDeleteExpense(exp)}
                               title="Delete expense"
                             >
                               <Trash2 size={12} />
@@ -855,7 +938,8 @@ export const DriverExpensesView: React.FC = () => {
                           </div>
                         </td>
                       </tr>
-                    ))
+                      );
+                    })
                   )}
                 </tbody>
               </table>
@@ -926,7 +1010,7 @@ export const DriverExpensesView: React.FC = () => {
                   type="button"
                   className="btn-secondary"
                   style={{ padding: '5px 12px', fontSize: '12px' }}
-                  onClick={() => setSelectedMonth(new Date().toISOString().slice(0, 7))}
+                  onClick={() => setSelectedMonth(todayIST().slice(0, 7))}
                 >
                   This Month
                 </button>
@@ -1055,10 +1139,13 @@ export const DriverExpensesView: React.FC = () => {
                         return (
                           <tr
                             key={d.driverId || d.driverName}
+                            onClick={() => handleDriverEntriesClick(d.driverName)}
                             style={{
                               background: isFiltered ? 'rgba(56, 189, 248, 0.06)' : undefined,
-                              transition: 'background 0.15s ease'
+                              transition: 'background 0.15s ease',
+                              cursor: 'pointer'
                             }}
+                            title={`View all expenses for ${d.driverName}`}
                           >
                             <td style={{ fontWeight: 600 }}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -1111,11 +1198,14 @@ export const DriverExpensesView: React.FC = () => {
                               )}
                             </td>
                             <td>
-                              {/* Clickable entries badge leading directly to driver history */}
+                              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
                               <button
                                 type="button"
                                 className="btn-secondary"
-                                onClick={() => handleDriverEntriesClick(d.driverName)}
+                                onClick={e => {
+                                  e.stopPropagation();
+                                  handleDriverEntriesClick(d.driverName);
+                                }}
                                 style={{
                                   cursor: 'pointer',
                                   background: d.transactionCount > 0 ? 'rgba(56, 189, 248, 0.12)' : 'var(--surface-2)',
@@ -1135,6 +1225,20 @@ export const DriverExpensesView: React.FC = () => {
                                 {d.transactionCount} {d.transactionCount === 1 ? 'entry' : 'entries'}
                                 {d.transactionCount > 0 && <ArrowUpRight size={12} />}
                               </button>
+                              {d.pendingAmount > 0 && (
+                                <button
+                                  type="button"
+                                  className="btn-primary-action"
+                                  style={{ padding: '3px 10px', fontSize: '11px' }}
+                                  onClick={e => {
+                                    e.stopPropagation();
+                                    payItems(d.records || []);
+                                  }}
+                                >
+                                  Pay pending
+                                </button>
+                              )}
+                              </div>
                             </td>
                           </tr>
                         );
@@ -1187,11 +1291,11 @@ export const DriverExpensesView: React.FC = () => {
                     onChange={e => setCategoryFilter(e.target.value)}
                   >
                     <option value="All">All Categories</option>
-                    <option value="Daily Bata / Food">Daily Bata / Food</option>
-                    <option value="Night Halt Allowance">Night Halt Allowance</option>
-                    <option value="Advance Payout">Advance Payout</option>
-                    <option value="Overtime">Overtime</option>
-                    <option value="Toll / Cash Reimbursement">Toll / Reimbursement</option>
+                    {FILTER_CATEGORIES.map(cat => (
+                      <option key={`month-${cat}`} value={cat}>
+                        {cat}
+                      </option>
+                    ))}
                   </select>
 
                   <select
@@ -1205,14 +1309,17 @@ export const DriverExpensesView: React.FC = () => {
                     <option value="Approved">Approved</option>
                     <option value="Pending">Pending</option>
                   </select>
+                  {renderPayControls(filteredMonthlyExpenses)}
                 </div>
 
                 <div className="table-responsive">
                   <table>
                     <thead>
                       <tr>
+                        <th style={{ width: 36 }}></th>
                         <th>Date</th>
                         <th>Driver</th>
+                        <th>Type</th>
                         <th>Vehicle</th>
                         <th>Category</th>
                         <th>Amount</th>
@@ -1225,13 +1332,24 @@ export const DriverExpensesView: React.FC = () => {
                     <tbody>
                       {filteredMonthlyExpenses.length === 0 ? (
                         <tr>
-                          <td colSpan={9} style={{ textAlign: 'center', color: 'var(--text-faint)', padding: '36px 0' }}>
+                          <td colSpan={11} style={{ textAlign: 'center', color: 'var(--text-faint)', padding: '36px 0' }}>
                             No driver expenses recorded for {formattedMonthLabel} {driverFilter !== 'All' ? `for driver ${driverFilter}` : ''}. Click "+ Add Driver Expense" above.
                           </td>
                         </tr>
                       ) : (
-                        filteredMonthlyExpenses.map(exp => (
-                          <tr key={exp.id}>
+                        filteredMonthlyExpenses.map(exp => {
+                          const key = expenseKey(exp);
+                          const unpaid = exp.status !== 'Paid';
+                          return (
+                          <tr key={key}>
+                            <td>
+                              <input
+                                type="checkbox"
+                                disabled={!unpaid}
+                                checked={unpaid && selectedKeys.includes(key)}
+                                onChange={() => toggleSelected(key)}
+                              />
+                            </td>
                             <td style={{ fontSize: '12px', color: 'var(--text-dim)', whiteSpace: 'nowrap' }}>
                               {exp.date}
                             </td>
@@ -1242,6 +1360,17 @@ export const DriverExpensesView: React.FC = () => {
                                 </div>
                                 {exp.driverName}
                               </div>
+                            </td>
+                            <td>
+                              <span
+                                className="driver-type-badge"
+                                style={{
+                                  background: exp.source === 'trip' ? 'rgba(56, 189, 248, 0.12)' : 'rgba(34, 197, 94, 0.12)',
+                                  color: exp.source === 'trip' ? '#38bdf8' : '#22c55e'
+                                }}
+                              >
+                                {exp.source === 'trip' ? `Trip${exp.bookingNumber ? ` · ${exp.bookingNumber}` : ''}` : 'Driver'}
+                              </span>
                             </td>
                             <td style={{ fontWeight: 500 }}>{exp.vehicle}</td>
                             <td>
@@ -1255,7 +1384,7 @@ export const DriverExpensesView: React.FC = () => {
                             <td style={{ fontWeight: 600, color: 'var(--text)' }}>
                               {formatINR(exp.amount)}
                             </td>
-                            <td>{renderStatusDropdown(exp.status, exp.id)}</td>
+                            <td>{renderStatusDropdown(exp)}</td>
                             <td style={{ fontSize: '12px', color: 'var(--text-dim)', maxWidth: '200px' }}>
                               {exp.remarks || '—'}
                             </td>
@@ -1266,7 +1395,7 @@ export const DriverExpensesView: React.FC = () => {
                                   style={{ fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}
                                   onClick={() => setActiveReceipt(exp.receipt!)}
                                 >
-                                  <FileText size={12} /> {exp.receipt.startsWith('data:') ? 'View attachment' : exp.receipt}
+                                  <FileText size={12} /> {receiptLabel(exp.receipt)}
                                 </span>
                               ) : (
                                 <span style={{ color: 'var(--text-faint)', fontSize: '12px' }}>—</span>
@@ -1290,7 +1419,7 @@ export const DriverExpensesView: React.FC = () => {
                                     color: 'var(--danger)',
                                     borderColor: 'rgba(255, 92, 92, 0.3)'
                                   }}
-                                  onClick={() => handleDeleteExpense(exp.id, exp.driverName, exp.amount)}
+                                  onClick={() => handleDeleteExpense(exp)}
                                   title="Delete expense"
                                 >
                                   <Trash2 size={12} />
@@ -1298,7 +1427,8 @@ export const DriverExpensesView: React.FC = () => {
                               </div>
                             </td>
                           </tr>
-                        ))
+                          );
+                        })
                       )}
                     </tbody>
                   </table>
@@ -1535,7 +1665,19 @@ export const DriverExpensesView: React.FC = () => {
                       </tr>
                     ) : (
                       yearlyDriverSummary.map((d: any) => (
-                        <tr key={d.driverId || d.driverName}>
+                        <tr
+                          key={d.driverId || d.driverName}
+                          onClick={() => {
+                            setDriverFilter(d.driverName);
+                            setMonthSubTab('dateWiseLogs');
+                            if (!selectedMonth.startsWith(selectedYear)) {
+                              setSelectedMonth(`${selectedYear}-${todayIST().slice(5, 7)}`);
+                            }
+                            setTimeFrame('monthly');
+                          }}
+                          style={{ cursor: 'pointer' }}
+                          title={`View ${d.driverName}'s expenses`}
+                        >
                           <td style={{ fontWeight: 600 }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                               <div className="driver-avatar-circle" style={{ width: 28, height: 28, fontSize: 11 }}>
@@ -1617,7 +1759,7 @@ export const DriverExpensesView: React.FC = () => {
               </button>
             </div>
             <div className="modal-body" style={{ alignItems: 'center', textAlign: 'center' }}>
-              {activeReceipt.startsWith('data:image') ? (
+              {activeReceipt.startsWith('data:image') || activeReceipt.startsWith('http') ? (
                 <img
                   src={activeReceipt}
                   alt="Receipt Document"

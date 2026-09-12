@@ -17,7 +17,14 @@ const expenseCategories: DriverExpenseCategory[] = [
   'Advance Payout',
   'Overtime',
   'Toll / Cash Reimbursement',
-  'Uniform / Misc'
+  'Uniform / Misc',
+  'Toll',
+  'Food',
+  'Parking',
+  'Repair',
+  'Loading',
+  'Maintenance',
+  'Other'
 ];
 
 export const AddDriverExpenseModal: React.FC<AddDriverExpenseModalProps> = ({

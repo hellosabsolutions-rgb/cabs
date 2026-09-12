@@ -1,12 +1,6 @@
 import mongoose from 'mongoose';
 
-export const DRIVER_EXPENSE_CATEGORIES = [
-  'Daily Bata / Food',
-  'Night Halt Allowance',
-  'Advance Payout',
-  'Overtime',
-  'Toll / Cash Reimbursement',
-  'Uniform / Misc',
+export const TRIP_EXPENSE_CATEGORIES = [
   'Toll',
   'Food',
   'Parking',
@@ -16,8 +10,19 @@ export const DRIVER_EXPENSE_CATEGORIES = [
   'Other'
 ];
 
-const driverExpenseSchema = new mongoose.Schema(
+const tripExpenseSchema = new mongoose.Schema(
   {
+    bookingId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Booking',
+      required: true,
+      index: true
+    },
+    bookingNumber: {
+      type: String,
+      trim: true,
+      default: ''
+    },
     driverId: {
       type: String,
       required: true,
@@ -25,13 +30,13 @@ const driverExpenseSchema = new mongoose.Schema(
     },
     driverName: {
       type: String,
-      required: true,
-      trim: true
+      trim: true,
+      default: ''
     },
     vehicle: {
       type: String,
-      required: true,
       trim: true,
+      default: '',
       index: true
     },
     date: {
@@ -42,22 +47,18 @@ const driverExpenseSchema = new mongoose.Schema(
     category: {
       type: String,
       required: true,
-      enum: DRIVER_EXPENSE_CATEGORIES
+      enum: TRIP_EXPENSE_CATEGORIES,
+      index: true
     },
     amount: {
       type: Number,
       required: true,
       min: 0
     },
-    status: {
+    notes: {
       type: String,
-      enum: ['Approved', 'Pending', 'Paid'],
-      default: 'Pending',
-      index: true
-    },
-    remarks: {
-      type: String,
-      trim: true
+      trim: true,
+      default: ''
     },
     receipt: {
       type: String,
@@ -66,21 +67,28 @@ const driverExpenseSchema = new mongoose.Schema(
     createdBy: {
       type: String,
       enum: ['driver', 'admin'],
-      default: 'admin',
+      default: 'driver',
       index: true
     },
     createdByName: {
       type: String,
       trim: true,
       default: ''
+    },
+    status: {
+      type: String,
+      enum: ['Approved', 'Pending', 'Paid'],
+      default: 'Pending',
+      index: true
     }
   },
   {
     timestamps: true,
     toJSON: {
       virtuals: true,
-      transform: (doc, ret) => {
+      transform: (_doc, ret) => {
         ret.id = ret._id.toString();
+        ret.bookingId = ret.bookingId?.toString?.() || ret.bookingId;
         delete ret.__v;
         return ret;
       }
@@ -89,6 +97,7 @@ const driverExpenseSchema = new mongoose.Schema(
   }
 );
 
-driverExpenseSchema.index({ driverId: 1, date: -1 });
+tripExpenseSchema.index({ bookingId: 1, createdAt: -1 });
+tripExpenseSchema.index({ driverId: 1, date: -1 });
 
-export const DriverExpense = mongoose.model('DriverExpense', driverExpenseSchema);
+export const TripExpense = mongoose.model('TripExpense', tripExpenseSchema);

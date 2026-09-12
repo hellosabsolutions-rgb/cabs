@@ -13,6 +13,7 @@ import {
   StyleSheet,
   Text,
   View,
+  Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -27,15 +28,40 @@ import { useAppTheme } from '../theme/ThemeProvider';
 import { BookingItem } from '../types/booking';
 import { GoogleMapView } from '../components/GoogleMapView';
 import { useSession } from '../state/session';
-import { bookingApi } from '../services/api';
+import { bookingApi, tripExpenseApi, uploadApi, TRIP_EXPENSE_CATEGORIES, type TripExpenseItem } from '../services/api';
 import { driverSocket } from '../services/socket';
 import { GlassButton, GlassCircleButton, GlassPill } from '../components/GlassChrome';
 import { BookingSheetHandle } from '../components/BookingSheetHandle';
 import { AppBottomSheetModal } from '../components/AppBottomSheetModal';
+import { AttachmentPicker } from '../components/AttachmentPicker';
+import type { Attachment } from '../media/types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'BookingDetail'>;
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+
+const TRIP_EXPENSE_CHIP_ITEMS = TRIP_EXPENSE_CATEGORIES.map((id) => ({ id, label: id }));
+
+function normalizeTripExpense(item: any): TripExpenseItem | null {
+  if (!item) return null;
+  const id = item.id || item._id;
+  if (!id) return null;
+  return {
+    id,
+    bookingId: String(item.bookingId || ''),
+    bookingNumber: item.bookingNumber || '',
+    driverId: String(item.driverId || ''),
+    driverName: item.driverName || '',
+    vehicle: item.vehicle || '',
+    date: item.date || '',
+    category: item.category || 'Other',
+    amount: Number(item.amount || 0),
+    notes: item.notes || '',
+    receipt: item.receipt || null,
+    createdBy: item.createdBy === 'admin' ? 'admin' : 'driver',
+    createdByName: item.createdByName || '',
+  };
+}
 
 export function BookingDetailScreen({ route, navigation }: Props) {
   const insets = useSafeAreaInsets();
@@ -52,7 +78,17 @@ export function BookingDetailScreen({ route, navigation }: Props) {
   );
   const [completionNotes, setCompletionNotes] = useState('');
 
-  const [expandedSection, setExpandedSection] = useState<'route' | 'requests' | 'payment' | null>('route');
+  const [expandedSection, setExpandedSection] = useState<'route' | 'requests' | 'payment' | 'expenses' | null>('route');
+  const expenseSheetRef = useRef<BottomSheetModal>(null);
+  const expenseSnapPoints = useMemo(() => ['78%', '94%'], []);
+  const [tripExpenses, setTripExpenses] = useState<TripExpenseItem[]>([]);
+  const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null);
+  const [expenseCategory, setExpenseCategory] = useState<(typeof TRIP_EXPENSE_CATEGORIES)[number]>('Toll');
+  const [expenseAmount, setExpenseAmount] = useState('');
+  const [expenseNotes, setExpenseNotes] = useState('');
+  const [expenseReceipt, setExpenseReceipt] = useState<Attachment | null>(null);
+  const [existingReceiptUrl, setExistingReceiptUrl] = useState<string | null>(null);
+  const [isSavingExpense, setIsSavingExpense] = useState(false);
 
   const SNAP_TOP = insets.top + 52;
   const SNAP_MID = SCREEN_HEIGHT * 0.44;
@@ -234,11 +270,66 @@ export function BookingDetailScreen({ route, navigation }: Props) {
     driverSocket.on('booking:unassigned', onUnassigned);
     driverSocket.on('booking:deleted', onDeleted);
 
+    const matchesBooking = (payload: any) => {
+      const exp = payload?.expense || payload;
+      const bookingId = String(exp?.bookingId || payload?.bookingId || '');
+      return Boolean(bookingId && bookingId === String(booking.id));
+    };
+
+    const onExpenseCreated = (data: any) => {
+      const normalized = normalizeTripExpense(data?.expense || data);
+      if (!normalized || !matchesBooking(data)) return;
+      setTripExpenses((prev) => {
+        if (prev.some((e) => e.id === normalized.id)) {
+          return prev.map((e) => (e.id === normalized.id ? { ...e, ...normalized } : e));
+        }
+        return [normalized, ...prev];
+      });
+    };
+
+    const onExpenseUpdated = (data: any) => {
+      const normalized = normalizeTripExpense(data?.expense || data);
+      if (!normalized || !matchesBooking(data)) return;
+      setTripExpenses((prev) => {
+        if (!prev.some((e) => e.id === normalized.id)) return [normalized, ...prev];
+        return prev.map((e) => (e.id === normalized.id ? { ...e, ...normalized } : e));
+      });
+    };
+
+    const onExpenseDeleted = (data: any) => {
+      const id = data?.expenseId || data?.id || data?._id || data?.expense?.id;
+      const bookingId = String(data?.bookingId || data?.expense?.bookingId || '');
+      if (bookingId && bookingId !== String(booking.id)) return;
+      if (!id) return;
+      setTripExpenses((prev) => prev.filter((e) => e.id !== id));
+    };
+
+    driverSocket.on('trip-expense:created', onExpenseCreated);
+    driverSocket.on('trip-expense:updated', onExpenseUpdated);
+    driverSocket.on('trip-expense:deleted', onExpenseDeleted);
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await tripExpenseApi.list(booking.id);
+        if (cancelled || !res?.success || !Array.isArray(res.data)) return;
+        setTripExpenses(
+          res.data.map(normalizeTripExpense).filter((item): item is TripExpenseItem => Boolean(item))
+        );
+      } catch (err) {
+        console.warn('[BookingDetail] trip expenses fetch failed:', err);
+      }
+    })();
+
     return () => {
+      cancelled = true;
       driverSocket.off('booking:updated', onUpdated);
       driverSocket.off('booking:completed', onUpdated);
       driverSocket.off('booking:unassigned', onUnassigned);
       driverSocket.off('booking:deleted', onDeleted);
+      driverSocket.off('trip-expense:created', onExpenseCreated);
+      driverSocket.off('trip-expense:updated', onExpenseUpdated);
+      driverSocket.off('trip-expense:deleted', onExpenseDeleted);
     };
   }, [booking?.id, navigation]);
 
@@ -314,6 +405,142 @@ export function BookingDetailScreen({ route, navigation }: Props) {
     } finally {
       setIsUpdatingStatus(false);
     }
+  };
+
+  const tripExpenseTotal = tripExpenses.reduce((sum, item) => sum + Number(item.amount || 0), 0);
+
+  const canEditExpense = (item: TripExpenseItem) => item.createdBy !== 'admin';
+
+  const receiptFromUrl = (url?: string | null): Attachment | null => {
+    if (!url) return null;
+    return {
+      uri: url,
+      name: 'receipt.jpg',
+      mime: 'image/jpeg',
+      kind: 'image',
+    };
+  };
+
+  const uploadReceiptIfNeeded = async (file: Attachment | null, fallbackUrl: string | null) => {
+    if (file?.uri && (file.uri.startsWith('http://') || file.uri.startsWith('https://'))) {
+      return file.uri;
+    }
+    if (file?.base64) {
+      const dataUri = `data:${file.mime || 'image/jpeg'};base64,${file.base64}`;
+      const uploaded = await uploadApi.uploadBase64(dataUri);
+      const url = uploaded.url || uploaded.data?.secure_url;
+      if (!url) throw new Error(uploaded.error || 'Could not upload receipt photo.');
+      return url;
+    }
+    return fallbackUrl;
+  };
+
+  const openExpenseSheet = (item?: TripExpenseItem) => {
+    if (item && !canEditExpense(item)) {
+      Alert.alert('Office expense', 'This expense was added by office. You can view it but cannot edit it.');
+      return;
+    }
+    if (item) {
+      setEditingExpenseId(item.id);
+      setExpenseCategory(item.category);
+      setExpenseAmount(String(item.amount));
+      setExpenseNotes(item.notes || '');
+      setExistingReceiptUrl(item.receipt || null);
+      setExpenseReceipt(receiptFromUrl(item.receipt));
+    } else {
+      setEditingExpenseId(null);
+      setExpenseCategory('Toll');
+      setExpenseAmount('');
+      setExpenseNotes('');
+      setExistingReceiptUrl(null);
+      setExpenseReceipt(null);
+    }
+    expenseSheetRef.current?.present();
+  };
+
+  const handleSaveExpense = async () => {
+    if (!booking) return;
+    const amountNum = Number(expenseAmount);
+    if (!Number.isFinite(amountNum) || amountNum <= 0) {
+      Alert.alert('Trip expense', 'Enter a valid amount.');
+      return;
+    }
+    if (!expenseReceipt && !existingReceiptUrl) {
+      Alert.alert('Trip expense', 'Receipt photo is required.');
+      return;
+    }
+    if (expenseReceipt?.kind === 'pdf') {
+      Alert.alert('Trip expense', 'Please upload a photo of the receipt, not a PDF.');
+      return;
+    }
+    setIsSavingExpense(true);
+    try {
+      const receiptUrl = await uploadReceiptIfNeeded(expenseReceipt, existingReceiptUrl);
+      if (!receiptUrl) {
+        Alert.alert('Trip expense', 'Receipt photo is required.');
+        return;
+      }
+      if (editingExpenseId) {
+        const res = await tripExpenseApi.update(editingExpenseId, {
+          category: expenseCategory,
+          amount: amountNum,
+          notes: expenseNotes.trim(),
+          receipt: receiptUrl,
+        });
+        const normalized = normalizeTripExpense(res?.data);
+        if (normalized) {
+          setTripExpenses((prev) => prev.map((e) => (e.id === normalized.id ? { ...e, ...normalized } : e)));
+        }
+      } else {
+        const res = await tripExpenseApi.create({
+          bookingId: booking.id,
+          category: expenseCategory,
+          amount: amountNum,
+          notes: expenseNotes.trim(),
+          receipt: receiptUrl,
+        });
+        const normalized = normalizeTripExpense(res?.data);
+        if (normalized) {
+          setTripExpenses((prev) => {
+            if (prev.some((e) => e.id === normalized.id)) {
+              return prev.map((e) => (e.id === normalized.id ? { ...e, ...normalized } : e));
+            }
+            return [normalized, ...prev];
+          });
+        }
+      }
+      expenseSheetRef.current?.dismiss();
+    } catch (err: any) {
+      Alert.alert('Trip expense', err?.message || 'Could not save expense.');
+    } finally {
+      setIsSavingExpense(false);
+    }
+  };
+
+  const confirmDeleteExpense = (item: TripExpenseItem) => {
+    if (!canEditExpense(item)) {
+      Alert.alert('Office expense', 'This expense was added by office. You cannot delete it.');
+      return;
+    }
+    Alert.alert(
+      'Delete expense',
+      `Remove ${item.category} · ₹${Number(item.amount).toLocaleString('en-IN')}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await tripExpenseApi.delete(item.id);
+              setTripExpenses((prev) => prev.filter((e) => e.id !== item.id));
+            } catch (err: any) {
+              Alert.alert('Trip expense', err?.message || 'Could not delete expense.');
+            }
+          },
+        },
+      ]
+    );
   };
 
   if (!booking) {
@@ -776,7 +1003,102 @@ export function BookingDetailScreen({ route, navigation }: Props) {
               </View>
             )}
 
-            {/* ROW 4: Support & Dispatch */}
+            {/* ROW 4: Trip Expenses */}
+            <Pressable
+              onPress={() => setExpandedSection(expandedSection === 'expenses' ? null : 'expenses')}
+              style={[
+                styles.accordionRow,
+                { borderBottomColor: rowDivider, backgroundColor: expandedSection === 'expenses' ? rowHoverBg : 'transparent' },
+              ]}
+            >
+              <View style={styles.accordionLeft}>
+                <View style={[styles.accordionIconWrap, { backgroundColor: isDark ? '#334155' : '#F1F5F9' }]}>
+                  <Ionicons name="receipt" size={16} color={primaryText} />
+                </View>
+                <View>
+                  <Text style={[styles.accordionTitle, { color: primaryText }]}>
+                    Trip Expenses
+                  </Text>
+                  {tripExpenses.length > 0 && (
+                    <Text style={[styles.detailItemSub, { color: mutedText, marginTop: 1 }]}>
+                      {tripExpenses.length} {tripExpenses.length === 1 ? 'item' : 'items'} · ₹{tripExpenseTotal.toLocaleString('en-IN')}
+                    </Text>
+                  )}
+                </View>
+              </View>
+              <Ionicons
+                name={expandedSection === 'expenses' ? 'chevron-down' : 'chevron-forward'}
+                size={16}
+                color={mutedText}
+              />
+            </Pressable>
+
+            {expandedSection === 'expenses' && (
+              <View style={[styles.expandedContent, { borderBottomColor: rowDivider }]}>
+                {tripExpenses.length === 0 ? (
+                  <Text style={[styles.detailItemSub, { color: mutedText, marginBottom: 10 }]}>
+                    No trip expenses yet. Toll, food, parking and other costs for this trip go here.
+                  </Text>
+                ) : (
+                  tripExpenses.map((item) => (
+                    <View
+                      key={item.id}
+                      style={[
+                        styles.expenseItemRow,
+                        { borderColor: isDark ? '#334155' : '#E2E8F0', backgroundColor: isDark ? '#1E293B' : '#F8FAFC' },
+                      ]}
+                    >
+                      {item.receipt ? (
+                        <Pressable
+                          onPress={() => {
+                            if (item.receipt?.startsWith('http')) {
+                              Linking.openURL(item.receipt).catch(() => {});
+                            }
+                          }}
+                        >
+                          <Image source={{ uri: item.receipt }} style={styles.expenseThumb} />
+                        </Pressable>
+                      ) : null}
+                      <View style={{ flex: 1, paddingRight: 8 }}>
+                        <Text style={[styles.expenseItemTitle, { color: primaryText }]}>{item.category}</Text>
+                        <Text style={[styles.detailItemSub, { color: mutedText }]}>
+                          {item.createdBy === 'admin' ? 'Added by office' : 'Added by you'}
+                          {item.notes ? ` · ${item.notes}` : ''}
+                        </Text>
+                      </View>
+                      <Text style={[styles.expenseItemAmount, { color: primaryText }]}>
+                        ₹{Number(item.amount).toLocaleString('en-IN')}
+                      </Text>
+                      {canEditExpense(item) ? (
+                        <>
+                          <Pressable onPress={() => openExpenseSheet(item)} hitSlop={8} style={styles.expenseIconBtn}>
+                            <Ionicons name="create-outline" size={18} color={colors.accent} />
+                          </Pressable>
+                          <Pressable onPress={() => confirmDeleteExpense(item)} hitSlop={8} style={styles.expenseIconBtn}>
+                            <Ionicons name="trash-outline" size={18} color="#EF4444" />
+                          </Pressable>
+                        </>
+                      ) : (
+                        <Ionicons name="lock-closed-outline" size={16} color={mutedText} />
+                      )}
+                    </View>
+                  ))
+                )}
+
+                <Pressable
+                  onPress={() => openExpenseSheet()}
+                  style={[
+                    styles.addExpenseBtn,
+                    { borderColor: colors.accent, backgroundColor: isDark ? 'rgba(22, 135, 245, 0.12)' : '#EFF6FF' },
+                  ]}
+                >
+                  <Ionicons name="add-circle" size={18} color={colors.accent} />
+                  <Text style={[styles.addExpenseBtnText, { color: colors.accent }]}>Add trip expense</Text>
+                </Pressable>
+              </View>
+            )}
+
+            {/* ROW 5: Support & Dispatch */}
             <Pressable
               onPress={() => {
                 Linking.openURL('tel:112').catch(() => {
@@ -904,6 +1226,142 @@ export function BookingDetailScreen({ route, navigation }: Props) {
                 <>
                   <Ionicons name="checkmark-done" size={16} color="#FFFFFF" />
                   <Text style={styles.modalSubmitBtnText}>Confirm Completion</Text>
+                </>
+              )}
+            </Pressable>
+          </View>
+        </BottomSheetScrollView>
+      </AppBottomSheetModal>
+
+      <AppBottomSheetModal
+        ref={expenseSheetRef}
+        snapPoints={expenseSnapPoints}
+        index={0}
+        backgroundColor={cardBg}
+        handleColor={isDark ? '#475569' : '#CBD5E1'}
+      >
+        <BottomSheetScrollView
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={[
+            styles.completeSheetContent,
+            { paddingBottom: Math.max(insets.bottom + 24, 36) },
+          ]}
+        >
+          <View style={styles.modalHeader}>
+            <View>
+              <Text style={[styles.modalTitle, { color: primaryText }]}>
+                {editingExpenseId ? 'Edit trip expense' : 'Add trip expense'}
+              </Text>
+              <Text style={[styles.modalSubtitle, { color: mutedText }]}>
+                {booking.bookingNumber} · {booking.customerName}
+              </Text>
+            </View>
+            <Pressable
+              onPress={() => expenseSheetRef.current?.dismiss()}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Ionicons name="close-circle" size={24} color={mutedText} />
+            </Pressable>
+          </View>
+
+          <View style={[styles.modalDivider, { backgroundColor: rowDivider }]} />
+
+          <Text style={[styles.modalInputLabel, { color: primaryText }]}>Category</Text>
+          <View style={styles.expenseChipWrap}>
+            {TRIP_EXPENSE_CHIP_ITEMS.map((item) => {
+              const active = expenseCategory === item.id;
+              return (
+                <Pressable
+                  key={item.id}
+                  onPress={() => setExpenseCategory(item.id)}
+                  style={[
+                    styles.expenseChip,
+                    {
+                      backgroundColor: active ? '#1687F5' : isDark ? '#0F172A' : '#F8FAFC',
+                      borderColor: active ? '#1687F5' : isDark ? '#334155' : '#CBD5E1',
+                    },
+                  ]}
+                >
+                  <Text style={[styles.expenseChipText, { color: active ? '#FFFFFF' : primaryText }]}>
+                    {item.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+
+          <View style={{ marginTop: 4 }}>
+            <Text style={[styles.modalInputLabel, { color: primaryText }]}>Amount (₹) *</Text>
+            <BottomSheetTextInput
+              value={expenseAmount}
+              onChangeText={setExpenseAmount}
+              keyboardType="numeric"
+              placeholder="e.g. 120"
+              placeholderTextColor={mutedText}
+              style={[
+                styles.modalTextInput,
+                {
+                  backgroundColor: isDark ? '#0F172A' : '#F8FAFC',
+                  color: primaryText,
+                  borderColor: isDark ? '#334155' : '#CBD5E1',
+                },
+              ]}
+            />
+          </View>
+
+          <View style={{ marginTop: 12 }}>
+            <Text style={[styles.modalInputLabel, { color: primaryText }]}>Notes (optional)</Text>
+            <BottomSheetTextInput
+              value={expenseNotes}
+              onChangeText={setExpenseNotes}
+              placeholder="e.g. Toll at Kherki Daula"
+              placeholderTextColor={mutedText}
+              multiline
+              numberOfLines={3}
+              style={[
+                styles.modalTextInputMultiline,
+                {
+                  backgroundColor: isDark ? '#0F172A' : '#F8FAFC',
+                  color: primaryText,
+                  borderColor: isDark ? '#334155' : '#CBD5E1',
+                },
+              ]}
+            />
+          </View>
+
+          <View style={{ marginTop: 12 }}>
+            <AttachmentPicker
+              label="Receipt photo *"
+              hint="Camera or gallery. Required for driver expenses."
+              value={expenseReceipt}
+              onChange={(file) => {
+                setExpenseReceipt(file);
+                if (!file) setExistingReceiptUrl(null);
+              }}
+            />
+          </View>
+
+          <View style={styles.modalActionRow}>
+            <Pressable
+              onPress={() => expenseSheetRef.current?.dismiss()}
+              style={[styles.modalCancelBtn, { borderColor: cardBorder }]}
+            >
+              <Text style={[styles.modalCancelBtnText, { color: mutedText }]}>Cancel</Text>
+            </Pressable>
+
+            <Pressable
+              onPress={handleSaveExpense}
+              disabled={isSavingExpense}
+              style={[styles.modalSubmitBtn, { backgroundColor: '#1687F5', opacity: isSavingExpense ? 0.7 : 1 }]}
+            >
+              {isSavingExpense ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <>
+                  <Ionicons name={editingExpenseId ? 'checkmark' : 'add'} size={16} color="#FFFFFF" />
+                  <Text style={styles.modalSubmitBtnText}>
+                    {editingExpenseId ? 'Save changes' : 'Add expense'}
+                  </Text>
                 </>
               )}
             </Pressable>
@@ -1282,6 +1740,63 @@ const styles = StyleSheet.create({
   paymentBalanceBold: {
     fontSize: 16,
     fontWeight: '900',
+  },
+  expenseItemRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 8,
+    gap: 8,
+  },
+  expenseThumb: {
+    width: 40,
+    height: 40,
+    borderRadius: 8,
+  },
+  expenseItemTitle: {
+    fontSize: 13.5,
+    fontWeight: '800',
+  },
+  expenseItemAmount: {
+    fontSize: 14,
+    fontWeight: '800',
+    marginRight: 4,
+  },
+  expenseIconBtn: {
+    padding: 4,
+  },
+  addExpenseBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingVertical: 11,
+    marginTop: 4,
+  },
+  addExpenseBtnText: {
+    fontSize: 13.5,
+    fontWeight: '800',
+  },
+  expenseChipWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 8,
+  },
+  expenseChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 16,
+    borderWidth: 1,
+  },
+  expenseChipText: {
+    fontSize: 12.5,
+    fontWeight: '700',
   },
   primaryLifecycleBtn: {
     flexDirection: 'row',

@@ -68,27 +68,24 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onCloseMobile }) => {
             width: '44px',
             height: '44px',
             borderRadius: '12px',
-            background: '#ffffff',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            padding: '3px',
-            boxShadow: theme === 'dark'
-              ? '0 2px 10px rgba(22, 135, 245, 0.2), 0 0 0 1px rgba(255,255,255,0.08)'
-              : '0 2px 10px rgba(22, 135, 245, 0.15), 0 0 0 1px rgba(0,0,0,0.06)',
             flexShrink: 0,
             overflow: 'hidden',
-            transition: 'all 0.3s ease'
+            boxShadow: theme === 'dark'
+              ? '0 2px 10px rgba(22, 135, 245, 0.28)'
+              : '0 2px 10px rgba(22, 135, 245, 0.22)'
           }}
         >
           <img
-            src={theme === 'dark' ? '/logo-dark.jpg' : '/logo-light.png'}
+            src="/kabpro.png?v=2"
             alt="KABPRO Logo"
             style={{
               width: '100%',
               height: '100%',
-              objectFit: 'contain',
-              borderRadius: '8px'
+              objectFit: 'cover',
+              display: 'block'
             }}
           />
         </div>
@@ -246,6 +243,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onCloseMobile }) => {
           >
             <IndianRupee />
             {t('nav.allExpenses', 'All expenses')}
+          </NavLink>
+          <NavLink
+            to="/expenses/trips"
+            className={navClass('/expenses/trips')}
+            onClick={onCloseMobile}
+          >
+            <ReceiptText />
+            {t('nav.tripExpenses', 'Trip expenses')}
           </NavLink>
           <NavLink
             to="/profitability"

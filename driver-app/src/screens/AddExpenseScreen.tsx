@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Alert, StyleSheet, Text } from 'react-native';
+import React, { useCallback, useEffect, useState } from 'react';
+import { ActivityIndicator, Alert, StyleSheet, Text, View } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Screen } from '../components/Screen';
 import { PrimaryButton, ButtonRow } from '../components/PrimaryButton';
@@ -17,6 +17,8 @@ import { useSession } from '../state/session';
 import { inrPlain } from '../data/format';
 import type { MessageKey } from '../i18n/en';
 import type { Attachment } from '../media/types';
+import { driverExpenseApi, uploadApi, type DriverExpenseApiItem } from '../services/api';
+import { driverSocket } from '../services/socket';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'AddExpense'>;
 
@@ -30,34 +32,187 @@ const CATEGORIES: { id: string; key: MessageKey }[] = [
   { id: 'Other', key: 'expense.other' },
 ];
 
+function mapStatus(status?: string): 'pending' | 'approved' | 'paid' {
+  const value = (status || 'Pending').toLowerCase();
+  if (value === 'paid') return 'paid';
+  if (value === 'approved') return 'approved';
+  return 'pending';
+}
+
+function receiptFromUrl(url?: string | null): Attachment | null {
+  if (!url) return null;
+  return {
+    uri: url,
+    name: 'receipt.jpg',
+    mime: 'image/jpeg',
+    kind: 'image',
+  };
+}
+
 export function AddExpenseScreen({ navigation }: Props) {
   const [category, setCategory] = useState('Toll');
   const [amount, setAmount] = useState('');
   const [note, setNote] = useState('');
   const [file, setFile] = useState<Attachment | null>(null);
+  const [existingReceiptUrl, setExistingReceiptUrl] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [history, setHistory] = useState<DriverExpenseApiItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const { colors, type, t } = useAppTheme();
   const session = useSession();
 
-  const submit = () => {
+  const resetForm = () => {
+    setEditingId(null);
+    setCategory('Toll');
+    setAmount('');
+    setNote('');
+    setFile(null);
+    setExistingReceiptUrl(null);
+  };
+
+  const canEdit = (item: DriverExpenseApiItem) =>
+    item.createdBy !== 'admin' && mapStatus(item.status) !== 'paid';
+
+  const loadHistory = useCallback(async () => {
+    try {
+      const res = await driverExpenseApi.list();
+      setHistory(Array.isArray(res.data) ? res.data : []);
+    } catch {
+      // Keep last known list if the refresh fails.
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadHistory();
+  }, [loadHistory]);
+
+  useEffect(() => {
+    const upsert = (raw: any) => {
+      const item: DriverExpenseApiItem | undefined = raw?.expense || raw;
+      if (!item?.id) return;
+      setHistory((prev) => {
+        if (prev.some((row) => row.id === item.id)) {
+          return prev.map((row) => (row.id === item.id ? { ...row, ...item } : row));
+        }
+        return [item, ...prev];
+      });
+    };
+
+    const onCreated = (data: any) => upsert(data);
+    const onUpdated = (data: any) => upsert(data);
+    const onDeleted = (data: any) => {
+      const id = data?.expenseId || data?.id || data?.expense?.id;
+      if (!id) return;
+      setHistory((prev) => prev.filter((row) => row.id !== id));
+      setEditingId((current) => (current === id ? null : current));
+    };
+
+    driverSocket.on('driver-expense:created', onCreated);
+    driverSocket.on('driver-expense:updated', onUpdated);
+    driverSocket.on('driver-expense:deleted', onDeleted);
+    return () => {
+      driverSocket.off('driver-expense:created', onCreated);
+      driverSocket.off('driver-expense:updated', onUpdated);
+      driverSocket.off('driver-expense:deleted', onDeleted);
+    };
+  }, []);
+
+  const openEdit = (item: DriverExpenseApiItem) => {
+    if (item.createdBy === 'admin') {
+      Alert.alert(t('nav.addExpense'), 'This expense was added by office. You can view it but cannot edit it.');
+      return;
+    }
+    if (mapStatus(item.status) === 'paid') {
+      Alert.alert(t('nav.addExpense'), 'This expense is already paid. Ask office if it needs a change.');
+      return;
+    }
+    setEditingId(item.id);
+    setCategory(item.category || 'Other');
+    setAmount(String(item.amount || ''));
+    setNote(item.remarks || '');
+    setExistingReceiptUrl(item.receipt || null);
+    setFile(receiptFromUrl(item.receipt));
+  };
+
+  const uploadReceiptIfNeeded = async () => {
+    if (file?.uri && (file.uri.startsWith('http://') || file.uri.startsWith('https://'))) {
+      return file.uri;
+    }
+    if (file?.base64) {
+      const dataUri = `data:${file.mime || 'image/jpeg'};base64,${file.base64}`;
+      const uploaded = await uploadApi.uploadBase64(dataUri, 'fleetos/driver-expenses');
+      const url = uploaded.url || uploaded.data?.secure_url;
+      if (!url) throw new Error(uploaded.error || 'Could not upload receipt photo.');
+      return url;
+    }
+    return existingReceiptUrl;
+  };
+
+  const submit = async () => {
     const value = Number(amount);
     if (!value) {
       Alert.alert(t('nav.addExpense'), t('common.required'));
       return;
     }
-    if (!file) {
+    if (!file && !existingReceiptUrl) {
       Alert.alert(t('nav.addExpense'), t('common.photoNeeded'));
       return;
     }
-    session.addExpense({ category, amount: value, note, photo: true });
-    Alert.alert(t('nav.addExpense'), t('expense.saved'), [
-      { text: 'OK', onPress: () => navigation.goBack() },
-    ]);
+    if (file?.kind === 'pdf') {
+      Alert.alert(t('nav.addExpense'), 'Please upload a photo of the receipt, not a PDF.');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const receiptUrl = await uploadReceiptIfNeeded();
+      if (!receiptUrl || receiptUrl.startsWith('file:')) {
+        throw new Error('Could not upload receipt photo.');
+      }
+
+      if (editingId) {
+        const res = await driverExpenseApi.update(editingId, {
+          category,
+          amount: value,
+          remarks: note.trim(),
+          receipt: receiptUrl,
+          vehicle: session.vehicle?.reg,
+        });
+        if (res.data) {
+          setHistory((prev) => prev.map((row) => (row.id === res.data.id ? { ...row, ...res.data } : row)));
+        }
+        resetForm();
+        Alert.alert(t('nav.addExpense'), t('common.saved'));
+      } else {
+        const res = await driverExpenseApi.create({
+          category,
+          amount: value,
+          remarks: note.trim(),
+          receipt: receiptUrl,
+          vehicle: session.vehicle?.reg,
+        });
+        if (res.data) {
+          setHistory((prev) => (prev.some((row) => row.id === res.data.id) ? prev : [res.data, ...prev]));
+        }
+        session.addExpense({ category, amount: value, note, photo: true });
+        Alert.alert(t('nav.addExpense'), t('expense.saved'), [
+          { text: 'OK', onPress: () => navigation.goBack() },
+        ]);
+      }
+    } catch (err: any) {
+      Alert.alert(t('nav.addExpense'), err?.message || 'Could not save expense.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
     <Screen>
       <Text style={[type.body, { color: colors.textFaint, marginBottom: space.lg }]}>
-        {t('expense.sub')}
+        {editingId ? 'Update the expense you added. Office-paid entries stay locked.' : t('expense.sub')}
       </Text>
 
       <Card>
@@ -73,24 +228,57 @@ export function AddExpenseScreen({ navigation }: Props) {
       </Card>
 
       <ButtonRow>
-        <PrimaryButton title={t('common.cancel')} variant="secondary" onPress={() => navigation.goBack()} style={styles.flex} />
-        <PrimaryButton title={t('common.submit')} onPress={submit} style={styles.flex} />
+        <PrimaryButton
+          title={t('common.cancel')}
+          variant="secondary"
+          onPress={() => {
+            if (editingId) resetForm();
+            else navigation.goBack();
+          }}
+          style={styles.flex}
+        />
+        <PrimaryButton
+          title={saving ? 'Saving…' : editingId ? 'Save changes' : t('common.submit')}
+          onPress={submit}
+          style={styles.flex}
+          disabled={saving}
+        />
       </ButtonRow>
 
       <SectionTitle title={t('expense.history')} />
-      {session.expenses.map((item) => (
-        <ListRow
-          key={item.id}
-          icon="receipt-outline"
-          title={`${item.category} · ${inrPlain(item.amount)}`}
-          subtitle={`${item.at}${item.note ? ` · ${item.note}` : ''}`}
-          trailing={<StatusBadge label={t(`status.${item.status}` as MessageKey)} tone={statusTone(item.status)} />}
-        />
-      ))}
+      {loading ? (
+        <View style={styles.loader}>
+          <ActivityIndicator color={colors.accent} />
+        </View>
+      ) : history.length === 0 ? (
+        <Text style={[type.body, { color: colors.textFaint }]}>No expenses yet.</Text>
+      ) : (
+        history.map((item) => {
+          const editable = canEdit(item);
+          return (
+            <ListRow
+              key={item.id}
+              icon="receipt-outline"
+              title={`${item.category} · ${inrPlain(item.amount)}`}
+              subtitle={`${item.date}${item.remarks ? ` · ${item.remarks}` : ''}${
+                editable ? ' · Tap to edit' : item.createdBy === 'admin' ? ' · Office' : ''
+              }`}
+              onPress={() => openEdit(item)}
+              trailing={
+                <StatusBadge
+                  label={t(`status.${mapStatus(item.status)}` as MessageKey)}
+                  tone={statusTone(mapStatus(item.status))}
+                />
+              }
+            />
+          );
+        })
+      )}
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
+  loader: { paddingVertical: 16, alignItems: 'center' },
 });

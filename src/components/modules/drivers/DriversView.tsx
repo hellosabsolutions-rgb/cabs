@@ -51,6 +51,7 @@ export const DriversView: React.FC = () => {
     setDriverSubTab,
     attendanceRecords,
     driverExpenses,
+    tripExpenses,
     payrollItems,
     trips,
     dailyDutyLogs,
@@ -239,7 +240,8 @@ export const DriversView: React.FC = () => {
   // Summary counts
   const onDutyCount = drivers.filter(d => d.status === 'On duty').length;
   const fullTimeCount = drivers.filter(d => d.driverType === 'Full Time').length;
-  const totalExpenseSum = driverExpenses.reduce((acc, curr) => acc + curr.amount, 0);
+  const totalExpenseSum = driverExpenses.reduce((acc, curr) => acc + curr.amount, 0)
+    + tripExpenses.reduce((acc, curr) => acc + Number(curr.amount || 0), 0);
 
   // First-time load: show full skeleton
   if (isLoadingDrivers && drivers.length === 0) {

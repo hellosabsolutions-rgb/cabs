@@ -6,24 +6,21 @@ import {
   createDriverExpense,
   updateDriverExpense,
   updateDriverExpenseStatus,
+  bulkUpdateDriverExpenseStatus,
   deleteDriverExpense
 } from '../controllers/driverExpenseController.js';
+import { protectUserOrDriver } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
-// Analytics (Monthly / Yearly / Category aggregations)
-router.get('/analytics', getDriverExpenseAnalytics);
+router.use(protectUserOrDriver);
 
-// Status update
+router.get('/analytics', getDriverExpenseAnalytics);
+router.patch('/bulk-status', bulkUpdateDriverExpenseStatus);
 router.patch('/:id/status', updateDriverExpenseStatus);
 
-// Collection routes
-router
-  .route('/')
-  .get(getDriverExpenses)
-  .post(createDriverExpense);
+router.route('/').get(getDriverExpenses).post(createDriverExpense);
 
-// Single record routes
 router
   .route('/:id')
   .get(getDriverExpenseById)

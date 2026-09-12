@@ -115,6 +115,7 @@ export const MainLayout: React.FC = () => {
               <Route path="/expenses/fastag" element={<ExpensesView />} />
               <Route path="/expenses/fuel" element={<ExpensesView />} />
               <Route path="/expenses/all" element={<ExpensesView />} />
+              <Route path="/expenses/trips" element={<ExpensesView />} />
 
               {/* Profitability */}
               <Route path="/profitability" element={<ProfitabilityView />} />

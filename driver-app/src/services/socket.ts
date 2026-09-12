@@ -91,6 +91,12 @@ class DriverSocketManager {
         'duty-log:updated',
         'attendance:updated',
         'notification:new',
+        'trip-expense:created',
+        'trip-expense:updated',
+        'trip-expense:deleted',
+        'driver-expense:created',
+        'driver-expense:updated',
+        'driver-expense:deleted',
       ];
 
       driverEvents.forEach((eventName) => {

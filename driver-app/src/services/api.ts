@@ -396,4 +396,161 @@ export const bookingApi = {
     }),
 };
 
+export const TRIP_EXPENSE_CATEGORIES = [
+  'Toll',
+  'Food',
+  'Parking',
+  'Repair',
+  'Loading',
+  'Maintenance',
+  'Other',
+] as const;
+
+export type TripExpenseCategory = (typeof TRIP_EXPENSE_CATEGORIES)[number];
+
+export type TripExpenseItem = {
+  id: string;
+  bookingId: string;
+  bookingNumber: string;
+  driverId: string;
+  driverName: string;
+  vehicle: string;
+  date: string;
+  category: TripExpenseCategory;
+  amount: number;
+  notes?: string;
+  receipt?: string | null;
+  createdBy?: 'driver' | 'admin';
+  createdByName?: string;
+  status?: 'Approved' | 'Pending' | 'Paid';
+};
+
+export type DriverExpenseApiItem = {
+  id: string;
+  driverId: string;
+  driverName: string;
+  vehicle: string;
+  date: string;
+  category: string;
+  amount: number;
+  status?: 'Approved' | 'Pending' | 'Paid';
+  remarks?: string;
+  receipt?: string | null;
+  createdBy?: 'driver' | 'admin';
+};
+
+export const uploadApi = {
+  uploadBase64: (file: string, folder = 'fleetos/trip-expenses') =>
+    apiRequest<{
+      success: boolean;
+      url?: string;
+      data?: { secure_url?: string };
+      error?: string;
+    }>('/upload', {
+      method: 'POST',
+      data: { file, folder },
+    }),
+};
+
+export const tripExpenseApi = {
+  list: (bookingId?: string) => {
+    const q = bookingId ? `?bookingId=${encodeURIComponent(bookingId)}` : '';
+    return apiRequest<{
+      success: boolean;
+      count: number;
+      data: any[];
+    }>(`/trip-expenses${q}`, {
+      method: 'GET',
+    });
+  },
+
+  create: (data: {
+    bookingId: string;
+    category: TripExpenseCategory;
+    amount: number;
+    notes?: string;
+    receipt: string;
+  }) =>
+    apiRequest<{
+      success: boolean;
+      data: any;
+      error?: string;
+    }>('/trip-expenses', {
+      method: 'POST',
+      data,
+    }),
+
+  update: (
+    id: string,
+    data: {
+      category?: TripExpenseCategory;
+      amount?: number;
+      notes?: string;
+      receipt?: string;
+    }
+  ) =>
+    apiRequest<{
+      success: boolean;
+      data: any;
+      error?: string;
+    }>(`/trip-expenses/${id}`, {
+      method: 'PUT',
+      data,
+    }),
+
+  delete: (id: string) =>
+    apiRequest<{
+      success: boolean;
+      data: any;
+      error?: string;
+    }>(`/trip-expenses/${id}`, {
+      method: 'DELETE',
+    }),
+};
+
+export const driverExpenseApi = {
+  list: () =>
+    apiRequest<{
+      success: boolean;
+      count: number;
+      data: DriverExpenseApiItem[];
+    }>('/driver-expenses?limit=200', { method: 'GET' }),
+
+  create: (data: {
+    category: string;
+    amount: number;
+    remarks?: string;
+    receipt: string;
+    date?: string;
+    vehicle?: string;
+  }) =>
+    apiRequest<{
+      success: boolean;
+      data: DriverExpenseApiItem;
+      error?: string;
+    }>('/driver-expenses', {
+      method: 'POST',
+      data,
+    }),
+
+  update: (
+    id: string,
+    data: {
+      category?: string;
+      amount?: number;
+      remarks?: string;
+      receipt?: string;
+      vehicle?: string;
+    }
+  ) =>
+    apiRequest<{
+      success: boolean;
+      data: DriverExpenseApiItem;
+      error?: string;
+    }>(`/driver-expenses/${id}`, {
+      method: 'PUT',
+      data,
+    }),
+};
+
 

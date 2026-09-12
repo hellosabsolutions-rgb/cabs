@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useFleet } from '../../../context/FleetContext';
-import { DriverExpenseCategory, DriverExpenseItem } from '../../../types/fleet';
+import { DriverExpenseCategory, DriverExpenseItem, TripExpenseRecord } from '../../../types/fleet';
 import { Edit3, IndianRupee, FileText, Loader2, Car, Calendar, CheckCircle2 } from 'lucide-react';
 import { DatePicker } from '../../common/DatePicker';
 import { ACCEPT_DOC_TYPES, isPdfDocument } from '../../../utils/fileUtils';
@@ -11,13 +11,30 @@ interface EditDriverExpenseModalProps {
   expense: DriverExpenseItem | null;
 }
 
-const expenseCategories: DriverExpenseCategory[] = [
+const DRIVER_EXPENSE_CATEGORIES: DriverExpenseCategory[] = [
   'Daily Bata / Food',
   'Night Halt Allowance',
   'Advance Payout',
   'Overtime',
   'Toll / Cash Reimbursement',
-  'Uniform / Misc'
+  'Uniform / Misc',
+  'Toll',
+  'Food',
+  'Parking',
+  'Repair',
+  'Loading',
+  'Maintenance',
+  'Other'
+];
+
+const TRIP_EXPENSE_CATEGORIES: DriverExpenseCategory[] = [
+  'Toll',
+  'Food',
+  'Parking',
+  'Repair',
+  'Loading',
+  'Maintenance',
+  'Other'
 ];
 
 export const EditDriverExpenseModal: React.FC<EditDriverExpenseModalProps> = ({
@@ -25,7 +42,7 @@ export const EditDriverExpenseModal: React.FC<EditDriverExpenseModalProps> = ({
   onClose,
   expense
 }) => {
-  const { drivers, vehicles, updateDriverExpense } = useFleet();
+  const { drivers, vehicles, updateDriverExpense, updateTripExpense } = useFleet();
 
   const [selectedDriverId, setSelectedDriverId] = useState('');
   const [vehicle, setVehicle] = useState('—');
@@ -101,7 +118,7 @@ export const EditDriverExpenseModal: React.FC<EditDriverExpenseModalProps> = ({
 
     try {
       const selectedDriver = drivers.find(d => d.id === selectedDriverId);
-      const res = await updateDriverExpense(expense.id, {
+      const payload = {
         driverId: selectedDriver?.id || expense.driverId,
         driverName: selectedDriver?.name || expense.driverName,
         vehicle,
@@ -111,7 +128,19 @@ export const EditDriverExpenseModal: React.FC<EditDriverExpenseModalProps> = ({
         status,
         remarks: remarks.trim() || undefined,
         receipt: receiptPreview || receiptName || undefined
-      });
+      };
+
+      const res =
+        expense.source === 'trip'
+          ? await updateTripExpense(expense.id, {
+              category: category as TripExpenseRecord['category'],
+              amount: payload.amount,
+              notes: remarks.trim() || '',
+              receipt: payload.receipt || expense.receipt,
+              date,
+              status
+            })
+          : await updateDriverExpense(expense.id, payload);
 
       if (res && !res.success && res.error) {
         setErrorMsg(res.error);
@@ -224,7 +253,7 @@ export const EditDriverExpenseModal: React.FC<EditDriverExpenseModalProps> = ({
                   onChange={e => setCategory(e.target.value as DriverExpenseCategory)}
                   required
                 >
-                  {expenseCategories.map(cat => (
+                  {(expense.source === 'trip' ? TRIP_EXPENSE_CATEGORIES : DRIVER_EXPENSE_CATEGORIES).map(cat => (
                     <option key={cat} value={cat}>
                       {cat}
                     </option>

@@ -1,8 +1,75 @@
 import mongoose from 'mongoose';
-import { DriverExpense } from '../models/DriverExpense.js';
+import { DriverExpense, DRIVER_EXPENSE_CATEGORIES } from '../models/DriverExpense.js';
 import { Driver } from '../models/Driver.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import { uploadToCloudinary } from '../services/cloudinaryService.js';
+import { broadcastAll, emitToDriver } from '../services/socketService.js';
+
+function escapeRegex(value) {
+  return String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function todayIST() {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date());
+}
+
+function serializeDriverExpense(doc) {
+  if (!doc) return null;
+  const json = typeof doc.toJSON === 'function' ? doc.toJSON() : { ...(doc.toObject?.() || doc) };
+  json.id = json.id || json._id?.toString();
+  json.createdBy = json.createdBy === 'driver' ? 'driver' : 'admin';
+  json.source = 'driver';
+  return json;
+}
+
+function emitDriverExpense(action, payload) {
+  const event = `driver-expense:${action}`;
+  try {
+    broadcastAll(event, payload);
+    const driverId = payload.expense?.driverId || payload.driverId;
+    if (driverId) emitToDriver(driverId, event, payload);
+  } catch (err) {
+    console.warn(`Socket emit ${event} failed:`, err.message);
+  }
+}
+
+function isAdminCreated(expense) {
+  return expense?.createdBy !== 'driver';
+}
+
+function driverOwnsExpense(req, expense) {
+  if (!req.driver) return true;
+  const myId = req.driver._id.toString();
+  const myName = (req.driver.name || '').trim().toLowerCase();
+  const expenseDriverId = String(expense.driverId || '');
+  const expenseDriverName = (expense.driverName || '').trim().toLowerCase();
+  return expenseDriverId === myId || (myName && expenseDriverName === myName);
+}
+
+function applyDriverScope(req, query) {
+  if (!req.driver) return query;
+  const myId = req.driver._id.toString();
+  const myName = (req.driver.name || '').trim();
+  const ownership = [{ driverId: myId }];
+  if (myName) ownership.push({ driverName: new RegExp(`^${escapeRegex(myName)}$`, 'i') });
+  if (query.$and) {
+    query.$and.push({ $or: ownership });
+  } else if (query.$or) {
+    query.$and = [{ $or: query.$or }, { $or: ownership }];
+    delete query.$or;
+  } else {
+    query.$or = ownership;
+  }
+  return query;
+}
+
+function requireAdmin(req, res) {
+  if (req.driver) {
+    res.status(403).json({ success: false, error: 'Only office staff can do this.' });
+    return false;
+  }
+  return true;
+}
 
 /**
  * @desc    Get driver expenses with filtering, date/month/year search, pagination
@@ -96,6 +163,8 @@ export const getDriverExpenses = asyncHandler(async (req, res) => {
     }
   }
 
+  applyDriverScope(req, query);
+
   const pageNum = Math.max(1, parseInt(page, 10) || 1);
   const limitNum = Math.min(500, Math.max(1, parseInt(limit, 10) || 100));
   const skip = (pageNum - 1) * limitNum;
@@ -114,10 +183,7 @@ export const getDriverExpenses = asyncHandler(async (req, res) => {
   ]);
   const totalAmount = sumAggregate.length > 0 ? sumAggregate[0].totalSum : 0;
 
-  const data = docs.map(doc => ({
-    ...doc,
-    id: doc._id.toString()
-  }));
+  const data = docs.map(serializeDriverExpense);
 
   res.status(200).json({
     success: true,
@@ -404,13 +470,8 @@ export const getDriverExpenseAnalytics = asyncHandler(async (req, res) => {
   });
 });
 
-/**
- * @desc    Get single driver expense record
- * @route   GET /api/driver-expenses/:id
- * @access  Public / Private
- */
 export const getDriverExpenseById = asyncHandler(async (req, res) => {
-  const expense = await DriverExpense.findById(req.params.id).lean();
+  const expense = await DriverExpense.findById(req.params.id);
 
   if (!expense) {
     return res.status(404).json({
@@ -419,39 +480,29 @@ export const getDriverExpenseById = asyncHandler(async (req, res) => {
     });
   }
 
+  if (!driverOwnsExpense(req, expense)) {
+    return res.status(403).json({ success: false, error: 'You can only view your own expenses.' });
+  }
+
   res.status(200).json({
     success: true,
-    data: {
-      ...expense,
-      id: expense._id.toString()
-    }
+    data: serializeDriverExpense(expense)
   });
 });
 
-/**
- * @desc    Create new driver expense
- * @route   POST /api/driver-expenses
- * @access  Public / Private
- */
 export const createDriverExpense = asyncHandler(async (req, res) => {
+  const createdBy = req.driver ? 'driver' : 'admin';
   const {
     driverId,
     driverName,
     vehicle,
-    date = new Date().toISOString().split('T')[0],
+    date = todayIST(),
     category,
     amount,
     status = 'Pending',
     remarks,
     receipt
-  } = req.body;
-
-  if (!driverName && !driverId) {
-    return res.status(400).json({
-      success: false,
-      error: 'Driver is required.'
-    });
-  }
+  } = req.body || {};
 
   if (!amount || Number(amount) <= 0) {
     return res.status(400).json({
@@ -460,11 +511,24 @@ export const createDriverExpense = asyncHandler(async (req, res) => {
     });
   }
 
+  if (category && !DRIVER_EXPENSE_CATEGORIES.includes(category)) {
+    return res.status(400).json({ success: false, error: 'Invalid expense category.' });
+  }
+
   let resolvedDriverName = driverName;
   let resolvedDriverId = driverId;
   let resolvedVehicle = vehicle;
 
-  if (driverId && !driverName) {
+  if (req.driver) {
+    resolvedDriverId = req.driver._id.toString();
+    resolvedDriverName = req.driver.name || driverName;
+    if (!resolvedVehicle) resolvedVehicle = req.driver.assignedVehicle;
+  } else if (!driverName && !driverId) {
+    return res.status(400).json({
+      success: false,
+      error: 'Driver is required.'
+    });
+  } else if (driverId && !driverName) {
     const d = await Driver.findById(driverId).lean();
     if (d) {
       resolvedDriverName = d.name;
@@ -480,11 +544,15 @@ export const createDriverExpense = asyncHandler(async (req, res) => {
     }
   }
 
-  let receiptUrl = receipt || null;
-  if (receipt && receipt.startsWith('data:')) {
+  let receiptUrl = typeof receipt === 'string' && receipt.trim() ? receipt.trim() : null;
+  if (createdBy === 'driver' && !receiptUrl) {
+    return res.status(400).json({ success: false, error: 'Receipt photo is required.' });
+  }
+
+  if (receiptUrl && receiptUrl.startsWith('data:')) {
     try {
-      const isPdf = receipt.startsWith('data:application/pdf');
-      const uploadRes = await uploadToCloudinary(receipt, {
+      const isPdf = receiptUrl.startsWith('data:application/pdf');
+      const uploadRes = await uploadToCloudinary(receiptUrl, {
         folder: 'fleetos/driver-expenses',
         resource_type: isPdf ? 'raw' : 'auto'
       });
@@ -501,76 +569,98 @@ export const createDriverExpense = asyncHandler(async (req, res) => {
     driverName: resolvedDriverName,
     vehicle: resolvedVehicle || '—',
     date,
-    category: category || 'Daily Bata / Food',
+    category: category || (createdBy === 'driver' ? 'Other' : 'Daily Bata / Food'),
     amount: Number(amount),
-    status: status || 'Paid',
+    status: createdBy === 'driver' ? 'Pending' : (['Approved', 'Pending', 'Paid'].includes(status) ? status : 'Pending'),
     remarks: remarks || '',
-    receipt: receiptUrl
+    receipt: receiptUrl,
+    createdBy,
+    createdByName: req.driver?.name || req.user?.name || 'Office'
   });
+
+  const payload = serializeDriverExpense(expense);
+  emitDriverExpense('created', { expense: payload });
 
   res.status(201).json({
     success: true,
     message: `Driver expense of ₹${Number(amount).toLocaleString('en-IN')} recorded for ${resolvedDriverName}`,
-    data: {
-      ...expense.toObject(),
-      id: expense._id.toString()
-    }
+    data: payload
   });
 });
 
-/**
- * @desc    Update full driver expense
- * @route   PUT /api/driver-expenses/:id
- * @access  Public / Private
- */
 export const updateDriverExpense = asyncHandler(async (req, res) => {
   const { id } = req.params;
-
-  if (req.body.receipt && req.body.receipt.startsWith('data:')) {
-    try {
-      const isPdf = req.body.receipt.startsWith('data:application/pdf');
-      const uploadRes = await uploadToCloudinary(req.body.receipt, {
-        folder: 'fleetos/driver-expenses',
-        resource_type: isPdf ? 'raw' : 'auto'
-      });
-      if (uploadRes && uploadRes.secure_url) {
-        req.body.receipt = uploadRes.secure_url;
-      }
-    } catch (uploadErr) {
-      console.warn('Cloudinary upload warning on updateDriverExpense:', uploadErr.message);
-    }
-  }
-
   const query = mongoose.Types.ObjectId.isValid(id) ? { _id: id } : { id };
-  const updated = await DriverExpense.findOneAndUpdate(
-    query,
-    { $set: req.body },
-    { new: true, runValidators: true }
-  );
+  const expense = await DriverExpense.findOne(query);
 
-  if (!updated) {
+  if (!expense) {
     return res.status(404).json({
       success: false,
       error: `Driver expense with ID ${id} not found`
     });
   }
 
+  if (req.driver && isAdminCreated(expense)) {
+    return res.status(403).json({
+      success: false,
+      error: 'This expense was added by office. You cannot edit it.'
+    });
+  }
+
+  if (!driverOwnsExpense(req, expense)) {
+    return res.status(403).json({ success: false, error: 'You can only edit your own expenses.' });
+  }
+
+  if (req.driver && expense.status === 'Paid') {
+    return res.status(403).json({
+      success: false,
+      error: 'This expense is already paid. Ask office if it needs a change.'
+    });
+  }
+
+  const body = { ...(req.body || {}) };
+  if (req.driver) {
+    delete body.status;
+    delete body.driverId;
+    delete body.driverName;
+    delete body.createdBy;
+  }
+
+  if (body.receipt && typeof body.receipt === 'string' && body.receipt.startsWith('data:')) {
+    try {
+      const isPdf = body.receipt.startsWith('data:application/pdf');
+      const uploadRes = await uploadToCloudinary(body.receipt, {
+        folder: 'fleetos/driver-expenses',
+        resource_type: isPdf ? 'raw' : 'auto'
+      });
+      if (uploadRes && uploadRes.secure_url) {
+        body.receipt = uploadRes.secure_url;
+      }
+    } catch (uploadErr) {
+      console.warn('Cloudinary upload warning on updateDriverExpense:', uploadErr.message);
+    }
+  }
+
+  if (body.category && !DRIVER_EXPENSE_CATEGORIES.includes(body.category)) {
+    return res.status(400).json({ success: false, error: 'Invalid expense category.' });
+  }
+
+  Object.assign(expense, body);
+  await expense.save();
+
+  const payload = serializeDriverExpense(expense);
+  emitDriverExpense('updated', { expense: payload });
+
   res.status(200).json({
     success: true,
-    message: `Driver expense updated successfully`,
-    data: {
-      ...updated.toObject(),
-      id: updated._id.toString()
-    }
+    message: 'Driver expense updated successfully',
+    data: payload
   });
 });
 
-/**
- * @desc    Update driver expense status ('Approved' | 'Pending' | 'Paid')
- * @route   PATCH /api/driver-expenses/:id/status
- * @access  Public / Private
- */
 export const updateDriverExpenseStatus = asyncHandler(async (req, res) => {
+  if (!requireAdmin(req, res)) return;
+
   const { id } = req.params;
   const { status } = req.body;
 
@@ -582,11 +672,7 @@ export const updateDriverExpenseStatus = asyncHandler(async (req, res) => {
   }
 
   const query = mongoose.Types.ObjectId.isValid(id) ? { _id: id } : { id };
-  const updated = await DriverExpense.findOneAndUpdate(
-    query,
-    { status },
-    { new: true }
-  );
+  const updated = await DriverExpense.findOneAndUpdate(query, { status }, { new: true });
 
   if (!updated) {
     return res.status(404).json({
@@ -595,26 +681,57 @@ export const updateDriverExpenseStatus = asyncHandler(async (req, res) => {
     });
   }
 
+  const payload = serializeDriverExpense(updated);
+  emitDriverExpense('updated', { expense: payload });
+
   res.status(200).json({
     success: true,
     message: `Expense status updated to ${status}`,
-    data: {
-      ...updated.toObject(),
-      id: updated._id.toString()
-    }
+    data: payload
   });
 });
 
-/**
- * @desc    Delete driver expense
- * @route   DELETE /api/driver-expenses/:id
- * @access  Public / Private
- */
+export const bulkUpdateDriverExpenseStatus = asyncHandler(async (req, res) => {
+  if (!requireAdmin(req, res)) return;
+
+  const { ids, status } = req.body || {};
+  if (!Array.isArray(ids) || ids.length === 0) {
+    return res.status(400).json({ success: false, error: 'ids array is required.' });
+  }
+  if (!status || !['Approved', 'Pending', 'Paid'].includes(status)) {
+    return res.status(400).json({
+      success: false,
+      error: 'Status must be Approved, Pending, or Paid'
+    });
+  }
+
+  const objectIds = ids.filter((id) => mongoose.Types.ObjectId.isValid(String(id)));
+  const otherIds = ids.filter((id) => !mongoose.Types.ObjectId.isValid(String(id)));
+  const orQuery = [];
+  if (objectIds.length) orQuery.push({ _id: { $in: objectIds } });
+  if (otherIds.length) orQuery.push({ id: { $in: otherIds } });
+
+  if (orQuery.length === 0) {
+    return res.status(400).json({ success: false, error: 'No valid expense ids provided.' });
+  }
+
+  const match = orQuery.length === 1 ? orQuery[0] : { $or: orQuery };
+  await DriverExpense.updateMany(match, { $set: { status } });
+  const docs = await DriverExpense.find(match);
+  const expenses = docs.map(serializeDriverExpense);
+  expenses.forEach((expense) => emitDriverExpense('updated', { expense }));
+
+  res.status(200).json({
+    success: true,
+    count: expenses.length,
+    data: expenses
+  });
+});
+
 export const deleteDriverExpense = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const query = mongoose.Types.ObjectId.isValid(id) ? { _id: id } : { id };
-
-  const deleted = await DriverExpense.findOneAndDelete(query);
+  const deleted = await DriverExpense.findOne(query);
 
   if (!deleted) {
     return res.status(404).json({
@@ -623,8 +740,28 @@ export const deleteDriverExpense = asyncHandler(async (req, res) => {
     });
   }
 
+  if (req.driver && isAdminCreated(deleted)) {
+    return res.status(403).json({
+      success: false,
+      error: 'This expense was added by office. You cannot delete it.'
+    });
+  }
+
+  if (!driverOwnsExpense(req, deleted)) {
+    return res.status(403).json({ success: false, error: 'You can only delete your own expenses.' });
+  }
+
+  const payload = {
+    expenseId: deleted._id.toString(),
+    driverId: deleted.driverId
+  };
+
+  await deleted.deleteOne();
+  emitDriverExpense('deleted', payload);
+
   res.status(200).json({
     success: true,
-    message: `Driver expense record deleted successfully`
+    message: 'Driver expense record deleted successfully',
+    data: payload
   });
 });

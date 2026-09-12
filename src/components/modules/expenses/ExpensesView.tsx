@@ -4,8 +4,9 @@ import { StatCard } from '../../common/StatCard';
 import { AddExpenseModal } from './AddExpenseModal';
 import { FuelLogsView } from './FuelLogsView';
 import { FastagExpensesView } from './FastagExpensesView';
-import { Fuel, CreditCard, IndianRupee } from 'lucide-react';
+import { Fuel, CreditCard, IndianRupee, Receipt } from 'lucide-react';
 import { SkeletonCard, SkeletonTable, SoftRefreshBar } from '../../common/Skeleton';
+import { TripExpensesView } from './TripExpensesView';
 
 export const ExpensesView: React.FC = () => {
   const {
@@ -15,6 +16,7 @@ export const ExpensesView: React.FC = () => {
     setExpenseSubTab,
     fuelLogs,
     fastagTransactions,
+    tripExpenses,
     isLoading,
     isLoadingExpenses
   } = useFleet();
@@ -85,11 +87,21 @@ export const ExpensesView: React.FC = () => {
           All fleet expenses
           <span className="subtab-counter">{expenses.length}</span>
         </button>
+
+        <button
+          className={`subtab-btn ${expenseSubTab === 'trips' ? 'active' : ''}`}
+          onClick={() => setExpenseSubTab('trips')}
+        >
+          <Receipt size={16} />
+          Trip expenses
+          <span className="subtab-counter">{tripExpenses.length}</span>
+        </button>
       </div>
 
       {/* Render Active View */}
       {expenseSubTab === 'fastag' && <FastagExpensesView />}
       {expenseSubTab === 'fuel' && <FuelLogsView />}
+      {expenseSubTab === 'trips' && <TripExpensesView />}
       {expenseSubTab === 'all' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           <div className="stats-grid">

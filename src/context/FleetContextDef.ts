@@ -18,6 +18,8 @@ import {
   ContractDepartment,
   TripFinancial,
   ExpenseRecord,
+  TripExpenseRecord,
+  TripExpenseCategory,
   DocumentCompliance,
   MaintenanceRecord,
   ToastNotification,
@@ -91,6 +93,7 @@ export interface FleetContextType {
   updateDriverExpense: (id: string, data: Partial<DriverExpenseItem>) => Promise<{ success: boolean; data?: DriverExpenseItem; error?: string }>;
   updateDriverExpenseStatus: (id: string, status: 'Approved' | 'Pending' | 'Paid') => Promise<{ success: boolean; data?: DriverExpenseItem; error?: string }>;
   deleteDriverExpense: (id: string) => Promise<{ success: boolean; error?: string }>;
+  bulkMarkExpensesPaid: (items: Array<{ id: string; source: 'driver' | 'trip' }>) => Promise<{ success: boolean; error?: string }>;
 
   // Driver payroll
   payrollItems: DriverPayrollItem[];
@@ -139,8 +142,8 @@ export interface FleetContextType {
   updateDepartmentPaymentStatus: (id: string, status: DepartmentPayment['status']) => void;
 
   // Fuel, FASTag & Expenses
-  expenseSubTab: 'fuel' | 'fastag' | 'all';
-  setExpenseSubTab: (tab: 'fuel' | 'fastag' | 'all') => void;
+  expenseSubTab: 'fuel' | 'fastag' | 'all' | 'trips';
+  setExpenseSubTab: (tab: 'fuel' | 'fastag' | 'all' | 'trips') => void;
   fuelLogs: FuelLogEntry[];
   addFuelLog: (entry: Omit<FuelLogEntry, 'id'>) => void;
   fastagTransactions: FastagTransaction[];
@@ -210,6 +213,20 @@ export interface FleetContextType {
   checkVehicleAvailability: (date: string) => Promise<import('../types/fleet').VehicleAvailabilityResult | null>;
   expenses: ExpenseRecord[];
   addExpense: (expense: Omit<ExpenseRecord, 'id'>) => void;
+  tripExpenses: TripExpenseRecord[];
+  fetchLiveTripExpenses: (queryParam?: { bookingId?: string; driverId?: string; category?: string }) => Promise<void>;
+  addTripExpense: (expense: {
+    bookingId: string;
+    category: TripExpenseCategory;
+    amount: number;
+    notes?: string;
+    receipt?: string | null;
+    date?: string;
+    driverId?: string;
+  }) => Promise<{ success: boolean; data?: TripExpenseRecord; error?: string }>;
+  updateTripExpense: (id: string, data: Partial<TripExpenseRecord>) => Promise<{ success: boolean; data?: TripExpenseRecord; error?: string }>;
+  updateTripExpenseStatus: (id: string, status: 'Approved' | 'Pending' | 'Paid') => Promise<{ success: boolean; data?: TripExpenseRecord; error?: string }>;
+  deleteTripExpense: (id: string) => Promise<{ success: boolean; error?: string }>;
   maintenanceRecords: MaintenanceRecord[];
   addMaintenanceRecord: (record: Omit<MaintenanceRecord, 'id' | 'status'>) => void;
   updateMaintenanceStatus: (id: string, status: MaintenanceRecord['status']) => void;
