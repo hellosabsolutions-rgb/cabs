@@ -163,7 +163,8 @@ export interface FleetContextType {
   bookings: TripFinancial[];
   fetchLiveBookings: () => Promise<void>;
   addTrip: (trip: Omit<TripFinancial, 'id'>) => Promise<{ success: boolean; data?: TripFinancial; error?: string } | void> | void;
-  updateTripStatus: (id: string, status: TripFinancial['status']) => void;
+  updateTripStatus: (id: string, status: TripFinancial['status']) => Promise<void> | void;
+  assignBookingDriver: (id: string, driver: string, vehicle?: string) => Promise<{ success: boolean; data?: any; error?: string }>;
   addBooking: (booking: Partial<TripFinancial>) => Promise<{ success: boolean; data?: TripFinancial; error?: string }>;
   completeTrip: (
     id: string,

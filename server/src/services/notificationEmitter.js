@@ -2,7 +2,7 @@ import { notify } from './notificationService.js';
 import { emitToDriver } from './socketService.js';
 import { Driver } from '../models/Driver.js';
 
-async function notifyDriverByName(name, event, data) {
+export async function notifyDriverByName(name, event, data) {
   if (!name || name === 'None' || name === '—') return;
   try {
     const driver = await Driver.findOne({
@@ -41,6 +41,40 @@ export const emitBookingCreated = ({ userId, agencyId, booking }) => {
 
   if (booking.driverName) {
     notifyDriverByName(booking.driverName, 'booking:assigned', { booking });
+  }
+};
+
+export const emitBookingAssigned = ({ userId, agencyId, booking, driverName }) => {
+  const targetDriver = driverName || booking.driverName;
+  notify.bookings({
+    userId,
+    agencyId,
+    priority: 'info',
+    title: 'Booking Assigned',
+    message: `Booking #${booking.bookingNumber || booking.id?.slice(-6)} assigned to ${targetDriver}.`,
+    metadata: { bookingId: booking._id?.toString() }
+  });
+
+  if (targetDriver) {
+    notifyDriverByName(targetDriver, 'booking:assigned', { booking });
+  }
+};
+
+export const emitBookingUnassigned = ({ userId, agencyId, booking, previousDriverName }) => {
+  notify.bookings({
+    userId,
+    agencyId,
+    priority: 'warning',
+    title: 'Booking Unassigned',
+    message: `Booking #${booking.bookingNumber || booking.id?.slice(-6)} was unassigned from ${previousDriverName}.`,
+    metadata: { bookingId: booking._id?.toString() }
+  });
+
+  if (previousDriverName) {
+    notifyDriverByName(previousDriverName, 'booking:unassigned', {
+      bookingId: booking._id?.toString(),
+      bookingNumber: booking.bookingNumber
+    });
   }
 };
 

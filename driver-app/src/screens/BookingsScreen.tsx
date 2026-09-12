@@ -22,6 +22,8 @@ import { useAppTheme } from '../theme/ThemeProvider';
 import { useSession } from '../state/session';
 import { API_BASE_URL } from '../constants/config';
 import { BookingItem, generateMockBookings } from '../types/booking';
+import { bookingApi } from '../services/api';
+import { driverSocket } from '../services/socket';
 
 type Props = NativeStackScreenProps<RootStackParamList, any>;
 
@@ -70,59 +72,95 @@ export function BookingsScreen({ navigation }: Props) {
 
   const fetchBookings = useCallback(async () => {
     try {
-      const driverName = session.driver.name;
-      const res = await fetch(`${API_BASE_URL}/bookings?search=${encodeURIComponent(driverName || '')}`, {
-        headers: { Accept: 'application/json' },
-      });
-      if (res.ok) {
-        const json = await res.json();
-        if (json?.data && Array.isArray(json.data) && json.data.length > 0) {
-          const serverBookings: BookingItem[] = json.data.map((b: any) => ({
-            id: b._id || b.id || `bk-${Math.random()}`,
-            bookingNumber: b.bookingNumber || b.tripNumber || 'BK-LIVE',
-            status: b.status || 'Scheduled',
-            tripType: b.tripType || 'One-way (Single)',
-            startDate: b.startDate || new Date().toISOString().split('T')[0],
-            startTime: b.startTime || '09:00 AM',
-            endDate: b.endDate,
-            endTime: b.endTime,
-            customerName: b.customerName || 'Passenger',
-            customerPhone: b.customerPhone || '+91 98000 00000',
-            passengersCount: b.passengersCount || 2,
-            luggageCount: b.luggageCount || 2,
-            pickupLocation: b.pickupLocation || 'Pickup Point',
-            pickupLandmark: b.pickupLandmark,
-            dropLocation: b.dropLocation || 'Drop Location',
-            dropLandmark: b.dropLandmark,
-            route: b.route || `${b.pickupLocation} → ${b.dropLocation}`,
-            routeDistanceKm: b.routeDistanceKm || 24,
-            estimatedDurationMins: b.estimatedDurationMins || 40,
-            vehicle: b.vehicle || session.vehicle.reg || 'TRP-8841',
-            vehicleModel: b.vehicleModel || 'Toyota Innova Crysta',
-            driverName: b.driverName || session.driver.name,
-            totalAmount: Number(b.revenue || b.totalAmount || 0),
-            advanceAmount: Number(b.advanceAmount || 0),
-            pendingAmount: Number(b.pendingAmount || 0),
-            paymentStatus: b.paymentStatus || 'Unpaid',
-            specialRequests: b.notes || b.specialRequests || 'Standard commercial trip request.',
-            notes: b.paymentNotes || b.notes,
-          }));
+      // 1. Try authenticated driver endpoint
+      const res = await bookingApi.getMyBookings();
+      if (res?.data && Array.isArray(res.data) && res.data.length > 0) {
+        const serverBookings: BookingItem[] = res.data.map((b: any) => ({
+          id: b._id || b.id || `bk-${Math.random()}`,
+          bookingNumber: b.bookingNumber || b.tripNumber || 'BK-LIVE',
+          status: b.status || 'Scheduled',
+          tripType: b.tripType || 'One-way (Single)',
+          startDate: b.startDate || new Date().toISOString().split('T')[0],
+          startTime: b.startTime || '09:00 AM',
+          endDate: b.endDate,
+          endTime: b.endTime,
+          customerName: b.customerName || 'Passenger',
+          customerPhone: b.customerPhone || '+91 98000 00000',
+          passengersCount: b.passengersCount || 2,
+          luggageCount: b.luggageCount || 2,
+          pickupLocation: b.pickupLocation || 'Pickup Point',
+          pickupLandmark: b.pickupLandmark,
+          dropLocation: b.dropLocation || 'Drop Location',
+          dropLandmark: b.dropLandmark,
+          route: b.route || `${b.pickupLocation} → ${b.dropLocation}`,
+          routeDistanceKm: b.routeDistanceKm || 24,
+          estimatedDurationMins: b.estimatedDurationMins || 40,
+          vehicle: b.vehicle || session.vehicle.reg || 'TRP-8841',
+          vehicleModel: b.vehicleModel || 'Toyota Innova Crysta',
+          driverName: b.driverName || session.driver.name,
+          totalAmount: Number(b.revenue || b.totalAmount || 0),
+          advanceAmount: Number(b.advanceAmount || 0),
+          pendingAmount: Number(b.pendingAmount || 0),
+          paymentStatus: b.paymentStatus || 'Unpaid',
+          specialRequests: b.notes || b.specialRequests || 'Standard commercial trip request.',
+          notes: b.paymentNotes || b.notes,
+        }));
 
-          const mock = generateMockBookings();
-          const existingIds = new Set(serverBookings.map((sb) => sb.bookingNumber));
-          const combined = [...serverBookings, ...mock.filter((m) => !existingIds.has(m.bookingNumber))];
-          setBookings(combined);
-          return;
-        }
+        const mock = generateMockBookings();
+        const existingIds = new Set(serverBookings.map((sb) => sb.bookingNumber));
+        const combined = [...serverBookings, ...mock.filter((m) => !existingIds.has(m.bookingNumber))];
+        setBookings(combined);
+        return;
       }
-    } catch {
-      // Fallback
+    } catch (err) {
+      console.warn('[BookingsScreen] Server fetch fallback:', err);
     }
     setBookings(generateMockBookings());
   }, [session.driver.name, session.vehicle.reg]);
 
   useEffect(() => {
     fetchBookings();
+
+    // Listen to real-time driver socket events
+    const unsubAssigned = driverSocket.on('booking:assigned', (data: any) => {
+      console.log('⚡ [BookingsScreen] New booking assigned via socket:', data);
+      Alert.alert(
+        'New Trip Assigned',
+        `A new booking #${data?.booking?.bookingNumber || ''} has been assigned to you.`
+      );
+      fetchBookings();
+    });
+
+    const unsubUnassigned = driverSocket.on('booking:unassigned', (data: any) => {
+      console.log('⚡ [BookingsScreen] Booking unassigned via socket:', data);
+      Alert.alert(
+        'Trip Unassigned',
+        `Booking #${data?.bookingNumber || ''} has been unassigned by dispatch.`
+      );
+      fetchBookings();
+    });
+
+    const unsubUpdated = driverSocket.on('booking:updated', (data: any) => {
+      console.log('⚡ [BookingsScreen] Booking updated via socket:', data);
+      fetchBookings();
+    });
+
+    const unsubCompleted = driverSocket.on('booking:completed', (data: any) => {
+      console.log('⚡ [BookingsScreen] Booking completed via socket:', data);
+      fetchBookings();
+    });
+
+    const unsubAny = driverSocket.on('driver:any_change', (data: any) => {
+      fetchBookings();
+    });
+
+    return () => {
+      unsubAssigned();
+      unsubUnassigned();
+      unsubUpdated();
+      unsubCompleted();
+      unsubAny();
+    };
   }, [fetchBookings]);
 
   const onRefresh = useCallback(async () => {

@@ -1,9 +1,12 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   Animated,
   Dimensions,
+  KeyboardAvoidingView,
   Linking,
+  Modal,
   PanResponder,
   Platform,
   Pressable,
@@ -11,6 +14,7 @@ import {
   StatusBar,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -20,6 +24,9 @@ import type { RootStackParamList } from '../navigation/types';
 import { useAppTheme } from '../theme/ThemeProvider';
 import { BookingItem } from '../types/booking';
 import { GoogleMapView } from '../components/GoogleMapView';
+import { useSession } from '../state/session';
+import { bookingApi } from '../services/api';
+import { driverSocket } from '../services/socket';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'BookingDetail'>;
 
@@ -28,7 +35,16 @@ const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 export function BookingDetailScreen({ route, navigation }: Props) {
   const insets = useSafeAreaInsets();
   const { colors, scheme } = useAppTheme();
-  const { booking } = route.params;
+  const { booking: initialBooking, bookingId } = route.params;
+  const [booking, setBooking] = useState<BookingItem | null>(initialBooking || null);
+  const session = useSession();
+
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+  const [isCompleteModalOpen, setIsCompleteModalOpen] = useState(false);
+  const [endOdometerInput, setEndOdometerInput] = useState(
+    String(Math.max(session.odometer || 0, ((initialBooking?.startOdometer || 0) + (initialBooking?.routeDistanceKm || 0))))
+  );
+  const [completionNotes, setCompletionNotes] = useState('');
 
   const [expandedSection, setExpandedSection] = useState<'route' | 'requests' | 'payment' | null>('route');
 
@@ -138,6 +154,120 @@ export function BookingDetailScreen({ route, navigation }: Props) {
       }),
     [SNAP_TOP, SNAP_MID, SNAP_LOW]
   );
+
+  useEffect(() => {
+    if (!booking?.id) return;
+
+    const onUpdated = (data: any) => {
+      if (data && (data.id === booking.id || data._id === booking.id)) {
+        setBooking((prev) =>
+          prev
+            ? {
+                ...prev,
+                ...data,
+                status: data.status || prev.status,
+                vehicle: data.vehicle || prev.vehicle,
+                driverName: data.driver || data.driverName || prev.driverName,
+              }
+            : null
+        );
+      }
+    };
+
+    const onUnassigned = (data: any) => {
+      if (data && (data.id === booking.id || data._id === booking.id || data.bookingId === booking.id)) {
+        Alert.alert(
+          'Booking Unassigned',
+          'This booking was unassigned from you by dispatch.',
+          [{ text: 'OK', onPress: () => navigation.goBack() }]
+        );
+      }
+    };
+
+    driverSocket.on('booking:updated', onUpdated);
+    driverSocket.on('booking:completed', onUpdated);
+    driverSocket.on('booking:unassigned', onUnassigned);
+
+    return () => {
+      driverSocket.off('booking:updated', onUpdated);
+      driverSocket.off('booking:completed', onUpdated);
+      driverSocket.off('booking:unassigned', onUnassigned);
+    };
+  }, [booking?.id, navigation]);
+
+  const handleStartTrip = () => {
+    if (!booking) return;
+    Alert.alert(
+      'Start Trip',
+      `Ready to start trip to ${booking.dropLocation} for ${booking.customerName || 'passenger'}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Start Trip',
+          style: 'default',
+          onPress: async () => {
+            if (!booking) return;
+            setIsUpdatingStatus(true);
+            try {
+              const res = await bookingApi.updateStatus(booking.id, {
+                status: 'Ongoing',
+                startOdometer: booking.startOdometer || session.odometer || 0,
+              });
+              if (res.success && res.data) {
+                setBooking((prev) => (prev ? { ...prev, ...res.data, status: 'Ongoing' } : null));
+              } else {
+                setBooking((prev) => (prev ? { ...prev, status: 'Ongoing' } : null));
+              }
+              Alert.alert('Trip Started', 'Trip is now active in transit. Dashboard has been notified.');
+            } catch (err: any) {
+              Alert.alert('Error', err?.message || 'Could not start trip.');
+            } finally {
+              setIsUpdatingStatus(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleConfirmComplete = async () => {
+    if (!booking) return;
+    const odoNum = Number(endOdometerInput);
+    if (isNaN(odoNum) || odoNum <= 0) {
+      Alert.alert('Invalid Odometer', 'Please enter a valid ending odometer reading.');
+      return;
+    }
+    if (booking.startOdometer && odoNum < booking.startOdometer) {
+      Alert.alert(
+        'Invalid Reading',
+        `End odometer (${odoNum} km) cannot be less than start odometer (${booking.startOdometer} km).`
+      );
+      return;
+    }
+
+    setIsUpdatingStatus(true);
+    try {
+      const res = await bookingApi.updateStatus(booking.id, {
+        status: 'Completed',
+        endOdometer: odoNum,
+        notes: completionNotes.trim()
+          ? `${booking.notes ? booking.notes + ' | ' : ''}${completionNotes.trim()}`
+          : booking.notes,
+      });
+
+      if (res.success && res.data) {
+        setBooking((prev) => (prev ? { ...prev, ...res.data, status: 'Completed', endOdometer: odoNum } : null));
+      } else {
+        setBooking((prev) => (prev ? { ...prev, status: 'Completed', endOdometer: odoNum } : null));
+      }
+      setIsCompleteModalOpen(false);
+      Alert.alert('Trip Completed', 'Booking marked as completed. Dashboard synced in real time.');
+    } catch (err: any) {
+      Alert.alert('Error', err?.message || 'Could not complete trip.');
+    } finally {
+      setIsUpdatingStatus(false);
+    }
+  };
 
   if (!booking) {
     return (
@@ -461,7 +591,86 @@ export function BookingDetailScreen({ route, navigation }: Props) {
             </View>
           </View>
 
-          {/* 4. TURN-BY-TURN NAVIGATION BUTTON */}
+          {/* 4. TRIP LIFECYCLE ACTION BUTTON */}
+          {booking.status === 'Scheduled' && (
+            <Pressable
+              onPress={handleStartTrip}
+              disabled={isUpdatingStatus}
+              android_ripple={{ color: 'rgba(255,255,255,0.2)' }}
+              style={({ pressed }) => [
+                styles.primaryLifecycleBtn,
+                {
+                  backgroundColor: '#059669',
+                  opacity: pressed || isUpdatingStatus ? 0.85 : 1,
+                  borderRadius: Platform.OS === 'ios' ? 14 : 8,
+                },
+              ]}
+            >
+              {isUpdatingStatus ? (
+                <ActivityIndicator color="#FFFFFF" size="small" />
+              ) : (
+                <>
+                  <Ionicons name="play-circle" size={18} color="#FFFFFF" />
+                  <Text style={styles.primaryLifecycleBtnText}>Start Trip (Pick Up Passenger)</Text>
+                </>
+              )}
+            </Pressable>
+          )}
+
+          {booking.status === 'Ongoing' && (
+            <Pressable
+              onPress={() => {
+                setEndOdometerInput(
+                  String(
+                    Math.max(
+                      session.odometer || 0,
+                      (booking.startOdometer || 0) + (booking.routeDistanceKm || 0)
+                    )
+                  )
+                );
+                setIsCompleteModalOpen(true);
+              }}
+              disabled={isUpdatingStatus}
+              android_ripple={{ color: 'rgba(255,255,255,0.2)' }}
+              style={({ pressed }) => [
+                styles.primaryLifecycleBtn,
+                {
+                  backgroundColor: '#D97706',
+                  opacity: pressed || isUpdatingStatus ? 0.85 : 1,
+                  borderRadius: Platform.OS === 'ios' ? 14 : 8,
+                },
+              ]}
+            >
+              {isUpdatingStatus ? (
+                <ActivityIndicator color="#FFFFFF" size="small" />
+              ) : (
+                <>
+                  <Ionicons name="checkmark-done-circle" size={18} color="#FFFFFF" />
+                  <Text style={styles.primaryLifecycleBtnText}>Complete Trip & Enter Odometer</Text>
+                </>
+              )}
+            </Pressable>
+          )}
+
+          {booking.status === 'Completed' && (
+            <View
+              style={[
+                styles.completedBanner,
+                {
+                  backgroundColor: isDark ? 'rgba(16, 185, 129, 0.15)' : '#ECFDF5',
+                  borderColor: '#10B981',
+                  borderRadius: Platform.OS === 'ios' ? 14 : 8,
+                },
+              ]}
+            >
+              <Ionicons name="checkmark-circle" size={18} color="#10B981" />
+              <Text style={[styles.completedBannerText, { color: isDark ? '#34D399' : '#065F46' }]}>
+                Trip Completed Successfully
+              </Text>
+            </View>
+          )}
+
+          {/* 5. TURN-BY-TURN NAVIGATION BUTTON */}
           <Pressable
             onPress={openNavigation}
             android_ripple={{ color: 'rgba(255,255,255,0.2)' }}
@@ -697,6 +906,122 @@ export function BookingDetailScreen({ route, navigation }: Props) {
           </View>
         </ScrollView>
       </Animated.View>
+
+      {/* COMPLETE TRIP & ENTER END ODOMETER MODAL */}
+      <Modal
+        visible={isCompleteModalOpen}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setIsCompleteModalOpen(false)}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={styles.modalOverlay}
+        >
+          <Pressable style={styles.modalBackdrop} onPress={() => setIsCompleteModalOpen(false)} />
+          <View style={[styles.modalCard, { backgroundColor: cardBg, borderColor: cardBorder }]}>
+            <View style={styles.modalHeader}>
+              <View>
+                <Text style={[styles.modalTitle, { color: primaryText }]}>Complete Trip</Text>
+                <Text style={[styles.modalSubtitle, { color: mutedText }]}>
+                  {booking.bookingNumber} · {booking.route}
+                </Text>
+              </View>
+              <Pressable
+                onPress={() => setIsCompleteModalOpen(false)}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Ionicons name="close-circle" size={24} color={mutedText} />
+              </Pressable>
+            </View>
+
+            <View style={[styles.modalDivider, { backgroundColor: rowDivider }]} />
+
+            {/* Start Odometer reference */}
+            <View style={styles.modalFieldRow}>
+              <Text style={[styles.modalLabel, { color: mutedText }]}>Start Odometer</Text>
+              <Text style={[styles.modalValueBold, { color: primaryText }]}>
+                {booking.startOdometer?.toLocaleString('en-IN') || 0} km
+              </Text>
+            </View>
+
+            {/* End Odometer Input */}
+            <View style={{ marginTop: 12 }}>
+              <Text style={[styles.modalInputLabel, { color: primaryText }]}>
+                Ending Odometer Reading (km) *
+              </Text>
+              <TextInput
+                value={endOdometerInput}
+                onChangeText={setEndOdometerInput}
+                keyboardType="numeric"
+                placeholder="e.g. 45280"
+                placeholderTextColor={mutedText}
+                style={[
+                  styles.modalTextInput,
+                  {
+                    backgroundColor: isDark ? '#0F172A' : '#F8FAFC',
+                    color: primaryText,
+                    borderColor: isDark ? '#334155' : '#CBD5E1',
+                  },
+                ]}
+              />
+              {Number(endOdometerInput) > (booking.startOdometer || 0) && (
+                <Text style={{ fontSize: 11.5, color: '#10B981', marginTop: 4, fontWeight: '600' }}>
+                  Total Trip Distance: {Number(endOdometerInput) - (booking.startOdometer || 0)} km
+                </Text>
+              )}
+            </View>
+
+            {/* Trip Notes */}
+            <View style={{ marginTop: 12 }}>
+              <Text style={[styles.modalInputLabel, { color: primaryText }]}>
+                Remarks / Toll / Parking Notes (Optional)
+              </Text>
+              <TextInput
+                value={completionNotes}
+                onChangeText={setCompletionNotes}
+                placeholder="e.g. Toll paid ₹120, passenger dropped safely"
+                placeholderTextColor={mutedText}
+                multiline
+                numberOfLines={3}
+                style={[
+                  styles.modalTextInputMultiline,
+                  {
+                    backgroundColor: isDark ? '#0F172A' : '#F8FAFC',
+                    color: primaryText,
+                    borderColor: isDark ? '#334155' : '#CBD5E1',
+                  },
+                ]}
+              />
+            </View>
+
+            {/* Modal Actions */}
+            <View style={styles.modalActionRow}>
+              <Pressable
+                onPress={() => setIsCompleteModalOpen(false)}
+                style={[styles.modalCancelBtn, { borderColor: cardBorder }]}
+              >
+                <Text style={[styles.modalCancelBtnText, { color: mutedText }]}>Cancel</Text>
+              </Pressable>
+
+              <Pressable
+                onPress={handleConfirmComplete}
+                disabled={isUpdatingStatus}
+                style={[styles.modalSubmitBtn, { opacity: isUpdatingStatus ? 0.7 : 1 }]}
+              >
+                {isUpdatingStatus ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <>
+                    <Ionicons name="checkmark-done" size={16} color="#FFFFFF" />
+                    <Text style={styles.modalSubmitBtnText}>Confirm Completion</Text>
+                  </>
+                )}
+              </Pressable>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </View>
   );
 }
@@ -1118,5 +1443,144 @@ const styles = StyleSheet.create({
   paymentBalanceBold: {
     fontSize: 16,
     fontWeight: '900',
+  },
+  primaryLifecycleBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 14,
+    marginBottom: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  primaryLifecycleBtnText: {
+    color: '#FFFFFF',
+    fontSize: 14.5,
+    fontWeight: '800',
+    letterSpacing: 0.2,
+  },
+  completedBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    marginBottom: 10,
+    borderWidth: 1.5,
+  },
+  completedBannerText: {
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
+  modalBackdrop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+  },
+  modalCard: {
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    borderTopWidth: 1,
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: Platform.OS === 'ios' ? 40 : 24,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+  },
+  modalSubtitle: {
+    fontSize: 12,
+    marginTop: 2,
+  },
+  modalDivider: {
+    height: 1,
+    marginVertical: 14,
+  },
+  modalFieldRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 4,
+  },
+  modalLabel: {
+    fontSize: 13,
+  },
+  modalValueBold: {
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  modalInputLabel: {
+    fontSize: 12.5,
+    fontWeight: '700',
+    marginBottom: 6,
+  },
+  modalTextInput: {
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  modalTextInputMultiline: {
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    fontSize: 13.5,
+    minHeight: 65,
+    textAlignVertical: 'top',
+  },
+  modalActionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginTop: 18,
+  },
+  modalCancelBtn: {
+    flex: 1,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalCancelBtnText: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  modalSubmitBtn: {
+    flex: 2,
+    backgroundColor: '#10B981',
+    borderRadius: 12,
+    paddingVertical: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  modalSubmitBtnText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '800',
   },
 });

@@ -322,4 +322,64 @@ export const fuelApi = {
     }),
 };
 
+export type BookingStatus = 'Scheduled' | 'Ongoing' | 'Completed' | 'Cancelled';
+
+export type UpdateBookingStatusPayload = {
+  status: BookingStatus;
+  startOdometer?: number;
+  endOdometer?: number;
+  notes?: string;
+};
+
+export const bookingApi = {
+  getMyBookings: (params?: { status?: string }) => {
+    const q = params?.status && params.status !== 'All' ? `?status=${encodeURIComponent(params.status)}` : '';
+    return apiRequest<{
+      success: boolean;
+      count: number;
+      data: any[];
+    }>(`/bookings/my${q}`, {
+      method: 'GET',
+    });
+  },
+
+  getBookingById: (id: string) =>
+    apiRequest<{
+      success: boolean;
+      data: any;
+    }>(`/bookings/${id}`, {
+      method: 'GET',
+    }),
+
+  updateStatus: (id: string, data: UpdateBookingStatusPayload) =>
+    apiRequest<{
+      success: boolean;
+      message: string;
+      data: any;
+    }>(`/bookings/${id}/status`, {
+      method: 'PATCH',
+      data,
+    }),
+
+  assignDriver: (id: string, data: { driverName: string; vehicle?: string }) =>
+    apiRequest<{
+      success: boolean;
+      message: string;
+      data: any;
+    }>(`/bookings/${id}/assign`, {
+      method: 'PATCH',
+      data,
+    }),
+
+  unassignDriver: (id: string) =>
+    apiRequest<{
+      success: boolean;
+      message: string;
+      data: any;
+    }>(`/bookings/${id}/assign`, {
+      method: 'PATCH',
+      data: { driverName: 'Unassigned' },
+    }),
+};
+
 

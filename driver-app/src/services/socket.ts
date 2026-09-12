@@ -80,6 +80,7 @@ class DriverSocketManager {
         'driver:vehicle-unassigned',
         'driver:removed',
         'booking:assigned',
+        'booking:unassigned',
         'booking:updated',
         'booking:created',
         'booking:completed',
@@ -129,6 +130,13 @@ class DriverSocketManager {
     return () => {
       this.listeners.get(event)?.delete(callback);
     };
+  }
+
+  /**
+   * Unsubscribe from a socket event
+   */
+  public off(event: string, callback: (data: any) => void) {
+    this.listeners.get(event)?.delete(callback);
   }
 
   /**

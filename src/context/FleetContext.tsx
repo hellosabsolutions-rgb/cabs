@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useMemo, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
+import { socketManager } from '../services/socket';
 import {
   PageId,
   Vehicle,
@@ -494,6 +495,111 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     fetchLiveMonthlyBills();
     fetchPayrollSummary();
     fetchLiveDashboardStats();
+  }, []);
+
+  // Real-time fleet and booking synchronization via Socket.IO
+  useEffect(() => {
+    const socket = socketManager.getNotificationSocket();
+
+    const handleBookingCreated = (data: any) => {
+      if (!data) return;
+      const id = data.id || data._id;
+      setTrips(prev => {
+        if (prev.some(t => t.id === id || t._id === id)) return prev;
+        const normalized: TripFinancial = {
+          ...data,
+          id,
+          revenue: Number(data.revenue || data.totalAmount || 0),
+          totalAmount: Number(data.totalAmount || data.revenue || 0),
+          advanceAmount: Number(data.advanceAmount || 0),
+          balancePaid: Number(data.balancePaid || 0),
+          pendingAmount: Number(data.pendingAmount || 0)
+        };
+        return [normalized, ...prev];
+      });
+      showToast('info', `New Booking #${data.bookingNumber || data.tripNumber || ''} created.`, 'Booking Created');
+    };
+
+    const handleBookingUpdated = (data: any) => {
+      if (!data) return;
+      const id = data.id || data._id;
+      setTrips(prev =>
+        prev.map(t => {
+          if (t.id === id || t._id === id) {
+            return {
+              ...t,
+              ...data,
+              id: t.id,
+              status: data.status || t.status,
+              driver: data.driver || data.driverName || t.driver,
+              driverName: data.driverName || data.driver || t.driverName,
+              vehicle: data.vehicle || t.vehicle,
+              endOdometer: data.endOdometer !== undefined ? data.endOdometer : t.endOdometer,
+              totalKmRun: data.totalKmRun !== undefined ? data.totalKmRun : t.totalKmRun
+            };
+          }
+          return t;
+        })
+      );
+    };
+
+    const handleBookingCompleted = (data: any) => {
+      if (!data) return;
+      const id = data.id || data._id;
+      setTrips(prev =>
+        prev.map(t => (t.id === id || t._id === id ? { ...t, ...data, id: t.id, status: 'Completed' } : t))
+      );
+      showToast('success', `Booking #${data.bookingNumber || id} completed by driver.`, 'Trip Completed');
+      fetchLiveVehicles();
+      fetchLiveDrivers();
+    };
+
+    const handleBookingAssigned = (data: any) => {
+      if (!data) return;
+      const id = data.id || data._id || data.bookingId;
+      setTrips(prev =>
+        prev.map(t => (t.id === id || t._id === id ? {
+          ...t,
+          driver: data.driver || data.driverName || t.driver,
+          driverName: data.driverName || data.driver || t.driverName,
+          vehicle: data.vehicle || t.vehicle
+        } : t))
+      );
+    };
+
+    const handleBookingUnassigned = (data: any) => {
+      if (!data) return;
+      const id = data.id || data._id || data.bookingId;
+      setTrips(prev =>
+        prev.map(t => (t.id === id || t._id === id ? {
+          ...t,
+          driver: 'Unassigned',
+          driverName: 'Unassigned'
+        } : t))
+      );
+    };
+
+    const handleDriverAnyChange = () => {
+      fetchLiveBookings();
+      fetchLiveVehicles();
+      fetchLiveDrivers();
+    };
+
+    socket.on('booking:created', handleBookingCreated);
+    socket.on('booking:updated', handleBookingUpdated);
+    socket.on('booking:completed', handleBookingCompleted);
+    socket.on('booking:assigned', handleBookingAssigned);
+    socket.on('booking:unassigned', handleBookingUnassigned);
+    socket.on('driver:any_change', handleDriverAnyChange);
+
+    return () => {
+      socket.off('booking:created', handleBookingCreated);
+      socket.off('booking:updated', handleBookingUpdated);
+      socket.off('booking:completed', handleBookingCompleted);
+      socket.off('booking:assigned', handleBookingAssigned);
+      socket.off('booking:unassigned', handleBookingUnassigned);
+      socket.off('driver:any_change', handleDriverAnyChange);
+    };
   }, []);
 
   // Tab-change: fresh data fetch on every tab navigation
@@ -2624,15 +2730,53 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
-  const updateTripStatus = (id: string, status: TripFinancial['status']) => {
+  const updateTripStatus = async (id: string, status: TripFinancial['status']) => {
     try {
       setTrips(prev =>
-        prev.map(t => (t.id === id ? { ...t, status } : t))
+        prev.map(t => (t.id === id || t._id === id ? { ...t, status } : t))
       );
+      await api.patch(`/bookings/${id}/status`, { status });
       showToast('info', `Trip/Booking status changed to ${status}.`, 'Status Updated');
     } catch (err) {
       console.error('Failed to update trip status', err);
       showToast('error', 'Could not update trip status.', 'Error');
+    }
+  };
+
+  const assignBookingDriver = async (id: string, driver: string, vehicle?: string) => {
+    try {
+      const res = await api.patch(`/bookings/${id}/assign`, { driver, vehicle });
+      if (res && res.data) {
+        const updated = res.data;
+        setTrips(prev =>
+          prev.map(t => (t.id === id || t._id === id ? {
+            ...t,
+            driver: updated.driver,
+            driverName: updated.driverName || updated.driver,
+            vehicle: updated.vehicle || t.vehicle,
+            vehicleModel: updated.vehicleModel || t.vehicleModel
+          } : t))
+        );
+      } else {
+        setTrips(prev =>
+          prev.map(t => (t.id === id || t._id === id ? {
+            ...t,
+            driver,
+            driverName: driver,
+            ...(vehicle ? { vehicle } : {})
+          } : t))
+        );
+      }
+      showToast(
+        'success',
+        driver && driver !== 'Unassigned' && driver !== 'None' ? `Driver ${driver} assigned.` : 'Driver unassigned from booking.',
+        'Assignment Updated'
+      );
+      return { success: true, data: res?.data };
+    } catch (err: any) {
+      console.error('Failed to assign driver', err);
+      showToast('error', err?.message || 'Could not update driver assignment.', 'Error');
+      return { success: false, error: err?.message };
     }
   };
 
@@ -2933,6 +3077,7 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         fetchLiveBookings,
         addTrip,
         updateTripStatus,
+        assignBookingDriver,
         addBooking,
         completeTrip,
         completeBooking,

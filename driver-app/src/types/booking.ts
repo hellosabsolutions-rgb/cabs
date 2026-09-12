@@ -33,6 +33,9 @@ export type BookingItem = {
   paymentStatus: PaymentStatus;
   specialRequests?: string;
   notes?: string;
+  startOdometer?: number;
+  endOdometer?: number;
+  totalKmRun?: number;
 };
 
 function formatIsoDate(d: Date): string {

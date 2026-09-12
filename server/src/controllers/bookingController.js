@@ -3,11 +3,15 @@ import { Vehicle } from '../models/Vehicle.js';
 import { Driver } from '../models/Driver.js';
 import {
   emitBookingCreated,
+  emitBookingAssigned,
+  emitBookingUnassigned,
   emitBookingUpdated,
   emitBookingCompleted,
   emitBookingCancelled,
-  emitPaymentReceived
+  emitPaymentReceived,
+  notifyDriverByName
 } from '../services/notificationEmitter.js';
+import { broadcastAll, emitToDriver } from '../services/socketService.js';
 
 // @desc    Get all bookings with optional filters (month, date, status, paymentStatus, search)
 // @route   GET /api/bookings
@@ -365,6 +369,45 @@ export const createBooking = async (req, res, next) => {
   }
 };
 
+// @desc    Get bookings assigned to authenticated driver
+// @route   GET /api/bookings/my
+// @access  Private (driver)
+export const getMyBookings = async (req, res, next) => {
+  try {
+    const driver = req.driver;
+    if (!driver) {
+      return res.status(401).json({ success: false, error: 'Driver authentication required' });
+    }
+
+    const driverName = driver.name?.trim();
+    const vehicleReg = driver.assignedVehicle?.trim();
+
+    const queryOr = [];
+    if (driverName) {
+      queryOr.push({ driverName: new RegExp(`^${driverName}$`, 'i') });
+    }
+    if (vehicleReg && vehicleReg !== '—' && vehicleReg !== 'None' && vehicleReg !== 'Unassigned') {
+      queryOr.push({ vehicle: new RegExp(`^${vehicleReg}$`, 'i') });
+    }
+
+    const query = queryOr.length > 0 ? { $or: queryOr } : { driverName };
+
+    if (req.query.status && req.query.status !== 'All') {
+      query.status = req.query.status;
+    }
+
+    const bookings = await Booking.find(query).sort({ startDate: -1, startTime: -1 });
+
+    res.status(200).json({
+      success: true,
+      count: bookings.length,
+      data: bookings
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 // @desc    Update booking details
 // @route   PUT /api/bookings/:id
 export const updateBooking = async (req, res, next) => {
@@ -374,8 +417,30 @@ export const updateBooking = async (req, res, next) => {
       return res.status(404).json({ success: false, error: 'Booking not found' });
     }
 
+    const prevDriver = booking.driverName;
+
     Object.assign(booking, req.body);
     await booking.save();
+
+    // Check if driver was re-assigned or unassigned
+    if (req.body.driverName !== undefined && req.body.driverName !== prevDriver) {
+      if (prevDriver && prevDriver !== 'None' && prevDriver !== '—' && prevDriver !== 'Unassigned') {
+        emitBookingUnassigned({
+          userId: req.user?._id,
+          agencyId: req.user?.currentAgency,
+          booking,
+          previousDriverName: prevDriver
+        });
+      }
+      if (booking.driverName && booking.driverName !== 'None' && booking.driverName !== '—' && booking.driverName !== 'Unassigned') {
+        emitBookingAssigned({
+          userId: req.user?._id,
+          agencyId: req.user?.currentAgency,
+          booking,
+          driverName: booking.driverName
+        });
+      }
+    }
 
     emitBookingUpdated({
       userId: req.user?._id,
@@ -383,7 +448,199 @@ export const updateBooking = async (req, res, next) => {
       booking
     });
 
+    broadcastAll('booking:updated', { booking });
+    broadcastAll('driver:any_change', { action: 'booking:updated', bookingId: booking._id });
+
     res.status(200).json({ success: true, data: booking });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Update booking lifecycle status (Scheduled -> Ongoing -> Completed / Cancelled)
+// @route   PATCH /api/bookings/:id/status
+// @access  Public / Private (dashboard or driver)
+export const updateBookingStatus = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { status, startOdometer, endOdometer, notes } = req.body;
+
+    const validStatuses = ['Scheduled', 'Ongoing', 'Completed', 'Cancelled'];
+    if (!status || !validStatuses.includes(status)) {
+      return res.status(400).json({
+        success: false,
+        error: `Invalid status. Must be one of: ${validStatuses.join(', ')}`
+      });
+    }
+
+    const booking = await Booking.findById(id);
+    if (!booking) {
+      return res.status(404).json({ success: false, error: 'Booking not found' });
+    }
+
+    const prevStatus = booking.status;
+    booking.status = status;
+    if (notes) {
+      booking.notes = booking.notes ? `${booking.notes}\n${notes}` : notes;
+    }
+
+    const now = new Date();
+    const istTime = new Intl.DateTimeFormat('en-IN', {
+      timeZone: 'Asia/Kolkata',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true
+    }).format(now);
+
+    // If transitioning to Ongoing (Trip started)
+    if (status === 'Ongoing') {
+      booking.startTime = booking.startTime || istTime;
+      if (startOdometer !== undefined) {
+        booking.startOdometer = Number(startOdometer) || booking.startOdometer;
+      }
+      // Update vehicle status to Running
+      if (booking.vehicle) {
+        await Vehicle.findOneAndUpdate(
+          { registrationNumber: booking.vehicle },
+          { status: 'Running', ...(booking.startOdometer ? { odometer: booking.startOdometer } : {}) }
+        );
+      }
+      // Update driver status to On duty
+      if (booking.driverName) {
+        await Driver.findOneAndUpdate(
+          { name: new RegExp(`^${booking.driverName.trim()}$`, 'i') },
+          { status: 'On duty' }
+        );
+      }
+    }
+
+    // If transitioning to Completed
+    if (status === 'Completed') {
+      booking.endTime = istTime;
+      booking.endDate = booking.endDate || now.toISOString().split('T')[0];
+      if (endOdometer !== undefined) {
+        booking.endOdometer = Number(endOdometer);
+        const startKm = booking.startOdometer || 0;
+        booking.totalKmRun = Math.max(0, booking.endOdometer - startKm);
+      }
+      // Update vehicle to Active and update odometer
+      if (booking.vehicle) {
+        await Vehicle.findOneAndUpdate(
+          { registrationNumber: booking.vehicle },
+          {
+            status: 'Active',
+            ...(booking.endOdometer ? { odometer: booking.endOdometer } : {})
+          }
+        );
+      }
+    }
+
+    // If cancelled, set vehicle to Active if it was Running
+    if (status === 'Cancelled' && booking.vehicle) {
+      await Vehicle.findOneAndUpdate(
+        { registrationNumber: booking.vehicle, status: 'Running' },
+        { status: 'Active' }
+      );
+    }
+
+    await booking.save();
+
+    // Trigger domain notifications
+    if (status === 'Completed') {
+      emitBookingCompleted({
+        userId: req.user?._id,
+        agencyId: req.user?.currentAgency,
+        booking
+      });
+    } else if (status === 'Cancelled') {
+      emitBookingCancelled({
+        userId: req.user?._id,
+        agencyId: req.user?.currentAgency,
+        booking
+      });
+    } else {
+      emitBookingUpdated({
+        userId: req.user?._id,
+        agencyId: req.user?.currentAgency,
+        booking,
+        changes: `Status changed from ${prevStatus} to ${status}`
+      });
+    }
+
+    // Real-time Socket.IO broadcasts for dashboard and driver apps
+    broadcastAll('booking:updated', { booking, prevStatus, status });
+    broadcastAll('driver:any_change', { action: 'booking:status', bookingId: booking._id, status });
+    if (booking.driverName) {
+      notifyDriverByName(booking.driverName, 'booking:updated', { booking, status });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: `Booking status updated to ${status}.`,
+      data: booking
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Assign or unassign driver/vehicle to a booking
+// @route   PATCH /api/bookings/:id/assign
+// @access  Public / Private (dashboard)
+export const assignBookingDriver = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { driverName, vehicle } = req.body;
+
+    const booking = await Booking.findById(id);
+    if (!booking) {
+      return res.status(404).json({ success: false, error: 'Booking not found' });
+    }
+
+    const prevDriver = booking.driverName;
+    const isUnassigning = !driverName || driverName === 'None' || driverName === '—' || driverName === 'Unassigned';
+
+    if (isUnassigning) {
+      booking.driverName = 'Unassigned';
+    } else {
+      booking.driverName = driverName.trim();
+    }
+
+    if (vehicle) {
+      booking.vehicle = vehicle.trim();
+    }
+
+    await booking.save();
+
+    // Socket and domain event notifications
+    if (prevDriver && prevDriver !== 'Unassigned' && prevDriver !== 'None' && prevDriver !== '—') {
+      emitBookingUnassigned({
+        userId: req.user?._id,
+        agencyId: req.user?.currentAgency,
+        booking,
+        previousDriverName: prevDriver
+      });
+    }
+
+    if (!isUnassigning && booking.driverName) {
+      emitBookingAssigned({
+        userId: req.user?._id,
+        agencyId: req.user?.currentAgency,
+        booking,
+        driverName: booking.driverName
+      });
+    }
+
+    broadcastAll('booking:updated', { booking, action: isUnassigning ? 'unassigned' : 'assigned' });
+    broadcastAll('driver:any_change', { action: 'booking:assignment', bookingId: booking._id });
+
+    res.status(200).json({
+      success: true,
+      message: isUnassigning
+        ? 'Driver unassigned from booking successfully.'
+        : `Booking assigned to ${booking.driverName} successfully.`,
+      data: booking
+    });
   } catch (error) {
     next(error);
   }
@@ -446,6 +703,10 @@ export const completeBooking = async (req, res, next) => {
       agencyId: req.user?.currentAgency,
       booking
     });
+
+    broadcastAll('booking:completed', { booking });
+    broadcastAll('booking:updated', { booking });
+    broadcastAll('driver:any_change', { action: 'booking:completed', bookingId: booking._id });
 
     res.status(200).json({
       success: true,

@@ -32,7 +32,18 @@ import {
 import { SkeletonCard, SkeletonTable, SoftRefreshBar } from '../../common/Skeleton';
 
 export const BookingsView: React.FC = () => {
-  const { bookings, trips, updateTripStatus, searchQuery, isLoading, isLoadingBookings, fetchLiveBookings, completeTrip } = useFleet();
+  const {
+    bookings,
+    trips,
+    drivers = [],
+    updateTripStatus,
+    assignBookingDriver,
+    searchQuery,
+    isLoading,
+    isLoadingBookings,
+    fetchLiveBookings,
+    completeTrip
+  } = useFleet();
 
   // All bookings list
   const bookingList: TripFinancial[] = bookings || trips || [];
@@ -515,7 +526,7 @@ export const BookingsView: React.FC = () => {
 
                       {/* 2. Vehicle & Driver */}
                       <td>
-                        <div style={{ maxWidth: '160px' }}>
+                        <div style={{ maxWidth: '175px' }}>
                           <div style={{ fontWeight: 700, color: 'var(--text)', fontSize: '13px', whiteSpace: 'nowrap' }}>
                             {b.vehicle}
                           </div>
@@ -526,12 +537,36 @@ export const BookingsView: React.FC = () => {
                           >
                             {b.vehicleModel || 'Commercial Vehicle'}
                           </div>
-                          <div
-                            className="cell-truncate-md"
-                            style={{ fontSize: '11px', color: 'var(--text-dim)', marginTop: '2px' }}
-                            title={`Driver: ${b.driverName}`}
-                          >
-                            Driver: <b>{b.driverName}</b>
+                          {/* Interactive Driver Quick Assign / Unassign */}
+                          <div style={{ marginTop: '5px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <User size={12} style={{ color: b.driverName && b.driverName !== 'Unassigned' ? '#38bdf8' : 'var(--text-faint)', flexShrink: 0 }} />
+                            <select
+                              value={b.driverName || 'Unassigned'}
+                              onChange={(e) => {
+                                const selectedDriver = e.target.value;
+                                const drvObj = drivers.find(d => d.name === selectedDriver);
+                                assignBookingDriver(b.id, selectedDriver, drvObj?.assignedVehicle || undefined);
+                              }}
+                              style={{
+                                fontSize: '11px',
+                                padding: '2px 6px',
+                                borderRadius: '4px',
+                                background: b.driverName && b.driverName !== 'Unassigned' ? 'rgba(56, 189, 248, 0.12)' : 'var(--surface-3)',
+                                color: b.driverName && b.driverName !== 'Unassigned' ? 'var(--text)' : 'var(--text-faint)',
+                                border: '1px solid var(--border-soft)',
+                                cursor: 'pointer',
+                                outline: 'none',
+                                maxWidth: '145px'
+                              }}
+                              title="Assign or unassign driver (live syncs with mobile app)"
+                            >
+                              <option value="Unassigned" style={{ background: 'var(--surface-1, #1e293b)' }}>-- Unassigned --</option>
+                              {drivers.map(d => (
+                                <option key={d.id || d.name} value={d.name} style={{ background: 'var(--surface-1, #1e293b)' }}>
+                                  {d.name} {d.assignedVehicle ? `(${d.assignedVehicle})` : ''}
+                                </option>
+                              ))}
+                            </select>
                           </div>
                         </div>
                       </td>
