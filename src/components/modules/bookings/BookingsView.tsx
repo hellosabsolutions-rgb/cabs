@@ -5,6 +5,7 @@ import { AddBookingModal } from './AddBookingModal';
 import { CompleteBookingModal } from './CompleteBookingModal';
 import { CollectPaymentModal } from './CollectPaymentModal';
 import { VehicleAvailabilityModal } from './VehicleAvailabilityModal';
+import { BookingDetailModal } from './BookingDetailModal';
 import { DatePicker } from '../../common/DatePicker';
 import { MonthPicker } from '../../common/MonthPicker';
 import { TripFinancial, TripStatus, PaymentStatus } from '../../../types/fleet';
@@ -27,7 +28,8 @@ import {
   User,
   Fuel,
   RefreshCw,
-  ChevronDown
+  ChevronDown,
+  Eye
 } from 'lucide-react';
 import { SkeletonCard, SkeletonTable, SoftRefreshBar } from '../../common/Skeleton';
 
@@ -58,6 +60,7 @@ export const BookingsView: React.FC = () => {
   const [isAvailabilityModalOpen, setIsAvailabilityModalOpen] = useState(false);
   const [completingBooking, setCompletingBooking] = useState<TripFinancial | null>(null);
   const [collectingPaymentBooking, setCollectingPaymentBooking] = useState<TripFinancial | null>(null);
+  const [selectedBooking, setSelectedBooking] = useState<TripFinancial | null>(null);
 
   // Prefill state from availability modal
   const [prefillVehicle, setPrefillVehicle] = useState<string | undefined>(undefined);
@@ -234,7 +237,10 @@ export const BookingsView: React.FC = () => {
     const style = getStatusStyle(b.status);
 
     return (
-      <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
+      <div
+        style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}
+        onClick={e => e.stopPropagation()}
+      >
         <select
           value={b.status}
           onChange={e => {
@@ -492,7 +498,13 @@ export const BookingsView: React.FC = () => {
                   const pendingDue = Math.max(0, fare - totalPaid);
 
                   return (
-                    <tr key={b.id || b._id}>
+                    <tr
+                      key={b.id || b._id}
+                      onClick={() => setSelectedBooking(b)}
+                      style={{ cursor: 'pointer' }}
+                      className="booking-row-hover"
+                      title="Click to view full booking details & driver live map"
+                    >
                       {/* 1. Booking # & Dates */}
                       <td>
                         <div>
@@ -542,6 +554,7 @@ export const BookingsView: React.FC = () => {
                             <User size={12} style={{ color: b.driverName && b.driverName !== 'Unassigned' ? '#38bdf8' : 'var(--text-faint)', flexShrink: 0 }} />
                             <select
                               value={b.driverName || 'Unassigned'}
+                              onClick={(e) => e.stopPropagation()}
                               onChange={(e) => {
                                 const selectedDriver = e.target.value;
                                 const drvObj = drivers.find(d => d.name === selectedDriver);
@@ -697,11 +710,39 @@ export const BookingsView: React.FC = () => {
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', alignItems: 'flex-start' }}>
                           {renderBookingStatusDropdown(b)}
 
+                          {/* Quick View Details Button */}
+                          <button
+                            type="button"
+                            className="subtab-btn"
+                            style={{
+                              fontSize: '11px',
+                              padding: '4px 8px',
+                              width: '100%',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: '4px',
+                              color: 'var(--accent, #38bdf8)',
+                              borderColor: 'rgba(56, 189, 248, 0.35)',
+                              background: 'rgba(56, 189, 248, 0.08)'
+                            }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedBooking(b);
+                            }}
+                            title="Open booking details & live driver tracking"
+                          >
+                            <Eye size={12} /> View Details
+                          </button>
+
                           {b.status === 'Ongoing' && (
                             <button
                               className="btn-primary-action"
                               style={{ fontSize: '11px', padding: '5px 8px', width: '100%', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}
-                              onClick={() => setCompletingBooking(b)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setCompletingBooking(b);
+                              }}
                             >
                               <CheckCircle2 size={12} /> Complete & Settle
                             </button>
@@ -718,7 +759,10 @@ export const BookingsView: React.FC = () => {
                                 color: '#ffb400',
                                 borderColor: 'rgba(255, 180, 0, 0.4)'
                               }}
-                              onClick={() => setCollectingPaymentBooking(b)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setCollectingPaymentBooking(b);
+                              }}
                             >
                               Collect ₹{pendingDue.toLocaleString('en-IN')}
                             </button>
@@ -770,6 +814,21 @@ export const BookingsView: React.FC = () => {
         isOpen={isAvailabilityModalOpen}
         onClose={() => setIsAvailabilityModalOpen(false)}
         onSelectVehicleForBooking={handleBookSelectedVehicle}
+      />
+
+      {/* Booking Details & Driver Tracking Modal */}
+      <BookingDetailModal
+        isOpen={!!selectedBooking}
+        onClose={() => setSelectedBooking(null)}
+        booking={selectedBooking}
+        onComplete={(b) => {
+          setSelectedBooking(null);
+          setCompletingBooking(b);
+        }}
+        onCollectPayment={(b) => {
+          setSelectedBooking(null);
+          setCollectingPaymentBooking(b);
+        }}
       />
     </div>
   );

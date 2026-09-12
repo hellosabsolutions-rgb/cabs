@@ -1047,6 +1047,15 @@ tbody tr:hover {
   background: rgba(255, 255, 255, 0.025);
 }
 
+.booking-row-hover {
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+
+.booking-row-hover:hover {
+  background: rgba(56, 189, 248, 0.06) !important;
+}
+
 tbody tr:last-child td {
   border-bottom: none;
 }
