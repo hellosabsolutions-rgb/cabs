@@ -281,19 +281,30 @@ export const getMyBookings = async (req, res, next) => {
     }
 
     const driverName = driver.name?.trim();
-    if (!driverName) {
+    const vehicleReg = driver.assignedVehicle?.trim();
+
+    const queryOr = [];
+    if (driverName) {
+      queryOr.push({ driverName: new RegExp(`^${driverName}$`, 'i') });
+      if (driver._id) {
+        queryOr.push({ driverId: driver._id });
+      }
+    }
+    if (vehicleReg && vehicleReg !== '—' && vehicleReg !== 'None' && vehicleReg !== 'Unassigned') {
+      queryOr.push({ vehicle: new RegExp(`^${vehicleReg}$`, 'i'), driverName: { $ne: 'Unassigned' } });
+    }
+
+    if (queryOr.length === 0) {
       return res.status(200).json({ success: true, count: 0, data: [] });
     }
 
-    const query = {
-      driverName: new RegExp(`^${driverName}$`, 'i')
-    };
+    const query = { $or: queryOr };
 
     if (req.query.status && req.query.status !== 'All') {
       query.status = req.query.status;
     }
 
-    const bookings = await Booking.find(query).sort({ startDate: -1, startTime: -1 });
+    const bookings = await Booking.find(query).sort({ startDate: 1, startTime: 1 });
 
     res.status(200).json({
       success: true,

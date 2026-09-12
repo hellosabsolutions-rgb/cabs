@@ -62,7 +62,7 @@ export function BookingsScreen({ navigation }: Props) {
   const { colors, scheme, t } = useAppTheme();
   const session = useSession();
 
-  const [filter, setFilter] = useState<FilterTab>('today-tomorrow');
+  const [filter, setFilter] = useState<FilterTab>('all');
   const [selectedDate, setSelectedDate] = useState<string>(() => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -199,14 +199,20 @@ export function BookingsScreen({ navigation }: Props) {
 
     const currentMonthPrefix = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
 
+    if (filter === 'all') {
+      return bookings;
+    }
     if (filter === 'today-tomorrow') {
-      return bookings.filter((b) => b.startDate === todayStr || b.startDate === tomorrowStr);
+      const matched = bookings.filter((b) => b.status === 'Ongoing' || b.startDate === todayStr || b.startDate === tomorrowStr);
+      return matched.length > 0 ? matched : bookings;
     }
     if (filter === 'week') {
-      return bookings.filter((b) => b.startDate >= startOfWeekStr && b.startDate <= endOfWeekStr);
+      const matched = bookings.filter((b) => b.startDate >= startOfWeekStr && b.startDate <= endOfWeekStr);
+      return matched.length > 0 ? matched : bookings;
     }
     if (filter === 'month') {
-      return bookings.filter((b) => b.startDate.startsWith(currentMonthPrefix));
+      const matched = bookings.filter((b) => b.startDate.startsWith(currentMonthPrefix));
+      return matched.length > 0 ? matched : bookings;
     }
     if (filter === 'custom-date') {
       return bookings.filter((b) => b.startDate === selectedDate);
@@ -275,6 +281,26 @@ export function BookingsScreen({ navigation }: Props) {
           style={styles.filterScrollView}
           contentContainerStyle={styles.filterPillsRow}
         >
+          <Pressable
+            onPress={() => setFilter('all')}
+            style={[
+              styles.filterPill,
+              {
+                backgroundColor: filter === 'all' ? colors.accent : isDark ? '#232933' : '#F1F5F9',
+                borderColor: filter === 'all' ? colors.accent : cardBorder,
+              },
+            ]}
+          >
+            <Text
+              style={[
+                styles.filterPillText,
+                { color: filter === 'all' ? '#FFFFFF' : colors.text },
+              ]}
+            >
+              All Trips{bookings.length > 0 ? ` (${bookings.length})` : ''}
+            </Text>
+          </Pressable>
+
           <Pressable
             onPress={() => setFilter('today-tomorrow')}
             style={[
@@ -358,26 +384,6 @@ export function BookingsScreen({ navigation }: Props) {
               ]}
             >
               {filter === 'custom-date' ? formatDisplayDate(selectedDate) : 'Date'}
-            </Text>
-          </Pressable>
-
-          <Pressable
-            onPress={() => setFilter('all')}
-            style={[
-              styles.filterPill,
-              {
-                backgroundColor: filter === 'all' ? colors.accent : isDark ? '#232933' : '#F1F5F9',
-                borderColor: filter === 'all' ? colors.accent : cardBorder,
-              },
-            ]}
-          >
-            <Text
-              style={[
-                styles.filterPillText,
-                { color: filter === 'all' ? '#FFFFFF' : colors.text },
-              ]}
-            >
-              All Trips
             </Text>
           </Pressable>
         </ScrollView>
@@ -477,12 +483,12 @@ export function BookingsScreen({ navigation }: Props) {
                   ? 'You currently have no bookings assigned. Real trips assigned by dispatch will appear here.'
                   : 'No bookings scheduled for the selected period.'}
               </Text>
-              {bookings.length > 0 && filter !== 'month' ? (
+              {bookings.length > 0 ? (
                 <Pressable
-                  onPress={() => setFilter('month')}
+                  onPress={() => setFilter('all')}
                   style={[styles.emptyResetBtn, { backgroundColor: colors.accent }]}
                 >
-                  <Text style={styles.emptyResetBtnText}>View All Month Trips</Text>
+                  <Text style={styles.emptyResetBtnText}>View All Assigned Trips ({bookings.length})</Text>
                 </Pressable>
               ) : (
                 <Pressable
