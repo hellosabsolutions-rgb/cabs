@@ -108,6 +108,114 @@ function getGreetingDetails(hour: number): {
   return { key: 'home.goodNight', icon: 'moon', color: '#C7D2FE' };
 }
 
+/**
+ * Diffuse Liquid Mesh Blur Gradient Background
+ * Replaces sharp geometric circles with expansive, multi-stage feathered radial falloffs.
+ * Creates an ultra-soft, continuous fluid mesh blur with zero visible circular edges.
+ */
+function MeshBlurBackground({ isDark }: { isDark: boolean }) {
+  return (
+    <View style={styles.meshCanvas} pointerEvents="none">
+      {/* Aurora Node 1: Top-Right Cyan Glow with multi-stage diffusion */}
+      <View
+        style={[
+          styles.meshBlob,
+          {
+            width: 520,
+            height: 520,
+            borderRadius: 260,
+            top: -140,
+            right: -120,
+            backgroundColor: isDark ? 'rgba(56, 189, 248, 0.03)' : 'rgba(56, 189, 248, 0.06)',
+          },
+        ]}
+      />
+      <View
+        style={[
+          styles.meshBlob,
+          {
+            width: 380,
+            height: 380,
+            borderRadius: 190,
+            top: -80,
+            right: -60,
+            backgroundColor: isDark ? 'rgba(56, 189, 248, 0.05)' : 'rgba(125, 211, 252, 0.09)',
+          },
+        ]}
+      />
+      <View
+        style={[
+          styles.meshBlob,
+          {
+            width: 240,
+            height: 240,
+            borderRadius: 120,
+            top: -20,
+            right: 0,
+            backgroundColor: isDark ? 'rgba(14, 165, 233, 0.06)' : 'rgba(186, 230, 253, 0.12)',
+          },
+        ]}
+      />
+
+      {/* Aurora Node 2: Center-Left Soft Luminous Azure/Indigo Blur */}
+      <View
+        style={[
+          styles.meshBlob,
+          {
+            width: 540,
+            height: 540,
+            borderRadius: 270,
+            top: 20,
+            left: -160,
+            backgroundColor: isDark ? 'rgba(99, 102, 241, 0.04)' : 'rgba(99, 102, 241, 0.07)',
+          },
+        ]}
+      />
+      <View
+        style={[
+          styles.meshBlob,
+          {
+            width: 360,
+            height: 360,
+            borderRadius: 180,
+            top: 80,
+            left: -80,
+            backgroundColor: isDark ? 'rgba(79, 70, 229, 0.05)' : 'rgba(129, 140, 248, 0.09)',
+          },
+        ]}
+      />
+      <View
+        style={[
+          styles.meshBlob,
+          {
+            width: 200,
+            height: 200,
+            borderRadius: 100,
+            top: 140,
+            left: -20,
+            backgroundColor: isDark ? 'rgba(67, 56, 202, 0.06)' : 'rgba(165, 180, 252, 0.11)',
+          },
+        ]}
+      />
+
+      {/* Aurora Node 3: Bottom-Center Ambient Cerulean Undertone */}
+      <View
+        style={[
+          styles.meshBlob,
+          {
+            width: '130%',
+            height: 220,
+            borderRadius: 110,
+            bottom: -80,
+            left: '-15%',
+            backgroundColor: isDark ? 'rgba(29, 78, 216, 0.15)' : 'rgba(30, 64, 175, 0.16)',
+          },
+        ]}
+      />
+    </View>
+  );
+}
+
 export function HomeScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
   const { colors, scheme, t } = useAppTheme();
@@ -353,9 +461,8 @@ export function HomeScreen({ navigation }: Props) {
             },
           ]}
         >
-          {/* Ambient depth lighting accents (Pure React Native - no native modules needed) */}
-          <View style={styles.ambientGlowTop} />
-          <View style={styles.ambientGlowBottom} />
+          {/* Multi-Layered Diffuse Mesh Blur Gradient (Seamless liquid depth, no sharp circular elements) */}
+          <MeshBlurBackground isDark={isDark} />
 
           {/* Header Row: Greeting pill, Driver Name, Location, Live Duty & Avatar */}
           <View style={styles.heroHeaderRow}>
@@ -690,23 +797,12 @@ const styles = StyleSheet.create({
     position: 'relative',
     overflow: 'hidden',
   },
-  ambientGlowTop: {
-    position: 'absolute',
-    top: -50,
-    right: -30,
-    width: 220,
-    height: 220,
-    borderRadius: 110,
-    backgroundColor: 'rgba(56, 189, 248, 0.22)',
+  meshCanvas: {
+    ...StyleSheet.absoluteFill,
+    overflow: 'hidden',
   },
-  ambientGlowBottom: {
+  meshBlob: {
     position: 'absolute',
-    bottom: -60,
-    left: -40,
-    width: 200,
-    height: 200,
-    borderRadius: 100,
-    backgroundColor: 'rgba(6, 40, 105, 0.38)',
   },
   heroHeaderRow: {
     flexDirection: 'row',
