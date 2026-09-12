@@ -531,7 +531,6 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               ...data,
               id: t.id,
               status: data.status || t.status,
-              driver: data.driver || data.driverName || t.driver,
               driverName: data.driverName || data.driver || t.driverName,
               vehicle: data.vehicle || t.vehicle,
               endOdometer: data.endOdometer !== undefined ? data.endOdometer : t.endOdometer,
@@ -560,7 +559,6 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setTrips(prev =>
         prev.map(t => (t.id === id || t._id === id ? {
           ...t,
-          driver: data.driver || data.driverName || t.driver,
           driverName: data.driverName || data.driver || t.driverName,
           vehicle: data.vehicle || t.vehicle
         } : t))
