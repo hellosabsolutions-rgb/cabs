@@ -188,10 +188,6 @@ export function BookingsScreen({ navigation }: Props) {
           });
         }
 
-        Alert.alert(
-          '🚖 New Trip Assigned',
-          `Booking #${bNumber} has been assigned to you by dispatch.`
-        );
         // Then fetch from server to get authoritative state
         fetchBookings();
       }
@@ -213,10 +209,7 @@ export function BookingsScreen({ navigation }: Props) {
           return true;
         })
       );
-      Alert.alert(
-        '❌ Trip Unassigned',
-        `Booking #${targetNumber || ''} has been removed by dispatch.`
-      );
+
       fetchBookings();
     });
 
