@@ -16,6 +16,7 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { BlurView } from 'expo-blur';
 import { CameraView, useCameraPermissions, type FlashMode } from 'expo-camera';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -45,6 +46,67 @@ function formatIST(timestamp: number): string {
   } catch {
     return new Date(timestamp).toLocaleString('en-IN');
   }
+}
+
+/**
+ * Liquid Glass Card for iOS with native blur and specular edge reflection.
+ * On Android, renders a solid, ultra-smooth obsidian dark surface.
+ */
+function LiquidGlassCard({
+  children,
+  style,
+  borderRadius = 24,
+}: {
+  children: React.ReactNode;
+  style?: any;
+  borderRadius?: number;
+}) {
+  if (Platform.OS === 'ios') {
+    return (
+      <View style={[styles.iosLiquidCardWrap, { borderRadius }, style]}>
+        <BlurView intensity={55} tint="dark" style={StyleSheet.absoluteFill} />
+        {/* Specular Top Border Highlight */}
+        <View style={[styles.liquidTopSpecularEdge, { borderTopLeftRadius: borderRadius, borderTopRightRadius: borderRadius }]} pointerEvents="none" />
+        {/* Subtle Gloss Reflection Wash */}
+        <View style={[styles.liquidTopGlossWash, { borderTopLeftRadius: borderRadius, borderTopRightRadius: borderRadius }]} pointerEvents="none" />
+        {children}
+      </View>
+    );
+  }
+
+  return (
+    <View style={[styles.androidSolidCardWrap, { borderRadius }, style]}>
+      {children}
+    </View>
+  );
+}
+
+/**
+ * Liquid Glass Pill for iOS header tags.
+ * On Android, renders a solid luxury pill.
+ */
+function LiquidGlassPill({
+  children,
+  style,
+}: {
+  children: React.ReactNode;
+  style?: any;
+}) {
+  if (Platform.OS === 'ios') {
+    return (
+      <View style={[styles.iosLiquidPillWrap, style]}>
+        <BlurView intensity={45} tint="dark" style={StyleSheet.absoluteFill} />
+        <View style={styles.liquidPillSpecularEdge} pointerEvents="none" />
+        {children}
+      </View>
+    );
+  }
+
+  return (
+    <View style={[styles.androidSolidPillWrap, style]}>
+      {children}
+    </View>
+  );
 }
 
 export function StartDutyScreen({ navigation }: Props) {
@@ -302,7 +364,7 @@ export function StartDutyScreen({ navigation }: Props) {
       {capturedPhoto ? (
         <View style={StyleSheet.absoluteFill}>
           <Image source={{ uri: capturedPhoto.uri }} style={StyleSheet.absoluteFill} resizeMode="cover" />
-          {/* Subtle gradient vignette over photo */}
+          {/* Subtle monochrome vignette over photo */}
           <View style={[styles.photoVignette, { paddingTop: insets.top, paddingBottom: insets.bottom }]} />
         </View>
       ) : permission?.granted ? (
@@ -318,7 +380,7 @@ export function StartDutyScreen({ navigation }: Props) {
         </View>
       ) : (
         <View style={[StyleSheet.absoluteFill, styles.permissionFallback]}>
-          <Ionicons name="camera-outline" size={54} color="#94A3B8" />
+          <Ionicons name="camera-outline" size={54} color="#A1A1AA" />
           <Text style={styles.permissionTitle}>Camera Access Needed</Text>
           <Text style={styles.permissionSub}>
             Take a live photo of your vehicle's odometer dashboard to start duty.
@@ -326,35 +388,47 @@ export function StartDutyScreen({ navigation }: Props) {
           <Pressable onPress={requestPermission} style={styles.permissionBtn}>
             <Text style={styles.permissionBtnText}>Enable Camera</Text>
           </Pressable>
-          <Pressable onPress={handleCapture} style={[styles.permissionBtn, { backgroundColor: '#334155', marginTop: 10 }]}>
-            <Text style={styles.permissionBtnText}>Use System Camera</Text>
+          <Pressable onPress={handleCapture} style={[styles.permissionBtn, styles.permissionBtnSecondary]}>
+            <Text style={[styles.permissionBtnText, { color: '#FFFFFF' }]}>Use System Camera</Text>
           </Pressable>
         </View>
       )}
 
-      {/* FLOATING TOP BAR */}
+      {/* FLOATING TOP BAR: LIQUID GLASS ON IOS / NORMAL OBSIDIAN ON ANDROID */}
       <View style={[styles.topBar, { top: insets.top + 8 }]}>
         <Pressable onPress={() => navigation.goBack()} style={styles.glassCircleBtn}>
+          {Platform.OS === 'ios' && (
+            <>
+              <BlurView intensity={45} tint="dark" style={StyleSheet.absoluteFill} />
+              <View style={styles.liquidCircleSpecular} pointerEvents="none" />
+            </>
+          )}
           <Ionicons name="chevron-back" size={22} color="#FFFFFF" />
         </Pressable>
 
-        <View style={styles.vehicleBadgePill}>
+        <LiquidGlassPill style={styles.vehicleBadgePill}>
           <View style={styles.pulseDot} />
-          <Ionicons name="car-outline" size={15} color="#38BDF8" style={{ marginRight: 4 }} />
+          <Ionicons name="car-outline" size={15} color="#FFFFFF" style={{ marginRight: 6 }} />
           <Text style={styles.vehicleBadgeReg}>
             {session.vehicle?.reg || 'Unassigned'}
           </Text>
           <Text style={styles.vehicleBadgeModel}>
             • {session.vehicle?.model || 'Commercial'}
           </Text>
-        </View>
+        </LiquidGlassPill>
 
         {!capturedPhoto && (
           <Pressable onPress={toggleFlash} style={styles.glassCircleBtn}>
+            {Platform.OS === 'ios' && (
+              <>
+                <BlurView intensity={45} tint="dark" style={StyleSheet.absoluteFill} />
+                <View style={styles.liquidCircleSpecular} pointerEvents="none" />
+              </>
+            )}
             <Ionicons
               name={flash === 'on' ? 'flash' : flash === 'auto' ? 'flash-outline' : 'flash-off-outline'}
               size={18}
-              color={flash !== 'off' ? '#FACC15' : '#FFFFFF'}
+              color={flash !== 'off' ? '#FFFFFF' : '#A1A1AA'}
             />
           </Pressable>
         )}
@@ -364,7 +438,7 @@ export function StartDutyScreen({ navigation }: Props) {
       {!capturedPhoto && (
         <View style={styles.reticleContainer} pointerEvents="none">
           <View style={styles.reticleFrame}>
-            {/* Top-Left Corner */}
+            {/* Top-Left Corner (Pure White Power Accent) */}
             <View style={[styles.cornerBracket, styles.cornerTL]} />
             {/* Top-Right Corner */}
             <View style={[styles.cornerBracket, styles.cornerTR]} />
@@ -373,7 +447,7 @@ export function StartDutyScreen({ navigation }: Props) {
             {/* Bottom-Right Corner */}
             <View style={[styles.cornerBracket, styles.cornerBR]} />
 
-            {/* Animated Scanning Laser Line */}
+            {/* Animated Scanning Laser Line (Pure White Laser) */}
             <Animated.View
               style={[
                 styles.scanLaser,
@@ -382,7 +456,7 @@ export function StartDutyScreen({ navigation }: Props) {
             />
 
             <View style={styles.reticleCenterTag}>
-              <Ionicons name="scan-outline" size={16} color="#38BDF8" style={{ marginRight: 4 }} />
+              <Ionicons name="scan-outline" size={15} color="#FFFFFF" style={{ marginRight: 5 }} />
               <Text style={styles.reticleTagText}>ALIGN ODOMETER HERE</Text>
             </View>
           </View>
@@ -395,10 +469,10 @@ export function StartDutyScreen({ navigation }: Props) {
       {/* POST-CAPTURE SUCCESS BADGE */}
       {capturedPhoto && (
         <View style={[styles.successBadgeWrap, { top: insets.top + 60 }]}>
-          <View style={styles.successBadge}>
-            <Ionicons name="checkmark-circle" size={18} color="#22C55E" style={{ marginRight: 6 }} />
+          <LiquidGlassPill style={styles.successBadge}>
+            <Ionicons name="checkmark-circle" size={17} color="#FFFFFF" style={{ marginRight: 6 }} />
             <Text style={styles.successBadgeText}>Odometer Photo Captured & Verified</Text>
-          </View>
+          </LiquidGlassPill>
         </View>
       )}
 
@@ -407,9 +481,9 @@ export function StartDutyScreen({ navigation }: Props) {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={[styles.bottomContainer, { paddingBottom: Math.max(insets.bottom, 16) }]}
       >
-        {/* PRE-CAPTURE MODE: FLOATING ODOMETER BAR + LARGE SHUTTER BUTTON */}
+        {/* PRE-CAPTURE MODE: FLOATING ODOMETER BAR + LEICA/APPLE MONOCHROME SHUTTER BUTTON */}
         {!capturedPhoto ? (
-          <View style={styles.preCaptureCard}>
+          <LiquidGlassCard style={styles.preCaptureCard}>
             {/* Odometer Quick Input Strip */}
             <View style={styles.floatingOdoStrip}>
               <View style={{ flex: 1 }}>
@@ -424,7 +498,7 @@ export function StartDutyScreen({ navigation }: Props) {
                     keyboardType="numeric"
                     style={styles.odoStripInput}
                     placeholder="45470"
-                    placeholderTextColor="#64748B"
+                    placeholderTextColor="#71717A"
                   />
                   <Text style={styles.odoKmUnit}>KM</Text>
                 </View>
@@ -432,21 +506,21 @@ export function StartDutyScreen({ navigation }: Props) {
 
               <View style={styles.odoVerificationPills}>
                 <View style={styles.verifiedTag}>
-                  <Ionicons name="time-outline" size={11} color="#38BDF8" style={{ marginRight: 3 }} />
+                  <Ionicons name="time-outline" size={11} color="#FFFFFF" style={{ marginRight: 4 }} />
                   <Text style={styles.verifiedTagText}>
                     {isTimeLoading ? 'Syncing IST...' : serverTimeText}
                   </Text>
                 </View>
-                <View style={[styles.verifiedTag, { backgroundColor: 'rgba(34, 197, 94, 0.15)' }]}>
-                  <Ionicons name="navigate-outline" size={11} color="#22C55E" style={{ marginRight: 3 }} />
-                  <Text style={[styles.verifiedTagText, { color: '#4ADE80' }]}>GPS Attached</Text>
+                <View style={styles.verifiedTag}>
+                  <Ionicons name="navigate-outline" size={11} color="#FFFFFF" style={{ marginRight: 4 }} />
+                  <Text style={styles.verifiedTagText}>GPS Attached</Text>
                 </View>
               </View>
             </View>
 
             {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
-            {/* SHUTTER CAPTURE BUTTON */}
+            {/* BLACK & WHITE POWER SHUTTER BUTTON */}
             <View style={styles.shutterRow}>
               <Pressable
                 onPress={handleCapture}
@@ -457,191 +531,193 @@ export function StartDutyScreen({ navigation }: Props) {
                 ]}
               >
                 {isCapturing ? (
-                  <ActivityIndicator size="small" color="#0284C7" />
+                  <ActivityIndicator size="small" color="#000000" />
                 ) : (
                   <View style={styles.shutterInnerCircle}>
-                    <View style={styles.shutterDot} />
+                    <View style={styles.shutterCoreDot} />
                   </View>
                 )}
               </Pressable>
               <Text style={styles.shutterInstruction}>Tap shutter to capture photo</Text>
             </View>
-          </View>
+          </LiquidGlassCard>
         ) : (
-          /* POST-CAPTURE MODE: FLOATING VERIFICATION CARD & PROMINENT START DUTY BUTTON */
-          <ScrollView
-            bounces={false}
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={styles.postCaptureCard}
-          >
-            {/* Odometer Verification Input */}
-            <View style={styles.fieldSection}>
-              <View style={styles.fieldHeaderRow}>
-                <Text style={styles.fieldSectionTitle}>STARTING ODOMETER</Text>
-                <Text style={styles.fieldCurrentKm}>Current: {km(session.vehicle?.odometer || session.lastValidOdo)}</Text>
-              </View>
-
-              {/* AI Detection in progress banner */}
-              {isDetectingOdo && (
-                <View style={styles.detectingBanner}>
-                  <ActivityIndicator size="small" color="#38BDF8" style={{ marginRight: 8 }} />
-                  <Text style={styles.detectingBannerText}>
-                    AI scanning integers from odometer photo...
-                  </Text>
+          /* POST-CAPTURE MODE: FLOATING VERIFICATION CARD & HIGH CONTRAST POWER BUTTON */
+          <LiquidGlassCard style={styles.postCaptureContainer}>
+            <ScrollView
+              bounces={false}
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.postCaptureContent}
+            >
+              {/* Odometer Verification Input */}
+              <View style={styles.fieldSection}>
+                <View style={styles.fieldHeaderRow}>
+                  <Text style={styles.fieldSectionTitle}>STARTING ODOMETER</Text>
+                  <Text style={styles.fieldCurrentKm}>Current: {km(session.vehicle?.odometer || session.lastValidOdo)}</Text>
                 </View>
-              )}
 
-              {/* AI Auto-detected successfully banner */}
-              {detectedOdo && !isDetectingOdo ? (
-                <View style={styles.detectedSuccessBanner}>
-                  <Ionicons name="sparkles" size={14} color="#22C55E" style={{ marginRight: 6 }} />
-                  <Text style={styles.detectedSuccessText}>
-                    Auto-detected {km(detectedOdo)} from photo • Auto-filled
-                  </Text>
-                </View>
-              ) : null}
-
-              <View style={[
-                styles.odoLargeInputBox,
-                detectedOdo && !isDetectingOdo ? styles.odoLargeInputBoxDetected : null
-              ]}>
-                <TextInput
-                  value={odometer}
-                  onChangeText={(v) => {
-                    setOdometer(v);
-                    setError('');
-                  }}
-                  keyboardType="numeric"
-                  style={styles.odoLargeInput}
-                  placeholder="45470"
-                  placeholderTextColor="#64748B"
-                />
-                <Text style={[styles.odoLargeKm, Boolean(detectedOdo && !isDetectingOdo) ? { color: '#22C55E' } : null]}>KM</Text>
-              </View>
-
-              {error ? <Text style={styles.errorText}>{error}</Text> : null}
-
-              {/* Quick delta fine-tuning chips */}
-              <View style={styles.deltaChipsRow}>
-                <Pressable onPress={() => adjustOdo(-50)} style={styles.deltaChip}>
-                  <Text style={styles.deltaChipText}>-50</Text>
-                </Pressable>
-                <Pressable onPress={() => adjustOdo(-10)} style={styles.deltaChip}>
-                  <Text style={styles.deltaChipText}>-10</Text>
-                </Pressable>
-                <Pressable onPress={() => adjustOdo(10)} style={styles.deltaChip}>
-                  <Text style={styles.deltaChipText}>+10</Text>
-                </Pressable>
-                <Pressable onPress={() => adjustOdo(50)} style={styles.deltaChip}>
-                  <Text style={styles.deltaChipText}>+50</Text>
-                </Pressable>
-              </View>
-
-              {/* Detected candidates selector chips if multiple numbers found in cluster */}
-              {candidates.length > 1 && (
-                <View style={styles.candidatesSection}>
-                  <Text style={styles.candidatesLabel}>Detected in cluster photo (tap to choose):</Text>
-                  <View style={styles.candidatesRow}>
-                    {candidates.map((cand) => {
-                      const isSelected = Number(odometer.replace(/,/g, '')) === cand;
-                      return (
-                        <Pressable
-                          key={cand}
-                          onPress={() => {
-                            setOdometer(String(cand));
-                            setDetectedOdo(cand);
-                            setError('');
-                          }}
-                          style={[
-                            styles.candidateChip,
-                            isSelected && styles.candidateChipSelected,
-                          ]}
-                        >
-                          <Ionicons
-                            name={isSelected ? 'checkmark-circle' : 'speedometer-outline'}
-                            size={12}
-                            color={isSelected ? '#22C55E' : '#38BDF8'}
-                            style={{ marginRight: 4 }}
-                          />
-                          <Text style={[styles.candidateChipText, isSelected && styles.candidateChipTextSelected]}>
-                            {km(cand)}
-                          </Text>
-                        </Pressable>
-                      );
-                    })}
+                {/* AI Detection in progress banner */}
+                {isDetectingOdo && (
+                  <View style={styles.detectingBanner}>
+                    <ActivityIndicator size="small" color="#FFFFFF" style={{ marginRight: 8 }} />
+                    <Text style={styles.detectingBannerText}>
+                      AI scanning integers from odometer photo...
+                    </Text>
                   </View>
-                </View>
-              )}
-            </View>
-
-            {/* Vehicle & Verification Summary */}
-            <View style={styles.summaryBox}>
-              <View style={styles.summaryRow}>
-                <View style={styles.summaryIconWrap}>
-                  <Ionicons name="car-sport" size={14} color="#38BDF8" />
-                </View>
-                <Text style={styles.summaryLabel}>Vehicle:</Text>
-                <Text style={styles.summaryValue}>
-                  {session.vehicle?.reg || 'Unassigned'} ({session.vehicle?.model || 'Fleet'})
-                </Text>
-              </View>
-
-              <View style={styles.summaryDivider} />
-
-              <View style={styles.summaryRow}>
-                <View style={[styles.summaryIconWrap, { backgroundColor: 'rgba(34, 197, 94, 0.15)' }]}>
-                  <Ionicons name="time" size={14} color="#22C55E" />
-                </View>
-                <Text style={styles.summaryLabel}>Time:</Text>
-                <Text style={styles.summaryValue}>
-                  {serverTimeText || 'Live'} (Server IST)
-                </Text>
-              </View>
-
-              <View style={styles.summaryDivider} />
-
-              <View style={styles.summaryRow}>
-                <View style={[styles.summaryIconWrap, { backgroundColor: 'rgba(168, 85, 247, 0.15)' }]}>
-                  <Ionicons name="location" size={14} color="#C084FC" />
-                </View>
-                <Text style={styles.summaryLabel}>GPS:</Text>
-                <Text style={styles.summaryValue}>Attached & Anti-Tamper Verified</Text>
-              </View>
-            </View>
-
-            {/* ACTION BUTTONS ROW */}
-            <View style={styles.actionButtonsRow}>
-              {/* Retake Button */}
-              <Pressable
-                onPress={() => setCapturedPhoto(null)}
-                disabled={isSubmitting}
-                style={styles.retakeBtn}
-              >
-                <Ionicons name="camera-reverse-outline" size={18} color="#FFFFFF" style={{ marginRight: 6 }} />
-                <Text style={styles.retakeBtnText}>Retake</Text>
-              </Pressable>
-
-              {/* Start Duty Primary Button */}
-              <Pressable
-                onPress={handleStartDuty}
-                disabled={isSubmitting || !hasAssignedVehicle}
-                style={({ pressed }) => [
-                  styles.startDutyBtn,
-                  pressed && { opacity: 0.9, transform: [{ scale: 0.98 }] },
-                  (!hasAssignedVehicle || isSubmitting) && { opacity: 0.6 },
-                ]}
-              >
-                {isSubmitting ? (
-                  <ActivityIndicator size="small" color="#FFFFFF" />
-                ) : (
-                  <>
-                    <Ionicons name="play" size={18} color="#FFFFFF" style={{ marginRight: 8 }} />
-                    <Text style={styles.startDutyBtnText}>Start Duty</Text>
-                  </>
                 )}
-              </Pressable>
-            </View>
-          </ScrollView>
+
+                {/* AI Auto-detected successfully banner */}
+                {detectedOdo && !isDetectingOdo ? (
+                  <View style={styles.detectedSuccessBanner}>
+                    <Ionicons name="sparkles" size={14} color="#FFFFFF" style={{ marginRight: 6 }} />
+                    <Text style={styles.detectedSuccessText}>
+                      Auto-detected {km(detectedOdo)} from photo • Auto-filled
+                    </Text>
+                  </View>
+                ) : null}
+
+                <View style={[
+                  styles.odoLargeInputBox,
+                  detectedOdo && !isDetectingOdo ? styles.odoLargeInputBoxDetected : null
+                ]}>
+                  <TextInput
+                    value={odometer}
+                    onChangeText={(v) => {
+                      setOdometer(v);
+                      setError('');
+                    }}
+                    keyboardType="numeric"
+                    style={styles.odoLargeInput}
+                    placeholder="45470"
+                    placeholderTextColor="#71717A"
+                  />
+                  <Text style={styles.odoLargeKm}>KM</Text>
+                </View>
+
+                {error ? <Text style={styles.errorText}>{error}</Text> : null}
+
+                {/* Quick delta fine-tuning chips */}
+                <View style={styles.deltaChipsRow}>
+                  <Pressable onPress={() => adjustOdo(-50)} style={styles.deltaChip}>
+                    <Text style={styles.deltaChipText}>-50</Text>
+                  </Pressable>
+                  <Pressable onPress={() => adjustOdo(-10)} style={styles.deltaChip}>
+                    <Text style={styles.deltaChipText}>-10</Text>
+                  </Pressable>
+                  <Pressable onPress={() => adjustOdo(10)} style={styles.deltaChip}>
+                    <Text style={styles.deltaChipText}>+10</Text>
+                  </Pressable>
+                  <Pressable onPress={() => adjustOdo(50)} style={styles.deltaChip}>
+                    <Text style={styles.deltaChipText}>+50</Text>
+                  </Pressable>
+                </View>
+
+                {/* Detected candidates selector chips if multiple numbers found in cluster */}
+                {candidates.length > 1 && (
+                  <View style={styles.candidatesSection}>
+                    <Text style={styles.candidatesLabel}>Detected in cluster photo (tap to choose):</Text>
+                    <View style={styles.candidatesRow}>
+                      {candidates.map((cand) => {
+                        const isSelected = Number(odometer.replace(/,/g, '')) === cand;
+                        return (
+                          <Pressable
+                            key={cand}
+                            onPress={() => {
+                              setOdometer(String(cand));
+                              setDetectedOdo(cand);
+                              setError('');
+                            }}
+                            style={[
+                              styles.candidateChip,
+                              isSelected && styles.candidateChipSelected,
+                            ]}
+                          >
+                            <Ionicons
+                              name={isSelected ? 'checkmark-circle' : 'speedometer-outline'}
+                              size={12}
+                              color={isSelected ? '#000000' : '#FFFFFF'}
+                              style={{ marginRight: 4 }}
+                            />
+                            <Text style={[styles.candidateChipText, isSelected && styles.candidateChipTextSelected]}>
+                              {km(cand)}
+                            </Text>
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+                  </View>
+                )}
+              </View>
+
+              {/* Vehicle & Verification Summary */}
+              <View style={styles.summaryBox}>
+                <View style={styles.summaryRow}>
+                  <View style={styles.summaryIconWrap}>
+                    <Ionicons name="car-sport" size={13} color="#FFFFFF" />
+                  </View>
+                  <Text style={styles.summaryLabel}>Vehicle:</Text>
+                  <Text style={styles.summaryValue}>
+                    {session.vehicle?.reg || 'Unassigned'} ({session.vehicle?.model || 'Fleet'})
+                  </Text>
+                </View>
+
+                <View style={styles.summaryDivider} />
+
+                <View style={styles.summaryRow}>
+                  <View style={styles.summaryIconWrap}>
+                    <Ionicons name="time" size={13} color="#FFFFFF" />
+                  </View>
+                  <Text style={styles.summaryLabel}>Time:</Text>
+                  <Text style={styles.summaryValue}>
+                    {serverTimeText || 'Live'} (Server IST)
+                  </Text>
+                </View>
+
+                <View style={styles.summaryDivider} />
+
+                <View style={styles.summaryRow}>
+                  <View style={styles.summaryIconWrap}>
+                    <Ionicons name="location" size={13} color="#FFFFFF" />
+                  </View>
+                  <Text style={styles.summaryLabel}>GPS:</Text>
+                  <Text style={styles.summaryValue}>Attached & Anti-Tamper Verified</Text>
+                </View>
+              </View>
+
+              {/* ACTION BUTTONS ROW: POWER BLACK & WHITE THEME */}
+              <View style={styles.actionButtonsRow}>
+                {/* Retake Button (Frosted Glass) */}
+                <Pressable
+                  onPress={() => setCapturedPhoto(null)}
+                  disabled={isSubmitting}
+                  style={styles.retakeBtn}
+                >
+                  <Ionicons name="camera-reverse-outline" size={18} color="#FFFFFF" style={{ marginRight: 6 }} />
+                  <Text style={styles.retakeBtnText}>Retake</Text>
+                </Pressable>
+
+                {/* Start Duty Primary Button (Pure White Power Accent) */}
+                <Pressable
+                  onPress={handleStartDuty}
+                  disabled={isSubmitting || !hasAssignedVehicle}
+                  style={({ pressed }) => [
+                    styles.startDutyBtn,
+                    pressed && { opacity: 0.9, transform: [{ scale: 0.98 }] },
+                    (!hasAssignedVehicle || isSubmitting) && { opacity: 0.5 },
+                  ]}
+                >
+                  {isSubmitting ? (
+                    <ActivityIndicator size="small" color="#000000" />
+                  ) : (
+                    <>
+                      <Ionicons name="play" size={18} color="#000000" style={{ marginRight: 8 }} />
+                      <Text style={styles.startDutyBtnText}>Start Duty</Text>
+                    </>
+                  )}
+                </Pressable>
+              </View>
+            </ScrollView>
+          </LiquidGlassCard>
         )}
       </KeyboardAvoidingView>
     </View>
@@ -651,18 +727,18 @@ export function StartDutyScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: '#020617',
+    backgroundColor: '#000000',
   },
   photoVignette: {
     ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(2, 6, 23, 0.42)',
+    backgroundColor: 'rgba(0, 0, 0, 0.45)',
   },
   cameraVignette: {
     ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(2, 6, 23, 0.22)',
+    backgroundColor: 'rgba(0, 0, 0, 0.25)',
   },
   permissionFallback: {
-    backgroundColor: '#0F172A',
+    backgroundColor: '#09090B',
     alignItems: 'center',
     justifyContent: 'center',
     padding: 24,
@@ -674,7 +750,7 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
   permissionSub: {
-    color: '#94A3B8',
+    color: '#A1A1AA',
     fontSize: 13,
     textAlign: 'center',
     marginTop: 8,
@@ -682,16 +758,92 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   permissionBtn: {
-    backgroundColor: '#0284C7',
+    backgroundColor: '#FFFFFF',
     paddingHorizontal: 22,
     paddingVertical: 12,
     borderRadius: 24,
     marginTop: 20,
   },
+  permissionBtnSecondary: {
+    backgroundColor: '#27272A',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+    marginTop: 10,
+  },
   permissionBtnText: {
-    color: '#FFFFFF',
-    fontWeight: '700',
+    color: '#000000',
+    fontWeight: '800',
     fontSize: 14,
+  },
+
+  /* LIQUID GLASS CONTAINERS (IOS) & SOLID CONTAINERS (ANDROID) */
+  iosLiquidCardWrap: {
+    overflow: 'hidden',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.22)',
+    backgroundColor: 'rgba(18, 18, 20, 0.58)',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.55,
+    shadowRadius: 20,
+  },
+  androidSolidCardWrap: {
+    backgroundColor: '#121214',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.14)',
+    elevation: 8,
+  },
+  liquidTopSpecularEdge: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 1.5,
+    backgroundColor: 'rgba(255, 255, 255, 0.45)',
+    zIndex: 2,
+  },
+  liquidTopGlossWash: {
+    position: 'absolute',
+    top: 1,
+    left: 1,
+    right: 1,
+    height: 32,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    zIndex: 1,
+  },
+  iosLiquidPillWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    overflow: 'hidden',
+    borderRadius: 20,
+    borderWidth: 1.2,
+    borderColor: 'rgba(255, 255, 255, 0.25)',
+    backgroundColor: 'rgba(18, 18, 20, 0.65)',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+  },
+  androidSolidPillWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.16)',
+    backgroundColor: '#18181B',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    elevation: 4,
+  },
+  liquidPillSpecularEdge: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.4)',
   },
 
   /* FLOATING TOP BAR */
@@ -708,28 +860,39 @@ const styles = StyleSheet.create({
     width: 42,
     height: 42,
     borderRadius: 21,
-    backgroundColor: 'rgba(15, 23, 42, 0.75)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
+    overflow: 'hidden',
+    backgroundColor: Platform.OS === 'ios' ? 'rgba(18, 18, 20, 0.65)' : '#18181B',
+    borderWidth: 1.2,
+    borderColor: 'rgba(255, 255, 255, 0.24)',
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  liquidCircleSpecular: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.5)',
   },
   vehicleBadgePill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(15, 23, 42, 0.85)',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(56, 189, 248, 0.35)',
+    // Shared styling handled by LiquidGlassPill
   },
   pulseDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#22C55E',
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+    backgroundColor: '#FFFFFF',
     marginRight: 8,
+    shadowColor: '#FFFFFF',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 4,
   },
   vehicleBadgeReg: {
     color: '#FFFFFF',
@@ -738,13 +901,13 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   vehicleBadgeModel: {
-    color: '#94A3B8',
+    color: '#A1A1AA',
     fontSize: 11,
     fontWeight: '600',
     marginLeft: 3,
   },
 
-  /* RETICLE SCANNER FRAME */
+  /* RETICLE SCANNER FRAME (MONOCHROME POWER THEME) */
   reticleContainer: {
     ...StyleSheet.absoluteFill,
     alignItems: 'center',
@@ -756,8 +919,8 @@ const styles = StyleSheet.create({
     height: 160,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(56, 189, 248, 0.35)',
-    backgroundColor: 'rgba(15, 23, 42, 0.18)',
+    borderColor: 'rgba(255, 255, 255, 0.28)',
+    backgroundColor: 'rgba(0, 0, 0, 0.18)',
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
@@ -766,69 +929,75 @@ const styles = StyleSheet.create({
     position: 'absolute',
     width: 24,
     height: 24,
-    borderColor: '#38BDF8',
+    borderColor: '#FFFFFF',
+    shadowColor: '#FFFFFF',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.5,
+    shadowRadius: 4,
   },
   cornerTL: {
     top: -2,
     left: -2,
-    borderTopWidth: 4,
-    borderLeftWidth: 4,
+    borderTopWidth: 3.5,
+    borderLeftWidth: 3.5,
     borderTopLeftRadius: 10,
   },
   cornerTR: {
     top: -2,
     right: -2,
-    borderTopWidth: 4,
-    borderRightWidth: 4,
+    borderTopWidth: 3.5,
+    borderRightWidth: 3.5,
     borderTopRightRadius: 10,
   },
   cornerBL: {
     bottom: -2,
     left: -2,
-    borderBottomWidth: 4,
-    borderLeftWidth: 4,
+    borderBottomWidth: 3.5,
+    borderLeftWidth: 3.5,
     borderBottomLeftRadius: 10,
   },
   cornerBR: {
     bottom: -2,
     right: -2,
-    borderBottomWidth: 4,
-    borderRightWidth: 4,
+    borderBottomWidth: 3.5,
+    borderRightWidth: 3.5,
     borderBottomRightRadius: 10,
   },
   scanLaser: {
     width: '90%',
     height: 2,
-    backgroundColor: '#38BDF8',
-    shadowColor: '#38BDF8',
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#FFFFFF',
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.9,
-    shadowRadius: 6,
+    shadowOpacity: 0.95,
+    shadowRadius: 8,
   },
   reticleCenterTag: {
     position: 'absolute',
     bottom: 12,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(2, 6, 23, 0.75)',
+    backgroundColor: 'rgba(0, 0, 0, 0.82)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
     paddingHorizontal: 10,
-    paddingVertical: 4,
+    paddingVertical: 4.5,
     borderRadius: 8,
   },
   reticleTagText: {
-    color: '#38BDF8',
+    color: '#FFFFFF',
     fontSize: 10,
     fontWeight: '800',
     letterSpacing: 0.8,
   },
   reticleInstruction: {
-    color: '#E2E8F0',
+    color: '#E4E4E7',
     fontSize: 12,
     fontWeight: '600',
     marginTop: 12,
-    textShadowColor: 'rgba(0, 0, 0, 0.8)',
+    textShadowColor: 'rgba(0, 0, 0, 0.85)',
     textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
+    textShadowRadius: 4,
   },
 
   /* SUCCESS BADGE */
@@ -840,18 +1009,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   successBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(15, 23, 42, 0.92)',
     paddingHorizontal: 16,
     paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#22C55E',
-    shadowColor: '#22C55E',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.35,
-    shadowRadius: 8,
   },
   successBadgeText: {
     color: '#FFFFFF',
@@ -870,15 +1029,7 @@ const styles = StyleSheet.create({
 
   /* PRE-CAPTURE CARD */
   preCaptureCard: {
-    backgroundColor: 'rgba(15, 23, 42, 0.92)',
-    borderRadius: 24,
     padding: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.14)',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.5,
-    shadowRadius: 16,
   },
   floatingOdoStrip: {
     flexDirection: 'row',
@@ -886,10 +1037,10 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingBottom: 14,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
+    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
   },
   odoStripLabel: {
-    color: '#94A3B8',
+    color: '#A1A1AA',
     fontSize: 10,
     fontWeight: '700',
     letterSpacing: 0.5,
@@ -902,12 +1053,13 @@ const styles = StyleSheet.create({
   odoStripInput: {
     color: '#FFFFFF',
     fontSize: 26,
-    fontWeight: '800',
+    fontWeight: '900',
     minWidth: 110,
     paddingVertical: 0,
+    letterSpacing: 0.5,
   },
   odoKmUnit: {
-    color: '#38BDF8',
+    color: '#A1A1AA',
     fontSize: 14,
     fontWeight: '700',
     marginLeft: 4,
@@ -919,24 +1071,26 @@ const styles = StyleSheet.create({
   verifiedTag: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(56, 189, 248, 0.12)',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.14)',
     paddingHorizontal: 8,
-    paddingVertical: 3,
+    paddingVertical: 3.5,
     borderRadius: 6,
   },
   verifiedTagText: {
-    color: '#38BDF8',
+    color: '#FFFFFF',
     fontSize: 10,
     fontWeight: '700',
   },
   errorText: {
-    color: '#EF4444',
+    color: '#F87171',
     fontSize: 11,
     fontWeight: '600',
     marginTop: 6,
   },
 
-  /* SHUTTER BUTTON */
+  /* SHUTTER BUTTON (LEICA / APPLE MONOCHROME LUXURY) */
   shutterRow: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -946,14 +1100,14 @@ const styles = StyleSheet.create({
     width: 76,
     height: 76,
     borderRadius: 38,
-    borderWidth: 4,
+    borderWidth: 3.5,
     borderColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(255, 255, 255, 0.12)',
-    shadowColor: '#38BDF8',
+    shadowColor: '#FFFFFF',
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.5,
+    shadowOpacity: 0.35,
     shadowRadius: 10,
   },
   shutterInnerCircle: {
@@ -963,31 +1117,30 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
   },
-  shutterDot: {
-    width: 14,
-    height: 14,
-    borderRadius: 7,
-    backgroundColor: '#0284C7',
+  shutterCoreDot: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: '#000000',
   },
   shutterInstruction: {
-    color: '#CBD5E1',
+    color: '#A1A1AA',
     fontSize: 12,
     fontWeight: '600',
     marginTop: 8,
   },
 
   /* POST-CAPTURE VERIFICATION CARD */
-  postCaptureCard: {
-    backgroundColor: 'rgba(15, 23, 42, 0.94)',
-    borderRadius: 24,
+  postCaptureContainer: {
+    maxHeight: 460,
+  },
+  postCaptureContent: {
     padding: 18,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.16)',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.6,
-    shadowRadius: 20,
     gap: 14,
   },
   fieldSection: {
@@ -999,29 +1152,29 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   fieldSectionTitle: {
-    color: '#94A3B8',
+    color: '#A1A1AA',
     fontSize: 11,
     fontWeight: '800',
     letterSpacing: 0.5,
   },
   fieldCurrentKm: {
-    color: '#64748B',
+    color: '#71717A',
     fontSize: 11,
     fontWeight: '600',
   },
   detectingBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(56, 189, 248, 0.12)',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
     borderWidth: 1,
-    borderColor: 'rgba(56, 189, 248, 0.3)',
+    borderColor: 'rgba(255, 255, 255, 0.2)',
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 8,
     marginVertical: 4,
   },
   detectingBannerText: {
-    color: '#38BDF8',
+    color: '#FFFFFF',
     fontSize: 12,
     fontWeight: '700',
     flex: 1,
@@ -1029,16 +1182,16 @@ const styles = StyleSheet.create({
   detectedSuccessBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(34, 197, 94, 0.12)',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
     borderWidth: 1,
-    borderColor: 'rgba(34, 197, 94, 0.35)',
+    borderColor: 'rgba(255, 255, 255, 0.3)',
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 8,
     marginVertical: 4,
   },
   detectedSuccessText: {
-    color: '#4ADE80',
+    color: '#FFFFFF',
     fontSize: 12,
     fontWeight: '700',
     flex: 1,
@@ -1046,16 +1199,19 @@ const styles = StyleSheet.create({
   odoLargeInputBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(2, 6, 23, 0.65)',
+    backgroundColor: 'rgba(0, 0, 0, 0.65)',
     borderRadius: 14,
     borderWidth: 1.5,
-    borderColor: '#38BDF8',
+    borderColor: 'rgba(255, 255, 255, 0.25)',
     paddingHorizontal: 16,
     paddingVertical: 10,
   },
   odoLargeInputBoxDetected: {
-    borderColor: '#22C55E',
-    backgroundColor: 'rgba(34, 197, 94, 0.08)',
+    borderColor: '#FFFFFF',
+    shadowColor: '#FFFFFF',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
   },
   odoLargeInput: {
     flex: 1,
@@ -1065,7 +1221,7 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
   },
   odoLargeKm: {
-    color: '#38BDF8',
+    color: '#A1A1AA',
     fontSize: 16,
     fontWeight: '800',
     marginLeft: 6,
@@ -1079,14 +1235,14 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
+    borderColor: 'rgba(255, 255, 255, 0.16)',
     paddingVertical: 7,
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
   },
   deltaChipText: {
-    color: '#E2E8F0',
+    color: '#FFFFFF',
     fontSize: 12,
     fontWeight: '700',
   },
@@ -1095,7 +1251,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   candidatesLabel: {
-    color: '#94A3B8',
+    color: '#A1A1AA',
     fontSize: 10,
     fontWeight: '700',
     letterSpacing: 0.3,
@@ -1108,33 +1264,34 @@ const styles = StyleSheet.create({
   candidateChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(56, 189, 248, 0.1)',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
     borderWidth: 1,
-    borderColor: 'rgba(56, 189, 248, 0.3)',
+    borderColor: 'rgba(255, 255, 255, 0.2)',
     borderRadius: 8,
     paddingHorizontal: 10,
     paddingVertical: 6,
   },
   candidateChipSelected: {
-    backgroundColor: 'rgba(34, 197, 94, 0.15)',
-    borderColor: '#22C55E',
+    backgroundColor: '#FFFFFF',
+    borderColor: '#FFFFFF',
   },
   candidateChipText: {
-    color: '#38BDF8',
+    color: '#FFFFFF',
     fontSize: 12,
     fontWeight: '700',
   },
   candidateChipTextSelected: {
-    color: '#4ADE80',
+    color: '#000000',
+    fontWeight: '800',
   },
 
   /* SUMMARY BOX */
   summaryBox: {
-    backgroundColor: 'rgba(2, 6, 23, 0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.45)',
     borderRadius: 14,
     padding: 12,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: 'rgba(255, 255, 255, 0.1)',
     gap: 8,
   },
   summaryRow: {
@@ -1146,18 +1303,18 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: 'rgba(56, 189, 248, 0.15)',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   summaryLabel: {
-    color: '#94A3B8',
+    color: '#A1A1AA',
     fontSize: 11,
     fontWeight: '700',
   },
   summaryValue: {
     flex: 1,
-    color: '#F1F5F9',
+    color: '#FFFFFF',
     fontSize: 12,
     fontWeight: '600',
     textAlign: 'right',
@@ -1167,7 +1324,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.06)',
   },
 
-  /* ACTION BUTTONS ROW */
+  /* ACTION BUTTONS ROW (POWER THEME: BLACK & WHITE CONTRAST) */
   actionButtonsRow: {
     flexDirection: 'row',
     gap: 12,
@@ -1178,9 +1335,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.22)',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderWidth: 1.2,
+    borderColor: 'rgba(255, 255, 255, 0.25)',
     paddingVertical: 14,
     borderRadius: 16,
   },
@@ -1194,18 +1351,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#0284C7',
+    backgroundColor: '#FFFFFF',
     paddingVertical: 14,
     borderRadius: 16,
-    shadowColor: '#0284C7',
+    shadowColor: '#FFFFFF',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.5,
+    shadowOpacity: 0.35,
     shadowRadius: 10,
+    elevation: 6,
   },
   startDutyBtnText: {
-    color: '#FFFFFF',
+    color: '#000000',
     fontSize: 15,
-    fontWeight: '800',
+    fontWeight: '900',
     letterSpacing: 0.3,
   },
 });
