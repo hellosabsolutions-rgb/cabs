@@ -281,24 +281,25 @@ export const getMyBookings = async (req, res, next) => {
     }
 
     const driverName = driver.name?.trim();
-    const vehicleReg = driver.assignedVehicle?.trim();
-
-    const queryOr = [];
-    if (driverName) {
-      queryOr.push({ driverName: new RegExp(`^${driverName}$`, 'i') });
-      if (driver._id) {
-        queryOr.push({ driverId: driver._id });
-      }
-    }
-    if (vehicleReg && vehicleReg !== '—' && vehicleReg !== 'None' && vehicleReg !== 'Unassigned') {
-      queryOr.push({ vehicle: new RegExp(`^${vehicleReg}$`, 'i'), driverName: { $ne: 'Unassigned' } });
-    }
-
-    if (queryOr.length === 0) {
+    if (!driverName) {
       return res.status(200).json({ success: true, count: 0, data: [] });
     }
 
-    const query = { $or: queryOr };
+    // A trip belongs to this driver ONLY if it is actively assigned to them
+    // It must NEVER return trips that are unassigned or assigned to someone else
+    const query = {
+      $and: [
+        {
+          $or: [
+            { driverName: new RegExp(`^${driverName}$`, 'i') },
+            ...(driver._id ? [{ driverId: driver._id }] : [])
+          ]
+        },
+        {
+          driverName: { $nin: ['Unassigned', 'None', '—', '', null] }
+        }
+      ]
+    };
 
     if (req.query.status && req.query.status !== 'All') {
       query.status = req.query.status;
@@ -328,6 +329,14 @@ export const updateBooking = async (req, res, next) => {
     const prevDriver = booking.driverName;
 
     Object.assign(booking, req.body);
+
+    const isUnassignedNow = !booking.driverName || booking.driverName === 'None' || booking.driverName === '—' || booking.driverName === 'Unassigned';
+    if (isUnassignedNow) {
+      booking.driverName = 'Unassigned';
+      booking.driverId = null;
+      booking.driverPhone = '';
+    }
+
     await booking.save();
 
     // Check if driver was re-assigned or unassigned
@@ -339,11 +348,21 @@ export const updateBooking = async (req, res, next) => {
           booking,
           previousDriverName: prevDriver
         });
+        broadcastAll('booking:unassigned', {
+          bookingId: booking._id?.toString(),
+          bookingNumber: booking.bookingNumber,
+          previousDriverName: prevDriver,
+          booking
+        });
       }
-      if (booking.driverName && booking.driverName !== 'None' && booking.driverName !== '—' && booking.driverName !== 'Unassigned') {
+      if (!isUnassignedNow) {
         emitBookingAssigned({
           userId: req.user?._id,
           agencyId: req.user?.currentAgency,
+          booking,
+          driverName: booking.driverName
+        });
+        broadcastAll('booking:assigned', {
           booking,
           driverName: booking.driverName
         });
@@ -356,8 +375,8 @@ export const updateBooking = async (req, res, next) => {
       booking
     });
 
-    broadcastAll('booking:updated', { booking });
-    broadcastAll('driver:any_change', { action: 'booking:updated', bookingId: booking._id });
+    broadcastAll('booking:updated', { booking, action: isUnassignedNow ? 'unassigned' : 'assigned' });
+    broadcastAll('driver:any_change', { action: 'booking:updated', bookingId: booking._id, driverName: booking.driverName });
 
     res.status(200).json({ success: true, data: booking });
   } catch (error) {
@@ -768,6 +787,18 @@ export const deleteBooking = async (req, res, next) => {
       agencyId: req.user?.currentAgency,
       booking
     });
+
+    broadcastAll('booking:unassigned', {
+      bookingId: booking._id?.toString(),
+      bookingNumber: booking.bookingNumber,
+      previousDriverName: booking.driverName,
+      booking
+    });
+    broadcastAll('booking:deleted', {
+      bookingId: booking._id?.toString(),
+      bookingNumber: booking.bookingNumber
+    });
+    broadcastAll('driver:any_change', { action: 'booking:deleted', bookingId: booking._id });
 
     res.status(200).json({ success: true, message: 'Booking deleted successfully' });
   } catch (error) {

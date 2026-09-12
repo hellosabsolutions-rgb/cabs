@@ -159,15 +159,30 @@ export function BookingDetailScreen({ route, navigation }: Props) {
     if (!booking?.id) return;
 
     const onUpdated = (data: any) => {
-      if (data && (data.id === booking.id || data._id === booking.id)) {
+      const b = data?.booking || data;
+      if (b && (b.id === booking.id || b._id === booking.id || b.bookingNumber === booking.bookingNumber)) {
+        const bDriver = (b.driverName || b.driver || '').trim().toLowerCase();
+        const myName = (session.driver?.name || '').trim().toLowerCase();
+        const isUnassigned = !bDriver || bDriver === 'unassigned' || bDriver === 'none' || bDriver === '—';
+        const isDifferentDriver = myName && bDriver && bDriver !== myName;
+
+        if (isUnassigned || isDifferentDriver) {
+          Alert.alert(
+            'Booking Unassigned',
+            'This booking is no longer assigned to you by dispatch.',
+            [{ text: 'OK', onPress: () => navigation.goBack() }]
+          );
+          return;
+        }
+
         setBooking((prev) =>
           prev
             ? {
                 ...prev,
-                ...data,
-                status: data.status || prev.status,
-                vehicle: data.vehicle || prev.vehicle,
-                driverName: data.driver || data.driverName || prev.driverName,
+                ...b,
+                status: b.status || prev.status,
+                vehicle: b.vehicle || prev.vehicle,
+                driverName: b.driverName || b.driver || prev.driverName,
               }
             : null
         );
@@ -175,7 +190,12 @@ export function BookingDetailScreen({ route, navigation }: Props) {
     };
 
     const onUnassigned = (data: any) => {
-      if (data && (data.id === booking.id || data._id === booking.id || data.bookingId === booking.id)) {
+      const targetId = data?.bookingId || data?.id || data?._id || data?.booking?._id;
+      const targetNumber = data?.bookingNumber || data?.booking?.bookingNumber;
+      if (
+        (targetId && (targetId === booking.id || targetId === (booking as any)._id)) ||
+        (targetNumber && targetNumber === booking.bookingNumber)
+      ) {
         Alert.alert(
           'Booking Unassigned',
           'This booking was unassigned from you by dispatch.',
@@ -184,14 +204,31 @@ export function BookingDetailScreen({ route, navigation }: Props) {
       }
     };
 
+    const onDeleted = (data: any) => {
+      const targetId = data?.bookingId || data?.id;
+      const targetNumber = data?.bookingNumber;
+      if (
+        (targetId && (targetId === booking.id || targetId === (booking as any)._id)) ||
+        (targetNumber && targetNumber === booking.bookingNumber)
+      ) {
+        Alert.alert(
+          'Booking Removed',
+          'This booking has been cancelled or removed by dispatch.',
+          [{ text: 'OK', onPress: () => navigation.goBack() }]
+        );
+      }
+    };
+
     driverSocket.on('booking:updated', onUpdated);
     driverSocket.on('booking:completed', onUpdated);
     driverSocket.on('booking:unassigned', onUnassigned);
+    driverSocket.on('booking:deleted', onDeleted);
 
     return () => {
       driverSocket.off('booking:updated', onUpdated);
       driverSocket.off('booking:completed', onUpdated);
       driverSocket.off('booking:unassigned', onUnassigned);
+      driverSocket.off('booking:deleted', onDeleted);
     };
   }, [booking?.id, navigation]);
 

@@ -139,15 +139,63 @@ export function BookingsScreen({ navigation }: Props) {
 
     const unsubUnassigned = driverSocket.on('booking:unassigned', (data: any) => {
       console.log('⚡ [BookingsScreen] Booking unassigned via socket:', data);
-      Alert.alert(
-        'Trip Unassigned',
-        `Booking #${data?.bookingNumber || ''} has been unassigned by dispatch.`
-      );
+      const targetId = data?.bookingId || data?.id || data?.booking?._id;
+      const targetNumber = data?.bookingNumber || data?.booking?.bookingNumber;
+      const prevDriver = (data?.previousDriverName || '').toLowerCase().trim();
+      const myName = (session.driver?.name || '').toLowerCase().trim();
+
+      // Immediately purge this booking from state so it vanishes from the UI
+      if (!prevDriver || !myName || prevDriver === myName) {
+        setBookings((prev) =>
+          prev.filter((b) => {
+            if (targetId && (b.id === targetId || (b as any)._id === targetId)) return false;
+            if (targetNumber && b.bookingNumber === targetNumber) return false;
+            return true;
+          })
+        );
+        Alert.alert(
+          'Trip Unassigned',
+          `Booking #${targetNumber || ''} has been unassigned by dispatch.`
+        );
+      }
       fetchBookings();
     });
 
     const unsubUpdated = driverSocket.on('booking:updated', (data: any) => {
       console.log('⚡ [BookingsScreen] Booking updated via socket:', data);
+      const b = data?.booking || data;
+      if (b) {
+        const bDriver = (b.driverName || b.driver || '').trim().toLowerCase();
+        const myName = (session.driver?.name || '').trim().toLowerCase();
+        const isUnassigned = !bDriver || bDriver === 'unassigned' || bDriver === 'none' || bDriver === '—';
+        const isDifferentDriver = myName && bDriver && bDriver !== myName;
+
+        // If unassigned or given to another driver, immediately purge it
+        if (isUnassigned || isDifferentDriver) {
+          setBookings((prev) =>
+            prev.filter(
+              (item) =>
+                item.id !== b._id &&
+                item.id !== b.id &&
+                item.bookingNumber !== b.bookingNumber
+            )
+          );
+        }
+      }
+      fetchBookings();
+    });
+
+    const unsubDeleted = driverSocket.on('booking:deleted', (data: any) => {
+      console.log('⚡ [BookingsScreen] Booking deleted via socket:', data);
+      const targetId = data?.bookingId || data?.id;
+      const targetNumber = data?.bookingNumber;
+      setBookings((prev) =>
+        prev.filter((b) => {
+          if (targetId && (b.id === targetId || (b as any)._id === targetId)) return false;
+          if (targetNumber && b.bookingNumber === targetNumber) return false;
+          return true;
+        })
+      );
       fetchBookings();
     });
 
@@ -164,6 +212,7 @@ export function BookingsScreen({ navigation }: Props) {
       unsubAssigned();
       unsubUnassigned();
       unsubUpdated();
+      unsubDeleted();
       unsubCompleted();
       unsubAny();
     };
