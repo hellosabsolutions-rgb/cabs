@@ -225,6 +225,7 @@ const styles = StyleSheet.create({
   hero: {
     backgroundColor: '#1687F5',
     borderRadius: 16,
+    borderCurve: 'continuous',
     padding: 16,
   },
   heroTop: {
@@ -264,6 +265,7 @@ const styles = StyleSheet.create({
   heroPlate: {
     marginTop: 16,
     borderRadius: 12,
+    borderCurve: 'continuous',
     padding: 12,
     backgroundColor: 'rgba(255,255,255,0.14)',
     flexDirection: 'row',
@@ -290,6 +292,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 5,
     borderRadius: radius.pill,
+    borderCurve: 'continuous',
     marginTop: 2,
   },
   liveDot: {
@@ -306,6 +309,7 @@ const styles = StyleSheet.create({
   group: {
     borderWidth: 1,
     borderRadius: 12,
+    borderCurve: 'continuous',
     overflow: 'hidden',
   },
   row: {
@@ -319,6 +323,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 8,
+    borderCurve: 'continuous',
     alignItems: 'center',
     justifyContent: 'center',
   },

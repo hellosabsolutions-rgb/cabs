@@ -316,6 +316,7 @@ const styles = StyleSheet.create({
     gap: 12,
     padding: space.md,
     borderRadius: radius.md,
+    borderCurve: 'continuous',
     borderWidth: 1,
     marginBottom: space.lg,
   },
@@ -346,6 +347,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 6,
+    borderCurve: 'continuous',
   },
   badgeText: {
     fontSize: 11,

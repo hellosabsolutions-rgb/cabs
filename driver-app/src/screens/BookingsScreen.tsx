@@ -635,6 +635,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 5,
     borderRadius: 14,
+    borderCurve: 'continuous',
   },
   tripCountBadgeText: {
     fontSize: 12.5,
@@ -657,6 +658,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8.5,
     borderRadius: 22,
+    borderCurve: 'continuous',
     borderWidth: 1,
   },
   filterPillText: {
@@ -671,6 +673,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 13,
     paddingVertical: 7,
     borderRadius: 12,
+    borderCurve: 'continuous',
     borderWidth: 1,
     alignItems: 'center',
     minWidth: 54,
@@ -690,6 +693,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     borderRadius: 12,
+    borderCurve: 'continuous',
     borderWidth: 1,
     paddingVertical: 9,
     paddingHorizontal: 16,
@@ -751,6 +755,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 20,
     borderRadius: 10,
+    borderCurve: 'continuous',
   },
   emptyResetBtnText: {
     color: '#FFFFFF',
@@ -759,6 +764,7 @@ const styles = StyleSheet.create({
   },
   bookingCard: {
     borderRadius: 16,
+    borderCurve: 'continuous',
     borderWidth: 1,
     padding: 14,
     shadowColor: '#000',
@@ -777,6 +783,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 6,
+    borderCurve: 'continuous',
     borderWidth: 1,
   },
   refTagText: {
@@ -789,6 +796,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 6,
+    borderCurve: 'continuous',
   },
   tripTypeTagText: {
     fontSize: 11,
@@ -800,6 +808,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 10,
+    borderCurve: 'continuous',
     gap: 5,
   },
   statusDot: {
@@ -824,6 +833,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 6,
+    borderCurve: 'continuous',
   },
   schedulePillText: {
     fontSize: 12,
@@ -906,6 +916,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
+    borderCurve: 'continuous',
   },
   guestCountText: {
     fontSize: 10.5,

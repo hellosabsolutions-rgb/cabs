@@ -75,8 +75,9 @@ export function ButtonRow({ children }: { children: React.ReactNode }) {
 
 const styles = StyleSheet.create({
   base: {
-        minHeight: 44,
+    minHeight: 44,
     borderRadius: radius.sm,
+    borderCurve: 'continuous',
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 16,

@@ -217,6 +217,7 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 12,
+    borderCurve: 'continuous',
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',

@@ -326,6 +326,7 @@ const styles = StyleSheet.create({
   inputWrap: {
     height: 52,
     borderRadius: radius.pill,
+    borderCurve: 'continuous',
     borderWidth: 1,
     paddingHorizontal: 18,
     flexDirection: 'row',
@@ -373,6 +374,7 @@ const styles = StyleSheet.create({
     width: 20,
     height: 20,
     borderRadius: 6,
+    borderCurve: 'continuous',
     borderWidth: 1.5,
     alignItems: 'center',
     justifyContent: 'center',
@@ -387,6 +389,7 @@ const styles = StyleSheet.create({
   signIn: {
     height: 52,
     borderRadius: radius.pill,
+    borderCurve: 'continuous',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -402,6 +405,7 @@ const styles = StyleSheet.create({
   google: {
     height: 52,
     borderRadius: radius.pill,
+    borderCurve: 'continuous',
     borderWidth: 1,
     flexDirection: 'row',
     alignItems: 'center',

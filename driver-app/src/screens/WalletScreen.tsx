@@ -115,6 +115,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: radius.pill,
+    borderCurve: 'continuous',
   },
   headerBadgeText: {
     fontSize: 12.5,
@@ -130,6 +131,7 @@ const styles = StyleSheet.create({
   },
   balanceCard: {
     borderRadius: radius.xl,
+    borderCurve: 'continuous',
     padding: space.lg,
     marginBottom: space.md,
     shadowColor: '#1687F5',
@@ -164,6 +166,7 @@ const styles = StyleSheet.create({
     flex: 1,
     borderWidth: 1,
     borderRadius: radius.lg,
+    borderCurve: 'continuous',
     padding: space.md,
   },
   metricValue: {
@@ -178,6 +181,7 @@ const styles = StyleSheet.create({
   txnsCard: {
     borderWidth: 1,
     borderRadius: radius.lg,
+    borderCurve: 'continuous',
     overflow: 'hidden',
   },
   txnRowWrap: {

@@ -17,6 +17,7 @@ export function Card({ children, style }: Props) {
         {
           backgroundColor: colors.surface,
           borderRadius: radius.lg,
+          borderCurve: 'continuous',
           borderWidth: 1,
           borderColor: colors.border,
           padding: space.lg,

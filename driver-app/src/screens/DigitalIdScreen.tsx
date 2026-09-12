@@ -58,6 +58,7 @@ function Row({ label, value }: { label: string; value: string }) {
 const styles = StyleSheet.create({
   card: {
     borderRadius: radius.xl,
+    borderCurve: 'continuous',
     borderWidth: 1,
     overflow: 'hidden',
   },

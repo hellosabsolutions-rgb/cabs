@@ -342,6 +342,7 @@ const styles = StyleSheet.create({
   locationBox: {
     borderWidth: 1,
     borderRadius: radius.md,
+    borderCurve: 'continuous',
     padding: space.sm + 2,
     marginVertical: space.sm,
   },

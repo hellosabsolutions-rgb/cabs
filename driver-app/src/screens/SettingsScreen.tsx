@@ -187,6 +187,7 @@ const styles = StyleSheet.create({
   segmentBtn: {
     flex: 1,
     borderRadius: radius.sm,
+    borderCurve: 'continuous',
     paddingVertical: 8,
     alignItems: 'center',
   },
