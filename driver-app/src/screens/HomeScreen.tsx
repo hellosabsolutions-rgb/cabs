@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react'
 import {
   Animated,
   Image,
+  Platform,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -119,7 +120,8 @@ export function HomeScreen({ navigation }: Props) {
   const [refreshing, setRefreshing] = useState(false);
   const [scrolledPast, setScrolledPast] = useState(false);
 
-  const topInset = Math.max(insets.top, 14);
+  const statusBarHeight = Platform.OS === 'android' ? (StatusBar.currentHeight || 26) : 0;
+  const topInset = Math.max(insets.top, statusBarHeight, Platform.OS === 'ios' ? 14 : 26);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -240,14 +242,18 @@ export function HomeScreen({ navigation }: Props) {
 
   return (
     <View style={[styles.screenWrap, { backgroundColor: colors.bg }]}>
-      <StatusBar barStyle={scrolledPast ? (isDark ? 'light-content' : 'dark-content') : 'light-content'} />
+      <StatusBar
+        barStyle={scrolledPast ? (isDark ? 'light-content' : 'dark-content') : 'light-content'}
+        backgroundColor={scrolledPast ? (isDark ? '#12161C' : '#FFFFFF') : (isDark ? '#0D4899' : '#1267DE')}
+        animated
+      />
 
       {/* ─── FLOATING NATIVE STICKY HEADER (TURNS WHITE / NATIVE ON SCROLL) ─── */}
       <Animated.View
         style={[
           styles.stickyHeader,
           {
-            paddingTop: topInset,
+            paddingTop: topInset + (Platform.OS === 'android' ? 6 : 0),
             backgroundColor: stickyBg,
             borderBottomColor: stickyBorder,
             shadowOpacity: stickyShadow,
@@ -342,7 +348,7 @@ export function HomeScreen({ navigation }: Props) {
           style={[
             styles.heroContainer,
             {
-              paddingTop: topInset + 6,
+              paddingTop: topInset + (Platform.OS === 'android' ? 12 : 6),
               backgroundColor: isDark ? '#0D4899' : '#1267DE',
             },
           ]}
@@ -970,11 +976,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
-    gap: 10,
-    marginTop: 4,
+    marginTop: 6,
   },
   gridTile: {
-    width: '48.5%',
+    width: '48.2%',
+    marginBottom: 11,
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 14,
@@ -984,11 +990,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.03,
+    shadowOpacity: 0.04,
     shadowRadius: 6,
     elevation: 2,
-    gap: 10,
     position: 'relative',
+    gap: 10,
   },
   sosAlertDot: {
     position: 'absolute',

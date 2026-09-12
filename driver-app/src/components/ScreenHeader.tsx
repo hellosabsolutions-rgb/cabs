@@ -2,6 +2,7 @@ import React from 'react';
 import {
   Platform,
   Pressable,
+  StatusBar,
   StyleSheet,
   Text,
   View,
@@ -84,7 +85,8 @@ export function ScreenHeader({
   const { colors, scheme } = useAppTheme();
   const isDark = scheme === 'dark';
 
-  const topInset = Math.max(insets.top, Platform.OS === 'android' ? 12 : 14);
+  const androidStatus = StatusBar.currentHeight || 24;
+  const topInset = Math.max(insets.top, Platform.OS === 'android' ? androidStatus : 14);
 
   return (
     <View
