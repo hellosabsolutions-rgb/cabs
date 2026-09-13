@@ -51,17 +51,10 @@ export const DailyDutyLogsView: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<string>('All');
 
   useEffect(() => {
-    void fetchLiveDailyDutyLogs({
-      driverName: driverFilter !== 'All' ? driverFilter : undefined,
-      date: dateFilter || undefined,
-      month: monthFilter !== 'All' && !dateFilter ? monthFilter : undefined,
-      vehicle: vehicleFilter !== 'All' ? vehicleFilter : undefined,
-      department: deptFilter !== 'All' ? deptFilter : undefined,
-      status: statusFilter !== 'All' ? statusFilter : undefined,
-      search: searchQuery || undefined
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [driverFilter, dateFilter, monthFilter, vehicleFilter, deptFilter, statusFilter, searchQuery]);
+    if (dailyDutyLogs.length === 0) {
+      void fetchLiveDailyDutyLogs();
+    }
+  }, []);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalDefaultDutyType, setModalDefaultDutyType] = useState<

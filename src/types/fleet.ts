@@ -15,6 +15,16 @@ export type VehicleStatus = 'Running' | 'Active' | 'Idle' | 'Maintenance';
 export type VehicleType = 'Department' | 'Trip-based';
 export type VehicleSubTab = 'all' | 'department' | 'trip' | 'tracking';
 
+export interface GstHistoryItem {
+  id?: string;
+  rate: number;
+  gstType: 'CGST_SGST' | 'IGST';
+  effectiveDate?: string;
+  changedBy?: string;
+  changedAt?: string;
+  note?: string;
+}
+
 export interface Agency {
   id: string;
   _id?: string;
@@ -29,6 +39,10 @@ export interface Agency {
   pan?: string;
   logo?: string | null;
   isDefault?: boolean;
+  defaultGstRate?: number;
+  defaultGstType?: 'CGST_SGST' | 'IGST';
+  gstEffectiveDate?: string;
+  gstHistory?: GstHistoryItem[];
 }
 
 export interface Vehicle {

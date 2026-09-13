@@ -66,12 +66,12 @@ export const WeekendTripBillModal: React.FC<WeekendTripBillModalProps> = ({
 
   const grandTotal = (bill?.totalBill ?? log?.totalFare) !== undefined && (bill?.totalBill || log?.totalFare || 0) > 0 ? (bill?.totalBill ?? log?.totalFare ?? 0) : (subtotal + gstAmount);
 
-  const dutySlipNumber = bill?.billNumber || log?.dutySlipNumber || '3454';
-  const departmentName = bill?.departmentName || log?.departmentName || 'Director Horticulture Mission';
-  const vehicle = bill?.vehicle || log?.vehicle || 'UK07TE9755';
-  const dateStr = bill?.dutyStartDate || log?.date || '2026-07-31';
-  const journeyFrom = bill?.journeyFrom || log?.journeyFrom || 'D.Dun Ranipokhari';
-  const journeyTo = bill?.journeyTo || log?.journeyTo || log?.tripDestination || 'Vikasnagar & Local to D.Dun';
+  const dutySlipNumber = bill?.billNumber || log?.dutySlipNumber || '';
+  const departmentName = bill?.departmentName || log?.departmentName || '';
+  const vehicle = bill?.vehicle || log?.vehicle || '';
+  const dateStr = bill?.dutyStartDate || log?.date || new Date().toISOString().split('T')[0];
+  const journeyFrom = bill?.journeyFrom || log?.journeyFrom || '';
+  const journeyTo = bill?.journeyTo || log?.journeyTo || log?.tripDestination || '';
   const officerName = log?.officerName || '';
 
   // Number to words (Indian system)

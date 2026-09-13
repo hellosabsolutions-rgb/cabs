@@ -76,7 +76,7 @@ export const CashMemoBillView: React.FC<CashMemoProps> = ({
         }
       }
     }
-    return '01/08/2026';
+    return formatDate(new Date().toISOString());
   };
 
   const subtotalVal =

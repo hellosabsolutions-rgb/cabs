@@ -56,10 +56,14 @@ import {
   DriverSubTab,
   DepartmentSubTab
 } from './FleetContextDef';
+import { useAgency } from './AgencyContext';
+import { useAuth } from './AuthContext';
 
 export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const location = useLocation();
   const navigate = useNavigate();
+  const { currentAgency, updateAgency } = useAgency();
+  const { user } = useAuth();
 
   const [activePage, setActivePage] = useState<PageId>('dashboard');
   const [searchQuery, setSearchQuery] = useState('');
@@ -76,8 +80,28 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [departmentContracts, setDepartmentContracts] = useState<DepartmentContract[]>([]);
   const [dailyDutyLogs, setDailyDutyLogs] = useState<DailyDutyLog[]>([]);
   const [monthlyBills, setMonthlyBills] = useState<MonthlyDepartmentBill[]>([]);
-  const [activeGstRate, setActiveGstRate] = useState<number>(5);
-  const [activeGstType, setActiveGstType] = useState<'CGST_SGST' | 'IGST'>('CGST_SGST');
+  const [activeGstRate, setActiveGstRate] = useState<number>(() => {
+    const saved = localStorage.getItem('fleetos_default_gst_rate');
+    return saved !== null ? parseFloat(saved) : 5;
+  });
+  const [activeGstType, setActiveGstType] = useState<'CGST_SGST' | 'IGST'>(() => {
+    const saved = localStorage.getItem('fleetos_default_gst_type');
+    return (saved === 'IGST' ? 'IGST' : 'CGST_SGST');
+  });
+
+  // Sync GST settings when agency profile changes
+  useEffect(() => {
+    if (currentAgency) {
+      if (typeof currentAgency.defaultGstRate === 'number') {
+        setActiveGstRate(currentAgency.defaultGstRate);
+        localStorage.setItem('fleetos_default_gst_rate', String(currentAgency.defaultGstRate));
+      }
+      if (currentAgency.defaultGstType) {
+        setActiveGstType(currentAgency.defaultGstType);
+        localStorage.setItem('fleetos_default_gst_type', currentAgency.defaultGstType);
+      }
+    }
+  }, [currentAgency]);
   const [departmentPayments, setDepartmentPayments] = useState<DepartmentPayment[]>([]);
   const [fuelLogs, setFuelLogs] = useState<FuelLogEntry[]>([]);
   const [fastagTransactions, setFastagTransactions] = useState<FastagTransaction[]>([]);
@@ -3369,6 +3393,49 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
+  const updateDefaultGstSettings = async (
+    rate: number,
+    type: 'CGST_SGST' | 'IGST' = 'CGST_SGST',
+    effectiveDate?: string,
+    note?: string
+  ) => {
+    try {
+      setActiveGstRate(rate);
+      setActiveGstType(type);
+      localStorage.setItem('fleetos_default_gst_rate', String(rate));
+      localStorage.setItem('fleetos_default_gst_type', type);
+
+      if (currentAgency && (currentAgency.id || currentAgency._id)) {
+        const agencyId = currentAgency.id || currentAgency._id || '';
+        const newHistoryItem = {
+          rate,
+          gstType: type,
+          effectiveDate: effectiveDate || new Date().toISOString(),
+          changedBy: user?.name || 'Bravim B.',
+          changedAt: new Date().toISOString(),
+          note: note || (rate === 0 ? 'Exempted period' : `${rate}% - current`)
+        };
+
+        const currentHistory = currentAgency.gstHistory || [];
+        const updatedHistory = [newHistoryItem, ...currentHistory];
+
+        await updateAgency(agencyId, {
+          defaultGstRate: rate,
+          defaultGstType: type,
+          gstEffectiveDate: effectiveDate || new Date().toISOString(),
+          gstHistory: updatedHistory
+        });
+      }
+
+      showToast('success', `Default GST rate updated to ${rate}% (${type === 'IGST' ? 'IGST' : 'CGST+SGST'}). This rate will apply to all newly generated invoices.`, 'Tax Settings Saved');
+      return { success: true };
+    } catch (err: any) {
+      console.error('Failed to update default GST settings', err);
+      showToast('info', `GST rate set to ${rate}% locally.`, 'GST Updated');
+      return { success: true };
+    }
+  };
+
   const deleteMonthlyBill = async (id: string) => {
     try {
       setMonthlyBills(prev => prev.filter(b => b.id !== id));
@@ -3747,6 +3814,7 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setActiveGstRate,
         activeGstType,
         setActiveGstType,
+        updateDefaultGstSettings,
         departmentPayments,
         addDepartmentPayment,
         updateDepartmentPaymentStatus,

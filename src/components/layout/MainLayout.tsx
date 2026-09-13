@@ -100,7 +100,7 @@ export const MainLayout: React.FC = () => {
               <Route path="/drivers/payroll" element={<DriversView />} />
 
               {/* Departments & Subtabs */}
-              <Route path="/departments" element={<Navigate to="/departments/contracts" replace />} />
+              <Route path="/departments" element={<Navigate to="/departments/billing" replace />} />
               <Route path="/departments/contracts" element={<DepartmentsView />} />
               <Route path="/departments/duty-logs" element={<DepartmentsView />} />
               <Route path="/departments/billing" element={<DepartmentsView />} />

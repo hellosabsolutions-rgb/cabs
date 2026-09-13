@@ -38,11 +38,11 @@ export const LogBookPrintModal: React.FC<LogBookPrintModalProps> = ({
       : [singleLog]
     : logs;
 
-  const vehicleNo = singleLog?.vehicle || selectedVehicle || targetLogs[0]?.vehicle || 'UK 07 TD 7555';
-  const monthName = singleLog?.month || selectedMonth || targetLogs[0]?.month || 'August 2026';
-  const pageNo = singleLog?.logBookPageNo || selectedPage || targetLogs[0]?.logBookPageNo || '122';
-  const deptName = singleLog?.departmentName || targetLogs[0]?.departmentName || 'Public Works Department (PWD)';
-  const driverName = singleLog?.driverName || targetLogs[0]?.driverName || 'Ramesh Chand';
+  const vehicleNo = singleLog?.vehicle || selectedVehicle || targetLogs[0]?.vehicle || '—';
+  const monthName = singleLog?.month || selectedMonth || targetLogs[0]?.month || '';
+  const pageNo = singleLog?.logBookPageNo || selectedPage || targetLogs[0]?.logBookPageNo || '—';
+  const deptName = singleLog?.departmentName || targetLogs[0]?.departmentName || '—';
+  const driverName = singleLog?.driverName || targetLogs[0]?.driverName || '—';
 
   const totalKmSum = targetLogs.reduce((sum, l) => sum + (l.totalKm || 0), 0);
   const totalFuelLitres = targetLogs.reduce((sum, l) => sum + (l.fuelLitres || 0), 0);

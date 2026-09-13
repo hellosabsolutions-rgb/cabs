@@ -6,26 +6,16 @@ import { DepartmentContract } from '../../../types/fleet';
 import { StatusDropdown, StatusOption } from '../../common/StatusDropdown';
 import { Pagination } from '../../common/Pagination';
 import { usePagination } from '../../../hooks/usePagination';
-import { FileText, Folder, Trash2, ChevronDown, RefreshCw, Radio } from 'lucide-react';
+import { FileText, Folder, Trash2, ChevronDown } from 'lucide-react';
 
 export const ContractsListView: React.FC = () => {
-  const { departmentContracts, fetchLiveContracts, updateContractStatus, deleteDepartmentContract, searchQuery } = useFleet();
+  const { departmentContracts, updateContractStatus, deleteDepartmentContract, searchQuery } = useFleet();
 
   const [statusFilter, setStatusFilter] = useState<string>('All');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [viewDoc, setViewDoc] = useState<string | null>(null);
-  const [isSyncing, setIsSyncing] = useState(false);
 
   const formatINR = (val: number) => '₹' + Math.round(val).toLocaleString('en-IN');
-
-  const handleSyncFromApi = async () => {
-    setIsSyncing(true);
-    try {
-      await fetchLiveContracts();
-    } finally {
-      setTimeout(() => setIsSyncing(false), 600);
-    }
-  };
 
   const filteredContracts = useMemo(() => {
     return departmentContracts.filter(c => {
@@ -109,80 +99,6 @@ export const ContractsListView: React.FC = () => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-      {/* Live Contracts Backend API Banner */}
-      <div
-        style={{
-          background: 'rgba(56, 189, 248, 0.08)',
-          border: '1px solid rgba(56, 189, 248, 0.25)',
-          padding: '12px 18px',
-          borderRadius: '10px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: '12px',
-          fontSize: '12.5px',
-          color: 'var(--text)'
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <div
-            style={{
-              width: '32px',
-              height: '32px',
-              borderRadius: '8px',
-              background: 'rgba(56, 189, 248, 0.15)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#38bdf8'
-            }}
-          >
-            <Radio size={18} />
-          </div>
-          <div>
-            <div style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span>Live Contracts API Integrated</span>
-              <span
-                style={{
-                  fontSize: '10px',
-                  fontWeight: 700,
-                  background: 'rgba(57, 255, 110, 0.15)',
-                  color: 'var(--accent)',
-                  border: '1px solid rgba(57, 255, 110, 0.3)',
-                  padding: '1px 7px',
-                  borderRadius: '12px'
-                }}
-              >
-                ● Live Sync Active
-              </span>
-            </div>
-            <div style={{ fontSize: '11.5px', color: 'var(--text-dim)', marginTop: '2px' }}>
-              Government fleet tenders, department vehicle attachments, monthly rate limits, and SLA validity synchronized with database.
-            </div>
-          </div>
-        </div>
-
-        <button
-          type="button"
-          className="btn-secondary"
-          style={{
-            fontSize: '12px',
-            padding: '6px 14px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            cursor: 'pointer'
-          }}
-          onClick={handleSyncFromApi}
-          disabled={isSyncing}
-          title="Sync latest contracts from backend server"
-        >
-          <RefreshCw size={13} className={isSyncing ? 'spin-icon' : ''} />
-          {isSyncing ? 'Syncing...' : 'Sync from Server'}
-        </button>
-      </div>
-
       {/* Stats Cards */}
       <div className="stats-grid">
         <StatCard label="Active Contracts" value={stats.active} customColor="var(--accent)" />

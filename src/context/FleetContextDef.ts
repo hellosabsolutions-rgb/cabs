@@ -137,6 +137,7 @@ export interface FleetContextType {
   setActiveGstRate: (rate: number) => void;
   activeGstType: 'CGST_SGST' | 'IGST';
   setActiveGstType: (type: 'CGST_SGST' | 'IGST') => void;
+  updateDefaultGstSettings: (rate: number, type?: 'CGST_SGST' | 'IGST', effectiveDate?: string, note?: string) => Promise<{ success: boolean; error?: string }>;
   departmentPayments: DepartmentPayment[];
   addDepartmentPayment: (payment: Omit<DepartmentPayment, 'id'>) => void;
   updateDepartmentPaymentStatus: (id: string, status: DepartmentPayment['status']) => void;

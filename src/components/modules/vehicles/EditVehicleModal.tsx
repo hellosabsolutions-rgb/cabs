@@ -35,15 +35,6 @@ interface EditVehicleModalProps {
   vehicle: Vehicle | null;
 }
 
-const commonDepartments = [
-  'Public Works Department (PWD)',
-  'Delhi Jal Nigam (DJN)',
-  'Delhi Development Authority (DDA)',
-  'Department of Health & Family Welfare',
-  'Transport Department (GNCTD)',
-  'Power & Energy Department'
-];
-
 const vehicleStatuses: VehicleStatus[] = ['Running', 'Idle', 'Maintenance'];
 const fuelTypes: NonNullable<Vehicle['fuelType']>[] = ['Diesel', 'Petrol', 'CNG', 'Electric'];
 
@@ -52,7 +43,7 @@ export const EditVehicleModal: React.FC<EditVehicleModalProps> = ({
   onClose,
   vehicle
 }) => {
-  const { drivers, updateVehicle, fetchLiveDrivers, isLoadingDrivers } = useFleet();
+  const { drivers, departmentContracts, updateVehicle, fetchLiveDrivers, isLoadingDrivers } = useFleet();
 
   const [registrationNumber, setRegistrationNumber] = useState('');
   const [model, setModel] = useState('');
@@ -329,9 +320,6 @@ export const EditVehicleModal: React.FC<EditVehicleModalProps> = ({
                     className={`tab-pill ${type === t ? 'active' : ''}`}
                     onClick={() => {
                       setType(t);
-                      if (t === 'Department' && !departmentName) {
-                        setDepartmentName('Public Works Department (PWD)');
-                      }
                     }}
                     style={{
                       display: 'flex',
@@ -425,25 +413,27 @@ export const EditVehicleModal: React.FC<EditVehicleModalProps> = ({
                   onChange={e => setDepartmentName(e.target.value)}
                   required
                 />
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                  {commonDepartments.map(dept => (
-                    <button
-                      key={dept}
-                      type="button"
-                      className="btn-secondary"
-                      style={{
-                        fontSize: '11px',
-                        padding: '3px 8px',
-                        background: departmentName === dept ? 'var(--surface-2)' : undefined,
-                        borderColor: departmentName === dept ? 'var(--accent)' : undefined,
-                        color: departmentName === dept ? 'var(--accent)' : undefined
-                      }}
-                      onClick={() => setDepartmentName(dept)}
-                    >
-                      {dept.split('(')[0].trim()}
-                    </button>
-                  ))}
-                </div>
+                {departmentContracts.length > 0 && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                    {Array.from(new Set(departmentContracts.map(c => c.departmentName).filter(Boolean))).map(dept => (
+                      <button
+                        key={dept}
+                        type="button"
+                        className="btn-secondary"
+                        style={{
+                          fontSize: '11px',
+                          padding: '3px 8px',
+                          background: departmentName === dept ? 'var(--surface-2)' : undefined,
+                          borderColor: departmentName === dept ? 'var(--accent)' : undefined,
+                          color: departmentName === dept ? 'var(--accent)' : undefined
+                        }}
+                        onClick={() => setDepartmentName(dept)}
+                      >
+                        {dept.split('(')[0].trim()}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 

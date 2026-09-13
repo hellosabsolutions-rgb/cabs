@@ -54,7 +54,7 @@ export const WeekendBillingView: React.FC = () => {
 
   // All weekend bills (either billType === 'Weekend / Off-Duty Cash Memo' or linked from weekend logs)
   const weekendBills = useMemo(() => {
-    return monthlyBills.filter(b => b.billType === 'Weekend / Off-Duty Cash Memo' || b.billNumber === '3454');
+    return monthlyBills.filter(b => b.billType === 'Weekend / Off-Duty Cash Memo');
   }, [monthlyBills]);
 
   // Unique departments for filter
@@ -87,7 +87,7 @@ export const WeekendBillingView: React.FC = () => {
 
       const matchDept = deptFilter === 'All' || log.departmentName === deptFilter;
       const matchVehicle = vehicleFilter === 'All' || log.vehicle === vehicleFilter;
-      const matchMonth = monthFilter === 'All' || (log.month || 'August 2026') === monthFilter;
+      const matchMonth = monthFilter === 'All' || (log.month || '') === monthFilter;
       const matchStatus = billingStatusFilter === 'All' || (log.billingStatus || 'Unbilled') === billingStatusFilter;
 
       return matchSearch && matchDept && matchVehicle && matchMonth && matchStatus;

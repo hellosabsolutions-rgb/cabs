@@ -14,6 +14,10 @@ export interface CreateAgencyDto {
   gstin?: string;
   pan?: string;
   logo?: string | null;
+  defaultGstRate?: number;
+  defaultGstType?: 'CGST_SGST' | 'IGST';
+  gstEffectiveDate?: string;
+  gstHistory?: import('../types/fleet').GstHistoryItem[];
 }
 
 export interface AgencyContextType {

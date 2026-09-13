@@ -256,62 +256,6 @@ export const DriversView: React.FC = () => {
   return (
     <div className="section active module-page">
       <SoftRefreshBar visible={isLoadingDrivers && drivers.length > 0} label="Syncing drivers…" />
-      {/* Driver Sub-tabs Navigation */}
-      <div className="subtab-nav">
-        <button
-          className={`subtab-btn ${driverSubTab === 'list' ? 'active' : ''}`}
-          onClick={() => {
-            setDriverSubTab('list');
-            setSelectedDriverForDetail(null);
-          }}
-        >
-          <Users size={16} />
-          Driver list
-          <span className="subtab-counter">{drivers.length}</span>
-        </button>
-
-        <button
-          className={`subtab-btn ${driverSubTab === 'attendance' ? 'active' : ''}`}
-          onClick={() => {
-            setDriverSubTab('attendance');
-            setSelectedDriverForDetail(null);
-          }}
-        >
-          <CalendarCheck size={16} />
-          Attendance
-          <span className="subtab-counter">
-            {attendanceRecords.filter(a => a.status === 'Present' || a.status === 'On Trip').length} Active
-          </span>
-        </button>
-
-        <button
-          className={`subtab-btn ${driverSubTab === 'expenses' ? 'active' : ''}`}
-          onClick={() => {
-            setDriverSubTab('expenses');
-            setSelectedDriverForDetail(null);
-          }}
-        >
-          <Receipt size={16} />
-          Driver expenses
-          <span className="subtab-counter">
-            ₹{totalExpenseSum.toLocaleString('en-IN')}
-          </span>
-        </button>
-
-        <button
-          className={`subtab-btn ${driverSubTab === 'payroll' ? 'active' : ''}`}
-          onClick={() => {
-            setDriverSubTab('payroll');
-            setSelectedDriverForDetail(null);
-          }}
-        >
-          <Banknote size={16} />
-          Driver payroll
-          <span className="subtab-counter">
-            {payrollItems.length}
-          </span>
-        </button>
-      </div>
 
       {/* Sub-view Content */}
       {driverSubTab === 'list' && (
@@ -329,77 +273,61 @@ export const DriversView: React.FC = () => {
             />
           </>
         ) : (
-          <div className="module-page">
-            {/* Quick Roster Stats */}
-            <div className="stats-grid stats-grid--compact">
-              <StatCard label="Total Registered Drivers" value={drivers.length} customColor="var(--accent)" />
-              <StatCard label="On Duty Right Now" value={onDutyCount} />
-              <StatCard label="Full Time Staff" value={fullTimeCount} />
-              <StatCard
-                label="Contract / Owner Drivers"
-                value={drivers.filter(d => d.driverType === 'Contract' || d.driverType === 'Owner Driver').length}
-              />
+          <div className="driver-page-container">
+            {/* Header */}
+            <div className="driver-page-head">
+              <div>
+                <h1>Drivers</h1>
+                <p>View and manage driver accounts and activity</p>
+              </div>
+              <button
+                type="button"
+                className="btn-driver-main primary"
+                onClick={() => setIsModalOpen(true)}
+              >
+                + Add driver
+              </button>
             </div>
 
-            <div className="panel">
-              {/* Control Bar: Search, Status, Type, View Switcher, Add Driver */}
-              <div
-                className="panel-head"
-                style={{
-                  flexWrap: 'wrap',
-                  gap: '12px',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  paddingBottom: '16px',
-                  borderBottom: '1px solid var(--border)'
-                }}
-              >
-                {/* Left Title & Search */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap', flex: 1 }}>
-                  <div>
-                    <span className="panel-title" style={{ fontSize: '16px', fontWeight: 700 }}>
-                      Drivers
-                    </span>
-                    <div style={{ fontSize: '11.5px', color: 'var(--text-muted)', marginTop: '2px' }}>
-                      View and manage driver accounts and activity
-                    </div>
-                  </div>
+            {/* Stats Row */}
+            <div className="driver-stats-grid">
+              <div className="driver-stat-card">
+                <div className="label">Total registered</div>
+                <div className="value">{drivers.length}</div>
+              </div>
+              <div className="driver-stat-card paid">
+                <div className="label">On duty right now</div>
+                <div className="value">{onDutyCount}</div>
+              </div>
+              <div className="driver-stat-card">
+                <div className="label">Full-time staff</div>
+                <div className="value">{fullTimeCount}</div>
+              </div>
+              <div className="driver-stat-card accent">
+                <div className="label">Contract / owner drivers</div>
+                <div className="value">
+                  {drivers.filter(d => d.driverType === 'Contract' || d.driverType === 'Owner Driver').length}
+                </div>
+              </div>
+            </div>
 
-                  <div style={{ position: 'relative', minWidth: '220px', maxWidth: '340px', flex: 1 }}>
-                    <Search
-                      size={14}
-                      style={{
-                        position: 'absolute',
-                        left: '11px',
-                        top: '50%',
-                        transform: 'translateY(-50%)',
-                        color: 'var(--text-muted)',
-                        pointerEvents: 'none'
-                      }}
-                    />
+            {/* Main Card Container */}
+            <div className="driver-card-panel">
+              {/* Toolbar */}
+              <div className="driver-toolbar">
+                <div className="driver-toolbar-controls">
+                  <div className="driver-search-wrap">
+                    <span className="search-icon">🔍</span>
                     <input
                       type="text"
-                      placeholder="Search by name, phone"
+                      placeholder="Search by name or phone"
                       value={localSearch}
                       onChange={e => setLocalSearch(e.target.value)}
-                      className="form-input"
-                      style={{
-                        paddingLeft: '32px',
-                        paddingRight: '10px',
-                        fontSize: '12.5px',
-                        height: '36px',
-                        borderRadius: '8px',
-                        width: '100%'
-                      }}
                     />
                   </div>
-                </div>
 
-                {/* Right Filters & View Mode Toggle */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
                   <select
-                    className="form-input"
-                    style={{ width: 'auto', padding: '6px 12px', fontSize: '12px', height: '36px', borderRadius: '8px' }}
+                    className="driver-select"
                     value={selectedStatusFilter}
                     onChange={e => setSelectedStatusFilter(e.target.value)}
                   >
@@ -409,102 +337,43 @@ export const DriversView: React.FC = () => {
                   </select>
 
                   <select
-                    className="form-input"
-                    style={{ width: 'auto', padding: '6px 12px', fontSize: '12px', height: '36px', borderRadius: '8px' }}
+                    className="driver-select"
                     value={selectedTypeFilter}
                     onChange={e => setSelectedTypeFilter(e.target.value)}
                   >
-                    <option value="All">All Types</option>
+                    <option value="All">All types</option>
                     <option value="Full Time">Full Time</option>
                     <option value="Part Time">Part Time</option>
                     <option value="Contract">Contract</option>
                     <option value="Owner Driver">Owner Driver</option>
                   </select>
+                </div>
 
-                  {/* View Switcher: Card View vs List View */}
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      background: 'var(--surface-2, #f1f5f9)',
-                      padding: '3px',
-                      borderRadius: '8px',
-                      border: '1px solid var(--border)'
-                    }}
-                  >
-                    <button
-                      type="button"
-                      title="Card View"
+                <div className="driver-toolbar-controls">
+                  <div className="driver-view-toggle">
+                    <span
+                      className={viewMode === 'card' ? 'active' : ''}
                       onClick={() => handleSetViewMode('card')}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '5px',
-                        padding: '5px 11px',
-                        fontSize: '12px',
-                        fontWeight: 600,
-                        borderRadius: '6px',
-                        border: 'none',
-                        cursor: 'pointer',
-                        background: viewMode === 'card' ? 'var(--surface, #ffffff)' : 'transparent',
-                        color: viewMode === 'card' ? 'var(--accent, #1687F5)' : 'var(--text-muted, #64748b)',
-                        boxShadow: viewMode === 'card' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-                        transition: 'all 0.15s ease'
-                      }}
                     >
-                      <LayoutGrid size={14} />
-                      <span>Cards</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      title="List View"
+                      Cards
+                    </span>
+                    <span
+                      className={viewMode === 'list' ? 'active' : ''}
                       onClick={() => handleSetViewMode('list')}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '5px',
-                        padding: '5px 11px',
-                        fontSize: '12px',
-                        fontWeight: 600,
-                        borderRadius: '6px',
-                        border: 'none',
-                        cursor: 'pointer',
-                        background: viewMode === 'list' ? 'var(--surface, #ffffff)' : 'transparent',
-                        color: viewMode === 'list' ? 'var(--accent, #1687F5)' : 'var(--text-muted, #64748b)',
-                        boxShadow: viewMode === 'list' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-                        transition: 'all 0.15s ease'
-                      }}
                     >
-                      <List size={14} />
-                      <span>List</span>
-                    </button>
+                      List
+                    </span>
                   </div>
 
-                  {/* Export Dropdown Button */}
+                  {/* Export Dropdown Menu - EXACT SAME FUNCTIONALITY */}
                   <div style={{ position: 'relative' }} ref={exportMenuRef}>
                     <button
                       type="button"
-                      title="Export drivers to CSV or download sample template"
+                      className="btn-driver-main"
+                      title="Export drivers to CSV or Excel (.xlsx)"
                       onClick={() => setIsExportMenuOpen(prev => !prev)}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                        fontSize: '12px',
-                        fontWeight: 600,
-                        padding: '7px 13px',
-                        height: '36px',
-                        borderRadius: '8px',
-                        border: '1px solid var(--border)',
-                        background: 'var(--surface, #ffffff)',
-                        color: 'var(--text)',
-                        cursor: 'pointer',
-                        transition: 'all 0.15s ease'
-                      }}
                     >
-                      <Download size={14} color="var(--accent)" />
-                      <span>Export</span>
+                      <span>⬇ Export</span>
                       <ChevronDown
                         size={13}
                         style={{
@@ -515,112 +384,52 @@ export const DriversView: React.FC = () => {
                     </button>
 
                     {isExportMenuOpen && (
-                      <div
-                        style={{
-                          position: 'absolute',
-                          right: 0,
-                          top: 'calc(100% + 6px)',
-                          zIndex: 100,
-                          backgroundColor: 'var(--surface, #1e222d)',
-                          border: '1px solid var(--border)',
-                          borderRadius: '10px',
-                          boxShadow: '0 10px 25px rgba(0,0,0,0.3)',
-                          minWidth: '220px',
-                          padding: '6px',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          gap: '4px'
-                        }}
-                      >
+                      <div className="driver-export-dropdown">
                         <button
                           type="button"
+                          className="driver-export-item"
                           onClick={() => {
                             handleExportAllDrivers();
                             setIsExportMenuOpen(false);
                           }}
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '10px',
-                            padding: '9px 12px',
-                            fontSize: '12px',
-                            color: 'var(--text)',
-                            background: 'transparent',
-                            border: 'none',
-                            borderRadius: '6px',
-                            cursor: 'pointer',
-                            textAlign: 'left',
-                            width: '100%',
-                            transition: 'background 0.15s ease'
-                          }}
-                          onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--surface-2, rgba(255,255,255,0.06))')}
-                          onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
                         >
                           <FileSpreadsheet size={16} color="#22c55e" />
                           <div>
                             <div style={{ fontWeight: 600 }}>Export to Excel (.xlsx)</div>
-                            <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{drivers.length} drivers (Excel Sheet)</div>
+                            <div style={{ fontSize: '11px', color: 'var(--text-dim)' }}>
+                              {drivers.length} drivers (Excel Sheet)
+                            </div>
                           </div>
                         </button>
 
                         <button
                           type="button"
+                          className="driver-export-item"
                           onClick={() => {
                             handleDownloadExcelTemplate();
                             setIsExportMenuOpen(false);
                           }}
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '10px',
-                            padding: '9px 12px',
-                            fontSize: '12px',
-                            color: 'var(--text)',
-                            background: 'transparent',
-                            border: 'none',
-                            borderRadius: '6px',
-                            cursor: 'pointer',
-                            textAlign: 'left',
-                            width: '100%',
-                            transition: 'background 0.15s ease'
-                          }}
-                          onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--surface-2, rgba(255,255,255,0.06))')}
-                          onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
                         >
                           <Download size={16} color="var(--accent)" />
                           <div>
                             <div style={{ fontWeight: 600 }}>Download Excel Template</div>
-                            <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Sample driver sheet (.xlsx)</div>
+                            <div style={{ fontSize: '11px', color: 'var(--text-dim)' }}>
+                              Sample driver sheet (.xlsx)
+                            </div>
                           </div>
                         </button>
 
-                        <div style={{ height: '1px', background: 'var(--border, rgba(255,255,255,0.1))', margin: '2px 0' }} />
+                        <div style={{ height: '1px', background: 'var(--border)', margin: '4px 0' }} />
 
                         <button
                           type="button"
+                          className="driver-export-item"
                           onClick={() => {
                             handleExportCsvDrivers();
                             setIsExportMenuOpen(false);
                           }}
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '10px',
-                            padding: '8px 12px',
-                            fontSize: '12px',
-                            color: 'var(--text-muted)',
-                            background: 'transparent',
-                            border: 'none',
-                            borderRadius: '6px',
-                            cursor: 'pointer',
-                            textAlign: 'left',
-                            width: '100%',
-                            transition: 'background 0.15s ease'
-                          }}
-                          onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--surface-2, rgba(255,255,255,0.06))')}
-                          onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
                         >
-                          <FileSpreadsheet size={15} />
+                          <FileSpreadsheet size={15} color="var(--text-dim)" />
                           <div>
                             <div style={{ fontWeight: 500 }}>Export as CSV (.csv)</div>
                           </div>
@@ -629,324 +438,336 @@ export const DriversView: React.FC = () => {
                     )}
                   </div>
 
-                  {/* Import Drivers Button */}
+                  {/* Import Button - EXACT SAME FUNCTIONALITY */}
                   <button
                     type="button"
+                    className="btn-driver-main"
                     title="Bulk import drivers from Excel (.xlsx) spreadsheet"
                     onClick={() => setIsImportModalOpen(true)}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      fontSize: '12px',
-                      fontWeight: 600,
-                      padding: '7px 14px',
-                      height: '36px',
-                      borderRadius: '8px',
-                      border: '1px solid var(--border)',
-                      background: 'var(--surface, #ffffff)',
-                      color: 'var(--text)',
-                      cursor: 'pointer',
-                      transition: 'all 0.15s ease'
-                    }}
                   >
-                    <Upload size={14} color="var(--accent)" />
-                    <span>Import Drivers</span>
-                  </button>
-
-                  <button
-                    className="btn-primary-action"
-                    style={{ fontSize: '12px', padding: '7px 16px', height: '36px', borderRadius: '8px' }}
-                    onClick={() => setIsModalOpen(true)}
-                  >
-                    + Add Driver
+                    <span>⬆ Import</span>
                   </button>
                 </div>
               </div>
 
-              {/* VIEW MODE 1: CARD VIEW */}
-              {viewMode === 'card' && (
-                <div style={{ marginTop: '18px' }}>
-                  {paginatedDrivers.length === 0 ? (
-                    <div style={{ textAlign: 'center', padding: '48px 0', color: 'var(--text-muted)' }}>
-                      No drivers found matching your filter criteria.
-                    </div>
-                  ) : (
-                    <div
-                      style={{
-                        display: 'grid',
-                        gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))',
-                        gap: '16px'
+              <div className="driver-divider" />
+
+              {/* EMPTY STATE OR LIST */}
+              {drivers.length === 0 ? (
+                <div className="driver-empty-box">
+                  <div className="icon">🧑‍✈️</div>
+                  <h3>No drivers yet</h3>
+                  <p>Add your first driver to start tracking duty status, attendance and payroll from one place.</p>
+                  <div className="btn-row">
+                    <button
+                      type="button"
+                      className="btn-driver-main"
+                      onClick={() => setIsImportModalOpen(true)}
+                    >
+                      ⬆ Import drivers
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-driver-main primary"
+                      onClick={() => setIsModalOpen(true)}
+                    >
+                      + Add driver
+                    </button>
+                  </div>
+                </div>
+              ) : paginatedDrivers.length === 0 ? (
+                <div className="driver-empty-box">
+                  <div className="icon">🔍</div>
+                  <h3>No matching drivers</h3>
+                  <p>Try adjusting your search query or filter options to find the driver you're looking for.</p>
+                  <div className="btn-row">
+                    <button
+                      type="button"
+                      className="btn-driver-main"
+                      onClick={() => {
+                        setLocalSearch('');
+                        setSelectedStatusFilter('All');
+                        setSelectedTypeFilter('All');
+                        setAssignmentFilter('All');
                       }}
                     >
-                      {paginatedDrivers.map(d => {
-                        const tripsCount = getDriverTripsCount(d.name);
-                        const pendingSettlement = getDriverPendingSettlement(d);
-                        const licenseInfo = getDriverLicenseInfo(d);
+                      Reset filters
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  {/* CARD VIEW */}
+                  {viewMode === 'card' && (
+                    <div style={{ padding: '20px' }}>
+                      <div
+                        style={{
+                          display: 'grid',
+                          gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))',
+                          gap: '16px'
+                        }}
+                      >
+                        {paginatedDrivers.map(d => {
+                          const tripsCount = getDriverTripsCount(d.name);
+                          const pendingSettlement = getDriverPendingSettlement(d);
+                          const licenseInfo = getDriverLicenseInfo(d);
 
-                        return (
-                          <div
-                            key={d.id}
-                            onClick={() => setSelectedDriverForDetail(d)}
-                            style={{
-                              background: 'var(--surface, #ffffff)',
-                              border: '1px solid var(--border, #e2e8f0)',
-                              borderRadius: '14px',
-                              padding: '16px 18px',
-                              display: 'flex',
-                              flexDirection: 'column',
-                              justifyContent: 'space-between',
-                              cursor: 'pointer',
-                              transition: 'transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease',
-                              boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
-                              position: 'relative',
-                              userSelect: 'none'
-                            }}
-                            onMouseEnter={e => {
-                              e.currentTarget.style.transform = 'translateY(-2px)';
-                              e.currentTarget.style.boxShadow = '0 10px 24px -4px rgba(0,0,0,0.08)';
-                              e.currentTarget.style.borderColor = 'var(--accent, #1687F5)';
-                            }}
-                            onMouseLeave={e => {
-                              e.currentTarget.style.transform = 'none';
-                              e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.04)';
-                              e.currentTarget.style.borderColor = 'var(--border, #e2e8f0)';
-                            }}
-                          >
-                            {/* Top Section: Avatar, Info, Status Badge */}
-                            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '10px' }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                {d.photo ? (
-                                  <img
-                                    src={d.photo}
-                                    alt={d.name}
-                                    style={{
-                                      width: '46px',
-                                      height: '46px',
-                                      borderRadius: '50%',
-                                      objectFit: 'cover',
-                                      border: '2px solid var(--border, #e2e8f0)',
-                                      flexShrink: 0
-                                    }}
+                          return (
+                            <div
+                              key={d.id}
+                              onClick={() => setSelectedDriverForDetail(d)}
+                              style={{
+                                background: 'var(--surface)',
+                                border: '1px solid var(--border)',
+                                borderRadius: '10px',
+                                padding: '16px 18px',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                justifyContent: 'space-between',
+                                cursor: 'pointer',
+                                transition: 'transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease',
+                                boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+                                position: 'relative',
+                                userSelect: 'none'
+                              }}
+                              onMouseEnter={e => {
+                                e.currentTarget.style.transform = 'translateY(-2px)';
+                                e.currentTarget.style.boxShadow = '0 8px 20px -4px rgba(0,0,0,0.08)';
+                                e.currentTarget.style.borderColor = 'var(--accent)';
+                              }}
+                              onMouseLeave={e => {
+                                e.currentTarget.style.transform = 'none';
+                                e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.04)';
+                                e.currentTarget.style.borderColor = 'var(--border)';
+                              }}
+                            >
+                              {/* Top Section: Avatar, Info, Status Badge */}
+                              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '10px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                  {d.photo ? (
+                                    <img
+                                      src={d.photo}
+                                      alt={d.name}
+                                      style={{
+                                        width: '46px',
+                                        height: '46px',
+                                        borderRadius: '50%',
+                                        objectFit: 'cover',
+                                        border: '2px solid var(--border)',
+                                        flexShrink: 0
+                                      }}
+                                    />
+                                  ) : (
+                                    <div
+                                      style={{
+                                        width: '46px',
+                                        height: '46px',
+                                        borderRadius: '50%',
+                                        background: 'var(--accent-dim, rgba(22, 135, 245, 0.12))',
+                                        color: 'var(--accent)',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        fontSize: '15px',
+                                        fontWeight: 700,
+                                        border: '1px solid var(--border)',
+                                        flexShrink: 0
+                                      }}
+                                    >
+                                      {getInitials(d.name)}
+                                    </div>
+                                  )}
+
+                                  <div>
+                                    <div style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text)' }}>
+                                      {d.name}
+                                    </div>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginTop: '2px' }}>
+                                      <span style={{ fontSize: '12.5px', color: 'var(--text-dim)' }}>
+                                        {d.phone || 'No phone'}
+                                      </span>
+                                      {d.phone && (
+                                        <CheckCircle2 size={13} style={{ color: 'var(--accent)', flexShrink: 0 }} />
+                                      )}
+                                    </div>
+                                    <div style={{ fontSize: '12px', color: 'var(--text-dim)', marginTop: '2px' }}>
+                                      This Month: <strong style={{ color: 'var(--text)' }}>{tripsCount} trips</strong>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                <div onClick={e => e.stopPropagation()} style={{ flexShrink: 0 }}>
+                                  <StatusDropdown
+                                    value={d.status === 'On duty' ? 'On duty' : 'Off duty'}
+                                    options={[
+                                      { value: 'On duty', label: 'Active', color: '#16a34a', bg: 'rgba(22, 163, 74, 0.12)', borderColor: 'rgba(22, 163, 74, 0.35)' },
+                                      { value: 'Off duty', label: 'Off duty', color: 'var(--text-dim)', bg: 'var(--surface-3)', borderColor: 'var(--border)' }
+                                    ]}
+                                    onChange={newVal => updateDriverStatus(d.id, newVal as 'On duty' | 'Off duty')}
+                                    size="sm"
                                   />
-                                ) : (
-                                  <div
-                                    style={{
-                                      width: '46px',
-                                      height: '46px',
-                                      borderRadius: '50%',
-                                      background: 'linear-gradient(135deg, rgba(22, 135, 245, 0.15), rgba(37, 99, 235, 0.22))',
-                                      color: 'var(--accent, #1687F5)',
-                                      display: 'flex',
-                                      alignItems: 'center',
-                                      justifyContent: 'center',
-                                      fontSize: '15px',
-                                      fontWeight: 700,
-                                      border: '1px solid rgba(22, 135, 245, 0.2)',
-                                      flexShrink: 0
-                                    }}
-                                  >
-                                    {getInitials(d.name)}
-                                  </div>
-                                )}
-
-                                <div>
-                                  <div style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text)' }}>
-                                    {d.name}
-                                  </div>
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginTop: '2px' }}>
-                                    <span style={{ fontSize: '12.5px', color: 'var(--text-muted)' }}>
-                                      {d.phone || 'No phone'}
-                                    </span>
-                                    {d.phone && (
-                                      <CheckCircle2 size={13} style={{ color: '#2563eb', flexShrink: 0 }} />
-                                    )}
-                                  </div>
-                                  <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>
-                                    This Month: <strong style={{ color: 'var(--text)' }}>{tripsCount} trips</strong>
-                                  </div>
                                 </div>
                               </div>
 
-                              <div onClick={e => e.stopPropagation()} style={{ flexShrink: 0 }}>
+                              {/* Bottom Row: Settlement & License */}
+                              <div
+                                style={{
+                                  marginTop: '14px',
+                                  paddingTop: '12px',
+                                  borderTop: '1px solid var(--border)',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'space-between',
+                                  fontSize: '12px'
+                                }}
+                              >
+                                <div>
+                                  <span style={{ fontWeight: 700, color: 'var(--text)', fontSize: '13px' }}>
+                                    ₹{pendingSettlement.toLocaleString('en-IN')}
+                                  </span>
+                                  <span style={{ color: 'var(--text-faint)', marginLeft: '4px' }}>
+                                    Pending Settlement
+                                  </span>
+                                </div>
+
+                                <div>
+                                  <span style={{ color: 'var(--text-faint)' }}>License: </span>
+                                  <strong
+                                    style={{
+                                      color: licenseInfo.isExpired ? '#f59e0b' : '#16a34a',
+                                      fontWeight: 600
+                                    }}
+                                  >
+                                    {licenseInfo.label}
+                                  </strong>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* LIST VIEW */}
+                  {viewMode === 'list' && (
+                    <div className="table-responsive table-dense" style={{ padding: '0 12px' }}>
+                      <table>
+                        <thead>
+                          <tr>
+                            <th>Driver</th>
+                            <th>Vehicle</th>
+                            <th>Type</th>
+                            <th>License</th>
+                            <th>Status</th>
+                            <th className="td-right">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {paginatedDrivers.map(d => (
+                            <tr
+                              key={d.id}
+                              className="table-row-clickable"
+                              onClick={() => setSelectedDriverForDetail(d)}
+                            >
+                              <td>
+                                <div className="driver-info-cell">
+                                  {d.photo ? (
+                                    <img src={d.photo} alt={d.name} className="driver-avatar-circle" />
+                                  ) : (
+                                    <div className="driver-avatar-circle">
+                                      {getInitials(d.name)}
+                                    </div>
+                                  )}
+                                  <div className="cell-stack">
+                                    <span className="cell-primary" title={d.name}>{d.name}</span>
+                                    {d.phone ? (
+                                      <span className="cell-meta" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                                        {d.phone}
+                                        <CheckCircle2 size={10} style={{ color: 'var(--accent)' }} />
+                                      </span>
+                                    ) : null}
+                                  </div>
+                                </div>
+                              </td>
+                              <td style={{ fontWeight: 500 }}>{d.assignedVehicle || '—'}</td>
+                              <td>
+                                <span className={getTypeBadgeClass(d.driverType)}>
+                                  {d.driverType || 'Full Time'}
+                                </span>
+                              </td>
+                              <td style={{ fontFamily: 'monospace', fontSize: '12px', color: 'var(--text-dim)' }}>
+                                {d.licenseNumber || '—'}
+                              </td>
+                              <td onClick={e => e.stopPropagation()}>
                                 <StatusDropdown
                                   value={d.status === 'On duty' ? 'On duty' : 'Off duty'}
                                   options={[
-                                    { value: 'On duty', label: 'Active', color: '#22c55e', bg: 'rgba(34, 197, 94, 0.12)', borderColor: 'rgba(34, 197, 94, 0.35)' },
+                                    { value: 'On duty', label: 'Active', color: '#16a34a', bg: 'rgba(22, 163, 74, 0.12)', borderColor: 'rgba(22, 163, 74, 0.35)' },
                                     { value: 'Off duty', label: 'Off duty', color: 'var(--text-dim)', bg: 'var(--surface-3)', borderColor: 'var(--border)' }
                                   ]}
                                   onChange={newVal => updateDriverStatus(d.id, newVal as 'On duty' | 'Off duty')}
                                   size="sm"
                                 />
-                              </div>
-                            </div>
-
-                            {/* Bottom Row: Settlement & License */}
-                            <div
-                              style={{
-                                marginTop: '14px',
-                                paddingTop: '12px',
-                                borderTop: '1px solid var(--border, #e2e8f0)',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'space-between',
-                                fontSize: '12px'
-                              }}
-                            >
-                              <div>
-                                <span style={{ fontWeight: 700, color: 'var(--text)', fontSize: '13px' }}>
-                                  ₹{pendingSettlement.toLocaleString('en-IN')}
-                                </span>
-                                <span style={{ color: 'var(--text-faint)', marginLeft: '4px' }}>
-                                  Pending Settlement
-                                </span>
-                              </div>
-
-                              <div>
-                                <span style={{ color: 'var(--text-faint)' }}>License: </span>
-                                <strong
-                                  style={{
-                                    color: licenseInfo.isExpired ? '#f59e0b' : '#16a34a',
-                                    fontWeight: 600
-                                  }}
-                                >
-                                  {licenseInfo.label}
-                                </strong>
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
+                              </td>
+                              <td className="td-right" onClick={e => e.stopPropagation()}>
+                                <div className="table-actions">
+                                  <button
+                                    type="button"
+                                    className="icon-btn"
+                                    onClick={() => setSelectedDriverForDetail(d)}
+                                    title="View details"
+                                  >
+                                    <Eye size={14} />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="icon-btn"
+                                    onClick={() => setEditingDriver(d)}
+                                    title="Edit driver"
+                                  >
+                                    <Edit2 size={14} />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="icon-btn"
+                                    onClick={() => updateDriverStatus(d.id, d.status === 'On duty' ? 'Off duty' : 'On duty')}
+                                    title={`Toggle duty (${d.status})`}
+                                  >
+                                    <Power size={14} />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="icon-btn icon-btn--danger"
+                                    onClick={() => {
+                                      if (window.confirm(`Are you sure you want to remove driver "${d.name}" from the system?`)) {
+                                        deleteDriver(d.id);
+                                      }
+                                    }}
+                                    title="Delete driver"
+                                  >
+                                    <Trash2 size={14} />
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
                     </div>
                   )}
-                </div>
-              )}
 
-              {/* VIEW MODE 2: LIST VIEW */}
-              {viewMode === 'list' && (
-                <div className="table-responsive table-dense" style={{ marginTop: '8px' }}>
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>Driver</th>
-                        <th>Vehicle</th>
-                        <th>Type</th>
-                        <th>License</th>
-                        <th>Status</th>
-                        <th className="td-right">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {paginatedDrivers.length === 0 ? (
-                        <tr>
-                          <td colSpan={6} style={{ textAlign: 'center', color: 'var(--text-faint)', padding: '24px 0' }}>
-                            No drivers found matching your filter criteria.
-                          </td>
-                        </tr>
-                      ) : (
-                        paginatedDrivers.map(d => (
-                          <tr
-                            key={d.id}
-                            className="table-row-clickable"
-                            onClick={() => setSelectedDriverForDetail(d)}
-                          >
-                            <td>
-                              <div className="driver-info-cell">
-                                {d.photo ? (
-                                  <img src={d.photo} alt={d.name} className="driver-avatar-circle" />
-                                ) : (
-                                  <div className="driver-avatar-circle">
-                                    {getInitials(d.name)}
-                                  </div>
-                                )}
-                                <div className="cell-stack">
-                                  <span className="cell-primary" title={d.name}>{d.name}</span>
-                                  {d.phone ? (
-                                    <span className="cell-meta" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                                      {d.phone}
-                                      <CheckCircle2 size={10} style={{ color: '#2563eb' }} />
-                                    </span>
-                                  ) : null}
-                                </div>
-                              </div>
-                            </td>
-                            <td style={{ fontWeight: 500 }}>{d.assignedVehicle || '—'}</td>
-                            <td>
-                              <span className={getTypeBadgeClass(d.driverType)}>
-                                {d.driverType || 'Full Time'}
-                              </span>
-                            </td>
-                            <td style={{ fontFamily: 'monospace', fontSize: '12px', color: 'var(--text-dim)' }}>
-                              {d.licenseNumber || '—'}
-                            </td>
-                            <td onClick={e => e.stopPropagation()}>
-                              <StatusDropdown
-                                value={d.status === 'On duty' ? 'On duty' : 'Off duty'}
-                                options={[
-                                  { value: 'On duty', label: 'Active', color: '#22c55e', bg: 'rgba(34, 197, 94, 0.12)', borderColor: 'rgba(34, 197, 94, 0.35)' },
-                                  { value: 'Off duty', label: 'Off duty', color: 'var(--text-dim)', bg: 'var(--surface-3)', borderColor: 'var(--border)' }
-                                ]}
-                                onChange={newVal => updateDriverStatus(d.id, newVal as 'On duty' | 'Off duty')}
-                                size="sm"
-                              />
-                            </td>
-                            <td className="td-right" onClick={e => e.stopPropagation()}>
-                              <div className="table-actions">
-                                <button
-                                  type="button"
-                                  className="icon-btn"
-                                  onClick={() => setSelectedDriverForDetail(d)}
-                                  title="View details"
-                                >
-                                  <Eye size={14} />
-                                </button>
-                                <button
-                                  type="button"
-                                  className="icon-btn"
-                                  onClick={() => setEditingDriver(d)}
-                                  title="Edit driver"
-                                >
-                                  <Edit2 size={14} />
-                                </button>
-                                <button
-                                  type="button"
-                                  className="icon-btn"
-                                  onClick={() => updateDriverStatus(d.id, d.status === 'On duty' ? 'Off duty' : 'On duty')}
-                                  title={`Toggle duty (${d.status})`}
-                                >
-                                  <Power size={14} />
-                                </button>
-                                <button
-                                  type="button"
-                                  className="icon-btn icon-btn--danger"
-                                  onClick={() => {
-                                    if (window.confirm(`Are you sure you want to remove driver "${d.name}" from the system?`)) {
-                                      deleteDriver(d.id);
-                                    }
-                                  }}
-                                  title="Delete driver"
-                                >
-                                  <Trash2 size={14} />
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
-                </div>
+                  {/* Pagination Controls */}
+                  <Pagination
+                    currentPage={currentPage}
+                    totalItems={totalItems}
+                    pageSize={pageSize}
+                    onPageChange={setCurrentPage}
+                    onPageSizeChange={setPageSize}
+                    itemLabel="drivers"
+                  />
+                </>
               )}
-
-              {/* Pagination Controls */}
-              <Pagination
-                currentPage={currentPage}
-                totalItems={totalItems}
-                pageSize={pageSize}
-                onPageChange={setCurrentPage}
-                onPageSizeChange={setPageSize}
-                itemLabel="drivers"
-              />
             </div>
 
             {/* Slide-from-bottom Animated Modals */}

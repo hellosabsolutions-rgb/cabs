@@ -63,7 +63,32 @@ const agencySchema = new mongoose.Schema(
     isDefault: {
       type: Boolean,
       default: false
-    }
+    },
+    defaultGstRate: {
+      type: Number,
+      default: 5,
+      min: 0,
+      max: 100
+    },
+    defaultGstType: {
+      type: String,
+      enum: ['CGST_SGST', 'IGST'],
+      default: 'CGST_SGST'
+    },
+    gstEffectiveDate: {
+      type: Date,
+      default: Date.now
+    },
+    gstHistory: [
+      {
+        rate: { type: Number, required: true },
+        gstType: { type: String, enum: ['CGST_SGST', 'IGST'], default: 'CGST_SGST' },
+        effectiveDate: { type: Date, default: Date.now },
+        changedBy: { type: String, default: 'Admin' },
+        changedAt: { type: Date, default: Date.now },
+        note: { type: String }
+      }
+    ]
   },
   {
     timestamps: true,

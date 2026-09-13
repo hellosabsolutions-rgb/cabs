@@ -20,25 +20,34 @@ export const GenerateBillModal: React.FC<GenerateBillModalProps> = ({
   const { departmentContracts, addMonthlyBill } = useFleet();
 
   const [selectedContractId, setSelectedContractId] = useState(departmentContracts[0]?.id || '');
-  const [billingMonth, setBillingMonth] = useState('2026-08');
-  const [baseAmount, setBaseAmount] = useState('53755');
-  const [dutyStartDate, setDutyStartDate] = useState('2026-08-01');
-  const [dutyEndDate, setDutyEndDate] = useState('2026-08-31');
-  const [totalKmRun, setTotalKmRun] = useState('2300');
-  const [extraKmCost, setExtraKmCost] = useState('1500');
+  const [billingMonth, setBillingMonth] = useState(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  });
+  const [baseAmount, setBaseAmount] = useState(() => String(departmentContracts[0]?.monthlyBaseAmount || ''));
+  const [dutyStartDate, setDutyStartDate] = useState(() => {
+    const d = new Date();
+    return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0];
+  });
+  const [dutyEndDate, setDutyEndDate] = useState(() => {
+    const d = new Date();
+    return new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().split('T')[0];
+  });
+  const [totalKmRun, setTotalKmRun] = useState('');
+  const [extraKmCost, setExtraKmCost] = useState('0');
   const [extraHoursCost, setExtraHoursCost] = useState('0');
   const [extraDriverAllowance, setExtraDriverAllowance] = useState('0');
 
   // Fuel Calculator
-  const [fuelAvgKmpl, setFuelAvgKmpl] = useState('10');
-  const [fuelRatePerLitre, setFuelRatePerLitre] = useState('88.33');
+  const [fuelAvgKmpl, setFuelAvgKmpl] = useState('');
+  const [fuelRatePerLitre, setFuelRatePerLitre] = useState('');
 
   // Night Charges
-  const [nightCount, setNightCount] = useState('5');
-  const [nightRate, setNightRate] = useState('300');
+  const [nightCount, setNightCount] = useState('0');
+  const [nightRate, setNightRate] = useState('0');
 
   // Toll & Parking
-  const [tollParkingCost, setTollParkingCost] = useState('320');
+  const [tollParkingCost, setTollParkingCost] = useState('0');
 
   // GST Configuration
   const [gstRate, setGstRate] = useState(String(defaultGstRate));
@@ -62,6 +71,13 @@ export const GenerateBillModal: React.FC<GenerateBillModalProps> = ({
       setBaseAmount(String(selectedContract.monthlyBaseAmount));
     }
   }, [selectedContractId, selectedContract]);
+
+  useEffect(() => {
+    if (isOpen) {
+      setGstRate(String(defaultGstRate));
+      setGstType(defaultGstType);
+    }
+  }, [isOpen, defaultGstRate, defaultGstType]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {

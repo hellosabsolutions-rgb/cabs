@@ -56,6 +56,7 @@ export const DriverAttendanceView: React.FC = () => {
   // Daily State
   const [selectedDate, setSelectedDate] = useState(istTodayString);
   const [dutyFilter, setDutyFilter] = useState<string>('All');
+  const [statusFilter, setStatusFilter] = useState<string>('All');
   const [isLogModalOpen, setIsLogModalOpen] = useState(false);
   const [isBulkMarking, setIsBulkMarking] = useState(false);
 
@@ -140,9 +141,15 @@ export const DriverAttendanceView: React.FC = () => {
         dutyFilter === 'All' ||
         item.dutyType === dutyFilter ||
         (dutyFilter === 'Booking Duty' && (item.dutyType === 'Trip Duty' || (item.dutyType as string) === 'Booking Duty'));
-      return matchSearch && matchDuty;
+
+      const matchStatus =
+        statusFilter === 'All' ||
+        item.status === statusFilter ||
+        (statusFilter === 'Active' && (item.status === 'Present' || item.status === 'On Trip'));
+
+      return matchSearch && matchDuty && matchStatus;
     });
-  }, [driverAttendanceList, searchQuery, dutyFilter]);
+  }, [driverAttendanceList, searchQuery, dutyFilter, statusFilter]);
 
   const {
     currentPage: dailyPage,
@@ -580,39 +587,39 @@ export const DriverAttendanceView: React.FC = () => {
   };
 
   return (
-    <div className="module-page">
+    <div className="att-page-wrap">
       {/* View Mode Switcher Header */}
-      <div className="module-toolbar">
-        <div className="subtab-nav" style={{ margin: 0, padding: 0 }}>
+      <div className="att-view-row">
+        <div className="att-view-switch">
           <button
             type="button"
-            className={`subtab-btn ${timeFrame === 'daily' ? 'active' : ''}`}
+            className={timeFrame === 'daily' ? 'active' : ''}
             onClick={() => setTimeFrame('daily')}
           >
-            <Calendar size={14} /> Particular Day
+            <span>📅</span> Particular day
           </button>
           <button
             type="button"
-            className={`subtab-btn ${timeFrame === 'monthly' ? 'active' : ''}`}
+            className={timeFrame === 'monthly' ? 'active' : ''}
             onClick={() => setTimeFrame('monthly')}
           >
-            <CalendarDays size={14} /> Monthly View
+            <span>🗓</span> Monthly view
           </button>
           <button
             type="button"
-            className={`subtab-btn ${timeFrame === 'yearly' ? 'active' : ''}`}
+            className={timeFrame === 'yearly' ? 'active' : ''}
             onClick={() => setTimeFrame('yearly')}
           >
-            <TrendingUp size={14} /> Yearly View
+            <span>📈</span> Yearly view
           </button>
         </div>
 
         <button
-          className="btn-primary-action"
-          style={{ fontSize: '12px', padding: '7px 16px', display: 'flex', alignItems: 'center', gap: '6px' }}
+          type="button"
+          className="btn-att primary"
           onClick={() => setIsLogModalOpen(true)}
         >
-          + Log Attendance
+          + Log attendance
         </button>
       </div>
 
@@ -622,77 +629,81 @@ export const DriverAttendanceView: React.FC = () => {
       {timeFrame === 'daily' && (
         <>
           {/* Daily Stats Cards */}
-          <div className="stats-grid stats-grid--compact">
-            <StatCard
-              label="Present & On Duty"
-              value={`${dailyStats.present} / ${drivers.length}`}
-              customColor="var(--accent)"
-            />
-            <StatCard label="On Bookings" value={`${dailyStats.onTrip}`} />
-            <StatCard label="Late / Absent / Leave" value={`${dailyStats.late + dailyStats.absent}`} />
-            <StatCard label="Avg Duty Hours" value={`${dailyStats.avgHours} hrs`} />
+          <div className="att-stats-grid">
+            <div className="att-stat-card present">
+              <div className="label">Present & on duty</div>
+              <div className="value">{dailyStats.present} / {drivers.length}</div>
+            </div>
+            <div className="att-stat-card">
+              <div className="label">On bookings</div>
+              <div className="value">{dailyStats.onTrip}</div>
+            </div>
+            <div className="att-stat-card alert">
+              <div className="label">Late / absent / leave</div>
+              <div className="value">{dailyStats.late + dailyStats.absent}</div>
+            </div>
+            <div className="att-stat-card">
+              <div className="label">Avg. duty hours</div>
+              <div className="value">{dailyStats.avgHours} hrs</div>
+            </div>
           </div>
 
-          {/* Daily Date & Navigation Toolbar */}
-          <div
-            className="panel"
-            style={{
-              padding: '14px 18px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              flexWrap: 'wrap',
-              gap: '12px'
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <button
-                className="btn-secondary"
-                style={{ padding: '6px 12px', fontSize: '12px' }}
-                onClick={() => shiftDate(-1)}
-              >
-                ◀ Prev Day
-              </button>
-              <div
-                style={{
-                  fontWeight: 600,
-                  fontSize: '13.5px',
-                  color: 'var(--text)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px'
-                }}
-              >
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
-                  <Calendar size={14} color="var(--accent)" /> {formattedDateLabel}
-                </span>
-                <div style={{ minWidth: '150px' }}>
-                  <DatePicker
+          {/* Consolidated Date Control Card */}
+          <div className="att-card">
+            <div className="att-date-bar">
+              <div className="att-date-nav">
+                <button
+                  type="button"
+                  className="att-date-step"
+                  onClick={() => shiftDate(-1)}
+                  title="Previous day"
+                >
+                  ◀
+                </button>
+                <div
+                  className="att-date-display"
+                  onClick={() => {
+                    const el = document.getElementById('att-date-native-picker');
+                    if (el) (el as HTMLInputElement).showPicker?.() || el.click();
+                  }}
+                  title="Click to select date"
+                >
+                  <span className="cal">📅</span>
+                  <span>{formattedDateLabel}</span>
+                  <input
+                    id="att-date-native-picker"
+                    type="date"
                     value={selectedDate}
-                    onChange={date => setSelectedDate(date)}
+                    onChange={e => setSelectedDate(e.target.value)}
+                    style={{
+                      position: 'absolute',
+                      opacity: 0,
+                      pointerEvents: 'none',
+                      width: 0,
+                      height: 0
+                    }}
                   />
                 </div>
+                <button
+                  type="button"
+                  className="att-date-step"
+                  onClick={() => shiftDate(1)}
+                  title="Next day"
+                >
+                  ▶
+                </button>
+                <button
+                  type="button"
+                  className="att-today-link"
+                  onClick={() => setSelectedDate(new Date().toISOString().split('T')[0])}
+                >
+                  Today
+                </button>
               </div>
-              <button
-                className="btn-secondary"
-                style={{ padding: '6px 12px', fontSize: '12px' }}
-                onClick={() => shiftDate(1)}
-              >
-                Next Day &rarr;
-              </button>
-              <button
-                className="btn-secondary"
-                style={{ padding: '6px 10px', fontSize: '11px', color: 'var(--accent)' }}
-                onClick={() => setSelectedDate(new Date().toISOString().split('T')[0])}
-              >
-                Today
-              </button>
-            </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               <button
-                className="btn-secondary"
-                style={{ fontSize: '12px', padding: '7px 14px', display: 'flex', alignItems: 'center', gap: '6px' }}
+                type="button"
+                className="btn-att"
                 onClick={handleMarkAllPresent}
                 disabled={isBulkMarking}
                 title="Mark all registered drivers present for this date"
@@ -703,88 +714,120 @@ export const DriverAttendanceView: React.FC = () => {
                   </>
                 ) : (
                   <>
-                    <CheckCircle2 size={13} /> Mark All Present
+                    <CheckCircle2 size={14} color="#16a34a" /> Mark all present
                   </>
                 )}
               </button>
             </div>
           </div>
 
-          {/* Daily Table */}
-          <div className="panel panel--table">
-            <div className="panel-head" style={{ flexWrap: 'wrap', gap: '8px' }}>
-              <span className="panel-title">Daily Attendance · {formattedDateLabel}</span>
-              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                {['All', 'Department Duty', 'Booking Duty', 'Standby'].map(f => (
-                  <button
-                    key={f}
-                    className={`driver-type-option ${dutyFilter === f ? 'active' : ''}`}
-                    style={{ padding: '4px 10px', fontSize: '11px' }}
-                    onClick={() => setDutyFilter(f)}
-                  >
-                    {f}
-                  </button>
-                ))}
+          {/* Table Card */}
+          <div className="att-card">
+            <div className="att-table-head">
+              <div>
+                <h2>Daily attendance</h2>
+                <div className="sub">{formattedDateLabel}</div>
+              </div>
+
+              {/* Side Filter Dropdowns */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                <select
+                  className="driver-select"
+                  value={dutyFilter}
+                  onChange={e => setDutyFilter(e.target.value)}
+                  style={{ minWidth: '150px' }}
+                >
+                  <option value="All">All Duties</option>
+                  <option value="Department Duty">Department duty</option>
+                  <option value="Booking Duty">Booking duty</option>
+                  <option value="Standby">Standby</option>
+                </select>
+
+                <select
+                  className="driver-select"
+                  value={statusFilter}
+                  onChange={e => setStatusFilter(e.target.value)}
+                  style={{ minWidth: '135px' }}
+                >
+                  <option value="All">Status: All</option>
+                  <option value="Present">Present</option>
+                  <option value="On Trip">On Booking</option>
+                  <option value="Late">Late</option>
+                  <option value="Absent">Absent</option>
+                  <option value="On Leave">On Leave</option>
+                </select>
               </div>
             </div>
 
-            <div className="table-responsive table-dense">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Driver</th>
-                    <th>Duty Times</th>
-                    <th>Duty</th>
-                    <th>Status</th>
-                    <th>Notes</th>
-                    <th className="td-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {paginatedDailyRecords.length === 0 ? (
-                    <tr>
-                      <td colSpan={6} style={{ textAlign: 'center', color: 'var(--text-faint)', padding: '24px 0' }}>
-                        No attendance records match your search criteria.
-                      </td>
-                    </tr>
-                  ) : (
-                    paginatedDailyRecords.map(r => (
-                      <tr key={r.id}>
-                        <td>{renderAttendanceDriverCell(r.driverName, r.assignedVehicle)}</td>
-                        <td>{renderShiftCell(r)}</td>
-                        <td>
-                          <span style={{ fontSize: '12px', color: 'var(--text-dim)' }}>
-                            {r.dutyType || 'Department Duty'}
-                          </span>
-                        </td>
-                        <td>{renderStatusDropdown(r.status, r.id, r)}</td>
-                        <td style={{ fontSize: '12px', color: 'var(--text-dim)', maxWidth: 180 }} className="cell-truncate">
-                          {r.notes || '—'}
-                        </td>
-                        <td className="td-right">
-                          <button
-                            type="button"
-                            className="icon-btn"
-                            onClick={() => setEditingAttendance(r)}
-                            title="Edit attendance details"
-                          >
-                            <Edit2 size={14} />
-                          </button>
-                        </td>
+            <div className="att-divider" />
+
+            {paginatedDailyRecords.length === 0 ? (
+              <div className="att-empty-box">
+                <div className="icon">🗓</div>
+                <h3>No attendance logged for this day</h3>
+                <p>Log attendance for your drivers, or mark everyone present at once if it's a normal working day.</p>
+                <button
+                  type="button"
+                  className="btn-att primary"
+                  onClick={() => setIsLogModalOpen(true)}
+                >
+                  + Log attendance
+                </button>
+              </div>
+            ) : (
+              <>
+                <div className="table-responsive table-dense">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Driver</th>
+                        <th>Duty times</th>
+                        <th>Duty</th>
+                        <th>Status</th>
+                        <th>Notes</th>
+                        <th className="td-right">Actions</th>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-            <Pagination
-              currentPage={dailyPage}
-              totalItems={totalDailyItems}
-              pageSize={dailyPageSize}
-              onPageChange={setDailyPage}
-              onPageSizeChange={setDailyPageSize}
-              itemLabel="records"
-            />
+                    </thead>
+                    <tbody>
+                      {paginatedDailyRecords.map(r => (
+                        <tr key={r.id}>
+                          <td>{renderAttendanceDriverCell(r.driverName, r.assignedVehicle)}</td>
+                          <td>{renderShiftCell(r)}</td>
+                          <td>
+                            <span style={{ fontSize: '12px', color: 'var(--text-dim)' }}>
+                              {r.dutyType || 'Department Duty'}
+                            </span>
+                          </td>
+                          <td>{renderStatusDropdown(r.status, r.id, r)}</td>
+                          <td style={{ fontSize: '12px', color: 'var(--text-dim)', maxWidth: 180 }} className="cell-truncate">
+                            {r.notes || '—'}
+                          </td>
+                          <td className="td-right">
+                            <button
+                              type="button"
+                              className="icon-btn"
+                              onClick={() => setEditingAttendance(r)}
+                              title="Edit attendance details"
+                            >
+                              <Edit2 size={14} />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <Pagination
+                  currentPage={dailyPage}
+                  totalItems={totalDailyItems}
+                  pageSize={dailyPageSize}
+                  onPageChange={setDailyPage}
+                  onPageSizeChange={setDailyPageSize}
+                  itemLabel="records"
+                />
+              </>
+            )}
           </div>
         </>
       )}
@@ -795,95 +838,109 @@ export const DriverAttendanceView: React.FC = () => {
       {timeFrame === 'monthly' && (
         <>
           {/* Monthly Stats Cards */}
-          <div className="stats-grid stats-grid--compact">
-            <StatCard label="Monthly Duty Hours" value={`${monthStats.totalHours} hrs`} customColor="var(--accent)" />
-            <StatCard label="Present Shifts" value={`${monthStats.presentCount}`} />
-            <StatCard label="Late / Absent" value={`${monthStats.lateCount + monthStats.absentCount}`} />
-            <StatCard label="Attendance Rate" value={`${monthStats.rate}%`} />
+          <div className="att-stats-grid">
+            <div className="att-stat-card">
+              <div className="label">Monthly duty hours</div>
+              <div className="value">{monthStats.totalHours} hrs</div>
+            </div>
+            <div className="att-stat-card present">
+              <div className="label">Present shifts</div>
+              <div className="value">{monthStats.presentCount}</div>
+            </div>
+            <div className="att-stat-card alert">
+              <div className="label">Late / absent</div>
+              <div className="value">{monthStats.lateCount + monthStats.absentCount}</div>
+            </div>
+            <div className="att-stat-card">
+              <div className="label">Attendance rate</div>
+              <div className="value">{monthStats.rate}%</div>
+            </div>
           </div>
 
-          {/* Month Navigator Toolbar */}
-          <div
-            className="panel"
-            style={{
-              padding: '14px 18px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              flexWrap: 'wrap',
-              gap: '12px'
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <button
-                className="btn-secondary"
-                style={{ padding: '6px 12px', fontSize: '12px' }}
-                onClick={() => shiftMonth(-1)}
-              >
-                ◀ Prev Month
-              </button>
-              <div
-                style={{
-                  fontWeight: 600,
-                  fontSize: '13.5px',
-                  color: 'var(--text)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px'
-                }}
-              >
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
-                  <CalendarDays size={15} color="var(--accent)" /> {formattedMonthLabel}
-                </span>
-                <input
-                  type="month"
-                  className="form-input"
-                  style={{ padding: '4px 8px', fontSize: '12px', width: 'auto', display: 'inline-block' }}
-                  value={selectedMonth}
-                  onChange={e => setSelectedMonth(e.target.value)}
-                />
+          {/* Month Navigator Control Card */}
+          <div className="att-card">
+            <div className="att-date-bar">
+              <div className="att-date-nav">
+                <button
+                  type="button"
+                  className="att-date-step"
+                  onClick={() => shiftMonth(-1)}
+                  title="Previous month"
+                >
+                  ◀
+                </button>
+                <div
+                  className="att-date-display"
+                  onClick={() => {
+                    const el = document.getElementById('att-month-native-picker');
+                    if (el) (el as HTMLInputElement).showPicker?.() || el.click();
+                  }}
+                  title="Click to select month"
+                >
+                  <span className="cal">🗓</span>
+                  <span>{formattedMonthLabel}</span>
+                  <input
+                    id="att-month-native-picker"
+                    type="month"
+                    value={selectedMonth}
+                    onChange={e => setSelectedMonth(e.target.value)}
+                    style={{
+                      position: 'absolute',
+                      opacity: 0,
+                      pointerEvents: 'none',
+                      width: 0,
+                      height: 0
+                    }}
+                  />
+                </div>
+                <button
+                  type="button"
+                  className="att-date-step"
+                  onClick={() => shiftMonth(1)}
+                  title="Next month"
+                >
+                  ▶
+                </button>
+                <button
+                  type="button"
+                  className="att-today-link"
+                  onClick={() => setSelectedMonth(new Date().toISOString().slice(0, 7))}
+                >
+                  This Month
+                </button>
               </div>
-              <button
-                className="btn-secondary"
-                style={{ padding: '6px 12px', fontSize: '12px' }}
-                onClick={() => shiftMonth(1)}
-              >
-                Next Month &rarr;
-              </button>
-              <button
-                className="btn-secondary"
-                style={{ padding: '6px 10px', fontSize: '11px', color: 'var(--accent)' }}
-                onClick={() => setSelectedMonth(new Date().toISOString().slice(0, 7))}
-              >
-                This Month
-              </button>
-            </div>
 
-            {/* Subtabs for Monthly view: Driver Summary vs Detailed Daily Logs */}
-            <div style={{ display: 'flex', gap: '6px' }}>
-              <button
-                className={`driver-type-option ${monthSubTab === 'summary' ? 'active' : ''}`}
-                style={{ padding: '5px 12px', fontSize: '12px' }}
-                onClick={() => setMonthSubTab('summary')}
-              >
-                Driver Summary ({monthlyDriverSummary.length})
-              </button>
-              <button
-                className={`driver-type-option ${monthSubTab === 'logs' ? 'active' : ''}`}
-                style={{ padding: '5px 12px', fontSize: '12px' }}
-                onClick={() => setMonthSubTab('logs')}
-              >
-                All Monthly Logs ({monthlyRecords.length})
-              </button>
+              {/* Subtabs for Monthly view in unified pill group */}
+              <div className="att-pill-group">
+                <button
+                  type="button"
+                  className={monthSubTab === 'summary' ? 'active' : ''}
+                  onClick={() => setMonthSubTab('summary')}
+                >
+                  Driver summary ({monthlyDriverSummary.length})
+                </button>
+                <button
+                  type="button"
+                  className={monthSubTab === 'logs' ? 'active' : ''}
+                  onClick={() => setMonthSubTab('logs')}
+                >
+                  All monthly logs ({monthlyRecords.length})
+                </button>
+              </div>
             </div>
           </div>
 
           {/* Monthly Driver Summary Table */}
           {monthSubTab === 'summary' && (
-            <div className="panel panel--table">
-              <div className="panel-head">
-                <span className="panel-title">Monthly Driver Attendance · {formattedMonthLabel}</span>
+            <div className="att-card">
+              <div className="att-table-head">
+                <div>
+                  <h2>Monthly driver attendance</h2>
+                  <div className="sub">{formattedMonthLabel}</div>
+                </div>
               </div>
+
+              <div className="att-divider" />
 
               <div className="table-responsive table-dense">
                 <table>
@@ -899,7 +956,7 @@ export const DriverAttendanceView: React.FC = () => {
                   <tbody>
                     {paginatedDriverSummary.length === 0 ? (
                       <tr>
-                        <td colSpan={5} style={{ textAlign: 'center', color: 'var(--text-faint)', padding: '24px 0' }}>
+                        <td colSpan={5} style={{ textAlign: 'center', color: 'var(--text-faint)', padding: '32px 0' }}>
                           No drivers registered for this month.
                         </td>
                       </tr>
@@ -912,10 +969,10 @@ export const DriverAttendanceView: React.FC = () => {
                           </td>
                           <td>
                             <div className="cell-breakdown">
-                              <span style={{ color: 'var(--accent)' }}>Present {item.presentDays}</span>
+                              <span style={{ color: '#16a34a' }}>Present {item.presentDays}</span>
                               <span>Booking {item.onTripDays || 0}</span>
                               <span style={{ color: item.lateDays > 0 ? 'var(--warning)' : undefined }}>Late {item.lateDays}</span>
-                              <span style={{ color: item.absentDays + (item.leaveDays || 0) > 0 ? 'var(--danger)' : undefined }}>
+                              <span style={{ color: item.absentDays + (item.leaveDays || 0) > 0 ? '#dc2626' : undefined }}>
                                 Absent {item.absentDays + (item.leaveDays || 0)}
                               </span>
                             </div>
@@ -942,7 +999,7 @@ export const DriverAttendanceView: React.FC = () => {
                                   style={{
                                     height: '100%',
                                     width: `${Math.min(100, item.attendanceRate)}%`,
-                                    background: item.attendanceRate >= 80 ? 'var(--accent)' : 'var(--warning)'
+                                    background: item.attendanceRate >= 80 ? '#16a34a' : 'var(--warning)'
                                   }}
                                 />
                               </div>
@@ -959,22 +1016,28 @@ export const DriverAttendanceView: React.FC = () => {
 
           {/* All Monthly Logs Table with Edit Actions */}
           {monthSubTab === 'logs' && (
-            <div className="panel panel--table">
-              <div className="panel-head" style={{ flexWrap: 'wrap', gap: '8px' }}>
-                <span className="panel-title">Monthly Shift Logs</span>
-                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                  {['All', 'Department Duty', 'Booking Duty', 'Standby'].map(f => (
-                    <button
-                      key={f}
-                      className={`driver-type-option ${dutyFilter === f ? 'active' : ''}`}
-                      style={{ padding: '4px 10px', fontSize: '11px' }}
-                      onClick={() => setDutyFilter(f)}
-                    >
-                      {f}
-                    </button>
-                  ))}
+            <div className="att-card">
+              <div className="att-table-head">
+                <div>
+                  <h2>Monthly shift logs</h2>
+                  <div className="sub">{formattedMonthLabel}</div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                  <select
+                    className="driver-select"
+                    value={dutyFilter}
+                    onChange={e => setDutyFilter(e.target.value)}
+                    style={{ minWidth: '150px' }}
+                  >
+                    <option value="All">All Duties</option>
+                    <option value="Department Duty">Department duty</option>
+                    <option value="Booking Duty">Booking duty</option>
+                    <option value="Standby">Standby</option>
+                  </select>
                 </div>
               </div>
+
+              <div className="att-divider" />
 
               <div className="table-responsive table-dense">
                 <table>
@@ -982,7 +1045,7 @@ export const DriverAttendanceView: React.FC = () => {
                     <tr>
                       <th>Date</th>
                       <th>Driver</th>
-                      <th>Duty Times</th>
+                      <th>Duty times</th>
                       <th>Duty</th>
                       <th>Status</th>
                       <th>Notes</th>
@@ -992,7 +1055,7 @@ export const DriverAttendanceView: React.FC = () => {
                   <tbody>
                     {paginatedMonthlyLogs.length === 0 ? (
                       <tr>
-                        <td colSpan={7} style={{ textAlign: 'center', color: 'var(--text-faint)', padding: '24px 0' }}>
+                        <td colSpan={7} style={{ textAlign: 'center', color: 'var(--text-faint)', padding: '32px 0' }}>
                           No shift logs found for this month matching criteria.
                         </td>
                       </tr>
@@ -1038,80 +1101,82 @@ export const DriverAttendanceView: React.FC = () => {
       {timeFrame === 'yearly' && (
         <>
           {/* Yearly Stats Cards */}
-          <div className="stats-grid stats-grid--compact">
-            <StatCard label="Annual Total Hours" value={`${yearlyStats.totalHours} hrs`} customColor="var(--accent)" />
-            <StatCard label="Total Driver Roster" value={`${drivers.length}`} />
-            <StatCard label="Annual Shifts" value={`${yearlyStats.totalShifts}`} />
-            <StatCard label="Annual Attendance Rate" value={`${yearlyStats.rate}%`} />
+          <div className="att-stats-grid">
+            <div className="att-stat-card">
+              <div className="label">Annual total hours</div>
+              <div className="value">{yearlyStats.totalHours} hrs</div>
+            </div>
+            <div className="att-stat-card">
+              <div className="label">Total driver roster</div>
+              <div className="value">{drivers.length}</div>
+            </div>
+            <div className="att-stat-card">
+              <div className="label">Annual shifts</div>
+              <div className="value">{yearlyStats.totalShifts}</div>
+            </div>
+            <div className="att-stat-card present">
+              <div className="label">Annual attendance rate</div>
+              <div className="value">{yearlyStats.rate}%</div>
+            </div>
           </div>
 
-          {/* Year Navigator Toolbar */}
-          <div
-            className="panel"
-            style={{
-              padding: '14px 18px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              flexWrap: 'wrap',
-              gap: '12px'
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <button
-                className="btn-secondary"
-                style={{ padding: '6px 12px', fontSize: '12px' }}
-                onClick={() => setSelectedYear(String(parseInt(selectedYear, 10) - 1))}
-              >
-                ◀ Prev Year
-              </button>
-              <div
-                style={{
-                  fontWeight: 600,
-                  fontSize: '14px',
-                  color: 'var(--text)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px'
-                }}
-              >
-                <TrendingUp size={16} color="var(--accent)" /> Year:
-                <select
-                  className="form-input"
-                  style={{ width: 'auto', padding: '4px 10px', fontSize: '13px' }}
-                  value={selectedYear}
-                  onChange={e => setSelectedYear(e.target.value)}
+          {/* Year Navigator Control Card */}
+          <div className="att-card">
+            <div className="att-date-bar">
+              <div className="att-date-nav">
+                <button
+                  type="button"
+                  className="att-date-step"
+                  onClick={() => setSelectedYear(String(parseInt(selectedYear, 10) - 1))}
+                  title="Previous year"
                 >
-                  {['2024', '2025', '2026', '2027', '2028'].map(y => (
-                    <option key={y} value={y}>
-                      {y}
-                    </option>
-                  ))}
-                </select>
+                  ◀
+                </button>
+                <div className="att-date-display">
+                  <TrendingUp size={15} color="var(--accent)" />
+                  <span>Year:</span>
+                  <select
+                    className="driver-select"
+                    style={{ padding: '2px 24px 2px 8px', fontSize: '13px', height: '28px', border: 'none' }}
+                    value={selectedYear}
+                    onChange={e => setSelectedYear(e.target.value)}
+                  >
+                    {['2024', '2025', '2026', '2027', '2028'].map(y => (
+                      <option key={y} value={y}>
+                        {y}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <button
+                  type="button"
+                  className="att-date-step"
+                  onClick={() => setSelectedYear(String(parseInt(selectedYear, 10) + 1))}
+                  title="Next year"
+                >
+                  ▶
+                </button>
+                <button
+                  type="button"
+                  className="att-today-link"
+                  onClick={() => setSelectedYear(new Date().getFullYear().toString())}
+                >
+                  Current Year
+                </button>
               </div>
-              <button
-                className="btn-secondary"
-                style={{ padding: '6px 12px', fontSize: '12px' }}
-                onClick={() => setSelectedYear(String(parseInt(selectedYear, 10) + 1))}
-              >
-                Next Year &rarr;
-              </button>
-              <button
-                className="btn-secondary"
-                style={{ padding: '6px 10px', fontSize: '11px', color: 'var(--accent)' }}
-                onClick={() => setSelectedYear(new Date().getFullYear().toString())}
-              >
-                Current Year
-              </button>
             </div>
           </div>
 
           {/* 12-Month Distribution Matrix */}
-          <div className="panel">
-            <div className="panel-head">
-              <span className="panel-title">12-Month Attendance Matrix ({selectedYear})</span>
-              <span style={{ fontSize: '12px', color: 'var(--text-faint)' }}>Click any month to view detailed breakdown</span>
+          <div className="att-card">
+            <div className="att-table-head">
+              <div>
+                <h2>12-Month attendance matrix</h2>
+                <div className="sub">Click any month to view detailed breakdown ({selectedYear})</div>
+              </div>
             </div>
+
+            <div className="att-divider" />
 
             <div
               style={{
@@ -1150,7 +1215,7 @@ export const DriverAttendanceView: React.FC = () => {
                       setTimeFrame('monthly');
                     }}
                     style={{
-                      background: isCurrentSelected ? 'rgba(37, 99, 235, 0.08)' : 'var(--surface-2)',
+                      background: isCurrentSelected ? 'var(--accent-dim)' : 'var(--surface-2)',
                       border: isCurrentSelected ? '1px solid var(--accent)' : '1px solid var(--border)',
                       borderRadius: '8px',
                       padding: '12px',
@@ -1168,7 +1233,7 @@ export const DriverAttendanceView: React.FC = () => {
                           padding: '2px 6px',
                           borderRadius: '4px',
                           background: rate >= 80 ? 'rgba(34, 197, 94, 0.12)' : mRecs.length === 0 ? 'var(--surface-3)' : 'rgba(234, 179, 8, 0.12)',
-                          color: rate >= 80 ? '#22c55e' : mRecs.length === 0 ? 'var(--text-faint)' : '#eab308',
+                          color: rate >= 80 ? '#16a34a' : mRecs.length === 0 ? 'var(--text-faint)' : '#eab308',
                           fontWeight: 600
                         }}
                       >
@@ -1187,7 +1252,7 @@ export const DriverAttendanceView: React.FC = () => {
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                         <span>Absent / Leave:</span>
-                        <span style={{ color: mAbsent > 0 ? 'var(--danger)' : 'inherit' }}>{mAbsent}</span>
+                        <span style={{ color: mAbsent > 0 ? '#dc2626' : 'inherit' }}>{mAbsent}</span>
                       </div>
                     </div>
                   </div>
@@ -1197,10 +1262,15 @@ export const DriverAttendanceView: React.FC = () => {
           </div>
 
           {/* Annual Driver Roster Table */}
-          <div className="panel panel--table">
-            <div className="panel-head">
-              <span className="panel-title">Annual Driver Roster · {selectedYear}</span>
+          <div className="att-card">
+            <div className="att-table-head">
+              <div>
+                <h2>Annual driver roster</h2>
+                <div className="sub">{selectedYear}</div>
+              </div>
             </div>
+
+            <div className="att-divider" />
 
             <div className="table-responsive table-dense">
               <table>
@@ -1216,7 +1286,7 @@ export const DriverAttendanceView: React.FC = () => {
                 <tbody>
                   {yearlyDriverSummary.length === 0 ? (
                     <tr>
-                      <td colSpan={5} style={{ textAlign: 'center', color: 'var(--text-faint)', padding: '24px 0' }}>
+                      <td colSpan={5} style={{ textAlign: 'center', color: 'var(--text-faint)', padding: '32px 0' }}>
                         No attendance data logged for year {selectedYear}.
                       </td>
                     </tr>
@@ -1230,9 +1300,9 @@ export const DriverAttendanceView: React.FC = () => {
                         <td>
                           <div className="cell-breakdown">
                             <span>Shifts {item.totalLogged}</span>
-                            <span style={{ color: 'var(--accent)' }}>Present {item.presentDays}</span>
+                            <span style={{ color: '#16a34a' }}>Present {item.presentDays}</span>
                             <span style={{ color: item.lateDays > 0 ? 'var(--warning)' : undefined }}>Late {item.lateDays}</span>
-                            <span style={{ color: item.absentDays > 0 ? 'var(--danger)' : undefined }}>Absent {item.absentDays}</span>
+                            <span style={{ color: item.absentDays > 0 ? '#dc2626' : undefined }}>Absent {item.absentDays}</span>
                           </div>
                         </td>
                         <td className="td-right">
@@ -1257,7 +1327,7 @@ export const DriverAttendanceView: React.FC = () => {
                                 style={{
                                   height: '100%',
                                   width: `${Math.min(100, item.attendanceRate)}%`,
-                                  background: item.attendanceRate >= 80 ? 'var(--accent)' : 'var(--warning)'
+                                  background: item.attendanceRate >= 80 ? '#16a34a' : 'var(--warning)'
                                 }}
                               />
                             </div>

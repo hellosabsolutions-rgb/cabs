@@ -104,12 +104,6 @@ export const AddDutyLogModal: React.FC<AddDutyLogModalProps> = ({
   useEffect(() => {
     if (defaultDutyType) {
       setDutyType(defaultDutyType);
-      if (defaultDutyType === 'Weekend / Off-Duty Trip') {
-        setStartKm('12450');
-        setEndKm('12619');
-        setJourneyFrom('D.Dun Bangarawali');
-        setJourneyTo('Vikasnagar & Local to D.Dun');
-      }
     }
   }, [defaultDutyType]);
 
@@ -256,8 +250,8 @@ export const AddDutyLogModal: React.FC<AddDutyLogModalProps> = ({
         mOilLitres: mOilLitres.trim() || '—',
         purposeOfJourney: 'Sat/Sun Department Duty Booking',
         headOfAccount: 'Department Weekend Duty',
-        officerName: officerName.trim() || 'Director Horticulture Mission',
-        officerDesignation: officerDesignation.trim() || 'Circuit House D.Dun',
+        officerName: officerName.trim() || '—',
+        officerDesignation: officerDesignation.trim() || '—',
         officerSignatureStatus: 'Signed',
         driverSignatureStatus: 'Signed',
         dutySlipPhoto: slipPhotoPreview || slipPhotoName || null,
@@ -470,16 +464,6 @@ export const AddDutyLogModal: React.FC<AddDutyLogModalProps> = ({
                   className={`driver-type-option ${dutyType === 'Weekend / Off-Duty Trip' ? 'active' : ''}`}
                   onClick={() => {
                     setDutyType('Weekend / Off-Duty Trip');
-                    setStartKm('45345');
-                    setEndKm('45514'); // 169 KM
-                    setJourneyFrom('D.Dun Bangarawali');
-                    setJourneyTo('Vikasnagar & local');
-                    setPackageBasePrice('2255');
-                    setPackageFreeKm('80');
-                    setExtraKmRate('14');
-                    setTollParkingAmount('0');
-                    setOfficerName('Director Horticulture Mission');
-                    setOfficerDesignation('Circuit House D.Dun');
                   }}
                   style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
                 >
