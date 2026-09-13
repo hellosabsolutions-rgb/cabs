@@ -5,6 +5,7 @@ import { GenerateBillModal } from './GenerateBillModal';
 import { BillPrintModal, CashMemoBillView } from './BillPrintModal';
 import { WeekendTripBillModal } from './WeekendTripBillModal';
 import { MonthlyDepartmentBill, DailyDutyLog } from '../../../types/fleet';
+import { CustomStatusDropdown, StatusOption } from '../../common/CustomStatusDropdown';
 import {
   Building2,
   Layers,
@@ -313,136 +314,85 @@ export const MonthlyBillingView: React.FC = () => {
   }, [monthlyBills, dailyDutyLogs, allDepartmentNames]);
 
   const renderDutyLogStatusDropdown = (status: DailyDutyLog['status'], id: string) => {
-    const isApproved = status === 'Approved';
-    const isRejected = status === 'Rejected';
+    const dutyLogOptions: StatusOption<DailyDutyLog['status']>[] = [
+      {
+        value: 'Approved',
+        label: 'Approved',
+        color: 'var(--success, #22c55e)',
+        bg: 'rgba(34, 197, 94, 0.12)',
+        borderColor: 'rgba(34, 197, 94, 0.35)'
+      },
+      {
+        value: 'Pending',
+        label: 'Pending',
+        color: '#ffc107',
+        bg: 'rgba(255, 193, 7, 0.12)',
+        borderColor: 'rgba(255, 193, 7, 0.35)'
+      },
+      {
+        value: 'Rejected',
+        label: 'Rejected',
+        color: '#ff5c5c',
+        bg: 'rgba(255, 92, 92, 0.12)',
+        borderColor: 'rgba(255, 92, 92, 0.35)'
+      }
+    ];
+
     return (
-      <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
-        <select
-          value={status}
-          onChange={e => updateDailyDutyLogStatus(id, e.target.value as DailyDutyLog['status'])}
-          style={{
-            background: isApproved
-              ? 'rgba(57, 255, 110, 0.12)'
-              : isRejected
-              ? 'rgba(255, 92, 92, 0.12)'
-              : 'rgba(255, 193, 7, 0.12)',
-            color: isApproved
-              ? 'var(--success)'
-              : isRejected
-              ? '#ff5c5c'
-              : '#ffc107',
-            border: `1px solid ${
-              isApproved
-                ? 'rgba(57, 255, 110, 0.35)'
-                : isRejected
-                ? 'rgba(255, 92, 92, 0.35)'
-                : 'rgba(255, 193, 7, 0.35)'
-            }`,
-            padding: '4px 20px 4px 8px',
-            borderRadius: '16px',
-            fontSize: '11px',
-            fontWeight: 700,
-            cursor: 'pointer',
-            outline: 'none',
-            appearance: 'none',
-            WebkitAppearance: 'none'
-          }}
-          title="Change duty log status"
-        >
-          <option value="Approved" style={{ background: 'var(--surface-1, #1e293b)', color: 'var(--success)' }}>● Approved</option>
-          <option value="Pending" style={{ background: 'var(--surface-1, #1e293b)', color: '#ffc107' }}>● Pending</option>
-          <option value="Rejected" style={{ background: 'var(--surface-1, #1e293b)', color: '#ff5c5c' }}>● Rejected</option>
-        </select>
-        <ChevronDown
-          size={10}
-          style={{
-            position: 'absolute',
-            right: '6px',
-            pointerEvents: 'none',
-            color: isApproved ? 'var(--success)' : isRejected ? '#ff5c5c' : '#ffc107'
-          }}
-        />
-      </div>
+      <CustomStatusDropdown
+        value={status}
+        options={dutyLogOptions}
+        onChange={newVal => updateDailyDutyLogStatus(id, newVal)}
+        size="sm"
+      />
     );
   };
 
   const renderStatusDropdown = (status: MonthlyDepartmentBill['status'], id: string) => {
-    const getStatusStyle = (s: MonthlyDepartmentBill['status']) => {
-      switch (s) {
-        case 'Paid':
-          return {
-            background: 'rgba(57, 255, 110, 0.12)',
-            color: 'var(--success)',
-            borderColor: 'rgba(57, 255, 110, 0.35)'
-          };
-        case 'Sent':
-          return {
-            background: 'rgba(56, 189, 248, 0.12)',
-            color: '#38bdf8',
-            borderColor: 'rgba(56, 189, 248, 0.35)'
-          };
-        case 'Overdue':
-          return {
-            background: 'rgba(255, 92, 92, 0.12)',
-            color: 'var(--danger, #ff5c5c)',
-            borderColor: 'rgba(255, 92, 92, 0.35)'
-          };
-        case 'Pending':
-        case 'Draft':
-          return {
-            background: 'rgba(255, 193, 7, 0.12)',
-            color: '#ffc107',
-            borderColor: 'rgba(255, 193, 7, 0.35)'
-          };
-        default:
-          return {
-            background: 'var(--surface-3)',
-            color: 'var(--text)',
-            borderColor: 'var(--border)'
-          };
+    const billOptions: StatusOption<MonthlyDepartmentBill['status']>[] = [
+      {
+        value: 'Paid',
+        label: 'Paid',
+        color: 'var(--success, #26b8d8)',
+        bg: 'rgba(38, 184, 216, 0.12)',
+        borderColor: 'rgba(38, 184, 216, 0.35)'
+      },
+      {
+        value: 'Sent',
+        label: 'Sent',
+        color: '#38bdf8',
+        bg: 'rgba(56, 189, 248, 0.12)',
+        borderColor: 'rgba(56, 189, 248, 0.35)'
+      },
+      {
+        value: 'Pending',
+        label: 'Pending',
+        color: '#ffc107',
+        bg: 'rgba(255, 193, 7, 0.12)',
+        borderColor: 'rgba(255, 193, 7, 0.35)'
+      },
+      {
+        value: 'Overdue',
+        label: 'Overdue',
+        color: 'var(--danger, #ff5c5c)',
+        bg: 'rgba(255, 92, 92, 0.12)',
+        borderColor: 'rgba(255, 92, 92, 0.35)'
+      },
+      {
+        value: 'Draft',
+        label: 'Draft',
+        color: 'var(--text-dim)',
+        bg: 'var(--surface-3)',
+        borderColor: 'var(--border)'
       }
-    };
-
-    const style = getStatusStyle(status);
+    ];
 
     return (
-      <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
-        <select
-          value={status}
-          onChange={e => updateBillStatus(id, e.target.value as MonthlyDepartmentBill['status'])}
-          style={{
-            background: style.background,
-            color: style.color,
-            border: `1px solid ${style.borderColor}`,
-            padding: '4px 22px 4px 10px',
-            borderRadius: '20px',
-            fontSize: '11.5px',
-            fontWeight: 700,
-            cursor: 'pointer',
-            outline: 'none',
-            appearance: 'none',
-            WebkitAppearance: 'none',
-            lineHeight: 1.4
-          }}
-          title="Change invoice status"
-        >
-          <option value="Paid" style={{ background: 'var(--surface-1, #1e293b)', color: 'var(--success)' }}>● Paid</option>
-          <option value="Sent" style={{ background: 'var(--surface-1, #1e293b)', color: '#38bdf8' }}>● Sent</option>
-          <option value="Pending" style={{ background: 'var(--surface-1, #1e293b)', color: '#ffc107' }}>● Pending</option>
-          <option value="Overdue" style={{ background: 'var(--surface-1, #1e293b)', color: '#ff5c5c' }}>● Overdue</option>
-          <option value="Draft" style={{ background: 'var(--surface-1, #1e293b)', color: 'var(--text-dim)' }}>● Draft</option>
-        </select>
-        <ChevronDown
-          size={11}
-          style={{
-            position: 'absolute',
-            right: '7px',
-            pointerEvents: 'none',
-            color: style.color,
-            opacity: 0.85
-          }}
-        />
-      </div>
+      <CustomStatusDropdown
+        value={status}
+        options={billOptions}
+        onChange={(newStatus) => updateBillStatus(id, newStatus)}
+      />
     );
   };
 

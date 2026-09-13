@@ -4,6 +4,7 @@ import { StatCard } from '../../common/StatCard';
 import { AddDriverExpenseModal } from './AddDriverExpenseModal';
 import { EditDriverExpenseModal } from './EditDriverExpenseModal';
 import { DriverExpenseCategory, DriverExpenseItem } from '../../../types/fleet';
+import { CustomStatusDropdown, StatusOption } from '../../common/CustomStatusDropdown';
 import { DatePicker } from '../../common/DatePicker';
 import {
   Calendar,
@@ -137,44 +138,36 @@ export const DriverExpensesView: React.FC = () => {
       }
     };
 
-    const style = getStatusColorStyle(status);
+    const expenseOptions: StatusOption<'Approved' | 'Pending' | 'Paid'>[] = [
+      {
+        value: 'Paid',
+        label: 'Paid',
+        color: '#22c55e',
+        bg: 'rgba(34, 197, 94, 0.12)',
+        borderColor: 'rgba(34, 197, 94, 0.35)'
+      },
+      {
+        value: 'Approved',
+        label: 'Approved',
+        color: '#38bdf8',
+        bg: 'rgba(56, 189, 248, 0.12)',
+        borderColor: 'rgba(56, 189, 248, 0.35)'
+      },
+      {
+        value: 'Pending',
+        label: 'Pending',
+        color: '#eab308',
+        bg: 'rgba(234, 179, 8, 0.12)',
+        borderColor: 'rgba(234, 179, 8, 0.35)'
+      }
+    ];
 
     return (
-      <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
-        <select
-          value={status}
-          onChange={e => handleStatusChange(e.target.value as 'Approved' | 'Pending' | 'Paid')}
-          style={{
-            background: style.background,
-            color: style.color,
-            border: `1px solid ${style.borderColor}`,
-            padding: '4px 22px 4px 10px',
-            borderRadius: '20px',
-            fontSize: '11.5px',
-            fontWeight: 600,
-            cursor: 'pointer',
-            outline: 'none',
-            appearance: 'none',
-            WebkitAppearance: 'none',
-            lineHeight: 1.4
-          }}
-          title="Select payout status"
-        >
-          <option value="Paid" style={{ background: 'var(--surface-1)', color: 'var(--text)' }}>● Paid</option>
-          <option value="Approved" style={{ background: 'var(--surface-1)', color: 'var(--text)' }}>● Approved</option>
-          <option value="Pending" style={{ background: 'var(--surface-1)', color: 'var(--text)' }}>● Pending</option>
-        </select>
-        <ChevronDown
-          size={11}
-          style={{
-            position: 'absolute',
-            right: '7px',
-            pointerEvents: 'none',
-            color: style.color,
-            opacity: 0.8
-          }}
-        />
-      </div>
+      <CustomStatusDropdown
+        value={status}
+        options={expenseOptions}
+        onChange={handleStatusChange}
+      />
     );
   };
 
@@ -295,6 +288,35 @@ export const DriverExpensesView: React.FC = () => {
     return driverExpenses.filter(r => r.date && r.date.startsWith(selectedMonth));
   }, [driverExpenses, selectedMonth]);
 
+  // Comprehensive list of all fleet drivers and any drivers with expense records
+  const allAvailableDrivers = useMemo(() => {
+    const map = new Map<string, { id?: string; name: string; vehicle?: string }>();
+
+    drivers.forEach(d => {
+      if (d.name && d.name.trim()) {
+        map.set(d.name.trim().toLowerCase(), {
+          id: d.id,
+          name: d.name.trim(),
+          vehicle: d.assignedVehicle
+        });
+      }
+    });
+
+    driverExpenses.forEach(e => {
+      if (e.driverName && e.driverName.trim()) {
+        const key = e.driverName.trim().toLowerCase();
+        if (!map.has(key)) {
+          map.set(key, {
+            name: e.driverName.trim(),
+            vehicle: e.vehicle
+          });
+        }
+      }
+    });
+
+    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [drivers, driverExpenses]);
+
   // Drivers who have actual recorded expenses in the selected month
   const monthlyDriversWithEntries = useMemo(() => {
     const names = Array.from(new Set(monthlyExpenses.map(e => e.driverName).filter(Boolean)));
@@ -408,14 +430,42 @@ export const DriverExpensesView: React.FC = () => {
 
   // Driver-wise Monthly Summary: "saare driver ka total kitna expense diya hai unko"
   const monthlyDriverSummary = useMemo(() => {
-    let list = [];
-    if (analyticsData?.period === 'month' && analyticsData?.month === selectedMonth && analyticsData?.driverTotals) {
-      list = analyticsData.driverTotals;
+    let list: any[] = [];
+    if (
+      analyticsData?.period === 'month' &&
+      analyticsData?.month === selectedMonth &&
+      Array.isArray(analyticsData?.driverTotals) &&
+      analyticsData.driverTotals.length > 0
+    ) {
+      const backendTotals = [...analyticsData.driverTotals];
+      // Ensure all available fleet drivers are included even if zero transactions
+      allAvailableDrivers.forEach(d => {
+        const exists = backendTotals.some(
+          b => (d.id && b.driverId === d.id) || b.driverName?.toLowerCase() === d.name.toLowerCase()
+        );
+        if (!exists) {
+          backendTotals.push({
+            driverId: d.id,
+            driverName: d.name,
+            vehicle: d.vehicle || '—',
+            driverType: 'Permanent',
+            totalAmount: 0,
+            paidAmount: 0,
+            pendingAmount: 0,
+            bataAmount: 0,
+            nightHaltAmount: 0,
+            advanceAmount: 0,
+            transactionCount: 0,
+            records: []
+          });
+        }
+      });
+      list = backendTotals;
     } else {
       // Fallback calculation from client-side state
-      list = drivers.map(d => {
+      list = allAvailableDrivers.map(d => {
         const records = monthlyExpenses.filter(
-          r => r.driverId === d.id || r.driverName.toLowerCase() === d.name.toLowerCase()
+          r => (d.id && r.driverId === d.id) || r.driverName.toLowerCase() === d.name.toLowerCase()
         );
 
         let total = 0, paid = 0, pending = 0, bata = 0, nightHalt = 0, advances = 0;
@@ -432,8 +482,8 @@ export const DriverExpensesView: React.FC = () => {
         return {
           driverId: d.id,
           driverName: d.name,
-          vehicle: d.assignedVehicle || '—',
-          driverType: d.driverType || 'Permanent',
+          vehicle: d.vehicle || '—',
+          driverType: 'Permanent',
           totalAmount: total,
           paidAmount: paid,
           pendingAmount: pending,
@@ -447,17 +497,13 @@ export const DriverExpensesView: React.FC = () => {
     }
 
     return list.filter((d: any) => {
-      // User requirement: Detail only appears on actual entry. If no entry for driver in this month, do not show them.
-      if (!d.transactionCount || d.transactionCount <= 0 || (d.totalAmount || 0) <= 0) {
-        return false;
-      }
       const matchSearch =
         d.driverName.toLowerCase().includes(searchQuery.toLowerCase()) ||
         (d.vehicle && d.vehicle.toLowerCase().includes(searchQuery.toLowerCase()));
       const matchDriver = driverFilter === 'All' || d.driverName.toLowerCase() === driverFilter.toLowerCase();
       return matchSearch && matchDriver;
     });
-  }, [analyticsData, selectedMonth, drivers, monthlyExpenses, searchQuery, driverFilter]);
+  }, [analyticsData, selectedMonth, allAvailableDrivers, monthlyExpenses, searchQuery, driverFilter]);
 
   // Handle clicking on "X entries" badge to immediately filter that driver and open history
   const handleDriverEntriesClick = (driverName: string) => {
@@ -683,7 +729,6 @@ export const DriverExpensesView: React.FC = () => {
 
               {/* Filters (Driver, Category, Status) */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                {/* Driver Filter Dropdown */}
                 <select
                   className="form-input"
                   style={{
@@ -697,10 +742,10 @@ export const DriverExpensesView: React.FC = () => {
                   onChange={e => setDriverFilter(e.target.value)}
                   title="Filter by driver"
                 >
-                  <option value="All">All Drivers {dailyDriversWithEntries.length > 0 ? `(${dailyDriversWithEntries.length})` : ''}</option>
-                  {dailyDriversWithEntries.map(name => (
-                    <option key={name} value={name}>
-                      {name}
+                  <option value="All">All Drivers {allAvailableDrivers.length > 0 ? `(${allAvailableDrivers.length})` : ''}</option>
+                  {allAvailableDrivers.map(d => (
+                    <option key={d.id || d.name} value={d.name}>
+                      {d.name} {d.vehicle ? `(${d.vehicle})` : ''}
                     </option>
                   ))}
                 </select>
@@ -958,10 +1003,10 @@ export const DriverExpensesView: React.FC = () => {
                     onChange={e => setDriverFilter(e.target.value)}
                     title="Filter by driver"
                   >
-                    <option value="All">All Drivers {monthlyDriversWithEntries.length > 0 ? `(${monthlyDriversWithEntries.length})` : ''}</option>
-                    {monthlyDriversWithEntries.map(name => (
-                      <option key={name} value={name}>
-                        {name}
+                    <option value="All">All Drivers {allAvailableDrivers.length > 0 ? `(${allAvailableDrivers.length})` : ''}</option>
+                    {allAvailableDrivers.map(d => (
+                      <option key={d.id || d.name} value={d.name}>
+                        {d.name} {d.vehicle ? `(${d.vehicle})` : ''}
                       </option>
                     ))}
                   </select>
@@ -1172,10 +1217,10 @@ export const DriverExpensesView: React.FC = () => {
                     onChange={e => setDriverFilter(e.target.value)}
                     title="Filter by driver"
                   >
-                    <option value="All">All Drivers {monthlyDriversWithEntries.length > 0 ? `(${monthlyDriversWithEntries.length})` : ''}</option>
-                    {monthlyDriversWithEntries.map(name => (
-                      <option key={name} value={name}>
-                        {name}
+                    <option value="All">All Drivers {allAvailableDrivers.length > 0 ? `(${allAvailableDrivers.length})` : ''}</option>
+                    {allAvailableDrivers.map(d => (
+                      <option key={d.id || d.name} value={d.name}>
+                        {d.name} {d.vehicle ? `(${d.vehicle})` : ''}
                       </option>
                     ))}
                   </select>
@@ -1393,10 +1438,10 @@ export const DriverExpensesView: React.FC = () => {
                   onChange={e => setDriverFilter(e.target.value)}
                   title="Filter by driver"
                 >
-                  <option value="All">All Drivers</option>
-                  {drivers.map(d => (
-                    <option key={d.id} value={d.name}>
-                      {d.name}
+                  <option value="All">All Drivers {allAvailableDrivers.length > 0 ? `(${allAvailableDrivers.length})` : ''}</option>
+                  {allAvailableDrivers.map(d => (
+                    <option key={d.id || d.name} value={d.name}>
+                      {d.name} {d.vehicle ? `(${d.vehicle})` : ''}
                     </option>
                   ))}
                 </select>

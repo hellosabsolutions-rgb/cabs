@@ -9,6 +9,7 @@ import { getCorsOrigins } from './config/loadEnv.js';
 import { getFirebaseStatus } from './config/firebase.js';
 import { verifyCloudinary } from './config/cloudinary.js';
 import { printStartupBanner } from './utils/startupBanner.js';
+import { autoBackfillAssignments } from './controllers/driverAssignmentController.js';
 
 const PORT = process.env.PORT || 5000;
 const NODE_ENV = process.env.NODE_ENV || 'development';
@@ -16,6 +17,9 @@ const NODE_ENV = process.env.NODE_ENV || 'development';
 const start = async () => {
   await connectDB();
   const cloudinary = await verifyCloudinary();
+  await autoBackfillAssignments().catch((e) =>
+    console.warn('Auto backfill notice:', e.message)
+  );
 
   const httpServer = http.createServer(app);
   initSocket(httpServer);

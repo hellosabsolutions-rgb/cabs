@@ -22,6 +22,16 @@ const driverPayrollSettlementSchema = new mongoose.Schema(
       required: true,
       min: 0
     },
+    absentDays: {
+      type: Number,
+      default: 0,
+      min: 0
+    },
+    absentDeduction: {
+      type: Number,
+      default: 0,
+      min: 0
+    },
     advancesDeducted: {
       type: Number,
       default: 0,

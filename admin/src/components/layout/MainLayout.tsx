@@ -5,17 +5,20 @@ import { Sidebar } from './Sidebar';
 import { Topbar } from './Topbar';
 import { DashboardView } from '../modules/dashboard/DashboardView';
 import { VehiclesView } from '../modules/vehicles/VehiclesView';
+import { VehicleDetailView } from '../modules/vehicles/VehicleDetailView';
 import { DriversView } from '../modules/drivers/DriversView';
 import { DepartmentsView } from '../modules/departments/DepartmentsView';
 import { BookingsView } from '../modules/bookings/BookingsView';
 import { TripsView } from '../modules/trips/TripsView';
 import { ExpensesView } from '../modules/expenses/ExpensesView';
 import { ProfitabilityView } from '../modules/profitability/ProfitabilityView';
+import { RevenueView } from '../modules/revenue/RevenueView';
 import { ComplianceView } from '../modules/compliance/ComplianceView';
 import { MaintenanceView } from '../modules/maintenance/MaintenanceView';
 import { NotificationsView } from '../modules/notifications/NotificationsView';
 import { ProfileView } from '../modules/profile/ProfileView';
 import { ReportIssueView } from '../modules/reports/ReportIssueView';
+import { ActivityView } from '../modules/activity/ActivityView';
 import { ErrorBoundary } from '../common/ErrorBoundary';
 import { ToastContainer } from '../common/ToastContainer';
 import { useAuth } from '../../context/AuthContext';
@@ -87,6 +90,7 @@ export const MainLayout: React.FC = () => {
 
               {/* Vehicles */}
               <Route path="/vehicles" element={<VehiclesView />} />
+              <Route path="/vehicles/:id" element={<VehicleDetailView />} />
 
               {/* Drivers & Subtabs */}
               <Route path="/drivers" element={<Navigate to="/drivers/list" replace />} />
@@ -113,14 +117,16 @@ export const MainLayout: React.FC = () => {
               <Route path="/expenses/fuel" element={<ExpensesView />} />
               <Route path="/expenses/all" element={<ExpensesView />} />
 
-              {/* Profitability */}
+              {/* Profitability & Revenue */}
               <Route path="/profitability" element={<ProfitabilityView />} />
+              <Route path="/revenue" element={<RevenueView />} />
 
               {/* Compliance & Maintenance */}
               <Route path="/compliance" element={<ComplianceView />} />
               <Route path="/maintenance" element={<MaintenanceView />} />
 
-              {/* Notifications, Profile & Reports */}
+              {/* Notifications, Profile, Activity & Reports */}
+              <Route path="/activity" element={<ActivityView />} />
               <Route path="/notifications" element={<NotificationsView />} />
               <Route path="/profile" element={<ProfileView />} />
               <Route path="/report" element={<ReportIssueView />} />

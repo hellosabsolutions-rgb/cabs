@@ -24,27 +24,32 @@ export const ModalAnimationController: React.FC = () => {
       }
 
       // Check if target is inside an open modal
-      const overlay = target.closest('.modal-overlay, .opaque-glass-overlay') as HTMLElement | null;
+      const overlay = target.closest('.modal-overlay, .opaque-glass-overlay, .modal-backdrop') as HTMLElement | null;
       if (!overlay || overlay.classList.contains('closing')) return;
 
-      const dialog = overlay.querySelector('.modal-dialog, .opaque-glass-dialog') as HTMLElement | null;
+      const dialog = overlay.querySelector('.modal-dialog, .opaque-glass-dialog, .modal-content') as HTMLElement | null;
       if (!dialog || dialog.classList.contains('closing')) return;
+
+      // Exclude any internal elements like file remove buttons, tags, or upload boxes
+      if (target.closest('[data-no-modal-close], .upload-box, .upload-preview, .upload-preview-wrap, [data-action="remove-file"]')) {
+        return;
+      }
 
       // 1. Did the user click directly on the backdrop (outside the dialog)?
       const isBackdropClick = target === overlay;
 
-      // 2. Did the user click a close button (e.g. ✕ in header)?
-      const isCloseBtn = Boolean(target.closest('.modal-close-btn, [aria-label="Close modal"]'));
+      // 2. Did the user click an explicit modal close button (e.g. ✕ in header)?
+      const isCloseBtn = Boolean(target.closest('.modal-close-btn, .btn-close, [aria-label="Close modal"], [data-modal-close]'));
 
-      // 3. Did the user click a Cancel or Close secondary button?
+      // 3. Did the user click a Cancel or Close secondary button in modal footer or action bar?
       const text = target.textContent?.trim().toLowerCase() || '';
-      const isCancelOrCloseBtn =
-        (Boolean(target.closest('.modal-footer .btn-secondary, button.btn-secondary')) ||
-         target.tagName === 'BUTTON') &&
+      const isFooterCancelBtn =
+        Boolean(target.closest('.modal-footer, .modal-actions, .dialog-actions')) &&
+        target.tagName === 'BUTTON' &&
         (target as HTMLButtonElement).type !== 'submit' &&
-        (text === 'cancel' || text === 'close' || text === '✕' || text === '×');
+        (text === 'cancel' || text === 'close');
 
-      if (isBackdropClick || isCloseBtn || isCancelOrCloseBtn) {
+      if (isBackdropClick || isCloseBtn || isFooterCancelBtn) {
         // Intercept click immediately before React handles it
         e.preventDefault();
         e.stopPropagation();
@@ -66,14 +71,14 @@ export const ModalAnimationController: React.FC = () => {
     const handleKeyDownCapture = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         const openOverlays = Array.from(
-          document.querySelectorAll('.modal-overlay:not(.closing), .opaque-glass-overlay:not(.closing)')
+          document.querySelectorAll('.modal-overlay:not(.closing), .opaque-glass-overlay:not(.closing), .modal-backdrop:not(.closing)')
         ) as HTMLElement[];
 
         const activeOverlay = openOverlays[openOverlays.length - 1];
         if (!activeOverlay) return;
 
-        const dialog = activeOverlay.querySelector('.modal-dialog, .opaque-glass-dialog') as HTMLElement | null;
-        const closeBtn = activeOverlay.querySelector('.modal-close-btn') as HTMLElement | null;
+        const dialog = activeOverlay.querySelector('.modal-dialog, .opaque-glass-dialog, .modal-content') as HTMLElement | null;
+        const closeBtn = activeOverlay.querySelector('.modal-close-btn, .btn-close') as HTMLElement | null;
 
         if (dialog && !dialog.classList.contains('closing')) {
           e.preventDefault();

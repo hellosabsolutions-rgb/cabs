@@ -118,6 +118,7 @@ export const CreateReportModal: React.FC<CreateReportModalProps> = ({
 
   return (
     <div
+      className="modal-overlay"
       style={{
         position: 'fixed',
         top: 0,
@@ -130,12 +131,13 @@ export const CreateReportModal: React.FC<CreateReportModalProps> = ({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: '16px',
-        animation: 'fadeIn 0.2s ease-out'
+        padding: '20px',
+        animation: 'modalFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards'
       }}
       onClick={onClose}
     >
       <div
+        className="modal-dialog"
         style={{
           backgroundColor: 'var(--surface)',
           borderRadius: '16px',
@@ -144,9 +146,11 @@ export const CreateReportModal: React.FC<CreateReportModalProps> = ({
           maxHeight: '90vh',
           display: 'flex',
           flexDirection: 'column',
-          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.35)',
+          boxShadow: '0 20px 60px rgba(0, 0, 0, 0.4), 0 0 0 1px var(--border)',
           border: '1px solid var(--border)',
           overflow: 'hidden',
+          margin: 'auto',
+          animation: 'modalPopIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards',
           fontFamily: "'Poppins', sans-serif"
         }}
         onClick={e => e.stopPropagation()}

@@ -5,7 +5,7 @@ import { AddExpenseModal } from './AddExpenseModal';
 import { FuelLogsView } from './FuelLogsView';
 import { FastagExpensesView } from './FastagExpensesView';
 import { Fuel, CreditCard, IndianRupee } from 'lucide-react';
-import { SkeletonCard, SkeletonTable } from '../../common/Skeleton';
+import { SkeletonCard, SkeletonTable, SoftRefreshBar } from '../../common/Skeleton';
 
 export const ExpensesView: React.FC = () => {
   const {
@@ -15,7 +15,8 @@ export const ExpensesView: React.FC = () => {
     setExpenseSubTab,
     fuelLogs,
     fastagTransactions,
-    isLoading
+    isLoading,
+    isLoadingExpenses
   } = useFleet();
   const [isModalOpen, setIsModalOpen] = useState(false);
 
@@ -43,7 +44,8 @@ export const ExpensesView: React.FC = () => {
     return { fuel, toll, driver, maintenance };
   }, [expenses]);
 
-  if (isLoading) {
+  // First-time load: show full skeleton
+  if (isLoadingExpenses && fastagTransactions.length === 0) {
     return (
       <div className="section active" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
         <SkeletonCard count={4} />
@@ -54,6 +56,7 @@ export const ExpensesView: React.FC = () => {
 
   return (
     <div className="section active">
+      <SoftRefreshBar visible={isLoadingExpenses && fastagTransactions.length > 0} label="Syncing expenses…" />
       {/* Subtab Navigation: Fuel, FASTag & All Expenses */}
       <div className="subtab-nav">
         <button

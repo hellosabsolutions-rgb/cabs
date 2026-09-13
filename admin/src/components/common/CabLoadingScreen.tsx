@@ -13,7 +13,7 @@ export const CabLoadingScreen: React.FC<CabLoadingScreenProps> = ({
   title,
   subtitle = 'Loading your dashboard…',
   showTitle = true,
-  carImageSrc = '/innova-cab.png',
+  carImageSrc = '/innova-front-center.png',
   isFadingOut = false
 }) => {
   return (

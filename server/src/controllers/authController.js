@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import { OAuth2Client } from 'google-auth-library';
 import { User } from '../models/User.js';
+import { Driver } from '../models/Driver.js';
 import { RefreshToken } from '../models/RefreshToken.js';
 import {
   generateAccessToken,
@@ -212,8 +213,11 @@ export const refreshTokenHandler = asyncHandler(async (req, res) => {
     });
   }
 
-  const user = await User.findById(session.userId);
-  if (!user || user.status === 'Suspended') {
+  const user = session.userId ? await User.findById(session.userId) : null;
+  const driver = session.driverId ? await Driver.findById(session.driverId) : null;
+
+  const account = session.kind === 'driver' ? driver : user;
+  if (!account || (account.status === 'Suspended')) {
     return res.status(401).json({
       success: false,
       error: 'User account is inactive or suspended.'
@@ -224,8 +228,8 @@ export const refreshTokenHandler = asyncHandler(async (req, res) => {
   session.lastActiveAt = new Date();
   await session.save();
 
-  // Issue new short-lived access token
-  const accessToken = generateAccessToken(user._id, session._id);
+  const kind = session.kind || (session.driverId ? 'driver' : 'user');
+  const accessToken = generateAccessToken(account._id, session._id, kind);
 
   res.status(200).json({
     success: true,

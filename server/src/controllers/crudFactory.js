@@ -1,11 +1,30 @@
 import mongoose from 'mongoose';
 import { asyncHandler } from '../middleware/asyncHandler.js';
+import { broadcastAll } from '../services/socketService.js';
+
+function serializeCrudDoc(doc) {
+  if (!doc) return null;
+  const json = typeof doc.toJSON === 'function' ? doc.toJSON() : { ...(doc.toObject?.() || doc) };
+  json.id = json.id || json._id?.toString();
+  return json;
+}
+
+function emitCrudSocket(socketPrefix, action, payload) {
+  if (!socketPrefix) return;
+  try {
+    broadcastAll(`${socketPrefix}:${action}`, payload);
+  } catch (err) {
+    console.warn(`Socket emit ${socketPrefix}:${action} failed:`, err.message);
+  }
+}
 
 /**
  * Creates standard high-performance CRUD handlers for a Mongoose Model
  * Features: Pagination, lean queries, search, filtering, field projection, and sorting
  */
-export const createCrudController = (Model, searchFields = []) => {
+export const createCrudController = (Model, searchFields = [], options = {}) => {
+  const socketPrefix = options.socketPrefix || null;
+
   return {
     // GET ALL with search, filter, sort, pagination, lean
     getAll: asyncHandler(async (req, res) => {
@@ -98,6 +117,8 @@ export const createCrudController = (Model, searchFields = []) => {
     // CREATE
     create: asyncHandler(async (req, res) => {
       const doc = await Model.create(req.body);
+      const serialized = serializeCrudDoc(doc);
+      emitCrudSocket(socketPrefix, 'created', { action: 'created', log: serialized, data: serialized });
       res.status(201).json({
         success: true,
         data: doc
@@ -121,6 +142,8 @@ export const createCrudController = (Model, searchFields = []) => {
         });
       }
 
+      const serialized = serializeCrudDoc(doc);
+      emitCrudSocket(socketPrefix, 'updated', { action: 'updated', log: serialized, data: serialized });
       res.status(200).json({
         success: true,
         data: doc
@@ -141,6 +164,7 @@ export const createCrudController = (Model, searchFields = []) => {
         });
       }
 
+      emitCrudSocket(socketPrefix, 'deleted', { action: 'deleted', id: doc._id.toString() });
       res.status(200).json({
         success: true,
         message: 'Resource deleted successfully',

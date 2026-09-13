@@ -23,10 +23,10 @@ import {
   Edit3,
   ExternalLink
 } from 'lucide-react';
-import { SkeletonCard, SkeletonTable } from '../../common/Skeleton';
+import { SkeletonCard, SkeletonTable, SkeletonCompliance, SoftRefreshBar } from '../../common/Skeleton';
 
 export const ComplianceView: React.FC = () => {
-  const { vehicleCompliance, driverCompliance, complianceStats, searchQuery, isLoading } = useFleet();
+  const { vehicleCompliance, driverCompliance, complianceStats, searchQuery, isLoading, isLoadingCompliance } = useFleet();
 
   const [isVehModalOpen, setIsVehModalOpen] = useState(false);
   const [isDrvModalOpen, setIsDrvModalOpen] = useState(false);
@@ -82,17 +82,18 @@ export const ComplianceView: React.FC = () => {
     ? [...vehicleCompliance, ...driverCompliance].find(d => d.id === selectedDoc.id) || selectedDoc
     : null;
 
-  if (isLoading) {
+  // First-time load: show compliance skeleton layout
+  if (isLoadingCompliance && vehicleCompliance.length === 0 && driverCompliance.length === 0) {
     return (
       <div className="section active" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-        <SkeletonCard count={4} />
-        <SkeletonTable rows={5} columns={6} />
+        <SkeletonCompliance />
       </div>
     );
   }
 
   return (
     <div className="section active" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      <SoftRefreshBar visible={isLoadingCompliance && (vehicleCompliance.length > 0 || driverCompliance.length > 0)} label="Syncing compliance docs…" />
       {/* Top Stat Cards */}
       <div className="stats-grid">
         <StatCard

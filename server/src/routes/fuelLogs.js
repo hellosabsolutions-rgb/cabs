@@ -3,7 +3,7 @@ import { FuelLog } from '../models/FuelLog.js';
 import { createCrudController } from '../controllers/crudFactory.js';
 
 const router = express.Router();
-const fuelLogController = createCrudController(FuelLog, ['vehicle', 'driverName', 'stationName', 'fuelType', 'notes']);
+const fuelLogController = createCrudController(FuelLog, ['vehicle', 'driverName', 'stationName', 'fuelType', 'location', 'notes']);
 
 router
   .route('/')

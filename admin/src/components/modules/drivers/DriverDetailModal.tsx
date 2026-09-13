@@ -19,6 +19,7 @@ import {
   Receipt,
   Navigation
 } from 'lucide-react';
+import { resolveAssignedVehicle } from '../../../utils/assignment';
 
 interface DriverDetailModalProps {
   driver: Driver | null;
@@ -38,12 +39,15 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
     dailyDutyLogs,
     payrollItems,
     driverCompliance,
+    vehicles,
     driverExpenses,
     updateDriverStatus,
     deleteDriver
   } = useFleet();
 
   if (!isOpen || !driver) return null;
+
+  const assignedVehiclePlate = resolveAssignedVehicle(driver, vehicles);
 
   // Cross-reference license compliance
   const compDoc = driverCompliance.find(
@@ -353,7 +357,7 @@ export const DriverDetailModal: React.FC<DriverDetailModalProps> = ({
                   <Car size={13} style={{ color: 'var(--accent)' }} /> Assigned Vehicle
                 </div>
                 <div style={{ fontSize: '13.5px', fontWeight: 600, color: 'var(--text)', marginTop: '2px' }}>
-                  {driver.assignedVehicle || '— Unassigned'}
+                  {assignedVehiclePlate || '— Unassigned'}
                 </div>
               </div>
 

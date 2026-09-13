@@ -44,6 +44,15 @@ const driverAttendanceSchema = new mongoose.Schema(
       type: Number,
       default: 10
     },
+    location: {
+      type: String,
+      trim: true,
+      default: null
+    },
+    coordinates: {
+      latitude: { type: Number, default: null },
+      longitude: { type: Number, default: null }
+    },
     notes: {
       type: String,
       trim: true

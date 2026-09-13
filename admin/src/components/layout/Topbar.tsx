@@ -1,10 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useFleet } from '../../context/FleetContext';
 import { useAuth } from '../../context/AuthContext';
 import { useAgency } from '../../context/AgencyContext';
 import { useTheme } from '../../context/ThemeContext';
 import { useNotifications } from '../../context/NotificationContext';
+import { useLanguage } from '../../context/LanguageContext';
+import { LanguageSelector } from '../common/LanguageSelector';
 import { Search, Bell, Menu, RefreshCw, LogOut, User, Shield, Building2, Sun, Moon } from 'lucide-react';
 
 interface TopbarProps {
@@ -17,13 +19,22 @@ export const Topbar: React.FC<TopbarProps> = ({ onToggleMobileSidebar }) => {
   const { currentAgency } = useAgency();
   const { theme, toggleTheme } = useTheme();
   const { unreadCount, isConnected } = useNotifications();
+  const { t } = useLanguage();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [profileOpen, setProfileOpen] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
 
   const totalAlerts = complianceStats.expiringSoonCount + complianceStats.expiredCount;
   const displayCount = unreadCount > 0 ? unreadCount : totalAlerts;
+
+  // Resolve translated page title & subtitle based on path
+  const pathSegment = location.pathname.split('/')[1] || 'dashboard';
+  const pageTitleKey = `page.${pathSegment}.title` as any;
+  const pageSubKey = `page.${pathSegment}.sub` as any;
+  const title = t(pageTitleKey, pageHeader.title);
+  const subtitle = t(pageSubKey, pageHeader.subtitle);
 
   // Compute initials
   const initials = user?.name
@@ -53,8 +64,8 @@ export const Topbar: React.FC<TopbarProps> = ({ onToggleMobileSidebar }) => {
           <Menu size={18} />
         </button>
         <div>
-          <h1 className="page-title">{pageHeader.title}</h1>
-          <p className="page-sub">{pageHeader.subtitle}</p>
+          <h1 className="page-title">{title}</h1>
+          <p className="page-sub">{subtitle}</p>
         </div>
       </div>
 
@@ -63,7 +74,7 @@ export const Topbar: React.FC<TopbarProps> = ({ onToggleMobileSidebar }) => {
           <Search size={14} className="search-icon" />
           <input
             className="search"
-            placeholder="Search vehicles, trips, drivers..."
+            placeholder={t('topbar.searchPlaceholder', 'Search vehicles, trips, drivers...')}
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
           />
@@ -74,17 +85,20 @@ export const Topbar: React.FC<TopbarProps> = ({ onToggleMobileSidebar }) => {
           className="icon-btn"
           onClick={refreshData}
           disabled={isLoading}
-          title="Synchronize & refresh fleet data"
+          title={t('topbar.refreshTooltip', 'Synchronize & refresh fleet data')}
           aria-label="Refresh data"
         >
           <RefreshCw size={15} className={isLoading ? 'spin-loader' : ''} />
         </button>
 
+        {/* Indian Native Languages Selector */}
+        <LanguageSelector />
+
         <button
           type="button"
           className="icon-btn"
           onClick={toggleTheme}
-          title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+          title={theme === 'dark' ? t('topbar.themeLight', 'Switch to light mode') : t('topbar.themeDark', 'Switch to dark mode')}
           aria-label="Toggle Theme"
         >
           {theme === 'dark' ? <Sun size={15} color="#fff36a" /> : <Moon size={15} color="#1687f5" />}
@@ -191,7 +205,7 @@ export const Topbar: React.FC<TopbarProps> = ({ onToggleMobileSidebar }) => {
                 }}
               >
                 <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                  <Shield size={12} color="var(--accent)" /> Access Role:
+                  <Shield size={12} color="var(--accent)" /> {t('topbar.role', 'Access Role:')}
                 </span>
                 <span
                   style={{
@@ -221,7 +235,7 @@ export const Topbar: React.FC<TopbarProps> = ({ onToggleMobileSidebar }) => {
                   }}
                 >
                   <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <Building2 size={12} color="#38bdf8" /> Active Agency:
+                    <Building2 size={12} color="#38bdf8" /> {t('topbar.activeAgency', 'Active Agency:')}
                   </span>
                   <span
                     style={{
@@ -261,7 +275,7 @@ export const Topbar: React.FC<TopbarProps> = ({ onToggleMobileSidebar }) => {
                   marginBottom: '8px'
                 }}
               >
-                <User size={13} /> View Profile
+                <User size={13} /> {t('topbar.viewProfile', 'View Profile')}
               </button>
 
               {/* Logout Button */}
@@ -288,7 +302,7 @@ export const Topbar: React.FC<TopbarProps> = ({ onToggleMobileSidebar }) => {
                   transition: 'all 0.15s ease'
                 }}
               >
-                <LogOut size={13} /> Sign Out
+                <LogOut size={13} /> {t('topbar.signOut', 'Sign Out')}
               </button>
             </div>
           )}

@@ -3,17 +3,21 @@ import { useFleet } from '../../../context/FleetContext';
 import { StatCard } from '../../common/StatCard';
 import { StatusChip } from '../../common/StatusChip';
 import { AddVehicleModal } from './AddVehicleModal';
+import { EditVehicleModal } from './EditVehicleModal';
 import { Vehicle, VehicleStatus } from '../../../types/fleet';
-import { Building2, Briefcase, Fuel, FileText, Shield, Wind, FileCheck, Award, Eye, ChevronDown, CheckCircle2, Clock, Wrench } from 'lucide-react';
+import { Building2, Briefcase, Fuel, FileText, Shield, Wind, FileCheck, Award, Eye, ChevronDown, CheckCircle2, Clock, Wrench, Edit2, Trash2, Truck } from 'lucide-react';
 import { Pagination } from '../../common/Pagination';
 import { usePagination } from '../../../hooks/usePagination';
+import { CustomDropdown } from '../../common/CustomDropdown';
+import { StatusDropdown } from '../../common/StatusDropdown';
 
 export const AllVehiclesView: React.FC = () => {
-  const { vehicles, searchQuery, updateVehicleStatus } = useFleet();
+  const { vehicles, searchQuery, updateVehicleStatus, deleteVehicle } = useFleet();
 
   const [statusFilter, setStatusFilter] = useState<string>('All');
   const [typeFilter, setTypeFilter] = useState<string>('All');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingVehicle, setEditingVehicle] = useState<Vehicle | null>(null);
   const [viewRc, setViewRc] = useState<string | null>(null);
   const [selectedVehicleDocs, setSelectedVehicleDocs] = useState<Vehicle | null>(null);
 
@@ -61,153 +65,40 @@ export const AllVehiclesView: React.FC = () => {
     };
   }, [vehicles]);
 
-  const StatusDropdown: React.FC<{ vehicle: Vehicle }> = ({ vehicle }) => {
-    const [open, setOpen] = useState(false);
-    const ref = useRef<HTMLDivElement>(null);
-
-    const STATUS_OPTIONS: { value: VehicleStatus; label: string; color: string; bg: string; border: string; icon: React.ReactNode }[] = [
-      {
-        value: 'Running',
-        label: 'Running',
-        color: 'var(--success, #39ff6e)',
-        bg: 'rgba(57, 255, 110, 0.12)',
-        border: 'rgba(57, 255, 110, 0.35)',
-        icon: <CheckCircle2 size={13} />,
-      },
-      {
-        value: 'Idle',
-        label: 'Idle',
-        color: '#ffc107',
-        bg: 'rgba(255, 193, 7, 0.12)',
-        border: 'rgba(255, 193, 7, 0.35)',
-        icon: <Clock size={13} />,
-      },
-      {
-        value: 'Maintenance',
-        label: 'Maintenance',
-        color: 'var(--danger, #ff5c5c)',
-        bg: 'rgba(255, 92, 92, 0.12)',
-        border: 'rgba(255, 92, 92, 0.35)',
-        icon: <Wrench size={13} />,
-      },
-    ];
-
+  const StatusDropdownComponent: React.FC<{ vehicle: Vehicle }> = ({ vehicle }) => {
     const currentVal = vehicle.status === 'Active' ? 'Running' : vehicle.status;
-    const current = STATUS_OPTIONS.find(o => o.value === currentVal) || STATUS_OPTIONS[0];
-
-    useEffect(() => {
-      if (!open) return;
-      const handler = (e: MouseEvent) => {
-        if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-      };
-      document.addEventListener('mousedown', handler);
-      return () => document.removeEventListener('mousedown', handler);
-    }, [open]);
-
     return (
-      <div ref={ref} style={{ position: 'relative', display: 'inline-block' }}>
-        {/* Trigger pill */}
-        <button
-          type="button"
-          onClick={() => setOpen(o => !o)}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '5px',
-            background: current.bg,
-            color: current.color,
-            border: `1px solid ${current.border}`,
-            borderRadius: '20px',
-            padding: '4px 10px 4px 9px',
-            fontSize: '11.5px',
-            fontWeight: 700,
-            cursor: 'pointer',
-            outline: 'none',
-            transition: 'opacity 0.15s',
-            whiteSpace: 'nowrap',
-          }}
-          title="Click to change vehicle status"
-        >
-          {current.icon}
-          {current.label}
-          <ChevronDown
-            size={11}
-            style={{
-              marginLeft: '1px',
-              transition: 'transform 0.2s',
-              transform: open ? 'rotate(180deg)' : 'rotate(0deg)',
-              opacity: 0.8,
-            }}
-          />
-        </button>
-
-        {/* Floating menu */}
-        {open && (
-          <div
-            style={{
-              position: 'absolute',
-              top: 'calc(100% + 6px)',
-              left: 0,
-              zIndex: 9999,
-              background: 'var(--surface-2, #1a2236)',
-              border: '1px solid var(--border, rgba(255,255,255,0.08))',
-              borderRadius: '12px',
-              padding: '5px',
-              minWidth: '148px',
-              boxShadow: '0 8px 32px rgba(0,0,0,0.45)',
-              animation: 'dropdownFadeIn 0.15s ease',
-            }}
-          >
-            {STATUS_OPTIONS.map(opt => {
-              const isActive = opt.value === currentVal;
-              return (
-                <button
-                  key={opt.value}
-                  type="button"
-                  onClick={() => {
-                    updateVehicleStatus(vehicle.id, opt.value);
-                    setOpen(false);
-                  }}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    width: '100%',
-                    padding: '7px 10px',
-                    borderRadius: '8px',
-                    background: isActive ? opt.bg : 'transparent',
-                    border: isActive ? `1px solid ${opt.border}` : '1px solid transparent',
-                    color: isActive ? opt.color : 'var(--text-dim, #94a3b8)',
-                    fontSize: '12px',
-                    fontWeight: isActive ? 700 : 500,
-                    cursor: 'pointer',
-                    textAlign: 'left',
-                    transition: 'background 0.12s, color 0.12s',
-                  }}
-                  onMouseEnter={e => {
-                    if (!isActive) {
-                      (e.currentTarget as HTMLButtonElement).style.background = opt.bg;
-                      (e.currentTarget as HTMLButtonElement).style.color = opt.color;
-                    }
-                  }}
-                  onMouseLeave={e => {
-                    if (!isActive) {
-                      (e.currentTarget as HTMLButtonElement).style.background = 'transparent';
-                      (e.currentTarget as HTMLButtonElement).style.color = 'var(--text-dim, #94a3b8)';
-                    }
-                  }}
-                >
-                  <span style={{ color: opt.color }}>{opt.icon}</span>
-                  {opt.label}
-                  {isActive && (
-                    <span style={{ marginLeft: 'auto', fontSize: '10px', opacity: 0.6 }}>✓</span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        )}
-      </div>
+      <StatusDropdown
+        value={currentVal}
+        options={[
+          {
+            value: 'Running',
+            label: 'Running',
+            color: 'var(--success, #22c55e)',
+            bg: 'rgba(34, 197, 94, 0.12)',
+            borderColor: 'rgba(34, 197, 94, 0.35)',
+            icon: <CheckCircle2 size={13} />
+          },
+          {
+            value: 'Idle',
+            label: 'Idle',
+            color: '#ffc107',
+            bg: 'rgba(255, 193, 7, 0.12)',
+            borderColor: 'rgba(255, 193, 7, 0.35)',
+            icon: <Clock size={13} />
+          },
+          {
+            value: 'Maintenance',
+            label: 'Maintenance',
+            color: 'var(--danger, #ff5c5c)',
+            bg: 'rgba(255, 92, 92, 0.12)',
+            borderColor: 'rgba(255, 92, 92, 0.35)',
+            icon: <Wrench size={13} />
+          }
+        ]}
+        onChange={val => updateVehicleStatus(vehicle.id, val as VehicleStatus)}
+        size="sm"
+      />
     );
   };
 
@@ -232,32 +123,36 @@ export const AllVehiclesView: React.FC = () => {
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <select
-              className="form-input"
-              style={{ width: 'auto', padding: '5px 10px', fontSize: '12px' }}
-              value={typeFilter}
-              onChange={e => setTypeFilter(e.target.value)}
-            >
-              <option value="All">All Categories</option>
-              <option value="Department">Department</option>
-              <option value="Trip-based">Booking-based</option>
-            </select>
+            <div style={{ width: '150px' }}>
+              <CustomDropdown
+                value={typeFilter}
+                onChange={val => setTypeFilter(val)}
+                options={[
+                  { value: 'All', label: 'All Categories' },
+                  { value: 'Department', label: 'Department' },
+                  { value: 'Trip-based', label: 'Booking-based' }
+                ]}
+                buttonStyle={{ height: '34px', fontSize: '11.5px', padding: '0 8px' }}
+              />
+            </div>
 
-            <select
-              className="form-input"
-              style={{ width: 'auto', padding: '5px 10px', fontSize: '12px' }}
-              value={statusFilter}
-              onChange={e => setStatusFilter(e.target.value)}
-            >
-              <option value="All">All Statuses</option>
-              <option value="Running">Running / Active</option>
-              <option value="Idle">Idle</option>
-              <option value="Maintenance">Maintenance</option>
-            </select>
+            <div style={{ width: '150px' }}>
+              <CustomDropdown
+                value={statusFilter}
+                onChange={val => setStatusFilter(val)}
+                options={[
+                  { value: 'All', label: 'All Statuses' },
+                  { value: 'Running', label: 'Running / Active' },
+                  { value: 'Idle', label: 'Idle' },
+                  { value: 'Maintenance', label: 'Maintenance' }
+                ]}
+                buttonStyle={{ height: '34px', fontSize: '11.5px', padding: '0 8px' }}
+              />
+            </div>
 
             <button
               className="btn-primary-action"
-              style={{ fontSize: '12px', padding: '7px 16px' }}
+              style={{ fontSize: '12px', padding: '7px 16px', height: '34px' }}
               onClick={() => setIsModalOpen(true)}
             >
               + Add vehicle
@@ -271,18 +166,19 @@ export const AllVehiclesView: React.FC = () => {
               <tr>
                 <th>Registration & Model</th>
                 <th>Operation Type</th>
-                <th>Assigned Client / Hub</th>
+                <th>Assigned Client / Category</th>
                 <th>Designated Driver</th>
                 <th>Odometer & Fuel</th>
                 <th>FASTag Balance</th>
                 <th>Status (Click Toggle)</th>
                 <th>Compliance (5 Docs)</th>
+                <th style={{ textAlign: 'right', paddingRight: '16px' }}>Actions</th>
               </tr>
             </thead>
             <tbody>
               {paginatedVehicles.length === 0 ? (
                 <tr>
-                  <td colSpan={8} style={{ textAlign: 'center', color: 'var(--text-faint)', padding: '30px 0' }}>
+                  <td colSpan={9} style={{ textAlign: 'center', color: 'var(--text-faint)', padding: '30px 0' }}>
                     No vehicles found. Click "+ Add vehicle" to register one.
                   </td>
                 </tr>
@@ -290,12 +186,59 @@ export const AllVehiclesView: React.FC = () => {
                 paginatedVehicles.map(v => (
                   <tr key={v.id}>
                     <td>
-                      <div>
-                        <div style={{ fontWeight: 600, color: 'var(--text)', letterSpacing: '0.5px' }}>
-                          {v.registrationNumber}
-                        </div>
-                        <div className="cell-truncate-md" title={v.model || (v.type === 'Department' ? 'Executive Sedan' : 'Commercial MPV')} style={{ fontSize: '11px', color: 'var(--text-faint)', marginTop: '2px' }}>
-                          {v.model || (v.type === 'Department' ? 'Executive Sedan' : 'Commercial MPV')}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        {v.vehiclePhoto ? (
+                          <img
+                            src={v.vehiclePhoto}
+                            alt={v.registrationNumber}
+                            style={{
+                              width: '38px',
+                              height: '38px',
+                              borderRadius: '8px',
+                              objectFit: 'cover',
+                              background: 'var(--surface-3)',
+                              border: '1px solid var(--border)',
+                              flexShrink: 0
+                            }}
+                          />
+                        ) : (
+                          <div
+                            style={{
+                              width: '38px',
+                              height: '38px',
+                              borderRadius: '8px',
+                              background: 'var(--surface-2)',
+                              border: '1px solid var(--border)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              color: 'var(--accent, #38bdf8)',
+                              flexShrink: 0
+                            }}
+                          >
+                            <Truck size={16} />
+                          </div>
+                        )}
+                        <div>
+                          <div
+                            onClick={() => setEditingVehicle(v)}
+                            style={{
+                              fontWeight: 600,
+                              color: 'var(--text)',
+                              letterSpacing: '0.5px',
+                              cursor: 'pointer',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '5px'
+                            }}
+                            title="Click to edit vehicle details"
+                          >
+                            <span>{v.registrationNumber}</span>
+                            <Edit2 size={11} color="var(--accent)" style={{ opacity: 0.7 }} />
+                          </div>
+                          <div className="cell-truncate-md" title={v.model || (v.type === 'Department' ? 'Executive Sedan' : 'Commercial MPV')} style={{ fontSize: '11px', color: 'var(--text-faint)', marginTop: '2px' }}>
+                            {v.model || (v.type === 'Department' ? 'Executive Sedan' : 'Commercial MPV')}
+                          </div>
                         </div>
                       </div>
                     </td>
@@ -340,12 +283,12 @@ export const AllVehiclesView: React.FC = () => {
 
                     <td>
                       <span style={{ fontWeight: 600, color: 'var(--accent)', fontSize: '12.5px' }}>
-                        ₹{v.fastagBalance ? v.fastagBalance.toLocaleString('en-IN') : '2,450'}
+                        ₹{(v.fastagBalance || 0).toLocaleString('en-IN')}
                       </span>
                     </td>
 
                     <td>
-                      <StatusDropdown vehicle={v} />
+                      <StatusDropdownComponent vehicle={v} />
                     </td>
 
                     {/* 5 Compliance Documents */}
@@ -386,6 +329,55 @@ export const AllVehiclesView: React.FC = () => {
                         );
                       })()}
                     </td>
+
+                    {/* Actions: Edit & Delete */}
+                    <td style={{ textAlign: 'right', paddingRight: '16px' }}>
+                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                        <button
+                          type="button"
+                          className="btn-secondary"
+                          style={{
+                            fontSize: '11px',
+                            padding: '4px 8px',
+                            borderRadius: '6px',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            cursor: 'pointer',
+                            color: 'var(--accent)',
+                            borderColor: 'var(--border)'
+                          }}
+                          onClick={() => setEditingVehicle(v)}
+                          title="Edit vehicle specifications, driver & documents"
+                        >
+                          <Edit2 size={12} />
+                          <span>Edit</span>
+                        </button>
+                        <button
+                          type="button"
+                          className="btn-secondary"
+                          style={{
+                            fontSize: '11px',
+                            padding: '4px 8px',
+                            borderRadius: '6px',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            cursor: 'pointer',
+                            color: 'var(--danger)',
+                            borderColor: 'rgba(255, 92, 92, 0.25)'
+                          }}
+                          onClick={() => {
+                            if (window.confirm(`Are you sure you want to remove vehicle ${v.registrationNumber} from fleet?`)) {
+                              deleteVehicle(v.id);
+                            }
+                          }}
+                          title="Delete vehicle from fleet"
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      </div>
+                    </td>
                   </tr>
                 ))
               )}
@@ -406,6 +398,13 @@ export const AllVehiclesView: React.FC = () => {
       <AddVehicleModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
+      />
+
+      {/* Edit Vehicle Modal */}
+      <EditVehicleModal
+        isOpen={Boolean(editingVehicle)}
+        onClose={() => setEditingVehicle(null)}
+        vehicle={editingVehicle}
       />
 
       {/* 5 Compliance Documents Viewer Modal */}

@@ -15,12 +15,21 @@ import {
   Award,
   X,
   CheckCircle2,
-  Calendar
+  Calendar,
+  Sparkles,
+  User,
+  UserCheck,
+  Fuel as FuelIcon,
+  Users as UsersIcon,
+  Activity
 } from 'lucide-react';
 import { MinimalVoiceFiller } from '../../common/MinimalVoiceFiller';
 import { ParsedVehicleVoiceData } from '../../../utils/vehicleVoiceParser';
 import { DatePicker } from '../../common/DatePicker';
 import { ACCEPT_DOC_TYPES, isPdfDocument } from '../../../utils/fileUtils';
+import { CustomDropdown, CustomDropdownOption } from '../../common/CustomDropdown';
+import { VehicleImagePickerModal } from '../../common/VehicleImagePickerModal';
+import { processAndCompressFile } from '../../../utils/imageCompressor';
 
 interface AddVehicleModalProps {
   isOpen: boolean;
@@ -47,20 +56,27 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
   onClose,
   defaultType = 'Department'
 }) => {
-  const { drivers, departmentContracts, addVehicle } = useFleet();
+  const { drivers, departmentContracts, addVehicle, fetchLiveDrivers, isLoadingDrivers } = useFleet();
 
   const [registrationNumber, setRegistrationNumber] = useState('');
   const [model, setModel] = useState('');
   const [type, setType] = useState<VehicleType>(defaultType);
   const [departmentName, setDepartmentName] = useState('');
-  const [hubStand, setHubStand] = useState('');
-  const [assignedDriver, setAssignedDriver] = useState(drivers[0]?.name || '');
+  const [assignedDriver, setAssignedDriver] = useState('Unassigned');
   const [fuelType, setFuelType] = useState<NonNullable<Vehicle['fuelType']>>('Diesel');
   const [seatingCapacity, setSeatingCapacity] = useState('4');
   const [odometer, setOdometer] = useState('');
   const [status, setStatus] = useState<VehicleStatus>('Running');
   const [fastagBalance, setFastagBalance] = useState('');
   const [gpsImei, setGpsImei] = useState(() => `IMEI-86${Math.floor(Math.random() * 900000000 + 100000000)}`);
+  const [isImagePickerOpen, setIsImagePickerOpen] = useState(false);
+
+  // Auto-fetch fresh drivers from backend when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      fetchLiveDrivers();
+    }
+  }, [isOpen]);
 
   // -------------------------------------------------------------
   // 5 Mandatory Compliance Documents: RC, Insurance, Pollution, Permit, Auth
@@ -85,7 +101,7 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
   const [insurancePhotoPreview, setInsurancePhotoPreview] = useState<string | null>(null);
   const insuranceInputRef = useRef<HTMLInputElement>(null);
 
-  // 3. Pollution Under Control (PUCC)
+  // 3. Pollution Under Control Certificate (PUCC)
   const [pollutionExpiry, setPollutionExpiry] = useState(() => {
     const d = new Date();
     d.setMonth(d.getMonth() + 6);
@@ -95,7 +111,7 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
   const [pollutionPhotoPreview, setPollutionPhotoPreview] = useState<string | null>(null);
   const pollutionInputRef = useRef<HTMLInputElement>(null);
 
-  // 4. Commercial Permit
+  // 4. Commercial Vehicle Permit
   const [permitExpiry, setPermitExpiry] = useState(() => {
     const d = new Date();
     d.setFullYear(d.getFullYear() + 5);
@@ -125,19 +141,16 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
     d.setFullYear(d.getFullYear() + 2);
     return d.toISOString().split('T')[0];
   });
+  const [roadTaxExpiry, setRoadTaxExpiry] = useState(() => {
+    const d = new Date();
+    d.setFullYear(d.getFullYear() + 1);
+    return d.toISOString().split('T')[0];
+  });
 
   const [errorMsg, setErrorMsg] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  useEffect(() => {
-    if (defaultType) {
-      setType(defaultType);
-      if (defaultType === 'Department') {
-        setDepartmentName(departmentContracts[0]?.departmentName || 'Public Works Department (PWD)');
-      }
-    }
-  }, [defaultType, departmentContracts]);
-
+  // Modal Open/Close keyboard listener
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
@@ -154,19 +167,25 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
 
   if (!isOpen) return null;
 
-  // File upload helper factory
+  // File upload helper factory with instant client-side compression (<= 200 KB)
   const handleFileUpload = (
     setName: (name: string) => void,
     setPreview: (preview: string | null) => void
-  ) => (e: React.ChangeEvent<HTMLInputElement>) => {
+  ) => async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      setName(file.name);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setPreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+      try {
+        const res = await processAndCompressFile(file);
+        setName(res.name);
+        setPreview(res.dataUrl);
+      } catch (err) {
+        setName(file.name);
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setPreview(reader.result as string);
+        };
+        reader.readAsDataURL(file);
+      }
     }
   };
 
@@ -192,10 +211,8 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
 
     const finalAssignedTo =
       type === 'Department'
-        ? departmentName.trim()
-        : departmentName.trim() && departmentName !== 'Public Works Department (PWD)'
-        ? `${hubStand.trim()} · ${departmentName.trim()}`
-        : hubStand.trim();
+        ? (departmentName.trim() || 'Department Contract')
+        : 'Booking Fleet';
 
     setIsSubmitting(true);
     try {
@@ -204,12 +221,12 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
         model: model.trim(),
         type,
         assignedTo: finalAssignedTo,
-        departmentName: type === 'Department' ? departmentName.trim() : (departmentName.trim() || undefined),
+        departmentName: type === 'Department' ? departmentName.trim() : undefined,
         status,
         revenue: 0,
         expense: 0,
         profit: 0,
-        meta: type === 'Department' ? (departmentName.trim() ? `${departmentName.trim()} Contract duty` : 'Department cab') : (hubStand.trim() ? `Stand · ${hubStand.trim()}` : 'Trip cab'),
+        meta: type === 'Department' ? (departmentName.trim() ? `${departmentName.trim()} Contract duty` : 'Department cab') : 'Booking / Rental duty',
         fuelType,
         seatingCapacity: Number(seatingCapacity) || 5,
         assignedDriver: (assignedDriver && assignedDriver !== 'Unassigned') ? assignedDriver : undefined,
@@ -251,7 +268,6 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
     if (data.model) setModel(data.model);
     if (data.type) setType(data.type);
     if (data.departmentName) setDepartmentName(data.departmentName);
-    if (data.hubStand) setHubStand(data.hubStand);
     if (data.fuelType) setFuelType(data.fuelType);
     if (data.seatingCapacity) setSeatingCapacity(data.seatingCapacity);
     if (data.assignedDriver) setAssignedDriver(data.assignedDriver);
@@ -349,13 +365,13 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
             </div>
 
             {/* 2. Registration Number & Make / Model */}
-            <div className="form-row-2">
+            <div className="form-row-2" style={{ gap: '14px', marginBottom: '14px' }}>
               <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label">Registration Number (e.g. DL01AB1234) *</label>
+                <label className="form-label" style={{ marginBottom: '6px', fontSize: '12px', fontWeight: 600 }}>Registration Number *</label>
                 <input
                   type="text"
                   className="form-input"
-                  style={{ textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 700 }}
+                  style={{ textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 700, height: '38px' }}
                   placeholder="DL01AB1234"
                   value={registrationNumber}
                   onChange={e => setRegistrationNumber(e.target.value)}
@@ -364,10 +380,11 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
               </div>
 
               <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label">Vehicle Make & Model *</label>
+                <label className="form-label" style={{ marginBottom: '6px', fontSize: '12px', fontWeight: 600 }}>Vehicle Make & Model *</label>
                 <input
                   type="text"
                   className="form-input"
+                  style={{ height: '38px' }}
                   placeholder="e.g. Toyota Innova Crysta 2.4 VX"
                   value={model}
                   onChange={e => setModel(e.target.value)}
@@ -376,8 +393,8 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
               </div>
             </div>
 
-            {/* 3. PROMINENT DEPARTMENT NAME: Department Allocation */}
-            {type === 'Department' ? (
+            {/* Department Name (Only if Department Contract) */}
+            {type === 'Department' && (
               <div
                 style={{
                   background: 'var(--surface-3)',
@@ -386,7 +403,8 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
                   border: '1px solid var(--border)',
                   display: 'flex',
                   flexDirection: 'column',
-                  gap: '8px'
+                  gap: '8px',
+                  marginBottom: '14px'
                 }}
               >
                 <label
@@ -398,7 +416,7 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
                 <input
                   type="text"
                   className="form-input"
-                  style={{ fontWeight: 600, fontSize: '13.5px' }}
+                  style={{ fontWeight: 600, fontSize: '13.5px', height: '38px' }}
                   placeholder="e.g. Public Works Department (PWD), Delhi Jal Nigam..."
                   value={departmentName}
                   onChange={e => setDepartmentName(e.target.value)}
@@ -424,94 +442,80 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
                   ))}
                 </div>
               </div>
-            ) : (
-              <div className="form-row-2">
-                <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <MapPin size={13} /> Assigned Hub / Booking Stand *
-                  </label>
-                  <input
-                    type="text"
-                    className="form-input"
-                    placeholder="e.g. Delhi NCR Booking Stand, Airport Terminal"
-                    value={hubStand}
-                    onChange={e => setHubStand(e.target.value)}
-                    required
-                  />
-                </div>
-
-                <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label">
-                    Attached Department / Corporate Client (Optional)
-                  </label>
-                  <input
-                    type="text"
-                    className="form-input"
-                    placeholder="e.g. PWD Pool or Corporate Client"
-                    value={departmentName === 'Public Works Department (PWD)' ? '' : departmentName}
-                    onChange={e => setDepartmentName(e.target.value)}
-                  />
-                </div>
-              </div>
             )}
 
-            {/* 4. Designated Driver & Fuel Type */}
-            <div className="form-row-2">
+            {/* 3. Designated Driver & Fuel Type */}
+            <div className="form-row-2" style={{ gap: '14px', marginBottom: '14px' }}>
               <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label">Designated Driver</label>
-                <select
-                  className="form-input"
+                <label className="form-label" style={{ marginBottom: '6px', fontSize: '12px', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span>Designated Driver</span>
+                  {isLoadingDrivers && (
+                    <span style={{ fontSize: '10px', color: 'var(--accent, #38bdf8)' }}>Syncing...</span>
+                  )}
+                </label>
+                <CustomDropdown
                   value={assignedDriver}
-                  onChange={e => setAssignedDriver(e.target.value)}
-                >
-                  <option value="Unassigned">Unassigned (Pool Vehicle)</option>
-                  {drivers.map(d => (
-                    <option key={d.id} value={d.name}>
-                      {d.name} ({d.driverType || 'Driver'})
-                    </option>
-                  ))}
-                </select>
+                  onChange={val => setAssignedDriver(val)}
+                  onOpen={() => fetchLiveDrivers()}
+                  isLoading={isLoadingDrivers}
+                  searchable={true}
+                  placeholder="Select Driver..."
+                  options={[
+                    {
+                      value: 'Unassigned',
+                      label: 'Unassigned (Pool Vehicle)',
+                      sublabel: 'No driver assigned',
+                      icon: <UserCheck size={14} style={{ color: 'var(--accent, #38bdf8)' }} />
+                    },
+                    ...drivers.map(d => ({
+                      value: d.name,
+                      label: d.name,
+                      sublabel: d.driverType || (d.assignedVehicle ? `Vehicle: ${d.assignedVehicle}` : 'Active Driver'),
+                      icon: <User size={14} style={{ color: 'var(--text-faint)' }} />
+                    }))
+                  ]}
+                />
               </div>
 
               <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label">Fuel Type</label>
-                <select
-                  className="form-input"
+                <label className="form-label" style={{ marginBottom: '6px', fontSize: '12px', fontWeight: 600 }}>Fuel Type</label>
+                <CustomDropdown
                   value={fuelType}
-                  onChange={e => setFuelType(e.target.value as NonNullable<Vehicle['fuelType']>)}
-                >
-                  {fuelTypes.map(f => (
-                    <option key={f} value={f}>
-                      {f}
-                    </option>
-                  ))}
-                </select>
+                  onChange={val => setFuelType(val as NonNullable<Vehicle['fuelType']>)}
+                  options={[
+                    { value: 'Diesel', label: 'Diesel', icon: <FuelIcon size={14} style={{ color: '#f59e0b' }} /> },
+                    { value: 'Petrol', label: 'Petrol', icon: <FuelIcon size={14} style={{ color: '#ef4444' }} /> },
+                    { value: 'CNG', label: 'CNG (Clean Gas)', icon: <FuelIcon size={14} style={{ color: '#10b981' }} /> },
+                    { value: 'Electric', label: 'Electric (EV)', icon: <Sparkles size={14} style={{ color: '#38bdf8' }} /> }
+                  ]}
+                />
               </div>
             </div>
 
-            {/* 5. Seating Capacity & Odometer */}
-            <div className="form-row-2">
+            {/* 4. Seating Capacity & Odometer */}
+            <div className="form-row-2" style={{ gap: '14px', marginBottom: '14px' }}>
               <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label">Seating Capacity</label>
-                <select
-                  className="form-input"
+                <label className="form-label" style={{ marginBottom: '6px', fontSize: '12px', fontWeight: 600 }}>Seating Capacity</label>
+                <CustomDropdown
                   value={seatingCapacity}
-                  onChange={e => setSeatingCapacity(e.target.value)}
-                >
-                  <option value="4">4 Seater (Hatchback)</option>
-                  <option value="5">5 Seater (Sedan / Compact SUV)</option>
-                  <option value="7">7 Seater (Innova / Ertiga / MPV)</option>
-                  <option value="8">8 Seater (MUV)</option>
-                  <option value="12">12+ Seater (Tempo Traveller)</option>
-                </select>
+                  onChange={val => setSeatingCapacity(val)}
+                  options={[
+                    { value: '4', label: '4 Seater (Hatchback)', icon: <UsersIcon size={14} /> },
+                    { value: '5', label: '5 Seater (Sedan / Compact SUV)', icon: <UsersIcon size={14} /> },
+                    { value: '7', label: '7 Seater (Innova / Ertiga / MPV)', icon: <UsersIcon size={14} /> },
+                    { value: '8', label: '8 Seater (MUV)', icon: <UsersIcon size={14} /> },
+                    { value: '12', label: '12+ Seater (Tempo Traveller / Van)', icon: <UsersIcon size={14} /> }
+                  ]}
+                />
               </div>
 
               <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label">Current Odometer (KM)</label>
+                <label className="form-label" style={{ marginBottom: '6px', fontSize: '12px', fontWeight: 600 }}>Current Odometer (KM)</label>
                 <input
                   type="number"
                   min="0"
                   className="form-input"
+                  style={{ height: '38px' }}
                   placeholder="e.g. 35000"
                   value={odometer}
                   onChange={e => setOdometer(e.target.value)}
@@ -519,29 +523,29 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
               </div>
             </div>
 
-            {/* 6. Status & FASTag Balance */}
-            <div className="form-row-2">
+            {/* 5. Status & FASTag Balance */}
+            <div className="form-row-2" style={{ gap: '14px', marginBottom: '14px' }}>
               <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label">Current Vehicle Status</label>
-                <select
-                  className="form-input"
+                <label className="form-label" style={{ marginBottom: '6px', fontSize: '12px', fontWeight: 600 }}>Current Vehicle Status</label>
+                <CustomDropdown
                   value={status}
-                  onChange={e => setStatus(e.target.value as VehicleStatus)}
-                >
-                  {vehicleStatuses.map(s => (
-                    <option key={s} value={s}>
-                      {s}
-                    </option>
-                  ))}
-                </select>
+                  onChange={val => setStatus(val as VehicleStatus)}
+                  options={[
+                    { value: 'Running', label: 'Running (On Road)', badge: 'Active', badgeColor: '#10b981', icon: <Activity size={14} style={{ color: '#10b981' }} /> },
+                    { value: 'Active', label: 'Active (Available)', badge: 'Ready', badgeColor: '#38bdf8', icon: <Activity size={14} style={{ color: '#38bdf8' }} /> },
+                    { value: 'Idle', label: 'Idle (Standby)', badge: 'Parked', badgeColor: '#f59e0b', icon: <Activity size={14} style={{ color: '#f59e0b' }} /> },
+                    { value: 'Maintenance', label: 'Maintenance (Garage)', badge: 'Service', badgeColor: '#ef4444', icon: <Activity size={14} style={{ color: '#ef4444' }} /> }
+                  ]}
+                />
               </div>
 
               <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label">FASTag Starting Balance (₹)</label>
+                <label className="form-label" style={{ marginBottom: '6px', fontSize: '12px', fontWeight: 600 }}>FASTag Starting Balance (₹)</label>
                 <input
                   type="number"
                   min="0"
                   className="form-input"
+                  style={{ height: '38px' }}
                   placeholder="e.g. 2500"
                   value={fastagBalance}
                   onChange={e => setFastagBalance(e.target.value)}
@@ -549,13 +553,14 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
               </div>
             </div>
 
-            {/* 7. GPS IMEI & Vehicle Photo */}
-            <div className="form-row-2">
+            {/* 6. GPS IMEI & Vehicle Photo */}
+            <div className="form-row-2" style={{ gap: '14px', marginBottom: '14px' }}>
               <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label">GPS Device IMEI / Telematics ID</label>
+                <label className="form-label" style={{ marginBottom: '6px', fontSize: '12px', fontWeight: 600 }}>GPS Device IMEI / Telematics ID</label>
                 <input
                   type="text"
                   className="form-input"
+                  style={{ height: '38px' }}
                   placeholder="e.g. IMEI-86776347168"
                   value={gpsImei}
                   onChange={e => setGpsImei(e.target.value)}
@@ -563,17 +568,39 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
               </div>
 
               <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label">Vehicle Photo / Document (Image or PDF)</label>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+                  <label className="form-label" style={{ margin: 0, fontSize: '12px', fontWeight: 600 }}>Vehicle Photo</label>
+                  <button
+                    type="button"
+                    data-no-modal-close="true"
+                    onClick={() => setIsImagePickerOpen(true)}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: 'var(--accent, #38bdf8)',
+                      fontSize: '11px',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      padding: 0
+                    }}
+                  >
+                    <Sparkles size={12} /> Image Picker
+                  </button>
+                </div>
                 <input
                   type="file"
                   ref={photoInputRef}
                   onChange={handleVehiclePhotoUpload}
-                  accept={ACCEPT_DOC_TYPES}
+                  accept="image/*,.pdf,application/pdf"
+                  onClick={e => { (e.target as HTMLInputElement).value = ''; }}
                   style={{ display: 'none' }}
                 />
                 <div
                   className="upload-box"
-                  onClick={() => photoInputRef.current?.click()}
+                  onClick={() => setIsImagePickerOpen(true)}
                   style={{
                     padding: '4px 10px',
                     height: '38px',
@@ -607,31 +634,37 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
                         whiteSpace: 'nowrap',
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
-                        color: vehiclePhotoName ? 'var(--text)' : 'var(--text-faint)'
+                        color: vehiclePhotoName || vehiclePhotoPreview ? 'var(--text)' : 'var(--text-faint)'
                       }}
                     >
-                      {vehiclePhotoName || 'Upload vehicle photo'}
+                      {vehiclePhotoName || (vehiclePhotoPreview ? 'Vehicle Photo Attached' : 'Pick from library or upload photo')}
                     </div>
                   </div>
                   {vehiclePhotoPreview && (
                     <button
                       type="button"
+                      data-no-modal-close="true"
                       onClick={e => {
+                        e.preventDefault();
                         e.stopPropagation();
                         setVehiclePhotoName('');
                         setVehiclePhotoPreview(null);
+                        if (photoInputRef.current) photoInputRef.current.value = '';
                       }}
                       style={{
-                        background: 'rgba(255, 92, 92, 0.1)',
+                        background: 'rgba(255, 92, 92, 0.15)',
                         border: 'none',
-                        color: 'var(--danger)',
+                        color: 'var(--danger, #ef4444)',
                         cursor: 'pointer',
                         borderRadius: '4px',
                         padding: '2px 5px',
-                        fontSize: '11px'
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
                       }}
+                      title="Remove vehicle photo"
                     >
-                      ✕
+                      <X size={12} />
                     </button>
                   )}
                 </div>
@@ -765,22 +798,28 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
                       {rcPhotoPreview && (
                         <button
                           type="button"
+                          data-no-modal-close="true"
                           onClick={e => {
+                            e.preventDefault();
                             e.stopPropagation();
                             setRcPhotoName('');
                             setRcPhotoPreview(null);
+                            if (rcInputRef.current) rcInputRef.current.value = '';
                           }}
                           style={{
-                            background: 'rgba(255, 92, 92, 0.1)',
+                            background: 'rgba(255, 92, 92, 0.15)',
                             border: 'none',
-                            color: 'var(--danger)',
+                            color: 'var(--danger, #ef4444)',
                             cursor: 'pointer',
                             borderRadius: '4px',
                             padding: '2px 5px',
-                            fontSize: '11px'
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
                           }}
+                          title="Remove RC scan"
                         >
-                          ✕
+                          <X size={12} />
                         </button>
                       )}
                     </div>
@@ -878,22 +917,28 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
                       {insurancePhotoPreview && (
                         <button
                           type="button"
+                          data-no-modal-close="true"
                           onClick={e => {
+                            e.preventDefault();
                             e.stopPropagation();
                             setInsurancePhotoName('');
                             setInsurancePhotoPreview(null);
+                            if (insuranceInputRef.current) insuranceInputRef.current.value = '';
                           }}
                           style={{
-                            background: 'rgba(255, 92, 92, 0.1)',
+                            background: 'rgba(255, 92, 92, 0.15)',
                             border: 'none',
-                            color: 'var(--danger)',
+                            color: 'var(--danger, #ef4444)',
                             cursor: 'pointer',
                             borderRadius: '4px',
                             padding: '2px 5px',
-                            fontSize: '11px'
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
                           }}
+                          title="Remove insurance copy"
                         >
-                          ✕
+                          <X size={12} />
                         </button>
                       )}
                     </div>
@@ -991,22 +1036,28 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
                       {pollutionPhotoPreview && (
                         <button
                           type="button"
+                          data-no-modal-close="true"
                           onClick={e => {
+                            e.preventDefault();
                             e.stopPropagation();
                             setPollutionPhotoName('');
                             setPollutionPhotoPreview(null);
+                            if (pollutionInputRef.current) pollutionInputRef.current.value = '';
                           }}
                           style={{
-                            background: 'rgba(255, 92, 92, 0.1)',
+                            background: 'rgba(255, 92, 92, 0.15)',
                             border: 'none',
-                            color: 'var(--danger)',
+                            color: 'var(--danger, #ef4444)',
                             cursor: 'pointer',
                             borderRadius: '4px',
                             padding: '2px 5px',
-                            fontSize: '11px'
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
                           }}
+                          title="Remove PUCC scan"
                         >
-                          ✕
+                          <X size={12} />
                         </button>
                       )}
                     </div>
@@ -1104,22 +1155,28 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
                       {permitPhotoPreview && (
                         <button
                           type="button"
+                          data-no-modal-close="true"
                           onClick={e => {
+                            e.preventDefault();
                             e.stopPropagation();
                             setPermitPhotoName('');
                             setPermitPhotoPreview(null);
+                            if (permitInputRef.current) permitInputRef.current.value = '';
                           }}
                           style={{
-                            background: 'rgba(255, 92, 92, 0.1)',
+                            background: 'rgba(255, 92, 92, 0.15)',
                             border: 'none',
-                            color: 'var(--danger)',
+                            color: 'var(--danger, #ef4444)',
                             cursor: 'pointer',
                             borderRadius: '4px',
                             padding: '2px 5px',
-                            fontSize: '11px'
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
                           }}
+                          title="Remove permit copy"
                         >
-                          ✕
+                          <X size={12} />
                         </button>
                       )}
                     </div>
@@ -1217,22 +1274,28 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
                       {authPhotoPreview && (
                         <button
                           type="button"
+                          data-no-modal-close="true"
                           onClick={e => {
+                            e.preventDefault();
                             e.stopPropagation();
                             setAuthPhotoName('');
                             setAuthPhotoPreview(null);
+                            if (authInputRef.current) authInputRef.current.value = '';
                           }}
                           style={{
-                            background: 'rgba(255, 92, 92, 0.1)',
+                            background: 'rgba(255, 92, 92, 0.15)',
                             border: 'none',
-                            color: 'var(--danger)',
+                            color: 'var(--danger, #ef4444)',
                             cursor: 'pointer',
                             borderRadius: '4px',
                             padding: '2px 5px',
-                            fontSize: '11px'
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
                           }}
+                          title="Remove auth document"
                         >
-                          ✕
+                          <X size={12} />
                         </button>
                       )}
                     </div>
@@ -1265,6 +1328,17 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
           </div>
         </form>
       </div>
+
+      <VehicleImagePickerModal
+        isOpen={isImagePickerOpen}
+        onClose={() => setIsImagePickerOpen(false)}
+        currentImage={vehiclePhotoPreview}
+        suggestedModel={model}
+        onSelectImage={(imgUrl, name) => {
+          setVehiclePhotoPreview(imgUrl);
+          setVehiclePhotoName(name || 'Vehicle Photo');
+        }}
+      />
     </div>
   );
 };

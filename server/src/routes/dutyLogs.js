@@ -18,7 +18,7 @@ const dutyLogController = createCrudController(DailyDutyLog, [
   'headOfAccount',
   'motorOilUsed',
   'tripDestination'
-]);
+], { socketPrefix: 'duty-log' });
 
 router
   .route('/')

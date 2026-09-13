@@ -63,6 +63,15 @@ const fuelLogSchema = new mongoose.Schema(
       type: String,
       default: null
     },
+    location: {
+      type: String,
+      trim: true,
+      default: null
+    },
+    coordinates: {
+      latitude: { type: Number, default: null },
+      longitude: { type: Number, default: null }
+    },
     notes: {
       type: String,
       trim: true

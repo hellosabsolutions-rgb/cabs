@@ -33,6 +33,10 @@ import notificationRoutes from './routes/notifications.js';
 import payrollRoutes from './routes/payroll.js';
 import reportRoutes from './routes/reports.js';
 import uploadRoutes from './routes/upload.js';
+import driverAssignmentRoutes from './routes/driverAssignments.js';
+import sosRoutes from './routes/sos.js';
+import activityRoutes from './routes/activities.js';
+import revenueRoutes from './routes/revenue.js';
 
 const app = express();
 
@@ -86,6 +90,29 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// Official Server Time (IST - Asia/Kolkata)
+app.get('/api/server-time', (req, res) => {
+  const now = new Date();
+  const istFormatter = new Intl.DateTimeFormat('en-IN', {
+    timeZone: 'Asia/Kolkata',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: true
+  });
+  const istFormatted = istFormatter.format(now);
+  res.json({
+    success: true,
+    timestamp: now.getTime(),
+    iso: now.toISOString(),
+    timezone: 'Asia/Kolkata (IST)',
+    ist: istFormatted
+  });
+});
+
 app.use('/api', (req, res, next) => {
   if (getDbStatus().connected) return next();
   return res.status(503).json({
@@ -119,6 +146,10 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/payroll', payrollRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/upload', uploadRoutes);
+app.use('/api/driver-assignments', driverAssignmentRoutes);
+app.use('/api/sos', sosRoutes);
+app.use('/api/activities', activityRoutes);
+app.use('/api/revenue', revenueRoutes);
 
 // Root route
 app.get('/', (req, res) => {

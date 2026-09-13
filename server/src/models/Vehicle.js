@@ -19,7 +19,7 @@ const vehicleSchema = new mongoose.Schema(
     },
     assignedTo: {
       type: String,
-      required: [true, 'Assigned department or stand is required'],
+      default: 'Fleet Pool',
       trim: true
     },
     departmentName: {
@@ -178,3 +178,4 @@ vehicleSchema.index({ type: 1, status: 1 });
 vehicleSchema.index({ departmentName: 1 });
 
 export const Vehicle = mongoose.model('Vehicle', vehicleSchema);
+export default Vehicle;

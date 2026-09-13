@@ -8,6 +8,7 @@ import { Pagination } from '../../common/Pagination';
 import { usePagination } from '../../../hooks/usePagination';
 import { Navigation, Plus, CheckCircle2, Clock, MapPin, Gauge, Fuel, CreditCard, User, TrendingUp, RotateCcw, ArrowRight, Building2, ChevronDown } from 'lucide-react';
 import { SkeletonCard, SkeletonTable } from '../../common/Skeleton';
+import { CustomStatusDropdown, StatusOption } from '../../common/CustomStatusDropdown';
 
 export const TripsView: React.FC = () => {
   const { trips, updateTripStatus, searchQuery, isLoading } = useFleet();
@@ -91,87 +92,43 @@ export const TripsView: React.FC = () => {
   }
 
   const renderStatusDropdown = (trip: TripFinancial) => {
-    const getStatusStyle = (s: TripFinancial['status']) => {
-      switch (s) {
-        case 'Completed':
-          return {
-            background: 'rgba(57, 255, 110, 0.12)',
-            color: 'var(--success)',
-            borderColor: 'rgba(57, 255, 110, 0.35)'
-          };
-        case 'Ongoing':
-          return {
-            background: 'rgba(56, 189, 248, 0.12)',
-            color: '#38bdf8',
-            borderColor: 'rgba(56, 189, 248, 0.35)'
-          };
-        case ('Upcoming' as any):
-          return {
-            background: 'rgba(255, 193, 7, 0.12)',
-            color: '#ffc107',
-            borderColor: 'rgba(255, 193, 7, 0.35)'
-          };
-        case 'Cancelled':
-          return {
-            background: 'rgba(255, 92, 92, 0.12)',
-            color: 'var(--danger, #ff5c5c)',
-            borderColor: 'rgba(255, 92, 92, 0.35)'
-          };
-        default:
-          return {
-            background: 'var(--surface-3)',
-            color: 'var(--text)',
-            borderColor: 'var(--border)'
-          };
+    const tripOptions: StatusOption<TripFinancial['status']>[] = [
+      {
+        value: 'Ongoing',
+        label: 'Ongoing',
+        color: '#38bdf8',
+        bg: 'rgba(56, 189, 248, 0.12)',
+        borderColor: 'rgba(56, 189, 248, 0.35)'
+      },
+      {
+        value: 'Completed',
+        label: 'Completed',
+        color: 'var(--success, #26b8d8)',
+        bg: 'rgba(38, 184, 216, 0.12)',
+        borderColor: 'rgba(38, 184, 216, 0.35)'
+      },
+      {
+        value: 'Cancelled',
+        label: 'Cancelled',
+        color: 'var(--danger, #ff5c5c)',
+        bg: 'rgba(255, 92, 92, 0.12)',
+        borderColor: 'rgba(255, 92, 92, 0.35)'
       }
-    };
-
-    const style = getStatusStyle(trip.status);
+    ];
 
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', alignItems: 'flex-start' }}>
-        <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
-          <select
-            value={trip.status}
-            onChange={e => {
-              const newStatus = e.target.value as TripFinancial['status'];
-              if (newStatus === 'Completed' && trip.status === 'Ongoing') {
-                setCompletingTrip(trip);
-              } else {
-                updateTripStatus(trip.id, newStatus);
-              }
-            }}
-            style={{
-              background: style.background,
-              color: style.color,
-              border: `1px solid ${style.borderColor}`,
-              padding: '4px 22px 4px 10px',
-              borderRadius: '20px',
-              fontSize: '11.5px',
-              fontWeight: 700,
-              cursor: 'pointer',
-              outline: 'none',
-              appearance: 'none',
-              WebkitAppearance: 'none',
-              lineHeight: 1.4
-            }}
-            title="Change trip status"
-          >
-            <option value="Ongoing" style={{ background: 'var(--surface-1, #1e293b)', color: '#38bdf8' }}>● Ongoing</option>
-            <option value="Completed" style={{ background: 'var(--surface-1, #1e293b)', color: 'var(--success)' }}>● Completed</option>
-            <option value="Cancelled" style={{ background: 'var(--surface-1, #1e293b)', color: '#ff5c5c' }}>● Cancelled</option>
-          </select>
-          <ChevronDown
-            size={11}
-            style={{
-              position: 'absolute',
-              right: '7px',
-              pointerEvents: 'none',
-              color: style.color,
-              opacity: 0.85
-            }}
-          />
-        </div>
+        <CustomStatusDropdown
+          value={trip.status}
+          options={tripOptions}
+          onChange={(newStatus) => {
+            if (newStatus === 'Completed' && trip.status === 'Ongoing') {
+              setCompletingTrip(trip);
+            } else {
+              updateTripStatus(trip.id, newStatus);
+            }
+          }}
+        />
         {trip.status === 'Ongoing' && (
           <button
             className="btn-primary-action"

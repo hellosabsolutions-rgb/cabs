@@ -55,6 +55,16 @@ export interface FleetContextType {
   refreshData: () => Promise<void>;
   withLoading: <T>(fn: () => Promise<T> | T, key?: string) => Promise<T>;
 
+  // Per-tab granular loading states (for skeleton loaders on each module)
+  isLoadingVehicles: boolean;
+  isLoadingDrivers: boolean;
+  isLoadingDepartments: boolean;
+  isLoadingBookings: boolean;
+  isLoadingExpenses: boolean;
+  isLoadingCompliance: boolean;
+  isLoadingMaintenance: boolean;
+  isLoadingProfitability: boolean;
+
   // Global Toast Notifications
   toasts: ToastNotification[];
   showToast: (type: ToastType, message: string, title?: string, duration?: number) => void;
@@ -66,6 +76,7 @@ export interface FleetContextType {
   drivers: Driver[];
   fetchLiveDrivers: () => Promise<Driver[]>;
   addDriver: (driver: Omit<Driver, 'id'>) => Promise<{ success: boolean; driver?: Driver; error?: string } | void> | void;
+  bulkAddDrivers: (drivers: Array<Omit<Driver, 'id'>>) => Promise<{ success: boolean; count?: number; error?: string; summary?: any }>;
   updateDriverStatus: (id: string, status: 'On duty' | 'Off duty') => Promise<void>;
   updateDriver: (id: string, data: Partial<Driver>) => Promise<{ success: boolean; driver?: Driver; error?: string }>;
   deleteDriver: (id: string) => Promise<{ success: boolean; error?: string }>;
@@ -94,7 +105,7 @@ export interface FleetContextType {
   addDriverPenalty: (data: { driverId: string; amount: number; date?: string; challanNumber?: string; reason: string; vehicle?: string }) => Promise<{ success: boolean; error?: string }>;
   updateDriverPenalty: (id: string, data: Partial<{ amount: number; date: string; challanNumber: string; reason: string; vehicle: string }>) => Promise<{ success: boolean; error?: string }>;
   deleteDriverPenalty: (id: string) => Promise<{ success: boolean; error?: string }>;
-  settleDriverSalary: (data: { driverId: string; month?: string; paymentMode?: string; paymentDate?: string; remarks?: string }) => Promise<{ success: boolean; error?: string }>;
+  settleDriverSalary: (data: { driverId: string; month?: string; paymentMode?: string; paymentDate?: string; remarks?: string; absentDeduction?: number; absentDays?: number; advanceDeduction?: number }) => Promise<{ success: boolean; error?: string }>;
   unsettleDriverSalary: (data: { driverId: string; month?: string }) => Promise<{ success: boolean; error?: string }>;
   deletePayrollSettlement: (id: string) => Promise<{ success: boolean; error?: string }>;
   fetchDriverPayrollDetail: (driverId: string, month?: string) => Promise<{ success: boolean; data?: any; error?: string }>;
@@ -144,6 +155,9 @@ export interface FleetContextType {
   setVehicleSubTab: (tab: VehicleSubTab) => void;
   vehicles: Vehicle[];
   addVehicle: (vehicle: Omit<Vehicle, 'id'>) => Promise<{ success: boolean; vehicle?: Vehicle; error?: string } | void> | void;
+  bulkAddVehicles: (vehicles: Array<Omit<Vehicle, 'id'>>) => Promise<{ success: boolean; count?: number; error?: string; summary?: any }>;
+  updateVehicle: (id: string, updatedData: Partial<Vehicle>) => Promise<{ success: boolean; error?: string }>;
+  deleteVehicle: (id: string) => Promise<{ success: boolean; error?: string }>;
   updateVehicleStatus: (id: string, status: VehicleStatus) => void;
   switchVehicleMode: (id: string, mode: VehicleType) => void;
 
@@ -152,7 +166,8 @@ export interface FleetContextType {
   bookings: TripFinancial[];
   fetchLiveBookings: () => Promise<void>;
   addTrip: (trip: Omit<TripFinancial, 'id'>) => Promise<{ success: boolean; data?: TripFinancial; error?: string } | void> | void;
-  updateTripStatus: (id: string, status: TripFinancial['status']) => void;
+  updateTripStatus: (id: string, status: TripFinancial['status']) => Promise<void> | void;
+  assignBookingDriver: (id: string, driver: string, vehicle?: string) => Promise<{ success: boolean; data?: any; error?: string }>;
   addBooking: (booking: Partial<TripFinancial>) => Promise<{ success: boolean; data?: TripFinancial; error?: string }>;
   completeTrip: (
     id: string,
@@ -184,6 +199,10 @@ export interface FleetContextType {
       paymentNotes?: string;
     }
   ) => Promise<{ success: boolean; data?: TripFinancial; error?: string }>;
+  updateBooking: (
+    id: string,
+    data: Partial<TripFinancial>
+  ) => Promise<{ success: boolean; data?: TripFinancial; error?: string }>;
   recordBookingPayment: (
     id: string,
     payment: {
@@ -196,9 +215,11 @@ export interface FleetContextType {
   checkVehicleAvailability: (date: string) => Promise<import('../types/fleet').VehicleAvailabilityResult | null>;
   expenses: ExpenseRecord[];
   addExpense: (expense: Omit<ExpenseRecord, 'id'>) => void;
+  fetchLiveExpenses: (queryParam?: { vehicle?: string; category?: string; search?: string }) => Promise<void>;
   maintenanceRecords: MaintenanceRecord[];
-  addMaintenanceRecord: (record: Omit<MaintenanceRecord, 'id' | 'status'>) => void;
-  updateMaintenanceStatus: (id: string, status: MaintenanceRecord['status']) => void;
+  addMaintenanceRecord: (record: Omit<MaintenanceRecord, 'id' | 'status'>) => Promise<void> | void;
+  updateMaintenanceStatus: (id: string, status: MaintenanceRecord['status']) => Promise<void> | void;
+  fetchLiveMaintenance: (queryParam?: { vehicle?: string; type?: string; status?: string; search?: string }) => Promise<void>;
 
   vehicleCompliance: DocumentCompliance[];
   addVehicleComplianceDoc: (doc: Omit<DocumentCompliance, 'id'>) => void;

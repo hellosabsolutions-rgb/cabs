@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useMemo, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
+import { socketManager } from '../services/socket';
 import {
   PageId,
   Vehicle,
@@ -42,6 +43,7 @@ const pageHeaders: Record<PageId, PageHeaderInfo> = {
   trips: { title: 'Booking', subtitle: 'Commercial, outstation and advance bookings management' },
   expenses: { title: 'Expenses', subtitle: 'Fuel, toll, driver and maintenance costs' },
   profitability: { title: 'Profitability', subtitle: 'Department, trip and overall P&L' },
+  revenue: { title: 'Revenue', subtitle: 'Trip & Department revenue, direct costs and collections' },
   compliance: { title: 'Compliance', subtitle: 'Vehicle and driver document tracking' },
   maintenance: { title: 'Maintenance', subtitle: 'Service, repair and tyre change records' }
 };
@@ -90,6 +92,16 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [dashboardStats, setDashboardStats] = useState<DashboardStatsData | null>(null);
   const [isLoadingDashboard, setIsLoadingDashboard] = useState<boolean>(false);
 
+  // Per-tab granular loading states for independent skeleton loaders
+  const [isLoadingVehicles, setIsLoadingVehicles] = useState(false);
+  const [isLoadingDrivers, setIsLoadingDrivers] = useState(false);
+  const [isLoadingDepartments, setIsLoadingDepartments] = useState(false);
+  const [isLoadingBookings, setIsLoadingBookings] = useState(false);
+  const [isLoadingExpenses, setIsLoadingExpenses] = useState(false);
+  const [isLoadingCompliance, setIsLoadingCompliance] = useState(false);
+  const [isLoadingMaintenance, setIsLoadingMaintenance] = useState(false);
+  const [isLoadingProfitability, setIsLoadingProfitability] = useState(false);
+
   const [isLoading, setIsLoading] = useState(false);
   const [loadingKey, setLoadingKey] = useState<string | null>(null);
   const [toasts, setToasts] = useState<ToastNotification[]>([]);
@@ -123,6 +135,8 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       else setExpenseSubTab('fastag');
     } else if (path.startsWith('/profitability')) {
       setActivePage('profitability');
+    } else if (path.startsWith('/revenue')) {
+      setActivePage('revenue');
     } else if (path.startsWith('/compliance')) {
       setActivePage('compliance');
     } else if (path.startsWith('/maintenance')) {
@@ -157,6 +171,7 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       trips: '/booking',
       expenses: expenseSubTab === 'fuel' ? '/expenses/fuel' : expenseSubTab === 'all' ? '/expenses/all' : '/expenses/fastag',
       profitability: '/profitability',
+      revenue: '/revenue',
       compliance: '/compliance',
       maintenance: '/maintenance'
     };
@@ -204,6 +219,7 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // Fetch vehicles from live backend API
   const fetchLiveVehicles = async () => {
+    setIsLoadingVehicles(true);
     try {
       const res = await api.get('/vehicles?limit=100');
       if (res && res.success && Array.isArray(res.data)) {
@@ -211,11 +227,14 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
     } catch (err) {
       console.warn('Backend vehicles API not reachable:', err);
+    } finally {
+      setIsLoadingVehicles(false);
     }
   };
 
   // Fetch drivers from live backend API
   const fetchLiveDrivers = async (): Promise<Driver[]> => {
+    setIsLoadingDrivers(true);
     try {
       const res = await api.get('/drivers?limit=500');
       if (res && res.success && Array.isArray(res.data)) {
@@ -228,6 +247,8 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
     } catch (err) {
       console.warn('Backend drivers API not reachable:', err);
+    } finally {
+      setIsLoadingDrivers(false);
     }
     return [];
   };
@@ -261,6 +282,7 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // Fetch compliance documents & live expiry calculation from backend API
   const fetchLiveCompliance = async () => {
+    setIsLoadingCompliance(true);
     try {
       const res = await api.get('/compliance/expiry');
       if (res && res.success && res.data) {
@@ -269,6 +291,8 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
     } catch (err) {
       console.warn('Backend compliance API not reachable:', err);
+    } finally {
+      setIsLoadingCompliance(false);
     }
   };
 
@@ -332,6 +356,7 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const fetchLiveBookings = async (queryParam?: { month?: string; date?: string; status?: string }) => {
+    setIsLoadingBookings(true);
     try {
       let url = '/bookings';
       const params = new URLSearchParams();
@@ -355,10 +380,13 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
     } catch (err) {
       console.warn('Backend bookings API not reachable:', err);
+    } finally {
+      setIsLoadingBookings(false);
     }
   };
 
   const fetchLiveDailyDutyLogs = async (queryParam?: { month?: string; date?: string; vehicle?: string; department?: string; status?: string; search?: string }) => {
+    setIsLoadingDepartments(true);
     try {
       let endpoint = '/duty-logs?limit=200';
       if (queryParam) {
@@ -381,10 +409,13 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
     } catch (err) {
       console.warn('Backend daily duty logs API not reachable:', err);
+    } finally {
+      setIsLoadingDepartments(false);
     }
   };
 
   const fetchLiveFastagTransactions = async (queryParam?: { vehicle?: string; type?: string; month?: string; search?: string }) => {
+    setIsLoadingExpenses(true);
     try {
       let endpoint = '/fastag?limit=300';
       if (queryParam) {
@@ -407,6 +438,8 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
     } catch (err) {
       console.warn('Backend FASTag API not reachable:', err);
+    } finally {
+      setIsLoadingExpenses(false);
     }
   };
 
@@ -433,6 +466,65 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
     } catch (err) {
       console.warn('Backend bills API not reachable:', err);
+    }
+  };
+
+  // Fetch live maintenance records from backend API
+  const fetchLiveMaintenance = async (queryParam?: { vehicle?: string; type?: string; status?: string; search?: string }) => {
+    setIsLoadingMaintenance(true);
+    try {
+      let endpoint = '/maintenance?limit=500';
+      if (queryParam) {
+        const params = new URLSearchParams();
+        if (queryParam.vehicle && queryParam.vehicle !== 'All') params.append('vehicle', queryParam.vehicle);
+        if (queryParam.type && queryParam.type !== 'All') params.append('type', queryParam.type);
+        if (queryParam.status && queryParam.status !== 'All') params.append('status', queryParam.status);
+        if (queryParam.search) params.append('search', queryParam.search);
+        const qStr = params.toString();
+        if (qStr) endpoint += `&${qStr}`;
+      }
+      const res = await api.get(endpoint);
+      if (res && res.success && Array.isArray(res.data)) {
+        setMaintenanceRecords(
+          res.data.map((item: any) => ({
+            ...item,
+            id: item.id || item._id
+          }))
+        );
+      }
+    } catch (err) {
+      console.warn('Backend maintenance API not reachable:', err);
+    } finally {
+      setIsLoadingMaintenance(false);
+    }
+  };
+
+  // Fetch live fleet expenses from backend API
+  const fetchLiveExpenses = async (queryParam?: { vehicle?: string; category?: string; search?: string }) => {
+    setIsLoadingExpenses(true);
+    try {
+      let endpoint = '/expenses?limit=500';
+      if (queryParam) {
+        const params = new URLSearchParams();
+        if (queryParam.vehicle && queryParam.vehicle !== 'All') params.append('vehicle', queryParam.vehicle);
+        if (queryParam.category && queryParam.category !== 'All') params.append('category', queryParam.category);
+        if (queryParam.search) params.append('search', queryParam.search);
+        const qStr = params.toString();
+        if (qStr) endpoint += `&${qStr}`;
+      }
+      const res = await api.get(endpoint);
+      if (res && res.success && Array.isArray(res.data)) {
+        setExpenses(
+          res.data.map((item: any) => ({
+            ...item,
+            id: item.id || item._id
+          }))
+        );
+      }
+    } catch (err) {
+      console.warn('Backend expenses API not reachable:', err);
+    } finally {
+      setIsLoadingExpenses(false);
     }
   };
 
@@ -465,8 +557,275 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     fetchLiveFastagTransactions();
     fetchLiveMonthlyBills();
     fetchPayrollSummary();
+    fetchLiveMaintenance();
+    fetchLiveExpenses();
     fetchLiveDashboardStats();
   }, []);
+
+  // Real-time fleet and booking synchronization via Socket.IO
+  useEffect(() => {
+    const socket = socketManager.getNotificationSocket();
+
+    const handleBookingCreated = (data: any) => {
+      if (!data) return;
+      const id = data.id || data._id;
+      setTrips(prev => {
+        if (prev.some(t => t.id === id || t._id === id)) return prev;
+        const normalized: TripFinancial = {
+          ...data,
+          id,
+          revenue: Number(data.revenue || data.totalAmount || 0),
+          totalAmount: Number(data.totalAmount || data.revenue || 0),
+          advanceAmount: Number(data.advanceAmount || 0),
+          balancePaid: Number(data.balancePaid || 0),
+          pendingAmount: Number(data.pendingAmount || 0)
+        };
+        return [normalized, ...prev];
+      });
+      showToast('info', `New Booking #${data.bookingNumber || data.tripNumber || ''} created.`, 'Booking Created');
+    };
+
+    const handleBookingUpdated = (data: any) => {
+      if (!data) return;
+      const id = data.id || data._id;
+      setTrips(prev =>
+        prev.map(t => {
+          if (t.id === id || t._id === id) {
+            return {
+              ...t,
+              ...data,
+              id: t.id,
+              status: data.status || t.status,
+              driverName: data.driverName || data.driver || t.driverName,
+              vehicle: data.vehicle || t.vehicle,
+              endOdometer: data.endOdometer !== undefined ? data.endOdometer : t.endOdometer,
+              totalKmRun: data.totalKmRun !== undefined ? data.totalKmRun : t.totalKmRun
+            };
+          }
+          return t;
+        })
+      );
+    };
+
+    const handleBookingCompleted = (data: any) => {
+      if (!data) return;
+      const id = data.id || data._id;
+      setTrips(prev =>
+        prev.map(t => (t.id === id || t._id === id ? { ...t, ...data, id: t.id, status: 'Completed' } : t))
+      );
+      showToast('success', `Booking #${data.bookingNumber || id} completed by driver.`, 'Trip Completed');
+      fetchLiveVehicles();
+      fetchLiveDrivers();
+    };
+
+    const handleBookingAssigned = (data: any) => {
+      if (!data) return;
+      const id = data.id || data._id || data.bookingId;
+      setTrips(prev =>
+        prev.map(t => (t.id === id || t._id === id ? {
+          ...t,
+          driverName: data.driverName || data.driver || t.driverName,
+          vehicle: data.vehicle || t.vehicle
+        } : t))
+      );
+    };
+
+    const handleBookingUnassigned = (data: any) => {
+      if (!data) return;
+      const id = data.id || data._id || data.bookingId;
+      setTrips(prev =>
+        prev.map(t => (t.id === id || t._id === id ? {
+          ...t,
+          driver: 'Unassigned',
+          driverName: 'Unassigned'
+        } : t))
+      );
+    };
+
+    const handleDriverAnyChange = () => {
+      fetchLiveBookings();
+      fetchLiveVehicles();
+      fetchLiveDrivers();
+    };
+
+    const upsertDutyLog = (incoming: any) => {
+      const log = incoming?.log || incoming;
+      if (!log) return;
+      const id = log.id || log._id;
+      if (!id) return;
+      const normalized: DailyDutyLog = { ...log, id };
+      setDailyDutyLogs(prev => {
+        const idx = prev.findIndex(item => item.id === id || (item as any)._id === id);
+        if (idx === -1) return [normalized, ...prev];
+        const next = [...prev];
+        next[idx] = { ...next[idx], ...normalized, id: next[idx].id };
+        return next;
+      });
+    };
+
+    const handleDutyLogCreated = (data: any) => {
+      upsertDutyLog(data);
+      const log = data?.log || data;
+      const action = data?.action;
+      if (action === 'check-in') {
+        showToast('info', `${log?.driverName || 'Driver'} checked in${log?.vehicle ? ` on ${log.vehicle}` : ''}.`, 'Duty Started');
+      } else if (action === 'check-out') {
+        showToast('success', `Duty slip #${log?.dutySlipNumber || ''} completed for ${log?.driverName || 'driver'}.`, 'Duty Ended');
+      }
+    };
+
+    const handleDutyLogUpdated = (data: any) => {
+      upsertDutyLog(data);
+      const log = data?.log || data;
+      const action = data?.action;
+      if (action === 'check-in') {
+        showToast('info', `${log?.driverName || 'Driver'} checked in${log?.vehicle ? ` on ${log.vehicle}` : ''}.`, 'Duty Started');
+      } else if (action === 'check-out') {
+        showToast('success', `Duty slip #${log?.dutySlipNumber || ''} updated — ${log?.driverName || 'driver'} checked out.`, 'Duty Ended');
+      }
+    };
+
+    const handleDutyLogDeleted = (data: any) => {
+      const id = data?.id || data?._id;
+      if (!id) return;
+      setDailyDutyLogs(prev => prev.filter(item => item.id !== id && (item as any)._id !== id));
+    };
+
+    const upsertAttendance = (incoming: any) => {
+      const record = incoming?.record || incoming;
+      if (!record) return;
+      const id = record.id || record._id;
+      const normalized: DriverAttendance = { ...record, id: id || record.id };
+      setAttendanceRecords(prev => {
+        const idx = prev.findIndex(item =>
+          (id && (item.id === id || (item as any)._id === id)) ||
+          (item.driverId && record.driverId && item.driverId === record.driverId && item.date === record.date)
+        );
+        if (idx === -1) return [normalized, ...prev];
+        const next = [...prev];
+        next[idx] = { ...next[idx], ...normalized, id: next[idx].id || id };
+        return next;
+      });
+    };
+
+    const handleAttendanceUpdated = (data: any) => {
+      upsertAttendance(data);
+    };
+
+    const handleAttendanceBulkUpdated = (data: any) => {
+      const records = data?.records;
+      if (!Array.isArray(records) || records.length === 0) return;
+      setAttendanceRecords(prev => {
+        const next = [...prev];
+        records.forEach((record: any) => {
+          const id = record.id || record._id;
+          const idx = next.findIndex(item =>
+            (id && (item.id === id || (item as any)._id === id)) ||
+            (item.driverId && record.driverId && item.driverId === record.driverId && item.date === record.date)
+          );
+          const normalized: DriverAttendance = { ...record, id: id || record.id };
+          if (idx === -1) next.unshift(normalized);
+          else next[idx] = { ...next[idx], ...normalized, id: next[idx].id || id };
+        });
+        return next;
+      });
+    };
+
+    const handleAttendanceDeleted = (data: any) => {
+      const id = data?.id || data?._id;
+      if (!id) return;
+      setAttendanceRecords(prev => prev.filter(item => item.id !== id && (item as any)._id !== id));
+    };
+
+    const handleDutyStarted = (data: any) => {
+      if (data?.log) upsertDutyLog(data);
+      if (data?.attendance) upsertAttendance({ record: data.attendance });
+    };
+
+    const handleDutyEnded = (data: any) => {
+      if (data?.log) upsertDutyLog(data);
+      if (data?.attendance) upsertAttendance({ record: data.attendance });
+    };
+
+    socket.on('booking:created', handleBookingCreated);
+    socket.on('booking:updated', handleBookingUpdated);
+    socket.on('booking:completed', handleBookingCompleted);
+    socket.on('booking:assigned', handleBookingAssigned);
+    socket.on('booking:unassigned', handleBookingUnassigned);
+    socket.on('driver:any_change', handleDriverAnyChange);
+    socket.on('duty-log:created', handleDutyLogCreated);
+    socket.on('duty-log:updated', handleDutyLogUpdated);
+    socket.on('duty-log:deleted', handleDutyLogDeleted);
+    socket.on('attendance:updated', handleAttendanceUpdated);
+    socket.on('attendance:bulk-updated', handleAttendanceBulkUpdated);
+    socket.on('attendance:deleted', handleAttendanceDeleted);
+    socket.on('driver:duty_started', handleDutyStarted);
+    socket.on('driver:duty_ended', handleDutyEnded);
+
+    return () => {
+      socket.off('booking:created', handleBookingCreated);
+      socket.off('booking:updated', handleBookingUpdated);
+      socket.off('booking:completed', handleBookingCompleted);
+      socket.off('booking:assigned', handleBookingAssigned);
+      socket.off('booking:unassigned', handleBookingUnassigned);
+      socket.off('driver:any_change', handleDriverAnyChange);
+      socket.off('duty-log:created', handleDutyLogCreated);
+      socket.off('duty-log:updated', handleDutyLogUpdated);
+      socket.off('duty-log:deleted', handleDutyLogDeleted);
+      socket.off('attendance:updated', handleAttendanceUpdated);
+      socket.off('attendance:bulk-updated', handleAttendanceBulkUpdated);
+      socket.off('attendance:deleted', handleAttendanceDeleted);
+      socket.off('driver:duty_started', handleDutyStarted);
+      socket.off('driver:duty_ended', handleDutyEnded);
+    };
+  }, []);
+
+  // Tab-change: fresh data fetch on every tab navigation
+  // Agar data pehle se loaded hai → SoftRefreshBar dikhega, skeleton nahi
+  // Agar data empty hai → full skeleton dikhega
+  useEffect(() => {
+    switch (activePage) {
+      case 'dashboard':
+        fetchLiveDashboardStats();
+        break;
+      case 'vehicles':
+        fetchLiveVehicles();
+        break;
+      case 'drivers':
+        fetchLiveDrivers();
+        fetchLiveAttendance();
+        fetchLiveDriverExpenses();
+        break;
+      case 'departments':
+        fetchLiveContracts();
+        fetchLiveDailyDutyLogs();
+        fetchLiveMonthlyBills();
+        break;
+      case 'bookings':
+      case 'trips':
+        fetchLiveBookings();
+        break;
+      case 'expenses':
+        fetchLiveFastagTransactions();
+        break;
+      case 'compliance':
+        fetchLiveCompliance();
+        break;
+      case 'profitability':
+        setIsLoadingProfitability(true);
+        Promise.all([fetchLiveBookings(), fetchLiveDailyDutyLogs()])
+          .finally(() => setIsLoadingProfitability(false));
+        break;
+      case 'maintenance':
+        setIsLoadingMaintenance(true);
+        // maintenance records don't have a separate API yet, use vehicles for context
+        fetchLiveVehicles().finally(() => setIsLoadingMaintenance(false));
+        break;
+      default:
+        break;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activePage]);
 
   const refreshData = async () => {
     setIsLoading(true);
@@ -509,6 +868,23 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             id: res.data.id || res.data._id
           };
           setVehicles(prev => [serverVehicle, ...prev.filter(v => v.registrationNumber !== serverVehicle.registrationNumber)]);
+
+          if (serverVehicle.assignedDriver && serverVehicle.registrationNumber) {
+            const driverName = serverVehicle.assignedDriver.trim().toLowerCase();
+            const plate = serverVehicle.registrationNumber;
+            setDrivers(prev =>
+              prev.map(d => {
+                const sameDriver = d.name.trim().toLowerCase() === driverName;
+                const hadThisPlate =
+                  d.assignedVehicle &&
+                  d.assignedVehicle.replace(/[\s-]/g, '').toUpperCase() ===
+                    plate.replace(/[\s-]/g, '').toUpperCase();
+                if (sameDriver) return { ...d, assignedVehicle: plate };
+                if (hadThisPlate && !sameDriver) return { ...d, assignedVehicle: '—' };
+                return d;
+              })
+            );
+          }
 
           // Sync compliance records for the 5 documents
           const cleanReg = serverVehicle.registrationNumber;
@@ -628,6 +1004,51 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
+  const bulkAddVehicles = async (vehiclesList: Array<Omit<Vehicle, 'id'>>) => {
+    try {
+      setIsLoading(true);
+      const res = await api.post('/vehicles/bulk', { vehicles: vehiclesList });
+      if (res && res.success) {
+        showToast(
+          'success',
+          res.message || `Processed ${vehiclesList.length} vehicles successfully.`,
+          'Bulk Onboard Complete'
+        );
+        await fetchLiveVehicles();
+        await fetchLiveCompliance();
+        return {
+          success: true,
+          count: res.summary?.created || res.count || vehiclesList.length,
+          summary: res.summary
+        };
+      } else {
+        showToast('error', res?.error || 'Failed to bulk import vehicles.', 'Import Failed');
+        return { success: false, error: res?.error };
+      }
+    } catch (err: any) {
+      console.warn('Bulk vehicles API failed or offline, falling back to sequential onboarding:', err);
+      let createdCount = 0;
+      for (const v of vehiclesList) {
+        try {
+          const singleRes = await addVehicle(v);
+          if (singleRes && singleRes.success) {
+            createdCount++;
+          }
+        } catch {
+          // ignore individual error in fallback
+        }
+      }
+      showToast(
+        'info',
+        `Onboarded ${createdCount} of ${vehiclesList.length} vehicles.`,
+        'Import Completed'
+      );
+      return { success: true, count: createdCount };
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const updateVehicleStatus = async (id: string, status: VehicleStatus) => {
     try {
       setVehicles(prev =>
@@ -673,6 +1094,157 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     } catch (err) {
       console.error('Failed to switch vehicle mode', err);
       showToast('error', 'Failed to switch vehicle mode.', 'Error');
+    }
+  };
+
+  const updateVehicle = async (id: string, updatedData: Partial<Vehicle>): Promise<{ success: boolean; error?: string }> => {
+    try {
+      let savedVehicle: Vehicle | null = null;
+      try {
+        const res = await api.put(`/vehicles/${id}`, updatedData);
+        if (res && res.data) {
+          savedVehicle = {
+            ...res.data,
+            id: res.data._id || res.data.id || id
+          };
+        }
+      } catch (apiErr: any) {
+        console.warn('API update failed, applying locally', apiErr);
+      }
+
+      setVehicles(prev =>
+        prev.map(v => {
+          if (v.id !== id) return v;
+          const merged = savedVehicle || { ...v, ...updatedData };
+          // Explicit unassign from form sends null
+          if (
+            Object.prototype.hasOwnProperty.call(updatedData, 'assignedDriver') &&
+            (updatedData.assignedDriver == null ||
+              updatedData.assignedDriver === '' ||
+              updatedData.assignedDriver === 'Unassigned')
+          ) {
+            return { ...merged, assignedDriver: undefined };
+          }
+          return merged;
+        })
+      );
+
+      // Keep driver.assignedVehicle in sync when vehicle.assignedDriver changes
+      const existingVehicle = vehicles.find(v => v.id === id);
+      const plate = (savedVehicle?.registrationNumber ||
+        updatedData.registrationNumber ||
+        existingVehicle?.registrationNumber ||
+        '') as string;
+
+      if (Object.prototype.hasOwnProperty.call(updatedData, 'assignedDriver') && plate) {
+        const rawNext = updatedData.assignedDriver;
+        const nextDriverName =
+          rawNext && rawNext !== 'Unassigned' && String(rawNext).trim()
+            ? String(rawNext).trim()
+            : '';
+        const previousDriverName = existingVehicle?.assignedDriver?.trim() || '';
+
+        setDrivers(prev =>
+          prev.map(d => {
+            const nameKey = d.name.trim().toLowerCase();
+            const isNext =
+              nextDriverName && nameKey === nextDriverName.toLowerCase();
+            const isPrevious =
+              previousDriverName && nameKey === previousDriverName.toLowerCase();
+            const hadThisPlate =
+              d.assignedVehicle &&
+              d.assignedVehicle.replace(/[\s-]/g, '').toUpperCase() ===
+                plate.replace(/[\s-]/g, '').toUpperCase();
+
+            if (isNext) {
+              return { ...d, assignedVehicle: plate };
+            }
+            // Unassign / switch: clear previous holder and anyone with this plate
+            if ((!nextDriverName && (isPrevious || hadThisPlate)) || (hadThisPlate && !isNext)) {
+              return { ...d, assignedVehicle: '—' };
+            }
+            return d;
+          })
+        );
+      }
+
+      // Also update compliance records if compliance dates changed
+      if (
+        updatedData.rcExpiry !== undefined ||
+        updatedData.insuranceExpiry !== undefined ||
+        updatedData.pollutionExpiry !== undefined ||
+        updatedData.permitExpiry !== undefined ||
+        updatedData.authExpiry !== undefined
+      ) {
+        const calcMeta = (expDate?: string) => {
+          if (!expDate) return { statusType: 'ok' as const, daysLeft: 365, expiryLabel: 'Valid' };
+          const exp = new Date(expDate);
+          const now = new Date();
+          const diff = Math.ceil((exp.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+          if (isNaN(diff)) return { statusType: 'ok' as const, daysLeft: 365, expiryLabel: 'Valid' };
+          if (diff < 0) return { statusType: 'late' as const, daysLeft: diff, expiryLabel: `Expired ${Math.abs(diff)}d ago` };
+          if (diff <= 30) return { statusType: 'soon' as const, daysLeft: diff, expiryLabel: `Expires in ${diff}d` };
+          return { statusType: 'ok' as const, daysLeft: diff, expiryLabel: `Valid (${diff}d left)` };
+        };
+
+        const targetVehicle = vehicles.find(v => v.id === id);
+        const reg = updatedData.registrationNumber || targetVehicle?.registrationNumber || '';
+
+        setVehicleCompliance(prev =>
+          prev.map(c => {
+            if (c.entityName === reg) {
+              if (c.documentName === 'RC' && updatedData.rcExpiry) {
+                const meta = calcMeta(updatedData.rcExpiry);
+                return { ...c, expiryDate: updatedData.rcExpiry, documentPhoto: updatedData.rcPhoto !== undefined ? updatedData.rcPhoto : c.documentPhoto, ...meta };
+              }
+              if (c.documentName === 'Insurance' && updatedData.insuranceExpiry) {
+                const meta = calcMeta(updatedData.insuranceExpiry);
+                return { ...c, expiryDate: updatedData.insuranceExpiry, documentPhoto: updatedData.insurancePhoto !== undefined ? updatedData.insurancePhoto : c.documentPhoto, ...meta };
+              }
+              if ((c.documentName === 'PUC' || c.documentName === 'Pollution') && updatedData.pollutionExpiry) {
+                const meta = calcMeta(updatedData.pollutionExpiry);
+                return { ...c, expiryDate: updatedData.pollutionExpiry, documentPhoto: updatedData.pollutionPhoto !== undefined ? updatedData.pollutionPhoto : c.documentPhoto, ...meta };
+              }
+              if (c.documentName === 'Permit' && updatedData.permitExpiry) {
+                const meta = calcMeta(updatedData.permitExpiry);
+                return { ...c, expiryDate: updatedData.permitExpiry, documentPhoto: updatedData.permitPhoto !== undefined ? updatedData.permitPhoto : c.documentPhoto, ...meta };
+              }
+              if (c.documentName === 'Auth' && updatedData.authExpiry) {
+                const meta = calcMeta(updatedData.authExpiry);
+                return { ...c, expiryDate: updatedData.authExpiry, documentPhoto: updatedData.authPhoto !== undefined ? updatedData.authPhoto : c.documentPhoto, ...meta };
+              }
+            }
+            return c;
+          })
+        );
+      }
+
+      showToast('success', `Vehicle ${updatedData.registrationNumber || ''} details updated successfully.`, 'Vehicle Updated');
+      fetchLiveDashboardStats();
+      return { success: true };
+    } catch (err: any) {
+      console.error('Failed to update vehicle', err);
+      showToast('error', err.message || 'Failed to update vehicle.', 'Update Failed');
+      return { success: false, error: err.message };
+    }
+  };
+
+  const deleteVehicle = async (id: string): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const vToDelete = vehicles.find(v => v.id === id);
+      setVehicles(prev => prev.filter(v => v.id !== id));
+      showToast('info', `Vehicle ${vToDelete?.registrationNumber || ''} removed from fleet.`, 'Vehicle Deleted');
+      try {
+        await api.delete(`/vehicles/${id}`);
+      } catch (e) {
+        console.warn('Backend delete vehicle failed', e);
+      }
+      fetchLiveDashboardStats();
+      return { success: true };
+    } catch (err: any) {
+      console.error('Failed to delete vehicle', err);
+      showToast('error', err.message || 'Failed to delete vehicle.', 'Error');
+      return { success: false, error: err.message };
     }
   };
 
@@ -1149,6 +1721,73 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return completeBooking(id, data);
   };
 
+  const updateBooking = async (id: string, updateData: Partial<TripFinancial>) => {
+    try {
+      setIsLoading(true);
+      const res = await api.put(`/bookings/${id}`, updateData);
+      if (res && res.success && res.data) {
+        const updated = res.data;
+        const normalized: TripFinancial = {
+          ...updated,
+          id: updated.id || updated._id
+        };
+        setTrips(prev => prev.map(t => (t.id === id || (t._id && t._id === id) ? normalized : t)));
+        showToast('success', `Booking #${normalized.bookingNumber || normalized.tripNumber || id} updated successfully!`, 'Booking Updated');
+        return { success: true, data: normalized };
+      }
+    } catch (err: any) {
+      console.warn('Update booking API failed, updating locally:', err);
+      showToast('error', err.message || 'Failed to update booking on server.', 'Update Failed');
+    } finally {
+      setIsLoading(false);
+    }
+
+    // Local fallback update calculation
+    setTrips(prev =>
+      prev.map(t => {
+        if (t.id === id || t._id === id) {
+          const merged = { ...t, ...updateData };
+          const fare = Number(merged.revenue || merged.totalAmount || 0);
+          const adv = Number(merged.advanceAmount || 0);
+          const bal = Number(merged.balancePaid || 0);
+          const pend = Math.max(0, fare - (adv + bal));
+          const fuel = Number(merged.fuelCost || 0);
+          const toll = Number(merged.fastagCost || 0);
+          const driver = Number(merged.driverBata || 0);
+          const other = Number(merged.otherExpenses || 0);
+          const exp = fuel + toll + driver + other;
+          const profit = fare - exp;
+          const margin = fare > 0 ? ((profit / fare) * 100).toFixed(1) + '%' : '0%';
+          const endKm = Number(merged.endOdometer) || 0;
+          const startKm = Number(merged.startOdometer) || 0;
+          const totalKmRun = endKm >= startKm && endKm > 0 ? endKm - startKm : (merged.totalKmRun || 0);
+
+          return {
+            ...merged,
+            revenue: fare,
+            totalAmount: fare,
+            advanceAmount: adv,
+            balancePaid: bal,
+            pendingAmount: pend,
+            paymentStatus: pend === 0 && fare > 0 ? 'Paid' : (adv + bal) > 0 ? 'Partial' : 'Unpaid',
+            fuelCost: fuel,
+            fastagCost: toll,
+            driverBata: driver,
+            otherExpenses: other,
+            expenses: exp,
+            profit,
+            margin,
+            endOdometer: endKm || merged.endOdometer,
+            totalKmRun
+          };
+        }
+        return t;
+      })
+    );
+    showToast('info', 'Booking updated locally.', 'Booking Updated');
+    return { success: true };
+  };
+
   const recordBookingPayment = async (
     id: string,
     payment: {
@@ -1331,7 +1970,7 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           );
           await fetchLiveDrivers();
           await fetchPayrollSummary(selectedPayrollMonth);
-          return { success: true, driver: serverDriver };
+          return { success: true, driver: serverDriver, credentials: res.credentials };
         } else if (res.error) {
           showToast('error', res.error, 'Registration Error');
           return { success: false, error: res.error };
@@ -1361,6 +2000,51 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
+  const bulkAddDrivers = async (driversList: Array<Omit<Driver, 'id'>>) => {
+    try {
+      setIsLoading(true);
+      const res = await api.post('/drivers/bulk', { drivers: driversList });
+      if (res && res.success) {
+        showToast(
+          'success',
+          res.message || `Processed ${driversList.length} drivers successfully.`,
+          'Bulk Onboard Complete'
+        );
+        await fetchLiveDrivers();
+        await fetchPayrollSummary(selectedPayrollMonth);
+        return {
+          success: true,
+          count: res.summary?.created || res.data?.length || 0,
+          summary: res.summary
+        };
+      } else {
+        showToast('error', res?.error || 'Failed to bulk import drivers.', 'Import Failed');
+        return { success: false, error: res?.error };
+      }
+    } catch (err: any) {
+      console.warn('Bulk API failed or offline, falling back to sequential onboarding:', err);
+      let createdCount = 0;
+      for (const d of driversList) {
+        try {
+          const singleRes = await addDriver(d);
+          if (singleRes && singleRes.success) {
+            createdCount++;
+          }
+        } catch {
+          // ignore individual error in fallback
+        }
+      }
+      showToast(
+        'info',
+        `Onboarded ${createdCount} of ${driversList.length} drivers.`,
+        'Import Completed'
+      );
+      return { success: true, count: createdCount };
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const updateDriverStatus = async (id: string, status: 'On duty' | 'Off duty') => {
     try {
       setDrivers(prev =>
@@ -1380,6 +2064,7 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const updateDriver = async (id: string, data: Partial<Driver>) => {
     try {
+      const previous = drivers.find(d => d.id === id);
       try {
         const res = await api.put(`/drivers/${id}`, data);
         if (res.success && res.data) {
@@ -1388,6 +2073,38 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             id: res.data.id || res.data._id
           };
           setDrivers(prev => prev.map(d => (d.id === id ? updated : d)));
+
+          if (Object.prototype.hasOwnProperty.call(data, 'assignedVehicle')) {
+            const prevPlate = previous?.assignedVehicle;
+            const nextPlate =
+              updated.assignedVehicle && updated.assignedVehicle !== '—'
+                ? updated.assignedVehicle
+                : '';
+
+            setVehicles(prev =>
+              prev.map(v => {
+                const plateKey = (value?: string) =>
+                  String(value || '')
+                    .replace(/[\s-]/g, '')
+                    .toUpperCase();
+                const isPrev =
+                  prevPlate &&
+                  prevPlate !== '—' &&
+                  plateKey(v.registrationNumber) === plateKey(prevPlate);
+                const isNext =
+                  nextPlate && plateKey(v.registrationNumber) === plateKey(nextPlate);
+
+                if (isNext) {
+                  return { ...v, assignedDriver: updated.name };
+                }
+                if (isPrev && !isNext) {
+                  return { ...v, assignedDriver: undefined };
+                }
+                return v;
+              })
+            );
+          }
+
           showToast('success', `Driver ${updated.name} updated successfully.`, 'Driver Updated');
           await fetchLiveDrivers();
           await fetchPayrollSummary(selectedPayrollMonth);
@@ -1736,7 +2453,7 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
-  const settleDriverSalary = async (data: { driverId: string; month?: string; paymentMode?: string; paymentDate?: string; remarks?: string }) => {
+  const settleDriverSalary = async (data: { driverId: string; month?: string; paymentMode?: string; paymentDate?: string; remarks?: string; absentDeduction?: number; absentDays?: number; advanceDeduction?: number }) => {
     try {
       const res = await api.post('/payroll/settle', {
         ...data,
@@ -2348,11 +3065,12 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
-  const updateTripStatus = (id: string, status: TripFinancial['status']) => {
+  const updateTripStatus = async (id: string, status: TripFinancial['status']) => {
     try {
       setTrips(prev =>
-        prev.map(t => (t.id === id ? { ...t, status } : t))
+        prev.map(t => (t.id === id || t._id === id ? { ...t, status } : t))
       );
+      await api.patch(`/bookings/${id}/status`, { status });
       showToast('info', `Trip/Booking status changed to ${status}.`, 'Status Updated');
     } catch (err) {
       console.error('Failed to update trip status', err);
@@ -2360,26 +3078,106 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
-  const addMaintenanceRecord = (recordData: Omit<MaintenanceRecord, 'id' | 'status'>) => {
+  const assignBookingDriver = async (id: string, driver: string, vehicle?: string) => {
     try {
-      const newRecord: MaintenanceRecord = {
+      const res = await api.patch(`/bookings/${id}/assign`, { driver, driverName: driver, vehicle });
+      if (res && res.data) {
+        const updated = res.data;
+        setTrips(prev =>
+          prev.map(t => (t.id === id || t._id === id ? {
+            ...t,
+            driver: updated.driver,
+            driverName: updated.driverName || updated.driver,
+            vehicle: updated.vehicle || t.vehicle,
+            vehicleModel: updated.vehicleModel || t.vehicleModel
+          } : t))
+        );
+      } else {
+        setTrips(prev =>
+          prev.map(t => (t.id === id || t._id === id ? {
+            ...t,
+            driver,
+            driverName: driver,
+            ...(vehicle ? { vehicle } : {})
+          } : t))
+        );
+      }
+      showToast(
+        'success',
+        driver && driver !== 'Unassigned' && driver !== 'None' ? `Driver ${driver} assigned.` : 'Driver unassigned from booking.',
+        'Assignment Updated'
+      );
+      return { success: true, data: res?.data };
+    } catch (err: any) {
+      console.error('Failed to assign driver', err);
+      showToast('error', err?.message || 'Could not update driver assignment.', 'Error');
+      return { success: false, error: err?.message };
+    }
+  };
+
+  const addMaintenanceRecord = async (recordData: Omit<MaintenanceRecord, 'id' | 'status'>) => {
+    try {
+      let savedRecord: MaintenanceRecord | null = null;
+      try {
+        const res = await api.post('/maintenance', {
+          ...recordData,
+          status: 'Completed'
+        });
+        if (res && res.success && res.data) {
+          savedRecord = {
+            ...res.data,
+            id: res.data.id || res.data._id
+          };
+        }
+      } catch (apiErr) {
+        console.warn('Maintenance API post failed, falling back to client record:', apiErr);
+      }
+
+      const finalRecord: MaintenanceRecord = savedRecord || {
         ...recordData,
         id: 'm_' + Date.now(),
         status: 'Completed'
       };
-      setMaintenanceRecords(prev => [newRecord, ...prev]);
-      showToast('success', `${newRecord.type} for ${newRecord.vehicle} (₹${newRecord.cost.toLocaleString('en-IN')}) saved.`, 'Maintenance Logged');
+
+      setMaintenanceRecords(prev => [finalRecord, ...prev.filter(r => r.id !== finalRecord.id)]);
+
+      // Auto-reflect in Expenses!
+      const newExpense: ExpenseRecord = {
+        id: 'exp_m_' + finalRecord.id,
+        date: finalRecord.dateLabel || finalRecord.date,
+        vehicle: finalRecord.vehicle,
+        category: 'Maintenance',
+        linkedTo: `Maintenance - ${finalRecord.type}`,
+        amount: finalRecord.cost
+      };
+      setExpenses(prev => [newExpense, ...prev.filter(e => e.id !== newExpense.id)]);
+
+      // Refresh live expenses and dashboard stats in background
+      fetchLiveExpenses();
+      fetchLiveDashboardStats();
+
+      showToast('success', `${finalRecord.type} for ${finalRecord.vehicle} (₹${finalRecord.cost.toLocaleString('en-IN')}) saved and added to expenses.`, 'Maintenance Logged');
     } catch (err) {
       console.error('Failed to add maintenance record', err);
       showToast('error', 'Failed to save maintenance record.', 'Error');
     }
   };
 
-  const updateMaintenanceStatus = (id: string, status: MaintenanceRecord['status']) => {
-    setMaintenanceRecords(prev =>
-      prev.map(r => (r.id === id ? { ...r, status } : r))
-    );
-    showToast('info', `Maintenance status updated to ${status}.`, 'Status Updated');
+  const updateMaintenanceStatus = async (id: string, status: MaintenanceRecord['status']) => {
+    try {
+      try {
+        await api.put(`/maintenance/${id}`, { status });
+      } catch (apiErr) {
+        console.warn('Maintenance status update API failed:', apiErr);
+      }
+      setMaintenanceRecords(prev =>
+        prev.map(r => (r.id === id ? { ...r, status } : r))
+      );
+      showToast('info', `Maintenance status updated to ${status}.`, 'Status Updated');
+    } catch (err) {
+      console.error('Failed to update maintenance status', err);
+      showToast('error', 'Failed to update maintenance status.', 'Error');
+    }
   };
 
   const addVehicleComplianceDoc = async (docData: Omit<DocumentCompliance, 'id'>) => {
@@ -2570,6 +3368,14 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         loadingKey,
         refreshData,
         withLoading,
+        isLoadingVehicles,
+        isLoadingDrivers,
+        isLoadingDepartments,
+        isLoadingBookings,
+        isLoadingExpenses,
+        isLoadingCompliance,
+        isLoadingMaintenance,
+        isLoadingProfitability,
         toasts,
         showToast,
         dismissToast,
@@ -2606,11 +3412,15 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setVehicleSubTab,
         vehicles,
         addVehicle,
+        bulkAddVehicles,
+        updateVehicle,
+        deleteVehicle,
         updateVehicleStatus,
         switchVehicleMode,
         drivers,
         fetchLiveDrivers,
         addDriver,
+        bulkAddDrivers,
         updateDriverStatus,
         updateDriver,
         deleteDriver,
@@ -2647,13 +3457,16 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         fetchLiveBookings,
         addTrip,
         updateTripStatus,
+        assignBookingDriver,
         addBooking,
         completeTrip,
         completeBooking,
+        updateBooking,
         recordBookingPayment,
         checkVehicleAvailability,
         expenses,
         addExpense,
+        fetchLiveExpenses,
         expenseSubTab,
         setExpenseSubTab: handleSetExpenseSubTab,
         fuelLogs,
@@ -2666,6 +3479,7 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         maintenanceRecords,
         addMaintenanceRecord,
         updateMaintenanceStatus,
+        fetchLiveMaintenance,
         vehicleCompliance,
         addVehicleComplianceDoc,
         driverCompliance,

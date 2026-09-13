@@ -4,17 +4,23 @@ import { StatCard } from '../../common/StatCard';
 import { StatusChip } from '../../common/StatusChip';
 import { StatusDropdown } from '../../common/StatusDropdown';
 import { AddVehicleModal } from './AddVehicleModal';
+import { EditVehicleModal } from './EditVehicleModal';
+import { ImportVehiclesModal } from './ImportVehiclesModal';
+import { VehicleDetailView } from './VehicleDetailView';
 import { VehicleAvailabilityModal } from '../bookings/VehicleAvailabilityModal';
 import { Vehicle, VehicleStatus, VehicleType } from '../../../types/fleet';
-import { Truck, Briefcase, Building2, Plus, FileText, RotateCcw, MapPin, Fuel, AlertTriangle, Shield, Wind, FileCheck, Award, Eye, Calendar } from 'lucide-react';
-import { SkeletonCard, SkeletonTable } from '../../common/Skeleton';
+import { Briefcase, Building2, Plus, FileText, RotateCcw, MapPin, Fuel, AlertTriangle, Shield, Wind, FileCheck, Award, Eye, Calendar, Edit2, Trash2, Download, FileSpreadsheet } from 'lucide-react';
+import { downloadVehicleExcelTemplate } from '../../../utils/csvHelper';
+import { SkeletonCard, SkeletonTable, SoftRefreshBar } from '../../common/Skeleton';
 
 export const VehiclesView: React.FC = () => {
-  const { vehicles, searchQuery, updateVehicleStatus, switchVehicleMode, isLoading } = useFleet();
+  const { vehicles, searchQuery, updateVehicleStatus, switchVehicleMode, deleteVehicle, isLoading, isLoadingVehicles } = useFleet();
 
   const [typeFilter, setTypeFilter] = useState<'All' | VehicleType>('All');
-  const [statusFilter, setStatusFilter] = useState<string>('All');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [editingVehicle, setEditingVehicle] = useState<Vehicle | null>(null);
+  const [selectedVehicleForDetail, setSelectedVehicleForDetail] = useState<Vehicle | null>(null);
   const [isAvailabilityModalOpen, setIsAvailabilityModalOpen] = useState(false);
   const [viewRc, setViewRc] = useState<string | null>(null);
   const [selectedVehicleDocs, setSelectedVehicleDocs] = useState<Vehicle | null>(null);
@@ -35,11 +41,10 @@ export const VehiclesView: React.FC = () => {
         typeFilter === 'All' ||
         v.type === typeFilter ||
         (typeFilter === 'Trip-based' && v.currentOperationMode === 'Trip-based');
-      const matchStatus = statusFilter === 'All' || v.status === statusFilter;
 
-      return matchSearch && matchType && matchStatus;
+      return matchSearch && matchType;
     });
-  }, [vehicles, searchQuery, typeFilter, statusFilter]);
+  }, [vehicles, searchQuery, typeFilter]);
 
   const stats = useMemo(() => {
     let running = 0;
@@ -72,7 +77,8 @@ export const VehiclesView: React.FC = () => {
     updateVehicleStatus(id, nextStatus[current]);
   };
 
-  if (isLoading) {
+  // First-time load: show full skeleton
+  if (isLoadingVehicles && vehicles.length === 0) {
     return (
       <div className="section active" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
         <SkeletonCard count={4} />
@@ -81,8 +87,27 @@ export const VehiclesView: React.FC = () => {
     );
   }
 
+  if (selectedVehicleForDetail) {
+    const currentVeh = vehicles.find(v => v.id === selectedVehicleForDetail.id) || selectedVehicleForDetail;
+    return (
+      <>
+        <VehicleDetailView
+          vehicle={currentVeh}
+          onBack={() => setSelectedVehicleForDetail(null)}
+          onEdit={v => setEditingVehicle(v)}
+        />
+        <EditVehicleModal
+          isOpen={Boolean(editingVehicle)}
+          onClose={() => setEditingVehicle(null)}
+          vehicle={editingVehicle}
+        />
+      </>
+    );
+  }
+
   return (
     <div className="section active" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      <SoftRefreshBar visible={isLoadingVehicles && vehicles.length > 0} label="Syncing vehicles…" />
       {/* Overview Stat Cards */}
       <div className="stats-grid">
         <StatCard label="Total Fleet Size" value={stats.total} customColor="var(--accent)" />
@@ -102,54 +127,54 @@ export const VehiclesView: React.FC = () => {
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-            {/* Vehicle Type Filter (All, Booking, Department) */}
-            <button
-              className={`subtab-btn ${typeFilter === 'All' ? 'active' : ''}`}
-              onClick={() => setTypeFilter('All')}
-              style={{ padding: '5px 12px', fontSize: '12px' }}
-            >
-              <Truck size={13} />
-              All Vehicles ({vehicles.length})
-            </button>
-
-            <button
-              className={`subtab-btn ${typeFilter === 'Trip-based' ? 'active' : ''}`}
-              onClick={() => setTypeFilter('Trip-based')}
-              style={{
-                padding: '5px 12px',
-                fontSize: '12px',
-                color: typeFilter === 'Trip-based' ? '#38bdf8' : undefined
-              }}
-            >
-              <Briefcase size={13} />
-              Booking Vehicles ({tripCount})
-            </button>
-
-            <button
-              className={`subtab-btn ${typeFilter === 'Department' ? 'active' : ''}`}
-              onClick={() => setTypeFilter('Department')}
-              style={{
-                padding: '5px 12px',
-                fontSize: '12px',
-                color: typeFilter === 'Department' ? '#ffcc4d' : undefined
-              }}
-            >
-              <Building2 size={13} />
-              Department Vehicles ({deptCount})
-            </button>
-
-            {/* Status Filter Dropdown */}
+            {/* Vehicle Type Filter Dropdown */}
             <select
               className="form-input"
               style={{ width: 'auto', padding: '5px 10px', fontSize: '12px' }}
-              value={statusFilter}
-              onChange={e => setStatusFilter(e.target.value)}
+              value={typeFilter}
+              onChange={e => setTypeFilter(e.target.value as 'All' | VehicleType)}
             >
-              <option value="All">All Statuses</option>
-              <option value="Running">Running / Active</option>
-              <option value="Idle">Idle in Yard</option>
-              <option value="Maintenance">Maintenance</option>
+              <option value="All">All Vehicles ({vehicles.length})</option>
+              <option value="Trip-based">Booking Vehicles ({tripCount})</option>
+              <option value="Department">Department Vehicles ({deptCount})</option>
             </select>
+
+
+            {/* Download Dummy Excel Template Button */}
+            <button
+              className="btn-secondary"
+              style={{
+                fontSize: '12px',
+                padding: '6px 12px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                borderColor: 'rgba(56, 189, 248, 0.3)',
+                color: 'var(--text)'
+              }}
+              onClick={() => downloadVehicleExcelTemplate()}
+              title="Download dummy Excel (.xlsx) template for vehicle bulk onboarding"
+            >
+              <Download size={13} color="#38bdf8" /> Dummy Template
+            </button>
+
+            {/* Bulk Onboard Vehicles Button */}
+            <button
+              className="btn-secondary"
+              style={{
+                fontSize: '12px',
+                padding: '6px 12px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                borderColor: 'rgba(56, 189, 248, 0.4)',
+                color: '#38bdf8'
+              }}
+              onClick={() => setIsImportModalOpen(true)}
+              title="Bulk onboard fleet vehicles from Excel or CSV spreadsheet"
+            >
+              <FileSpreadsheet size={13} /> Bulk Onboard (Excel)
+            </button>
 
             {/* Check Date Availability Button */}
             <button
@@ -193,12 +218,13 @@ export const VehiclesView: React.FC = () => {
                 <th>FASTag Balance</th>
                 <th>Vehicle Status</th>
                 <th>Compliance (5 Docs)</th>
+                <th style={{ textAlign: 'right', paddingRight: '16px' }}>Actions</th>
               </tr>
             </thead>
             <tbody>
               {filteredVehicles.length === 0 ? (
                 <tr>
-                  <td colSpan={8} style={{ textAlign: 'center', color: 'var(--text-faint)', padding: '30px 0' }}>
+                  <td colSpan={9} style={{ textAlign: 'center', color: 'var(--text-faint)', padding: '30px 0' }}>
                     No vehicles found matching your filter. Click "+ Add Vehicle" to register one.
                   </td>
                 </tr>
@@ -208,8 +234,29 @@ export const VehiclesView: React.FC = () => {
                     {/* Registration & Model */}
                     <td>
                       <div>
-                        <div style={{ fontWeight: 700, color: 'var(--text)', letterSpacing: '0.5px', fontSize: '13.5px', whiteSpace: 'nowrap' }}>
-                          {v.registrationNumber}
+                        <div
+                          onClick={() => setSelectedVehicleForDetail(v)}
+                          style={{
+                            fontWeight: 700,
+                            color: 'var(--text)',
+                            letterSpacing: '0.5px',
+                            fontSize: '13.5px',
+                            whiteSpace: 'nowrap',
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px'
+                          }}
+                          title="Click to view full vehicle details & history"
+                        >
+                          <span
+                            style={{ transition: 'color 0.15s ease' }}
+                            onMouseEnter={e => (e.currentTarget.style.color = '#38bdf8')}
+                            onMouseLeave={e => (e.currentTarget.style.color = 'var(--text)')}
+                          >
+                            {v.registrationNumber}
+                          </span>
+                          <Eye size={12} color="#38bdf8" style={{ opacity: 0.85 }} />
                         </div>
                         <div
                           className="cell-truncate-md"
@@ -225,13 +272,12 @@ export const VehiclesView: React.FC = () => {
                     <td>
                       <div>
                         <span
-                          className={`tag ${
-                            v.currentOperationMode === 'Trip-based'
+                          className={`tag ${v.currentOperationMode === 'Trip-based'
                               ? 'trip'
                               : v.type === 'Department'
-                              ? 'dept'
-                              : 'trip'
-                          }`}
+                                ? 'dept'
+                                : 'trip'
+                            }`}
                           style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', whiteSpace: 'nowrap' }}
                         >
                           {v.currentOperationMode === 'Trip-based' && v.type === 'Department' ? (
@@ -285,21 +331,21 @@ export const VehiclesView: React.FC = () => {
                       </div>
                     </td>
 
-                    {/* Assigned Department / Stand (Konse Department Mai Lagi Hai) */}
+                    {/* Assigned Department / Fleet Category */}
                     <td>
                       <div style={{ maxWidth: '200px' }}>
                         <div
                           className="truncate-flex"
                           style={{ fontWeight: 600, color: 'var(--text)' }}
-                          title={v.departmentName || v.assignedTo || 'Unassigned'}
+                          title={v.type === 'Department' ? (v.departmentName || v.assignedTo || 'Department Contract') : 'Booking / Rental Fleet'}
                         >
                           {v.type === 'Department' ? (
                             <Building2 size={13} color="#ffcc4d" style={{ flexShrink: 0 }} />
                           ) : (
-                            <MapPin size={13} color="#38bdf8" style={{ flexShrink: 0 }} />
+                            <Briefcase size={13} color="#38bdf8" style={{ flexShrink: 0 }} />
                           )}
                           <span className="text-truncate">
-                            {v.departmentName || v.assignedTo || 'Unassigned'}
+                            {v.type === 'Department' ? (v.departmentName || v.assignedTo || 'Department Contract') : 'Booking / Rental Fleet'}
                           </span>
                         </div>
                         {v.type === 'Department' && (
@@ -311,13 +357,13 @@ export const VehiclesView: React.FC = () => {
                             Govt Tender Contract
                           </div>
                         )}
-                        {v.type === 'Trip-based' && v.assignedTo && v.assignedTo !== v.departmentName && (
+                        {v.type !== 'Department' && (
                           <div
                             className="cell-truncate"
                             style={{ fontSize: '10.5px', color: 'var(--text-dim)', marginTop: '2px' }}
-                            title={`Base: ${v.assignedTo}`}
+                            title="Available for Bookings"
                           >
-                            Base: {v.assignedTo}
+                            Available for Bookings
                           </div>
                         )}
                       </div>
@@ -344,7 +390,7 @@ export const VehiclesView: React.FC = () => {
                     {/* Odometer & Fuel */}
                     <td>
                       <div style={{ fontSize: '12px' }}>
-                        {v.odometer ? `${v.odometer.toLocaleString('en-IN')} km` : '42,000 km'}
+                        {v.odometer !== undefined && v.odometer !== null ? `${Number(v.odometer).toLocaleString('en-IN')} km` : '0 km'}
                       </div>
                       <div style={{ fontSize: '10.5px', color: 'var(--text-dim)', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '3px' }}>
                         <Fuel size={11} /> {v.fuelType || 'Diesel'}
@@ -421,6 +467,54 @@ export const VehiclesView: React.FC = () => {
                         );
                       })()}
                     </td>
+                    {/* Actions: Edit & Delete */}
+                    <td style={{ textAlign: 'right', paddingRight: '16px' }}>
+                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                        <button
+                          type="button"
+                          className="btn-secondary"
+                          style={{
+                            fontSize: '11px',
+                            padding: '4px 8px',
+                            borderRadius: '6px',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            cursor: 'pointer',
+                            color: 'var(--accent)',
+                            borderColor: 'var(--border)'
+                          }}
+                          onClick={() => setEditingVehicle(v)}
+                          title="Edit vehicle specifications, driver & documents"
+                        >
+                          <Edit2 size={12} />
+                          <span>Edit</span>
+                        </button>
+                        <button
+                          type="button"
+                          className="btn-secondary"
+                          style={{
+                            fontSize: '11px',
+                            padding: '4px 8px',
+                            borderRadius: '6px',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            cursor: 'pointer',
+                            color: 'var(--danger)',
+                            borderColor: 'rgba(255, 92, 92, 0.25)'
+                          }}
+                          onClick={() => {
+                            if (window.confirm(`Are you sure you want to remove vehicle ${v.registrationNumber} from fleet?`)) {
+                              deleteVehicle(v.id);
+                            }
+                          }}
+                          title="Delete vehicle from fleet"
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      </div>
+                    </td>
                   </tr>
                 ))
               )}
@@ -434,6 +528,19 @@ export const VehiclesView: React.FC = () => {
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
         defaultType={typeFilter !== 'All' ? typeFilter : 'Trip-based'}
+      />
+
+      {/* Bulk Import Vehicles Modal */}
+      <ImportVehiclesModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+      />
+
+      {/* Edit Vehicle Modal Form */}
+      <EditVehicleModal
+        isOpen={Boolean(editingVehicle)}
+        onClose={() => setEditingVehicle(null)}
+        vehicle={editingVehicle}
       />
 
       {/* 5 Compliance Documents Viewer Modal */}

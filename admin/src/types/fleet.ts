@@ -7,6 +7,7 @@ export type PageId =
   | 'trips'
   | 'expenses'
   | 'profitability'
+  | 'revenue'
   | 'compliance'
   | 'maintenance';
 
@@ -68,12 +69,32 @@ export interface Vehicle {
   fitnessExpiry?: string;
 }
 
+export interface DriverAssignment {
+  id: string;
+  driverId: string;
+  driverName: string;
+  vehicleId?: string;
+  vehicleRegistration: string;
+  assignedAt: string;
+  unassignedAt?: string | null;
+  status: 'ACTIVE' | 'COMPLETED' | 'UNASSIGNED';
+  assignedBy?: string;
+  unassignedBy?: string | null;
+  reason?: string;
+  odometerAtAssignment?: number;
+  odometerAtUnassignment?: number | null;
+  notes?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export type DriverType = 'Full Time' | 'Part Time' | 'Contract' | 'Owner Driver';
 
 export interface Driver {
   id: string;
   name: string;
   phone?: string;
+  email?: string;
   photo?: string;
   address?: string;
   emergencyContact?: string;
@@ -85,6 +106,8 @@ export interface Driver {
   joiningDate: string;
   status: 'On duty' | 'Off duty';
   monthlySalary?: number;
+  activeAssignment?: DriverAssignment | null;
+  assignmentHistory?: DriverAssignment[];
 }
 
 export type PayrollStatus = 'PAID' | 'DUE' | 'ADVANCE RUNNING';
@@ -121,6 +144,8 @@ export interface DriverPayrollSettlement {
   driverName: string;
   month: string;
   baseSalary: number;
+  absentDays?: number;
+  absentDeduction?: number;
   advancesDeducted: number;
   challansDeducted: number;
   netPaid: number;
@@ -141,6 +166,11 @@ export interface DriverPayrollItem {
   monthlySalary: number;
   advanceBalance: number;
   challanBalance: number;
+  absentDays?: number;
+  absentDates?: string[];
+  perDaySalary?: number;
+  suggestedAbsentDeduction?: number;
+  absentDeduction?: number;
   netPayable: number;
   status: PayrollStatus;
   settlement?: {
@@ -149,6 +179,8 @@ export interface DriverPayrollItem {
     paidAmount: number;
     paymentMode: string;
     paymentDate: string;
+    absentDays?: number;
+    absentDeduction?: number;
     remarks?: string;
   } | null;
   advances: Array<{

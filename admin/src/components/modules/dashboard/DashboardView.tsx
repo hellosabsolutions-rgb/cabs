@@ -3,7 +3,7 @@ import { useFleet } from '../../../context/FleetContext';
 import { StatCard } from '../../common/StatCard';
 import { StatusChip } from '../../common/StatusChip';
 import { IndianRupee, CreditCard, TrendingUp, Truck, Fuel, Radio, RefreshCw } from 'lucide-react';
-import { SkeletonCard, SkeletonTable } from '../../common/Skeleton';
+import { SkeletonDashboard, SoftRefreshBar } from '../../common/Skeleton';
 
 const inr = (n: number) => `₹${Math.round(n || 0).toLocaleString('en-IN')}`;
 const inrLakh = (n: number) => {
@@ -25,18 +25,16 @@ export const DashboardView: React.FC = () => {
   } = useFleet();
 
   useEffect(() => {
-    if (!dashboardStats) {
-      fetchLiveDashboardStats();
-    }
-  }, [dashboardStats, fetchLiveDashboardStats]);
+    fetchLiveDashboardStats();
+    // Tab change auto-fetch is handled in FleetContext via activePage useEffect
+    // This ensures fresh data on initial component mount as well
+  }, []);
 
-  if (isLoading || (isLoadingDashboard && !dashboardStats)) {
+  // First-time load: show full dashboard skeleton
+  if (isLoadingDashboard && !dashboardStats) {
     return (
       <div className="section active">
-        <SkeletonCard count={4} />
-        <div style={{ marginTop: '20px' }}>
-          <SkeletonTable rows={5} columns={5} />
-        </div>
+        <SkeletonDashboard />
       </div>
     );
   }
@@ -95,6 +93,8 @@ export const DashboardView: React.FC = () => {
 
   return (
     <div className="section active">
+      {/* Background sync indicator — shows when data exists but is being refreshed */}
+      <SoftRefreshBar visible={isLoadingDashboard && !!dashboardStats} label="Syncing dashboard metrics…" />
       {/* 4 Primary KPI Cards Powered by MongoDB Aggregations */}
       <div className="stats-grid">
         <StatCard
