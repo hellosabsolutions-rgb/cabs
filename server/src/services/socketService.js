@@ -87,6 +87,7 @@ export const initSocket = (httpServer) => {
       socket.agencyId = user.currentAgency?.toString() || null;
       socket.userName = user.name;
       socket.isDriver = false;
+      socket.isSuperadmin = user.role === 'superadmin';
 
       next();
     } catch (err) {
@@ -99,7 +100,7 @@ export const initSocket = (httpServer) => {
     ns.use(authMiddleware);
 
     ns.on('connection', (socket) => {
-      const { userId, agencyId, userName, isDriver, driverId } = socket;
+      const { userId, agencyId, userName, isDriver, driverId, isSuperadmin } = socket;
 
       // Join personal & driver rooms
       socket.join(`user:${userId}`);
@@ -108,6 +109,9 @@ export const initSocket = (httpServer) => {
       }
       if (agencyId) {
         socket.join(`agency:${agencyId}`);
+      }
+      if (isSuperadmin) {
+        socket.join('superadmin');
       }
 
       // Track online presence

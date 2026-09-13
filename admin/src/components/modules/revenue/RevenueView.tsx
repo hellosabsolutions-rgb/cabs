@@ -17,6 +17,7 @@ import { RevenueDetailModal } from './RevenueDetailModal';
 import { AddRevenueModal } from './AddRevenueModal';
 import { EditBookingModal } from '../bookings/EditBookingModal';
 import { TripFinancial } from '../../../types/fleet';
+import { API_URL } from '../../../config/env';
 import {
   IndianRupee,
   Plus,
@@ -97,7 +98,7 @@ export const RevenueView: React.FC = () => {
       if (statusFilter !== 'All') params.append('paymentStatus', statusFilter);
       if (searchQuery) params.append('search', searchQuery);
 
-      const res = await fetch(`http://localhost:5001/api/revenue?${params.toString()}`);
+      const res = await fetch(`${API_URL}/revenue?${params.toString()}`);
       const json = await res.json();
       if (json.success) {
         setRevenueData(json);

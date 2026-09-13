@@ -103,6 +103,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setToken(null);
       setRefreshToken(null);
       setSessions([]);
+      try {
+        localStorage.removeItem('fleetos_auth_token');
+        localStorage.removeItem('fleetos_refresh_token');
+        localStorage.removeItem('fleetos_auth_user');
+      } catch {
+        // ignore
+      }
     };
 
     window.addEventListener('fleetos:unauthorized', handleUnauthorized);

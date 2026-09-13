@@ -11,6 +11,7 @@ import {
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import { emitLoginAlert } from '../services/notificationEmitter.js';
 import { parseDeviceInfo } from '../utils/deviceParser.js';
+import { trackAdminLogin } from '../services/platformTracking.js';
 
 /**
  * @desc    Register a new user
@@ -146,6 +147,7 @@ export const login = asyncHandler(async (req, res) => {
   const accessToken = generateAccessToken(user._id, session._id);
 
   // Track last login timestamp
+  const previousLogin = user.lastLoginAt;
   await User.findByIdAndUpdate(user._id, { lastLoginAt: new Date() });
 
   // Real-time login notification
@@ -154,6 +156,15 @@ export const login = asyncHandler(async (req, res) => {
     userAgent: req.headers['user-agent'] || '',
     ip: req.ip || req.socket.remoteAddress || ''
   });
+
+  // Platform trail for Superadmin (skip pure superadmin console accounts)
+  if (user.role !== 'superadmin') {
+    trackAdminLogin({
+      user,
+      req,
+      isReturn: Boolean(previousLogin)
+    }).catch(() => {});
+  }
 
   res.status(200).json({
     success: true,

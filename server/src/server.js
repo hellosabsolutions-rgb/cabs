@@ -10,6 +10,7 @@ import { getFirebaseStatus } from './config/firebase.js';
 import { verifyCloudinary } from './config/cloudinary.js';
 import { printStartupBanner } from './utils/startupBanner.js';
 import { autoBackfillAssignments } from './controllers/driverAssignmentController.js';
+import { ensurePlatformSuperadmin } from './utils/ensureSuperadmin.js';
 
 const PORT = process.env.PORT || 5000;
 const NODE_ENV = process.env.NODE_ENV || 'development';
@@ -17,6 +18,9 @@ const NODE_ENV = process.env.NODE_ENV || 'development';
 const start = async () => {
   await connectDB();
   const cloudinary = await verifyCloudinary();
+  await ensurePlatformSuperadmin().catch((e) =>
+    console.warn('Superadmin bootstrap notice:', e.message)
+  );
   await autoBackfillAssignments().catch((e) =>
     console.warn('Auto backfill notice:', e.message)
   );

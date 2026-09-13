@@ -37,6 +37,7 @@ import driverAssignmentRoutes from './routes/driverAssignments.js';
 import sosRoutes from './routes/sos.js';
 import activityRoutes from './routes/activities.js';
 import revenueRoutes from './routes/revenue.js';
+import superadminRoutes from './routes/superadmin.js';
 
 const app = express();
 
@@ -150,6 +151,7 @@ app.use('/api/driver-assignments', driverAssignmentRoutes);
 app.use('/api/sos', sosRoutes);
 app.use('/api/activities', activityRoutes);
 app.use('/api/revenue', revenueRoutes);
+app.use('/api/superadmin', superadminRoutes);
 
 // Root route
 app.get('/', (req, res) => {

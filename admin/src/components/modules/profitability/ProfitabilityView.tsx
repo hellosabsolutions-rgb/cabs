@@ -8,6 +8,7 @@ import { usePagination } from '../../../hooks/usePagination';
 import { RevenueOverviewData } from '../../../types/revenue';
 import { TrendingUp, Car, ArrowUpRight, Fuel, UserCheck, CreditCard, Wrench, FileText } from 'lucide-react';
 import { PnLLedgerView } from './PnLLedgerView';
+import { API_URL } from '../../../config/env';
 
 export const ProfitabilityView: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -20,7 +21,7 @@ export const ProfitabilityView: React.FC = () => {
     const fetchRev = async () => {
       setIsFetchingRevenue(true);
       try {
-        const res = await fetch('http://localhost:5001/api/revenue?dateFilter=all');
+        const res = await fetch(`${API_URL}/revenue?dateFilter=all`);
         const json = await res.json();
         if (json.success) {
           setRevenueData(json);

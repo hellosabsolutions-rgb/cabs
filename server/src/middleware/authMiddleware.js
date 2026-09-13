@@ -184,3 +184,8 @@ export const authorize = (...roles) => {
   };
 };
 
+/**
+ * Superadmin-only routes (platform console).
+ */
+export const protectSuperadmin = [protect, authorize('superadmin')];
+

@@ -1,0 +1,77 @@
+:root[data-theme='dark'] {
+  --bg: #0b0b0b;
+  --surface: #161616;
+  --surface-2: #1c1c1c;
+  --border: #333333;
+  --accent: #1687f5;
+  --accent-dim: #12314f;
+  --accent-text: #ffffff;
+  --text: #ffffff;
+  --text-dim: #a5a5a5;
+  --text-faint: #6e6e6e;
+  --danger: #f15b4a;
+  --danger-bg: #3a1814;
+  --success: #26b8d8;
+}
+
+:root[data-theme='light'] {
+  --bg: #f7f7f7;
+  --surface: #ffffff;
+  --surface-2: #ffffff;
+  --border: #e7e7e7;
+  --accent: #1687f5;
+  --accent-dim: #e8f4fe;
+  --accent-text: #ffffff;
+  --text: #0b0b0b;
+  --text-dim: #333333;
+  --text-faint: #a5a5a5;
+  --danger: #f15b4a;
+  --danger-bg: #fdecea;
+  --success: #26b8d8;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  font-family: 'Poppins', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  font-size: 14px;
+}
+
+button,
+input {
+  font-family: inherit;
+}
+
+::selection {
+  background: var(--accent);
+  color: var(--accent-text);
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.spin {
+  animation: spin 0.7s linear infinite;
+}
+
+@media (max-width: 900px) {
+  .auth-hero-panel {
+    display: none !important;
+  }
+}

@@ -3,6 +3,7 @@ import { useFleet } from '../../../context/FleetContext';
 import { RevenueType, RevenuePaymentStatus, RevenuePaymentMethod } from '../../../types/revenue';
 import { X, Plus, Calendar, Car, User, DollarSign, FileText } from 'lucide-react';
 import { DatePicker } from '../../common/DatePicker';
+import { API_URL } from '../../../config/env';
 
 interface AddRevenueModalProps {
   isOpen: boolean;
@@ -61,7 +62,7 @@ export const AddRevenueModal: React.FC<AddRevenueModalProps> = ({ isOpen, onClos
         notes: notes.trim()
       };
 
-      const response = await fetch('http://localhost:5001/api/revenue', {
+      const response = await fetch(`${API_URL}/revenue`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)

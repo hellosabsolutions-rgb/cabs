@@ -63,6 +63,25 @@ const agencySchema = new mongoose.Schema(
     isDefault: {
       type: Boolean,
       default: false
+    },
+    /** Linked platform organization (set when onboarded via Superadmin) */
+    organizationId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Organization',
+      default: null,
+      index: true
+    },
+    projectId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Project',
+      default: null,
+      index: true
+    },
+    onboardStatus: {
+      type: String,
+      enum: ['SelfServe', 'Provisioned', 'Active'],
+      default: 'SelfServe',
+      index: true
     }
   },
   {

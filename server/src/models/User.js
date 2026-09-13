@@ -40,8 +40,15 @@ const userSchema = new mongoose.Schema(
     },
     role: {
       type: String,
-      enum: ['admin', 'manager', 'operator'],
+      enum: ['superadmin', 'admin', 'manager', 'operator'],
       default: 'admin',
+      index: true
+    },
+    /** Set when this admin was provisioned by platform onboarding */
+    organizationId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Organization',
+      default: null,
       index: true
     },
     phone: {
