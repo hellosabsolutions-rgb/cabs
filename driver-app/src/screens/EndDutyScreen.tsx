@@ -1,8 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
-  Animated,
   Dimensions,
   Image,
   KeyboardAvoidingView,
@@ -21,6 +19,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
 import { useSession } from '../state/session';
+import { appDialog } from '../dialog';
 import { dutyApi } from '../services/api';
 import { km } from '../data/format';
 import { pickFromCamera } from '../media/pick';
@@ -68,27 +67,11 @@ export function EndDutyScreen({ navigation }: Props) {
   const [remarks, setRemarks] = useState('');
   const [capturedPhoto, setCapturedPhoto] = useState<Attachment | null>(null);
   const [isCapturing, setIsCapturing] = useState(false);
-  const [isDetectingOdo, setIsDetectingOdo] = useState(false);
-  const [detectedOdo, setDetectedOdo] = useState<number | null>(null);
-  const [candidates, setCandidates] = useState<number[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
 
   const [serverTimeText, setServerTimeText] = useState('');
   const [isTimeLoading, setIsTimeLoading] = useState(true);
-
-  const scanAnim = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(scanAnim, { toValue: 1, duration: 2200, useNativeDriver: true }),
-        Animated.timing(scanAnim, { toValue: 0, duration: 2200, useNativeDriver: true }),
-      ])
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [scanAnim]);
 
   const hasAssignedVehicle = useMemo(() => {
     const reg = session.vehicle?.reg;
@@ -139,36 +122,10 @@ export function EndDutyScreen({ navigation }: Props) {
     };
   }, []);
 
-  const runOdometerDetection = async (base64Image: string) => {
-    try {
-      setIsDetectingOdo(true);
-      const currentVal = Number(odometer.replace(/,/g, '')) || startOdo || 0;
-      const res = await dutyApi.detectOdometer({
-        image: base64Image,
-        currentOdo: currentVal,
-      });
-
-      if (res?.detected && res.odometer) {
-        setOdometer(String(res.odometer));
-        setDetectedOdo(res.odometer);
-        if (Array.isArray(res.candidates)) setCandidates(res.candidates);
-        setError('');
-      } else if (res?.candidates?.length) {
-        setCandidates(res.candidates);
-      }
-    } catch (detectErr) {
-      console.warn('[EndDutyScreen] Auto-detect odometer warning:', detectErr);
-    } finally {
-      setIsDetectingOdo(false);
-    }
-  };
-
   const handleCapture = async () => {
     if (isCapturing) return;
     try {
       setIsCapturing(true);
-      setDetectedOdo(null);
-      setCandidates([]);
 
       if (cameraRef.current && isCameraReady) {
         try {
@@ -186,7 +143,6 @@ export function EndDutyScreen({ navigation }: Props) {
             };
             setCapturedPhoto(photoItem);
             setIsCapturing(false);
-            if (photo.base64) void runOdometerDetection(photo.base64);
             return;
           }
         } catch (camErr) {
@@ -197,10 +153,9 @@ export function EndDutyScreen({ navigation }: Props) {
       const picked = await pickFromCamera();
       if (picked) {
         setCapturedPhoto(picked);
-        if (picked.base64) void runOdometerDetection(picked.base64);
       }
     } catch (err: any) {
-      Alert.alert('Capture Failed', err?.message || 'Unable to capture photo. Please try again.');
+      appDialog.alert('Capture Failed', err?.message || 'Unable to capture photo. Please try again.');
     } finally {
       setIsCapturing(false);
     }
@@ -218,13 +173,13 @@ export function EndDutyScreen({ navigation }: Props) {
 
   const handleEndDuty = async () => {
     if (!session.onDuty) {
-      Alert.alert('End Duty', 'You are not currently on duty.');
+      appDialog.alert('End Duty', 'You are not currently on duty.');
       navigation.goBack();
       return;
     }
 
     if (!hasAssignedVehicle) {
-      Alert.alert(
+      appDialog.alert(
         'Vehicle Required',
         'Cannot end duty: No vehicle is assigned to your profile in the fleet management system.'
       );
@@ -237,33 +192,28 @@ export function EndDutyScreen({ navigation }: Props) {
       return;
     }
     if (value < startOdo) {
-      Alert.alert('Invalid Odometer', `Ending odometer cannot be less than start (${km(startOdo)}).`);
+      appDialog.alert('Invalid Odometer', `Ending odometer cannot be less than start (${km(startOdo)}).`);
       return;
     }
     if (!capturedPhoto) {
-      Alert.alert('Photo Required', 'Please capture a photo of the vehicle odometer to end duty.');
+      appDialog.alert('Photo Required', 'Please capture a photo of the vehicle odometer to end duty.');
       return;
     }
 
     try {
       setIsSubmitting(true);
       await session.endDuty(value, remarks, capturedPhoto.uri);
-      Alert.alert(
+      appDialog.alert(
         'Duty Ended',
         `Duty ended successfully.\n\nVehicle: ${session.vehicle?.reg || 'Assigned'}\nFinal Odometer: ${km(value)}\nDistance Run: ${km(totalKm)}`,
         [{ text: 'OK', onPress: () => navigation.goBack() }]
       );
     } catch (err: any) {
-      Alert.alert('Error', err?.message || 'Failed to record duty end. Please try again.');
+      appDialog.alert('Error', err?.message || 'Failed to record duty end. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
   };
-
-  const scanTranslateY = scanAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [-75, 75],
-  });
 
   return (
     <View style={styles.screen}>
@@ -338,7 +288,6 @@ export function EndDutyScreen({ navigation }: Props) {
             <View style={[styles.cornerBracket, styles.cornerTR]} />
             <View style={[styles.cornerBracket, styles.cornerBL]} />
             <View style={[styles.cornerBracket, styles.cornerBR]} />
-            <Animated.View style={[styles.scanLaser, { transform: [{ translateY: scanTranslateY }] }]} />
             <View style={styles.reticleCenterTag}>
               <Ionicons name="scan-outline" size={15} color="#FFFFFF" style={{ marginRight: 5 }} />
               <Text style={styles.reticleTagText}>ALIGN ODOMETER HERE</Text>
@@ -352,7 +301,7 @@ export function EndDutyScreen({ navigation }: Props) {
         <View style={[styles.successBadgeWrap, { top: insets.top + 60 }]}>
           <GlassPill tone="dark" style={styles.successBadge}>
             <Ionicons name="checkmark-circle" size={17} color="#FFFFFF" style={{ marginRight: 6 }} />
-            <Text style={styles.successBadgeText}>Odometer Photo Captured & Verified</Text>
+            <Text style={styles.successBadgeText}>Odometer photo captured</Text>
           </GlassPill>
         </View>
       )}
@@ -375,7 +324,7 @@ export function EndDutyScreen({ navigation }: Props) {
                     }}
                     keyboardType="numeric"
                     style={styles.odoStripInput}
-                    placeholder={String(startOdo || 45470)}
+                    placeholder={String(startOdo || 0)}
                     placeholderTextColor="#71717A"
                   />
                   <Text style={styles.odoKmUnit}>KM</Text>
@@ -431,30 +380,7 @@ export function EndDutyScreen({ navigation }: Props) {
                   <Text style={styles.fieldCurrentKm}>Start: {km(startOdo)} · Run: {km(totalKm)}</Text>
                 </View>
 
-                {isDetectingOdo && (
-                  <View style={styles.detectingBanner}>
-                    <ActivityIndicator size="small" color="#FFFFFF" style={{ marginRight: 8 }} />
-                    <Text style={styles.detectingBannerText}>
-                      AI scanning integers from odometer photo...
-                    </Text>
-                  </View>
-                )}
-
-                {detectedOdo && !isDetectingOdo ? (
-                  <View style={styles.detectedSuccessBanner}>
-                    <Ionicons name="sparkles" size={14} color="#FFFFFF" style={{ marginRight: 6 }} />
-                    <Text style={styles.detectedSuccessText}>
-                      Auto-detected {km(detectedOdo)} from photo • Auto-filled
-                    </Text>
-                  </View>
-                ) : null}
-
-                <View
-                  style={[
-                    styles.odoLargeInputBox,
-                    detectedOdo && !isDetectingOdo ? styles.odoLargeInputBoxDetected : null,
-                  ]}
-                >
+                <View style={styles.odoLargeInputBox}>
                   <TextInput
                     value={odometer}
                     onChangeText={(v) => {
@@ -463,7 +389,7 @@ export function EndDutyScreen({ navigation }: Props) {
                     }}
                     keyboardType="numeric"
                     style={styles.odoLargeInput}
-                    placeholder={String(startOdo || 45470)}
+                    placeholder={String(startOdo || 0)}
                     placeholderTextColor="#71717A"
                   />
                   <Text style={styles.odoLargeKm}>KM</Text>
@@ -481,42 +407,6 @@ export function EndDutyScreen({ navigation }: Props) {
                   ))}
                 </View>
 
-                {candidates.length > 1 && (
-                  <View style={styles.candidatesSection}>
-                    <Text style={styles.candidatesLabel}>Detected in cluster photo (tap to choose):</Text>
-                    <View style={styles.candidatesRow}>
-                      {candidates.map((cand) => {
-                        const isSelected = Number(odometer.replace(/,/g, '')) === cand;
-                        return (
-                          <Pressable
-                            key={cand}
-                            onPress={() => {
-                              setOdometer(String(cand));
-                              setDetectedOdo(cand);
-                              setError('');
-                            }}
-                            style={[styles.candidateChip, isSelected && styles.candidateChipSelected]}
-                          >
-                            <Ionicons
-                              name={isSelected ? 'checkmark-circle' : 'speedometer-outline'}
-                              size={12}
-                              color={isSelected ? '#000000' : '#FFFFFF'}
-                              style={{ marginRight: 4 }}
-                            />
-                            <Text
-                              style={[
-                                styles.candidateChipText,
-                                isSelected && styles.candidateChipTextSelected,
-                              ]}
-                            >
-                              {km(cand)}
-                            </Text>
-                          </Pressable>
-                        );
-                      })}
-                    </View>
-                  </View>
-                )}
               </View>
 
               <View style={styles.remarksBox}>

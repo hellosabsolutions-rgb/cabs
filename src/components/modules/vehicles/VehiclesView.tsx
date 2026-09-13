@@ -80,7 +80,7 @@ export const VehiclesView: React.FC = () => {
   // First-time load: show full skeleton
   if (isLoadingVehicles && vehicles.length === 0) {
     return (
-      <div className="section active" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      <div className="section active module-page">
         <SkeletonCard count={4} />
         <SkeletonTable rows={6} columns={7} />
       </div>
@@ -106,7 +106,7 @@ export const VehiclesView: React.FC = () => {
   }
 
   return (
-    <div className="section active" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+    <div className="section active module-page">
       <SoftRefreshBar visible={isLoadingVehicles && vehicles.length > 0} label="Syncing vehicles…" />
       {/* Overview Stat Cards */}
       <div className="stats-grid">

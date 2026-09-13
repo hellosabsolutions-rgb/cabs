@@ -161,7 +161,7 @@ export const ReportIssueView: React.FC = () => {
   };
 
   return (
-    <div style={{ fontFamily: "'Poppins', sans-serif", paddingBottom: '40px' }}>
+    <div className="section active module-page" style={{ fontFamily: "'Poppins', sans-serif", paddingBottom: '24px' }}>
       {/* Top Header */}
       <div
         style={{

@@ -85,14 +85,14 @@ export const ComplianceView: React.FC = () => {
   // First-time load: show compliance skeleton layout
   if (isLoadingCompliance && vehicleCompliance.length === 0 && driverCompliance.length === 0) {
     return (
-      <div className="section active" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      <div className="section active module-page">
         <SkeletonCompliance />
       </div>
     );
   }
 
   return (
-    <div className="section active" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+    <div className="section active module-page">
       <SoftRefreshBar visible={isLoadingCompliance && (vehicleCompliance.length > 0 || driverCompliance.length > 0)} label="Syncing compliance docs…" />
       {/* Top Stat Cards */}
       <div className="stats-grid">

@@ -245,7 +245,7 @@ export const ProfileView: React.FC = () => {
   const roleColor = roleColors[user?.role || 'admin'] || 'var(--accent)';
 
   return (
-    <div className="section active profile-page">
+    <div className="section active module-page profile-page">
       {/* Header */}
       <div className="profile-page-header">
         <div className="profile-avatar-wrap">

@@ -2,6 +2,11 @@ import mongoose from 'mongoose';
 
 const departmentPaymentSchema = new mongoose.Schema(
   {
+    agencyId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Agency',
+      index: true
+    },
     receiptNumber: {
       type: String,
       required: true,

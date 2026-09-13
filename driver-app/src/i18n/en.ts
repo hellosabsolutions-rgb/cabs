@@ -97,6 +97,8 @@ export const en = {
   'common.captured': 'Captured',
   'common.tapToCapture': 'Tap to capture',
   'common.cancel': 'Cancel',
+  'common.ok': 'OK',
+  'common.confirm': 'Confirm',
   'common.submit': 'Submit',
   'common.open': 'Open',
   'common.km': 'km',

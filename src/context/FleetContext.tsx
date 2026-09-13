@@ -402,16 +402,18 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
-  const fetchLiveDailyDutyLogs = async (queryParam?: { month?: string; date?: string; vehicle?: string; department?: string; status?: string; search?: string }) => {
+  const fetchLiveDailyDutyLogs = async (queryParam?: { month?: string; date?: string; driverName?: string; driverId?: string; vehicle?: string; department?: string; status?: string; search?: string }) => {
     setIsLoadingDepartments(true);
     try {
       let endpoint = '/duty-logs?limit=200';
       if (queryParam) {
         const params = new URLSearchParams();
-        if (queryParam.month) params.append('month', queryParam.month);
+        if (queryParam.month && queryParam.month !== 'All') params.append('month', queryParam.month);
         if (queryParam.date) params.append('date', queryParam.date);
-        if (queryParam.vehicle) params.append('vehicle', queryParam.vehicle);
-        if (queryParam.department) params.append('departmentName', queryParam.department);
+        if (queryParam.driverName && queryParam.driverName !== 'All') params.append('driverName', queryParam.driverName);
+        if (queryParam.driverId) params.append('driverId', queryParam.driverId);
+        if (queryParam.vehicle && queryParam.vehicle !== 'All') params.append('vehicle', queryParam.vehicle);
+        if (queryParam.department && queryParam.department !== 'All') params.append('departmentName', queryParam.department);
         if (queryParam.status && queryParam.status !== 'All') params.append('status', queryParam.status);
         if (queryParam.search) params.append('search', queryParam.search);
         const qStr = params.toString();
@@ -979,6 +981,26 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activePage]);
 
+  const clearFleetData = () => {
+    setVehicles([]);
+    setDrivers([]);
+    setAttendanceRecords([]);
+    setDriverExpenses([]);
+    setDepartmentContracts([]);
+    setDailyDutyLogs([]);
+    setMonthlyBills([]);
+    setDepartmentPayments([]);
+    setFuelLogs([]);
+    setFastagTransactions([]);
+    setTrips([]);
+    setExpenses([]);
+    setTripExpenses([]);
+    setVehicleCompliance([]);
+    setDriverCompliance([]);
+    setMaintenanceRecords([]);
+    setDashboardStats(null);
+  };
+
   const refreshData = async () => {
     setIsLoading(true);
     setLoadingKey('refreshing');
@@ -996,6 +1018,8 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         fetchLiveTripExpenses(),
         fetchLiveMonthlyBills(),
         fetchPayrollSummary(),
+        fetchLiveMaintenance(),
+        fetchLiveExpenses(),
         fetchLiveDashboardStats()
       ]);
       showToast('info', 'Fleet, Drivers, FASTag, Daily Duty Logs, Invoices, Expenses & Dashboard synchronized with live server.', 'Refreshed');
@@ -1004,6 +1028,45 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setLoadingKey(null);
     }
   };
+
+  useEffect(() => {
+    const handleAgencySwitch = async () => {
+      clearFleetData();
+      socketManager.disconnectAll();
+      socketManager.getNotificationSocket();
+      setIsLoading(true);
+      setLoadingKey('agency-switch');
+      try {
+        await Promise.all([
+          fetchLiveVehicles(),
+          fetchLiveDrivers(),
+          fetchLiveContracts(),
+          fetchLiveCompliance(),
+          fetchLiveAttendance(),
+          fetchLiveDriverExpenses(),
+          fetchLiveBookings(),
+          fetchLiveDailyDutyLogs(),
+          fetchLiveFastagTransactions(),
+          fetchLiveTripExpenses(),
+          fetchLiveMonthlyBills(),
+          fetchPayrollSummary(),
+          fetchLiveMaintenance(),
+          fetchLiveExpenses(),
+          fetchLiveDashboardStats()
+        ]);
+        showToast('info', 'Switched agency — fleet data reloaded.', 'Agency');
+      } catch (err) {
+        console.warn('Agency switch refresh failed:', err);
+      } finally {
+        setIsLoading(false);
+        setLoadingKey(null);
+      }
+    };
+
+    window.addEventListener('fleetos:agency-switched', handleAgencySwitch);
+    return () => window.removeEventListener('fleetos:agency-switched', handleAgencySwitch);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const addVehicle = async (vehicleData: Omit<Vehicle, 'id'>) => {
     try {

@@ -18,6 +18,11 @@ export const DRIVER_EXPENSE_CATEGORIES = [
 
 const driverExpenseSchema = new mongoose.Schema(
   {
+    agencyId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Agency',
+      index: true
+    },
     driverId: {
       type: String,
       required: true,

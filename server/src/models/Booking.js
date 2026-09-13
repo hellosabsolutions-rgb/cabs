@@ -2,6 +2,11 @@ import mongoose from 'mongoose';
 
 const bookingSchema = new mongoose.Schema(
   {
+    agencyId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Agency',
+      index: true
+    },
     bookingNumber: {
       type: String,
       trim: true,

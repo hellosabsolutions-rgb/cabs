@@ -173,41 +173,12 @@ export const DriverPayrollView: React.FC = () => {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', fontFamily: "'Poppins', sans-serif" }}>
-      {/* Top Header matching screenshot */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'flex-start',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: '16px'
-        }}
-      >
+    <div className="module-page" style={{ fontFamily: "'Poppins', sans-serif" }}>
+      <div className="module-toolbar">
         <div>
-          <h1
-            style={{
-              fontSize: '26px',
-              fontWeight: 700,
-              margin: '0 0 6px 0',
-              color: 'var(--text)',
-              letterSpacing: '-0.3px',
-              fontFamily: "'Poppins', sans-serif"
-            }}
-          >
-            Driver payroll
-          </h1>
-          <p
-            style={{
-              margin: 0,
-              fontSize: '13.5px',
-              color: 'var(--text-dim)',
-              maxWidth: '680px',
-              lineHeight: 1.4,
-              fontFamily: "'Poppins', sans-serif"
-            }}
-          >
-            Track salary, advances and challans for every driver, and mark payments the moment you hand over cash.
+          <h1 className="module-toolbar__title">Driver payroll</h1>
+          <p className="module-toolbar__desc">
+            Track salary, advances and challans — mark payments when cash is handed over.
           </p>
         </div>
 
@@ -395,249 +366,88 @@ export const DriverPayrollView: React.FC = () => {
         </div>
       </div>
 
-      {/* Main Table */}
-      <div
-        style={{
-          background: 'var(--surface)',
-          border: '1px solid var(--border)',
-          borderRadius: '8px',
-          overflow: 'hidden',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.04)'
-        }}
-      >
-        <div style={{ overflowX: 'auto' }}>
-          <table
-            style={{
-              width: '100%',
-              borderCollapse: 'collapse',
-              textAlign: 'left'
-            }}
-          >
+      <div className="panel panel--table">
+        <div className="table-responsive table-dense">
+          <table>
             <thead>
-              <tr
-                style={{
-                  background: 'var(--surface-3)',
-                  borderBottom: '1px solid var(--border)'
-                }}
-              >
-                <th
-                  style={{
-                    padding: '12px 20px',
-                    fontSize: '11px',
-                    fontWeight: 800,
-                    letterSpacing: '0.6px',
-                    color: 'var(--text-faint)',
-                    textTransform: 'uppercase'
-                  }}
-                >
-                  Driver
-                </th>
-                <th
-                  style={{
-                    padding: '12px 20px',
-                    fontSize: '11px',
-                    fontWeight: 800,
-                    letterSpacing: '0.6px',
-                    color: 'var(--text-faint)',
-                    textTransform: 'uppercase'
-                  }}
-                >
-                  Attendance / Absent
-                </th>
-                <th
-                  style={{
-                    padding: '12px 20px',
-                    fontSize: '11px',
-                    fontWeight: 800,
-                    letterSpacing: '0.6px',
-                    color: 'var(--text-faint)',
-                    textTransform: 'uppercase'
-                  }}
-                >
-                  Advance Balance
-                </th>
-                <th
-                  style={{
-                    padding: '12px 20px',
-                    fontSize: '11px',
-                    fontWeight: 800,
-                    letterSpacing: '0.6px',
-                    color: 'var(--text-faint)',
-                    textTransform: 'uppercase'
-                  }}
-                >
-                  Challans
-                </th>
-                <th
-                  style={{
-                    padding: '12px 20px',
-                    fontSize: '11px',
-                    fontWeight: 800,
-                    letterSpacing: '0.6px',
-                    color: 'var(--text-faint)',
-                    textTransform: 'uppercase'
-                  }}
-                >
-                  Net Payable
-                </th>
-                <th
-                  style={{
-                    padding: '12px 20px',
-                    fontSize: '11px',
-                    fontWeight: 800,
-                    letterSpacing: '0.6px',
-                    color: 'var(--text-faint)',
-                    textTransform: 'uppercase',
-                    textAlign: 'center'
-                  }}
-                >
-                  Status
-                </th>
-                <th style={{ width: '40px', padding: '12px 14px' }}></th>
+              <tr>
+                <th>Driver</th>
+                <th>Attendance</th>
+                <th className="td-right">Offsets</th>
+                <th className="td-right">Net payable</th>
+                <th>Status</th>
+                <th style={{ width: 32 }}></th>
               </tr>
             </thead>
 
             <tbody>
               {isPayrollLoading ? (
                 <tr>
-                  <td colSpan={7} style={{ padding: '40px', textAlign: 'center', color: 'var(--text-faint)' }}>
+                  <td colSpan={6} style={{ padding: '28px', textAlign: 'center', color: 'var(--text-faint)' }}>
                     Loading driver payroll records...
                   </td>
                 </tr>
               ) : paginatedItems.length === 0 ? (
                 <tr>
-                  <td colSpan={7} style={{ padding: '40px', textAlign: 'center', color: 'var(--text-faint)' }}>
+                  <td colSpan={6} style={{ padding: '28px', textAlign: 'center', color: 'var(--text-faint)' }}>
                     No driver payroll records match your search or filter.
                   </td>
                 </tr>
               ) : (
-                paginatedItems.map(item => {
-                  const initial = item.name.charAt(0).toUpperCase();
-
-                  return (
+                paginatedItems.map(item => (
                     <tr
                       key={item.driverId}
                       onClick={() => setSelectedDriverDetailId(item.driverId)}
-                      style={{
-                        borderBottom: '1px solid var(--border)',
-                        cursor: 'pointer',
-                        transition: 'background 0.15s ease'
-                      }}
-                      onMouseEnter={e => (e.currentTarget.style.background = 'var(--surface-2)')}
-                      onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                      className="table-row-clickable"
                     >
-                      {/* Driver Info Column */}
-                      <td style={{ padding: '14px 20px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-                          <div
-                            style={{
-                              width: '38px',
-                              height: '38px',
-                              borderRadius: '50%',
-                              background: '#0b0b0b',
-                              color: '#ffffff',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              fontSize: '15px',
-                              fontWeight: 800,
-                              flexShrink: 0
-                            }}
-                          >
-                            {initial}
-                          </div>
-                          <div>
-                            <div style={{ fontSize: '14px', fontWeight: 800, color: 'var(--text)' }}>
-                              {item.name}
-                            </div>
-                            <div style={{ fontSize: '12px', color: 'var(--text-faint)', marginTop: '2px' }}>
-                              {item.assignedVehicle || '—'}
-                            </div>
+                      <td>
+                        <div className="driver-info-cell">
+                          <div className="driver-avatar-circle">{item.name.charAt(0).toUpperCase()}</div>
+                          <div className="cell-stack">
+                            <span className="cell-primary">{item.name}</span>
+                            <span className="cell-meta">{item.assignedVehicle || '—'}</span>
                           </div>
                         </div>
                       </td>
 
-                      {/* Attendance / Absent Days Column */}
-                      <td style={{ padding: '14px 20px' }}>
+                      <td>
                         {item.absentDays !== undefined && item.absentDays > 0 ? (
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                            <span
-                              style={{
-                                fontSize: '11px',
-                                fontWeight: 700,
-                                padding: '2px 8px',
-                                borderRadius: '4px',
-                                background: 'rgba(239, 68, 68, 0.1)',
-                                color: '#ef4444',
-                                border: '1px solid rgba(239, 68, 68, 0.3)',
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '4px',
-                                width: 'fit-content'
-                              }}
-                              title={`Absent on: ${item.absentDates?.join(', ') || 'dates in month'}`}
-                            >
-                              ● {item.absentDays} Day{item.absentDays > 1 ? 's' : ''} Absent
+                          <div className="cell-stack">
+                            <span className="cell-primary" style={{ color: '#ef4444', fontSize: '12px' }}>
+                              {item.absentDays} absent
                             </span>
-                            <span style={{ fontSize: '11.5px', color: '#ef4444', fontWeight: 600 }}>
-                              −₹{(item.absentDeduction || item.suggestedAbsentDeduction || 0).toLocaleString('en-IN')} deduction
+                            <span className="cell-meta" style={{ color: '#ef4444' }}>
+                              −₹{(item.absentDeduction || item.suggestedAbsentDeduction || 0).toLocaleString('en-IN')}
                             </span>
                           </div>
                         ) : (
-                          <span
-                            style={{
-                              fontSize: '11px',
-                              fontWeight: 600,
-                              padding: '2px 8px',
-                              borderRadius: '4px',
-                              background: 'rgba(34, 197, 94, 0.08)',
-                              color: '#22c55e',
-                              border: '1px solid rgba(34, 197, 94, 0.25)',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '4px',
-                              width: 'fit-content'
-                            }}
-                          >
-                            ● 0 Absent (Full Present)
-                          </span>
+                          <span style={{ fontSize: '12px', color: '#22c55e', fontWeight: 600 }}>Full present</span>
                         )}
                       </td>
 
-                      {/* Advance Balance */}
-                      <td style={{ padding: '14px 20px', fontSize: '13.5px', fontWeight: 700, color: 'var(--text)' }}>
-                        {item.advanceBalance > 0 ? `₹${item.advanceBalance.toLocaleString('en-IN')}` : '—'}
+                      <td className="td-right">
+                        <div className="cell-breakdown" style={{ justifyContent: 'flex-end' }}>
+                          {item.advanceBalance > 0 ? <span>Adv ₹{item.advanceBalance.toLocaleString('en-IN')}</span> : null}
+                          {item.challanBalance > 0 ? <span>Challan ₹{item.challanBalance.toLocaleString('en-IN')}</span> : null}
+                          {!(item.advanceBalance > 0) && !(item.challanBalance > 0) ? <span>—</span> : null}
+                        </div>
                       </td>
 
-                      {/* Challans */}
-                      <td style={{ padding: '14px 20px', fontSize: '13.5px', fontWeight: 700, color: 'var(--text)' }}>
-                        {item.challanBalance > 0 ? `₹${item.challanBalance.toLocaleString('en-IN')}` : '—'}
-                      </td>
+                      <td className="td-amount td-right">₹{item.netPayable.toLocaleString('en-IN')}</td>
 
-                      {/* Net Payable */}
-                      <td style={{ padding: '14px 20px', fontSize: '15px', fontWeight: 800, color: 'var(--text)' }}>
-                        ₹{item.netPayable.toLocaleString('en-IN')}
-                      </td>
+                      <td>{renderStatusBadge(item.status)}</td>
 
-                      {/* Status */}
-                      <td style={{ padding: '14px 20px', textAlign: 'center' }}>
-                        {renderStatusBadge(item.status)}
-                      </td>
-
-                      {/* Chevron Arrow */}
-                      <td style={{ padding: '14px 14px', textAlign: 'right', color: 'var(--text-faint)' }}>
+                      <td style={{ color: 'var(--text-faint)' }}>
                         <ChevronRight size={16} />
                       </td>
                     </tr>
-                  );
-                })
+                  ))
               )}
             </tbody>
           </table>
         </div>
 
-        {/* Pagination */}
-        <div style={{ padding: '12px 16px', borderTop: '1px solid var(--border)' }}>
+        <div style={{ padding: '10px 14px', borderTop: '1px solid var(--border)' }}>
           <Pagination
             currentPage={currentPage}
             totalItems={totalItems}

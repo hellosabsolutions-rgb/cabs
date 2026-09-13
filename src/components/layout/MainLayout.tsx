@@ -81,7 +81,7 @@ export const MainLayout: React.FC = () => {
         <ErrorBoundary fallbackTitle="Header Bar Error">
           <Topbar onToggleMobileSidebar={() => setMobileSidebarOpen(prev => !prev)} />
         </ErrorBoundary>
-        <main className="content">
+        <main className="content dashboard-layout">
           <ErrorBoundary key={location.pathname} resetKey={location.pathname} fallbackTitle="Error Loading View">
             <Routes>
               {/* Dashboard */}

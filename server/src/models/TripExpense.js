@@ -12,6 +12,11 @@ export const TRIP_EXPENSE_CATEGORIES = [
 
 const tripExpenseSchema = new mongoose.Schema(
   {
+    agencyId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Agency',
+      index: true
+    },
     bookingId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Booking',

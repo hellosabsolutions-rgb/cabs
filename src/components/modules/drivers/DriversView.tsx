@@ -34,7 +34,6 @@ import { SkeletonCard, SkeletonTable, SkeletonDriverCard, SoftRefreshBar } from 
 import { Pagination } from '../../common/Pagination';
 import { usePagination } from '../../../hooks/usePagination';
 import { resolveAssignedVehicle, isAssignedPlate } from '../../../utils/assignment';
-import { CustomDropdown } from '../../common/CustomDropdown';
 import { StatusDropdown } from '../../common/StatusDropdown';
 import {
   exportDriversToExcel,
@@ -247,7 +246,7 @@ export const DriversView: React.FC = () => {
   // First-time load: show full skeleton
   if (isLoadingDrivers && drivers.length === 0) {
     return (
-      <div className="section active" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      <div className="section active module-page">
         <SkeletonCard count={4} />
         <SkeletonDriverCard count={6} />
       </div>
@@ -255,7 +254,7 @@ export const DriversView: React.FC = () => {
   }
 
   return (
-    <div className="section active">
+    <div className="section active module-page">
       <SoftRefreshBar visible={isLoadingDrivers && drivers.length > 0} label="Syncing drivers…" />
       {/* Driver Sub-tabs Navigation */}
       <div className="subtab-nav">
@@ -330,9 +329,9 @@ export const DriversView: React.FC = () => {
             />
           </>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          <div className="module-page">
             {/* Quick Roster Stats */}
-            <div className="stats-grid">
+            <div className="stats-grid stats-grid--compact">
               <StatCard label="Total Registered Drivers" value={drivers.length} customColor="var(--accent)" />
               <StatCard label="On Duty Right Now" value={onDutyCount} />
               <StatCard label="Full Time Staff" value={fullTimeCount} />
@@ -684,7 +683,6 @@ export const DriversView: React.FC = () => {
                         const tripsCount = getDriverTripsCount(d.name);
                         const pendingSettlement = getDriverPendingSettlement(d);
                         const licenseInfo = getDriverLicenseInfo(d);
-                        const isActive = d.status === 'On duty';
 
                         return (
                           <div
@@ -770,32 +768,17 @@ export const DriversView: React.FC = () => {
                                 </div>
                               </div>
 
-                              {/* Status Badge */}
-                              <span
-                                style={{
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: '5px',
-                                  padding: '3px 10px',
-                                  borderRadius: '20px',
-                                  fontSize: '11.5px',
-                                  fontWeight: 600,
-                                  background: isActive ? 'rgba(34, 197, 94, 0.12)' : 'var(--surface-3, #f1f5f9)',
-                                  color: isActive ? '#16a34a' : 'var(--text-dim, #64748b)',
-                                  border: `1px solid ${isActive ? 'rgba(34, 197, 94, 0.3)' : 'var(--border, #e2e8f0)'}`,
-                                  flexShrink: 0
-                                }}
-                              >
-                                <span
-                                  style={{
-                                    width: '6px',
-                                    height: '6px',
-                                    borderRadius: '50%',
-                                    background: isActive ? '#16a34a' : '#94a3b8'
-                                  }}
+                              <div onClick={e => e.stopPropagation()} style={{ flexShrink: 0 }}>
+                                <StatusDropdown
+                                  value={d.status === 'On duty' ? 'On duty' : 'Off duty'}
+                                  options={[
+                                    { value: 'On duty', label: 'Active', color: '#22c55e', bg: 'rgba(34, 197, 94, 0.12)', borderColor: 'rgba(34, 197, 94, 0.35)' },
+                                    { value: 'Off duty', label: 'Off duty', color: 'var(--text-dim)', bg: 'var(--surface-3)', borderColor: 'var(--border)' }
+                                  ]}
+                                  onChange={newVal => updateDriverStatus(d.id, newVal as 'On duty' | 'Off duty')}
+                                  size="sm"
                                 />
-                                {isActive ? 'Active' : 'Off duty'}
-                              </span>
+                              </div>
                             </div>
 
                             {/* Bottom Row: Settlement & License */}
@@ -841,24 +824,22 @@ export const DriversView: React.FC = () => {
 
               {/* VIEW MODE 2: LIST VIEW */}
               {viewMode === 'list' && (
-                <div className="table-responsive" style={{ marginTop: '12px' }}>
+                <div className="table-responsive table-dense" style={{ marginTop: '8px' }}>
                   <table>
                     <thead>
                       <tr>
                         <th>Driver</th>
+                        <th>Vehicle</th>
                         <th>Type</th>
-                        <th>Assigned vehicle</th>
-                        <th>Emergency contact</th>
-                        <th>License No.</th>
-                        <th>Joining date</th>
+                        <th>License</th>
                         <th>Status</th>
-                        <th style={{ textAlign: 'right' }}>Actions</th>
+                        <th className="td-right">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
                       {paginatedDrivers.length === 0 ? (
                         <tr>
-                          <td colSpan={8} style={{ textAlign: 'center', color: 'var(--text-faint)', padding: '30px 0' }}>
+                          <td colSpan={6} style={{ textAlign: 'center', color: 'var(--text-faint)', padding: '24px 0' }}>
                             No drivers found matching your filter criteria.
                           </td>
                         </tr>
@@ -866,7 +847,7 @@ export const DriversView: React.FC = () => {
                         paginatedDrivers.map(d => (
                           <tr
                             key={d.id}
-                            style={{ cursor: 'pointer' }}
+                            className="table-row-clickable"
                             onClick={() => setSelectedDriverForDetail(d)}
                           >
                             <td>
@@ -878,41 +859,26 @@ export const DriversView: React.FC = () => {
                                     {getInitials(d.name)}
                                   </div>
                                 )}
-                                <div>
-                                  <div className="cell-truncate-md" style={{ fontWeight: 600, color: 'var(--text)' }} title={d.name}>
-                                    {d.name}
-                                  </div>
-                                  {d.phone && (
-                                    <div style={{ fontSize: '11px', color: 'var(--text-faint)', marginTop: '2px', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                      <span>{d.phone}</span>
-                                      <CheckCircle2 size={11} style={{ color: '#2563eb' }} />
-                                    </div>
-                                  )}
-                                  {d.address && (
-                                    <div
-                                      className="cell-truncate-md"
-                                      style={{ fontSize: '10.5px', color: 'var(--text-faint)', marginTop: '1px', display: 'flex', alignItems: 'center', gap: '3px' }}
-                                      title={d.address}
-                                    >
-                                      <MapPin size={10} style={{ flexShrink: 0 }} /> <span className="text-truncate">{d.address}</span>
-                                    </div>
-                                  )}
+                                <div className="cell-stack">
+                                  <span className="cell-primary" title={d.name}>{d.name}</span>
+                                  {d.phone ? (
+                                    <span className="cell-meta" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                                      {d.phone}
+                                      <CheckCircle2 size={10} style={{ color: '#2563eb' }} />
+                                    </span>
+                                  ) : null}
                                 </div>
                               </div>
                             </td>
+                            <td style={{ fontWeight: 500 }}>{d.assignedVehicle || '—'}</td>
                             <td>
                               <span className={getTypeBadgeClass(d.driverType)}>
                                 {d.driverType || 'Full Time'}
                               </span>
                             </td>
-                            <td style={{ fontWeight: 500 }}>{d.assignedVehicle || '—'}</td>
-                            <td style={{ color: d.emergencyContact ? 'var(--text)' : 'var(--text-faint)' }}>
-                              {d.emergencyContact || '—'}
-                            </td>
                             <td style={{ fontFamily: 'monospace', fontSize: '12px', color: 'var(--text-dim)' }}>
                               {d.licenseNumber || '—'}
                             </td>
-                            <td>{d.joiningDate}</td>
                             <td onClick={e => e.stopPropagation()}>
                               <StatusDropdown
                                 value={d.status === 'On duty' ? 'On duty' : 'Off duty'}
@@ -924,42 +890,35 @@ export const DriversView: React.FC = () => {
                                 size="sm"
                               />
                             </td>
-                            <td style={{ textAlign: 'right' }} onClick={e => e.stopPropagation()}>
-                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '6px' }}>
+                            <td className="td-right" onClick={e => e.stopPropagation()}>
+                              <div className="table-actions">
                                 <button
                                   type="button"
-                                  className="btn-secondary"
-                                  style={{ padding: '4px 8px', fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                                  className="icon-btn"
                                   onClick={() => setSelectedDriverForDetail(d)}
-                                  title="View full driver details"
+                                  title="View details"
                                 >
-                                  <Eye size={11} color="var(--accent)" />
-                                  <span>View</span>
+                                  <Eye size={14} />
                                 </button>
                                 <button
                                   type="button"
-                                  className="btn-secondary"
-                                  style={{ padding: '4px 8px', fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                                  className="icon-btn"
                                   onClick={() => setEditingDriver(d)}
-                                  title="Edit driver details"
+                                  title="Edit driver"
                                 >
-                                  <Edit2 size={11} color="var(--accent)" />
-                                  <span>Edit</span>
+                                  <Edit2 size={14} />
                                 </button>
                                 <button
                                   type="button"
-                                  className="btn-secondary"
-                                  style={{ padding: '4px 8px', fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                                  className="icon-btn"
                                   onClick={() => updateDriverStatus(d.id, d.status === 'On duty' ? 'Off duty' : 'On duty')}
-                                  title={`Toggle duty status (Currently ${d.status})`}
+                                  title={`Toggle duty (${d.status})`}
                                 >
-                                  <Power size={11} color={d.status === 'On duty' ? 'var(--accent)' : 'var(--text-faint)'} />
-                                  <span>{d.status === 'On duty' ? 'Off duty' : 'On duty'}</span>
+                                  <Power size={14} />
                                 </button>
                                 <button
                                   type="button"
-                                  className="btn-secondary"
-                                  style={{ padding: '4px 7px', color: 'var(--danger)', borderColor: 'rgba(255, 92, 92, 0.2)' }}
+                                  className="icon-btn icon-btn--danger"
                                   onClick={() => {
                                     if (window.confirm(`Are you sure you want to remove driver "${d.name}" from the system?`)) {
                                       deleteDriver(d.id);
@@ -967,7 +926,7 @@ export const DriversView: React.FC = () => {
                                   }}
                                   title="Delete driver"
                                 >
-                                  <Trash2 size={12} />
+                                  <Trash2 size={14} />
                                 </button>
                               </div>
                             </td>

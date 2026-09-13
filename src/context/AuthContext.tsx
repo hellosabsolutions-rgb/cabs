@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { api } from '../services/api';
+import { api, setStoredAgencyId } from '../services/api';
 
 export interface AuthUser {
   id: string;
@@ -209,6 +209,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       localStorage.removeItem('fleetos_auth_token');
       localStorage.removeItem('fleetos_refresh_token');
       localStorage.removeItem('fleetos_auth_user');
+      setStoredAgencyId(null);
       setIsDashboardOpening(false);
       setToken(null);
       setRefreshToken(null);

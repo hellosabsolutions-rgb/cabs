@@ -1,5 +1,10 @@
 import { Agency } from '../models/Agency.js';
+import { Booking } from '../models/Booking.js';
+import { DailyDutyLog } from '../models/DailyDutyLog.js';
 import { Driver } from '../models/Driver.js';
+import { DriverAdvance } from '../models/DriverAdvance.js';
+import { DriverExpense } from '../models/DriverExpense.js';
+import { FuelLog } from '../models/FuelLog.js';
 import { RefreshToken } from '../models/RefreshToken.js';
 import { Vehicle } from '../models/Vehicle.js';
 import { generateAccessToken, generateRefreshToken } from '../middleware/authMiddleware.js';
@@ -62,11 +67,99 @@ export async function findAssignedVehicle(driver) {
   return null;
 }
 
-export async function serializeDriverAuth(driver) {
-  const [vehicle, agency] = await Promise.all([
-    findAssignedVehicle(driver),
-    driver.agencyId ? Agency.findById(driver.agencyId) : null
+function istTodayDate(now = new Date()) {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(now);
+}
+
+async function computeDriverWallet(driver) {
+  const driverId = driver._id.toString();
+  const driverName = driver.name || '';
+  const agencyFilter = driver.agencyId ? { agencyId: driver.agencyId } : {};
+  const ownerFilter = {
+    $or: [{ driverId }, { driverName }],
+    ...agencyFilter
+  };
+
+  const [advances, expenses, fuels] = await Promise.all([
+    DriverAdvance.find({ ...ownerFilter, status: 'ACTIVE' }).lean(),
+    DriverExpense.find({ ...ownerFilter, status: { $in: ['Approved', 'Paid'] } }).lean(),
+    FuelLog.find({ driverName, ...agencyFilter }).lean()
   ]);
+
+  const opening = advances.reduce((sum, row) => sum + (Number(row.amount) || 0), 0);
+  const spent =
+    expenses.reduce((sum, row) => sum + (Number(row.amount) || 0), 0) +
+    fuels.reduce((sum, row) => sum + (Number(row.totalCost) || 0), 0);
+
+  return {
+    opening,
+    spent,
+    remaining: opening - spent
+  };
+}
+
+async function computeTodayKm(driver, vehicle) {
+  const todayDate = istTodayDate();
+  const driverName = driver.name || '';
+  const vehicleReg = vehicle?.registrationNumber;
+
+  const logFilter = {
+    date: todayDate,
+    ...(driver.agencyId ? { agencyId: driver.agencyId } : {}),
+    $or: [{ driverName }, ...(vehicleReg ? [{ vehicle: vehicleReg }] : [])]
+  };
+
+  const logs = await DailyDutyLog.find(logFilter).lean();
+  let todayKm = logs.reduce((sum, log) => sum + (Number(log.totalKm) || 0), 0);
+
+  const openLog = logs.find(
+    (log) => log.status === 'Pending' && (!log.endTime || log.endTime === '—')
+  );
+  if (openLog?.startKm && vehicle?.odometer && vehicle.odometer > openLog.startKm) {
+    todayKm = Math.max(todayKm, vehicle.odometer - openLog.startKm);
+  }
+
+  return todayKm;
+}
+
+async function findActiveTrip(driver) {
+  const driverName = driver.name?.trim();
+  if (!driverName) return null;
+
+  const tripFilter = {
+    $and: [
+      {
+        $or: [
+          { driverName: new RegExp(`^${driverName}$`, 'i') },
+          { driverId: driver._id }
+        ]
+      },
+      { status: { $in: ['Scheduled', 'Ongoing'] } },
+      { driverName: { $nin: ['Unassigned', 'None', '—', '', null] } }
+    ]
+  };
+  if (driver.agencyId) {
+    tripFilter.$and.push({ agencyId: driver.agencyId });
+  }
+
+  const booking = await Booking.findOne(tripFilter).sort({ startDate: 1 }).lean();
+  if (!booking) return null;
+
+  return {
+    id: booking.bookingNumber || booking.tripNumber || booking._id.toString(),
+    status: booking.status
+  };
+}
+
+export async function serializeDriverAuth(driver) {
+  const [vehicle, agency, wallet, trip] = await Promise.all([
+    findAssignedVehicle(driver),
+    driver.agencyId ? Agency.findById(driver.agencyId) : null,
+    computeDriverWallet(driver),
+    findActiveTrip(driver)
+  ]);
+  const todayKm = await computeTodayKm(driver, vehicle);
+  const vehicleOdometer = vehicle?.odometer || 0;
 
   return {
     driver: {
@@ -81,21 +174,22 @@ export async function serializeDriverAuth(driver) {
       agency: agency?.name || 'KABPRO',
       photo: driver.photo || null,
       onDuty: driver.status === 'On duty',
-      odometer: vehicle?.odometer || 0,
-      todayKm: 0
+      odometer: vehicleOdometer,
+      todayKm
     },
     vehicle: vehicle
       ? {
           id: vehicle._id.toString(),
           reg: vehicle.registrationNumber,
-          type: vehicle.type,
-          model: vehicle.model || '—',
+          type: vehicle.type || vehicle.vehicleType || 'Commercial',
+          model: vehicle.model || vehicle.make || '—',
           departmentName: vehicle.departmentName || '',
           fuelType: vehicle.fuelType || 'Diesel',
-          odometer: vehicle.odometer || 0
+          odometer: vehicleOdometer
         }
       : null,
-    trip: null
+    trip,
+    wallet
   };
 }
 

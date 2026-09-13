@@ -41,7 +41,7 @@ export const findDriverByIdOrAny = async (driverId) => {
  */
 export const getPayrollSummary = asyncHandler(async (req, res) => {
   const month = req.query.month || getCurrentMonth();
-  const agencyId = req.user?.agencyId;
+  const agencyId = req.agencyId || req.user?.currentAgency;
 
   const driverFilter = agencyId ? { agencyId } : {};
   const drivers = await Driver.find(driverFilter).sort({ name: 1 });

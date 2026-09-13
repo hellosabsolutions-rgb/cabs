@@ -1,11 +1,11 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useFleet } from '../../../context/FleetContext';
 import { StatCard } from '../../common/StatCard';
 import { AddDutyLogModal } from './AddDutyLogModal';
 import { LogBookPrintModal } from './LogBookPrintModal';
 import { WeekendTripBillModal } from './WeekendTripBillModal';
 import { DailyDutyLog } from '../../../types/fleet';
-import { CustomStatusDropdown, StatusOption } from '../../common/CustomStatusDropdown';
+import { StatusDropdown, StatusOption } from '../../common/StatusDropdown';
 import { Pagination } from '../../common/Pagination';
 import { usePagination } from '../../../hooks/usePagination';
 import {
@@ -24,7 +24,6 @@ import {
   Navigation,
   Droplets,
   UserCheck,
-  Filter,
   Check,
   ChevronDown,
   Clock
@@ -32,14 +31,37 @@ import {
 import { SkeletonCard, SkeletonTable } from '../../common/Skeleton';
 
 export const DailyDutyLogsView: React.FC = () => {
-  const { dailyDutyLogs, updateDailyDutyLogStatus, deleteDailyDutyLog, searchQuery, isLoading } = useFleet();
+  const {
+    dailyDutyLogs,
+    drivers,
+    fetchLiveDailyDutyLogs,
+    updateDailyDutyLogStatus,
+    deleteDailyDutyLog,
+    searchQuery,
+    isLoading
+  } = useFleet();
 
   const [viewMode, setViewMode] = useState<'slips' | 'logbook'>('slips');
   const [deptFilter, setDeptFilter] = useState<string>('All');
   const [vehicleFilter, setVehicleFilter] = useState<string>('All');
+  const [driverFilter, setDriverFilter] = useState<string>('All');
+  const [dateFilter, setDateFilter] = useState<string>('');
   const [monthFilter, setMonthFilter] = useState<string>('All');
   const [dutyCategoryFilter, setDutyCategoryFilter] = useState<'All' | 'Official' | 'Weekend'>('All');
   const [statusFilter, setStatusFilter] = useState<string>('All');
+
+  useEffect(() => {
+    void fetchLiveDailyDutyLogs({
+      driverName: driverFilter !== 'All' ? driverFilter : undefined,
+      date: dateFilter || undefined,
+      month: monthFilter !== 'All' && !dateFilter ? monthFilter : undefined,
+      vehicle: vehicleFilter !== 'All' ? vehicleFilter : undefined,
+      department: deptFilter !== 'All' ? deptFilter : undefined,
+      status: statusFilter !== 'All' ? statusFilter : undefined,
+      search: searchQuery || undefined
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [driverFilter, dateFilter, monthFilter, vehicleFilter, deptFilter, statusFilter, searchQuery]);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalDefaultDutyType, setModalDefaultDutyType] = useState<
@@ -51,18 +73,11 @@ export const DailyDutyLogsView: React.FC = () => {
   const [printModalSingleLog, setPrintModalSingleLog] = useState<DailyDutyLog | null>(null);
   const [selectedWeekendLogForPrint, setSelectedWeekendLogForPrint] = useState<DailyDutyLog | null>(null);
 
-  // Unique lists for filtering
-  const departments = useMemo(() => {
-    return Array.from(new Set(dailyDutyLogs.map(l => l.departmentName))).filter(Boolean);
-  }, [dailyDutyLogs]);
-
-  const vehicles = useMemo(() => {
-    return Array.from(new Set(dailyDutyLogs.map(l => l.vehicle))).filter(Boolean);
-  }, [dailyDutyLogs]);
-
-  const months = useMemo(() => {
-    return Array.from(new Set(dailyDutyLogs.map(l => l.month || 'August 2026'))).filter(Boolean);
-  }, [dailyDutyLogs]);
+  const driverNames = useMemo(() => {
+    const fromLogs = dailyDutyLogs.map(l => l.driverName).filter(Boolean);
+    const fromFleet = drivers.map(d => d.name).filter(Boolean);
+    return Array.from(new Set([...fromFleet, ...fromLogs])).sort((a, b) => a.localeCompare(b));
+  }, [dailyDutyLogs, drivers]);
 
   const filteredLogs = useMemo(() => {
     return dailyDutyLogs.filter(log => {
@@ -85,7 +100,15 @@ export const DailyDutyLogsView: React.FC = () => {
 
       const matchDept = deptFilter === 'All' || log.departmentName === deptFilter;
       const matchVehicle = vehicleFilter === 'All' || log.vehicle === vehicleFilter;
-      const matchMonth = monthFilter === 'All' || (log.month || 'August 2026') === monthFilter;
+      const matchDriver =
+        driverFilter === 'All' ||
+        log.driverName?.toLowerCase() === driverFilter.toLowerCase() ||
+        log.driverId === driverFilter;
+      const matchDate = !dateFilter || log.date === dateFilter;
+      const matchMonth =
+        monthFilter === 'All' ||
+        log.month === monthFilter ||
+        (log.date && monthFilter.length === 7 && log.date.startsWith(monthFilter));
       const matchStatus = statusFilter === 'All' || log.status === statusFilter;
 
       const isWeekendTrip = log.dutyType === 'Weekend / Off-Duty Trip';
@@ -94,9 +117,9 @@ export const DailyDutyLogsView: React.FC = () => {
         (dutyCategoryFilter === 'Weekend' && isWeekendTrip) ||
         (dutyCategoryFilter === 'Official' && !isWeekendTrip);
 
-      return matchSearch && matchDept && matchVehicle && matchMonth && matchStatus && matchCategory;
+      return matchSearch && matchDept && matchVehicle && matchDriver && matchDate && matchMonth && matchStatus && matchCategory;
     });
-  }, [dailyDutyLogs, searchQuery, deptFilter, vehicleFilter, monthFilter, statusFilter, dutyCategoryFilter]);
+  }, [dailyDutyLogs, searchQuery, deptFilter, vehicleFilter, driverFilter, dateFilter, monthFilter, statusFilter, dutyCategoryFilter]);
 
   const {
     currentPage,
@@ -177,7 +200,7 @@ export const DailyDutyLogsView: React.FC = () => {
     ];
 
     return (
-      <CustomStatusDropdown
+      <StatusDropdown
         value={status}
         options={dutyOptions}
         onChange={(newStatus) => updateDailyDutyLogStatus(id, newStatus)}
@@ -194,237 +217,113 @@ export const DailyDutyLogsView: React.FC = () => {
     );
   }
 
+  const hasActiveFilters = driverFilter !== 'All' || dateFilter || dutyCategoryFilter !== 'All';
+
+  const clearFilters = () => {
+    setDriverFilter('All');
+    setDateFilter('');
+    setDutyCategoryFilter('All');
+  };
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-      {/* Top View Mode Switcher */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          background: 'var(--surface-2)',
-          padding: '8px 12px',
-          borderRadius: '12px',
-          border: '1px solid var(--border)',
-          flexWrap: 'wrap',
-          gap: '10px'
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+    <div className="module-page">
+      <div className="module-toolbar">
+        <div className="filter-pills">
           <button
+            type="button"
+            className={`filter-pill ${viewMode === 'slips' ? 'active' : ''}`}
             onClick={() => setViewMode('slips')}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '7px 16px',
-              borderRadius: '8px',
-              border: viewMode === 'slips' ? '1px solid var(--accent)' : '1px solid transparent',
-              background: viewMode === 'slips' ? 'var(--accent)' : 'transparent',
-              color: viewMode === 'slips' ? '#fff' : 'var(--text-dim)',
-              fontSize: '13px',
-              fontWeight: 600,
-              cursor: 'pointer',
-              transition: 'all 0.2s'
-            }}
           >
-            <FileText size={15} /> 📑 Daily Duty Slips
+            <FileText size={13} style={{ marginRight: 4, verticalAlign: -2 }} />
+            Duty slips
           </button>
           <button
+            type="button"
+            className={`filter-pill ${viewMode === 'logbook' ? 'active' : ''}`}
             onClick={() => setViewMode('logbook')}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '7px 16px',
-              borderRadius: '8px',
-              border: viewMode === 'logbook' ? '1px solid #38bdf8' : '1px solid transparent',
-              background: viewMode === 'logbook' ? 'rgba(56, 189, 248, 0.15)' : 'transparent',
-              color: viewMode === 'logbook' ? '#38bdf8' : 'var(--text-dim)',
-              fontSize: '13px',
-              fontWeight: 700,
-              cursor: 'pointer',
-              transition: 'all 0.2s'
-            }}
           >
-            <BookOpen size={15} /> 📖 Official Log Book Register
+            <BookOpen size={13} style={{ marginRight: 4, verticalAlign: -2 }} />
+            Log book
           </button>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <button
-            className="btn-secondary"
-            onClick={() => openLogBookPrint()}
-            style={{
-              fontSize: '12px',
-              padding: '6px 14px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              borderColor: 'rgba(56, 189, 248, 0.4)',
-              color: '#38bdf8'
-            }}
-          >
-            <Printer size={13} /> 🖨️ Print / Export Log Book
+        <div className="module-filter-bar__group">
+          <button type="button" className="btn-secondary" onClick={() => openLogBookPrint()}>
+            <Printer size={13} /> Print
           </button>
-          <button
-            className="btn-primary-action"
-            style={{ fontSize: '12px', padding: '6px 16px', display: 'flex', alignItems: 'center', gap: '5px' }}
-            onClick={() => handleOpenModal('Official Department Duty')}
-          >
-            <Plus size={14} /> + Log Entry
+          <button type="button" className="btn-secondary" onClick={() => handleOpenModal('Weekend / Off-Duty Trip')}>
+            <Briefcase size={13} /> Weekend trip
+          </button>
+          <button type="button" className="btn-primary-action" onClick={() => handleOpenModal('Official Department Duty')}>
+            <Plus size={14} /> Log duty
           </button>
         </div>
       </div>
 
-      {/* Stats Grid */}
-      <div className="stats-grid">
-        <StatCard label="Total Duty & Booking Slips" value={stats.totalSlips} />
-        <StatCard label="Total Kilometres Run" value={`${stats.totalKm.toLocaleString('en-IN')} km`} />
-        <StatCard
-          label="Sat / Sun Weekend Bookings Done"
-          value={`${stats.weekendTripsCount} Bookings`}
-          customColor="#38bdf8"
-        />
-        <StatCard
-          label="Weekend Private Profit"
-          value={`₹${stats.weekendTripProfit.toLocaleString('en-IN')}`}
-          customColor="var(--success)"
-        />
+      <div className="stats-grid stats-grid--lean">
+        <StatCard label="Duty slips" value={stats.totalSlips} customColor="var(--accent)" />
+        <StatCard label="Kilometres" value={`${stats.totalKm.toLocaleString('en-IN')} km`} />
+        <StatCard label="Weekend trips" value={stats.weekendTripsCount} customColor="#38bdf8" />
+        <StatCard label="Weekend profit" value={`₹${stats.weekendTripProfit.toLocaleString('en-IN')}`} customColor="var(--success)" />
       </div>
 
-      {/* Main Panel */}
-      <div className="panel">
-        <div className="panel-head" style={{ flexWrap: 'wrap', gap: '10px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <span className="panel-title">
-              {viewMode === 'logbook'
-                ? 'Official Vehicle Log Book Register'
-                : 'Daily Duty Slips & Weekend Booking Logs'}
-            </span>
-            <span style={{ fontSize: '12px', color: 'var(--text-faint)' }}>
-              ({filteredLogs.length} entries)
-            </span>
+      <div className="panel panel--table">
+        <div className="module-filter-bar">
+          <div className="module-filter-bar__group">
+            <div className="filter-pills">
+              <button
+                type="button"
+                className={`filter-pill ${dutyCategoryFilter === 'All' ? 'active' : ''}`}
+                onClick={() => setDutyCategoryFilter('All')}
+              >
+                All
+              </button>
+              <button
+                type="button"
+                className={`filter-pill ${dutyCategoryFilter === 'Official' ? 'active' : ''}`}
+                onClick={() => setDutyCategoryFilter('Official')}
+              >
+                Official
+              </button>
+              <button
+                type="button"
+                className={`filter-pill ${dutyCategoryFilter === 'Weekend' ? 'active' : ''}`}
+                onClick={() => setDutyCategoryFilter('Weekend')}
+              >
+                Weekend
+              </button>
+            </div>
+
+            <select
+              className={`form-input filter-select ${driverFilter !== 'All' ? 'filter-select--active' : ''}`}
+              value={driverFilter}
+              onChange={e => setDriverFilter(e.target.value)}
+              title="Filter by driver"
+            >
+              <option value="All">All drivers</option>
+              {driverNames.map(name => (
+                <option key={name} value={name}>{name}</option>
+              ))}
+            </select>
+
+            <input
+              type="date"
+              className={`form-input filter-select ${dateFilter ? 'filter-select--active' : ''}`}
+              value={dateFilter}
+              onChange={e => setDateFilter(e.target.value)}
+              title="Filter by date"
+            />
+
+            {hasActiveFilters ? (
+              <button type="button" className="btn-secondary" onClick={clearFilters}>
+                Clear
+              </button>
+            ) : null}
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-            {/* Duty Category Filter: All, Official, Weekend */}
-            <button
-              className={`subtab-btn ${dutyCategoryFilter === 'All' ? 'active' : ''}`}
-              onClick={() => setDutyCategoryFilter('All')}
-              style={{ padding: '5px 10px', fontSize: '12px' }}
-            >
-              All Logs
-            </button>
-            <button
-              className={`subtab-btn ${dutyCategoryFilter === 'Official' ? 'active' : ''}`}
-              onClick={() => setDutyCategoryFilter('Official')}
-              style={{ padding: '5px 10px', fontSize: '12px' }}
-            >
-              <Building2 size={13} /> Official (Mon-Fri)
-            </button>
-            <button
-              className={`subtab-btn ${dutyCategoryFilter === 'Weekend' ? 'active' : ''}`}
-              onClick={() => setDutyCategoryFilter('Weekend')}
-              style={{
-                padding: '5px 10px',
-                fontSize: '12px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
-                color: dutyCategoryFilter === 'Weekend' ? '#38bdf8' : undefined
-              }}
-            >
-              <Briefcase size={13} /> Sat/Sun Bookings ({stats.weekendTripsCount})
-            </button>
-
-            {/* Vehicle Filter */}
-            <select
-              className="form-input"
-              style={{ width: 'auto', padding: '5px 10px', fontSize: '12px' }}
-              value={vehicleFilter}
-              onChange={e => setVehicleFilter(e.target.value)}
-              title="Filter by Vehicle Number"
-            >
-              <option value="All">All Vehicles</option>
-              {vehicles.map(v => (
-                <option key={v} value={v}>
-                  {v}
-                </option>
-              ))}
-            </select>
-
-            {/* Month Filter */}
-            <select
-              className="form-input"
-              style={{ width: 'auto', padding: '5px 10px', fontSize: '12px' }}
-              value={monthFilter}
-              onChange={e => setMonthFilter(e.target.value)}
-              title="Filter by Month"
-            >
-              <option value="All">All Months</option>
-              {months.map(m => (
-                <option key={m} value={m}>
-                  {m}
-                </option>
-              ))}
-            </select>
-
-            {/* Department Filter */}
-            <select
-              className="form-input"
-              style={{ width: 'auto', padding: '5px 10px', fontSize: '12px' }}
-              value={deptFilter}
-              onChange={e => setDeptFilter(e.target.value)}
-            >
-              <option value="All">All Departments</option>
-              {departments.map(d => (
-                <option key={d} value={d}>
-                  {d}
-                </option>
-              ))}
-            </select>
-
-            {/* Status Filter */}
-            <select
-              className="form-input"
-              style={{ width: 'auto', padding: '5px 10px', fontSize: '12px' }}
-              value={statusFilter}
-              onChange={e => setStatusFilter(e.target.value)}
-            >
-              <option value="All">All Statuses</option>
-              <option value="Approved">Approved</option>
-              <option value="Pending">Pending</option>
-              <option value="Rejected">Rejected</option>
-            </select>
-
-            {/* Log Weekend Trip Button */}
-            <button
-              className="btn-secondary"
-              style={{
-                fontSize: '12px',
-                padding: '6px 14px',
-                color: '#38bdf8',
-                borderColor: 'rgba(56, 189, 248, 0.4)',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '5px'
-              }}
-              onClick={() => handleOpenModal('Weekend / Off-Duty Trip')}
-              title="Record commercial outstation booking taken by department car on Saturday or Sunday"
-            >
-              <Briefcase size={13} /> + Log Weekend Booking
-            </button>
-
-            {/* Log Official Duty Slip Button */}
-            <button
-              className="btn-primary-action"
-              style={{ fontSize: '12px', padding: '7px 16px', display: 'flex', alignItems: 'center', gap: '5px' }}
-              onClick={() => handleOpenModal('Official Department Duty')}
-            >
-              <Plus size={14} /> + Log Official Duty
-            </button>
-          </div>
+          <span className="period-nav__label" style={{ color: 'var(--text-faint)', fontWeight: 500 }}>
+            {filteredLogs.length} entries
+          </span>
         </div>
 
         {/* ============================================================ */}

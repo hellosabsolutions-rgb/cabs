@@ -378,7 +378,7 @@ export const NotificationsView: React.FC = () => {
   const categories: NotifCategory[] = ['all', 'bookings', 'compliance', 'maintenance', 'fleet', 'financial', 'system'];
 
   return (
-    <div className="section active notif-page">
+    <div className="section active module-page notif-page">
       {/* Page Header */}
       <div className="notif-header">
         <div className="notif-header-left">

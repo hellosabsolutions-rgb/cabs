@@ -33,7 +33,7 @@ export const DashboardView: React.FC = () => {
   // First-time load: show full dashboard skeleton
   if (isLoadingDashboard && !dashboardStats) {
     return (
-      <div className="section active">
+      <div className="section active module-page">
         <SkeletonDashboard />
       </div>
     );
@@ -92,7 +92,7 @@ export const DashboardView: React.FC = () => {
   );
 
   return (
-    <div className="section active">
+    <div className="section active module-page">
       {/* Background sync indicator — shows when data exists but is being refreshed */}
       <SoftRefreshBar visible={isLoadingDashboard && !!dashboardStats} label="Syncing dashboard metrics…" />
       {/* 4 Primary KPI Cards Powered by MongoDB Aggregations */}

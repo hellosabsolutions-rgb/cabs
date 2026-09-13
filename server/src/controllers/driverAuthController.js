@@ -11,6 +11,7 @@ import {
   issueDriverSession,
   serializeDriverAuth
 } from '../services/driverSession.js';
+import { hoursBetween, upsertAttendanceFromDutyLog } from '../utils/dutyAttendanceSync.js';
 
 function nextDriverCode() {
   return `DRV-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
@@ -21,25 +22,6 @@ function serializeDoc(doc) {
   const json = typeof doc.toJSON === 'function' ? doc.toJSON() : { ...(doc.toObject?.() || doc) };
   json.id = json.id || json._id?.toString();
   return json;
-}
-
-function hoursBetween(startStr, endStr) {
-  if (!startStr || !endStr || startStr === '—' || endStr === '—') return 0;
-  try {
-    const parseTime = (tStr) => {
-      const [time, modifier] = tStr.split(' ');
-      let [hours, minutes] = time.split(':').map(Number);
-      if (modifier === 'PM' && hours < 12) hours += 12;
-      if (modifier === 'AM' && hours === 12) hours = 0;
-      return hours + minutes / 60;
-    };
-    const startH = parseTime(startStr);
-    const endH = parseTime(endStr);
-    const diff = endH >= startH ? endH - startH : (24 - startH) + endH;
-    return Number(diff.toFixed(1));
-  } catch {
-    return 0;
-  }
 }
 
 function istTodayDate(now = new Date()) {
@@ -59,13 +41,17 @@ function monthNameIst(now = new Date()) {
 
 async function upsertOpenDutyLog({ driver, vehicle, odoNumber, istTime, todayDate, photoUrl, locationAddress }) {
   const vehicleReg = vehicle?.registrationNumber || driver.assignedVehicle || 'Fleet';
-  const existing = await DailyDutyLog.findOne({
-    driverName: driver.name || 'Driver',
-    vehicle: vehicleReg,
+  const agencyId = driver.agencyId || vehicle?.agencyId || null;
+  const driverId = driver._id.toString();
+  const openQuery = {
+    driverId,
     date: todayDate,
     dutyType: 'Official Department Duty',
     status: 'Pending'
-  }).sort({ createdAt: -1 });
+  };
+  if (agencyId) openQuery.agencyId = agencyId;
+
+  const existing = await DailyDutyLog.findOne(openQuery).sort({ createdAt: -1 });
 
   if (existing) {
     existing.startKm = odoNumber;
@@ -74,13 +60,18 @@ async function upsertOpenDutyLog({ driver, vehicle, odoNumber, istTime, todayDat
     existing.startTime = istTime;
     existing.endTime = '—';
     existing.totalHours = 0;
+    existing.driverId = driverId;
+    if (agencyId && !existing.agencyId) existing.agencyId = agencyId;
     if (photoUrl) existing.dutySlipPhoto = photoUrl;
     if (locationAddress) existing.journeyFrom = locationAddress;
+    existing.notes = 'Driver check-in from mobile app';
     await existing.save();
     return { log: existing, created: false };
   }
 
   const log = await DailyDutyLog.create({
+    agencyId: agencyId || undefined,
+    driverId,
     dutySlipNumber: `SLIP-${Date.now().toString().slice(-6)}`,
     logBookPageNo: String(Math.floor(100 + Math.random() * 900)),
     month: monthNameIst(),
@@ -97,7 +88,7 @@ async function upsertOpenDutyLog({ driver, vehicle, odoNumber, istTime, todayDat
     totalHours: 0,
     dutySlipPhoto: photoUrl || null,
     journeyFrom: locationAddress || '',
-    notes: 'On duty',
+    notes: 'Driver check-in from mobile app',
     status: 'Pending',
     officerSignatureStatus: 'Pending',
     driverSignatureStatus: 'Pending'
@@ -306,40 +297,6 @@ export const startDriverDuty = asyncHandler(async (req, res) => {
   }
   await Vehicle.findByIdAndUpdate(vehicle._id, vehicleUpdateFields);
 
-  // Auto-record / update attendance for today as Present with check-in location
-  let attendanceDoc = null;
-  try {
-    const attendanceSetFields = {
-      status: 'Present',
-      checkIn: istTime,
-      checkOut: '—',
-      workingHours: 0,
-      assignedVehicle: vehicle.registrationNumber
-    };
-    if (locationAddress) {
-      attendanceSetFields.location = locationAddress;
-    }
-    if (latitude && longitude) {
-      attendanceSetFields.coordinates = { latitude, longitude };
-    }
-
-    attendanceDoc = await DriverAttendance.findOneAndUpdate(
-      { driverId: driver._id.toString(), date: todayDate },
-      {
-        $setOnInsert: {
-          driverId: driver._id.toString(),
-          driverName: driver.name,
-          date: todayDate,
-          dutyType: 'Department Duty'
-        },
-        $set: attendanceSetFields
-      },
-      { upsert: true, new: true }
-    );
-  } catch (attErr) {
-    console.warn('Could not auto-log attendance on start duty:', attErr.message);
-  }
-
   let dutyLogDoc = null;
   let dutyLogCreated = false;
   try {
@@ -356,6 +313,25 @@ export const startDriverDuty = asyncHandler(async (req, res) => {
     dutyLogCreated = result.created;
   } catch (logErr) {
     console.warn('Could not auto-create DailyDutyLog on start duty:', logErr.message);
+  }
+
+  let attendanceDoc = null;
+  try {
+    if (dutyLogDoc) {
+      attendanceDoc = await upsertAttendanceFromDutyLog(req, dutyLogDoc);
+      if (attendanceDoc && (locationAddress || (latitude && longitude))) {
+        const locationFields = {};
+        if (locationAddress) locationFields.location = locationAddress;
+        if (latitude && longitude) locationFields.coordinates = { latitude, longitude };
+        attendanceDoc = await DriverAttendance.findByIdAndUpdate(
+          attendanceDoc._id,
+          { $set: locationFields },
+          { new: true }
+        );
+      }
+    }
+  } catch (attErr) {
+    console.warn('Could not auto-log attendance on start duty:', attErr.message);
   }
 
   const attendancePayload = serializeDoc(attendanceDoc);
@@ -475,27 +451,15 @@ export const endDriverDuty = asyncHandler(async (req, res) => {
     hour12: true
   }).format(now);
   const todayDate = istTodayDate(now);
-
-  // Update attendance checkout time & working hours if record exists
-  let attendanceDoc = null;
+  let priorCheckIn = null;
   try {
-    const attRecord = await DriverAttendance.findOne({
+    const priorAttendance = await DriverAttendance.findOne({
       driverId: driver._id.toString(),
       date: todayDate
-    });
-    if (attRecord) {
-      attRecord.checkOut = istTime;
-      if (attRecord.checkIn) {
-        attRecord.workingHours = hoursBetween(attRecord.checkIn, istTime);
-      }
-      if (remarks) {
-        attRecord.notes = attRecord.notes ? `${attRecord.notes}; ${remarks}` : remarks;
-      }
-      await attRecord.save();
-      attendanceDoc = attRecord;
-    }
-  } catch (attErr) {
-    console.warn('Could not auto-update attendance on end duty:', attErr.message);
+    }).lean();
+    priorCheckIn = priorAttendance?.checkIn || null;
+  } catch {
+    priorCheckIn = null;
   }
 
   // Complete today's open duty slip, or create a finished one if check-in was missed
@@ -506,13 +470,17 @@ export const endDriverDuty = asyncHandler(async (req, res) => {
     const startKm = currentVehicleOdo || odoNumber;
     const totalKm = Math.max(0, odoNumber - startKm);
 
-    const openLog = await DailyDutyLog.findOne({
-      driverName: driver.name || 'Driver',
-      vehicle: vehicleReg,
+    const agencyId = driver.agencyId || vehicle?.agencyId || null;
+    const driverId = driver._id.toString();
+    const openLogQuery = {
+      driverId,
       date: todayDate,
       dutyType: 'Official Department Duty',
       status: 'Pending'
-    }).sort({ createdAt: -1 });
+    };
+    if (agencyId) openLogQuery.agencyId = agencyId;
+
+    const openLog = await DailyDutyLog.findOne(openLogQuery).sort({ createdAt: -1 });
 
     if (openLog) {
       const resolvedStartKm = openLog.startKm || startKm;
@@ -521,7 +489,9 @@ export const endDriverDuty = asyncHandler(async (req, res) => {
       openLog.endTime = istTime;
       openLog.totalHours = hoursBetween(openLog.startTime, istTime) || 10;
       openLog.dutySlipPhoto = photoUrl || openLog.dutySlipPhoto || null;
-      openLog.notes = remarks || (openLog.notes === 'On duty' ? '' : (openLog.notes || ''));
+      openLog.driverId = driverId;
+      if (agencyId && !openLog.agencyId) openLog.agencyId = agencyId;
+      openLog.notes = remarks || openLog.notes || 'Driver check-out from mobile app';
       openLog.status = 'Approved';
       openLog.officerSignatureStatus = openLog.officerSignatureStatus === 'Pending' ? 'Pending' : openLog.officerSignatureStatus;
       openLog.driverSignatureStatus = 'Signed';
@@ -529,6 +499,8 @@ export const endDriverDuty = asyncHandler(async (req, res) => {
       dutyLogDoc = openLog;
     } else {
       dutyLogDoc = await DailyDutyLog.create({
+        agencyId: agencyId || undefined,
+        driverId,
         dutySlipNumber: `SLIP-${Date.now().toString().slice(-6)}`,
         logBookPageNo: String(Math.floor(100 + Math.random() * 900)),
         month: monthNameIst(now),
@@ -540,17 +512,32 @@ export const endDriverDuty = asyncHandler(async (req, res) => {
         startKm,
         endKm: odoNumber,
         totalKm,
-        startTime: attendanceDoc?.checkIn || '09:00 AM',
+        startTime: priorCheckIn || '09:00 AM',
         endTime: istTime,
-        totalHours: hoursBetween(attendanceDoc?.checkIn, istTime) || 10,
+        totalHours: hoursBetween(priorCheckIn, istTime) || 10,
         dutySlipPhoto: photoUrl || null,
-        notes: remarks || '',
+        notes: remarks || 'Driver check-out from mobile app',
         status: 'Approved'
       });
       dutyLogCreated = true;
     }
   } catch (logErr) {
     console.warn('Could not auto-create DailyDutyLog on end duty:', logErr.message);
+  }
+
+  let attendanceDoc = null;
+  try {
+    if (dutyLogDoc) {
+      attendanceDoc = await upsertAttendanceFromDutyLog(req, dutyLogDoc);
+      if (attendanceDoc && remarks) {
+        attendanceDoc.notes = attendanceDoc.notes
+          ? `${attendanceDoc.notes}; ${remarks}`
+          : remarks;
+        await attendanceDoc.save();
+      }
+    }
+  } catch (attErr) {
+    console.warn('Could not auto-update attendance on end duty:', attErr.message);
   }
 
   const attendancePayload = serializeDoc(attendanceDoc);

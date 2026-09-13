@@ -123,14 +123,14 @@ export const MaintenanceView: React.FC = () => {
   // First-time load: show maintenance skeleton
   if (isLoadingMaintenance && maintenanceRecords.length === 0) {
     return (
-      <div className="section active" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      <div className="section active module-page">
         <SkeletonMaintenance />
       </div>
     );
   }
 
   return (
-    <div className="section active">
+    <div className="section active module-page">
       <SoftRefreshBar visible={isLoadingMaintenance && maintenanceRecords.length > 0} label="Syncing maintenance records…" />
       {/* Quick Stats Grid */}
       <div className="stats-grid">

@@ -5,7 +5,7 @@ import { GenerateBillModal } from './GenerateBillModal';
 import { BillPrintModal, CashMemoBillView } from './BillPrintModal';
 import { WeekendTripBillModal } from './WeekendTripBillModal';
 import { MonthlyDepartmentBill, DailyDutyLog } from '../../../types/fleet';
-import { CustomStatusDropdown, StatusOption } from '../../common/CustomStatusDropdown';
+import { StatusDropdown, StatusOption } from '../../common/StatusDropdown';
 import {
   Building2,
   Layers,
@@ -339,7 +339,7 @@ export const MonthlyBillingView: React.FC = () => {
     ];
 
     return (
-      <CustomStatusDropdown
+      <StatusDropdown
         value={status}
         options={dutyLogOptions}
         onChange={newVal => updateDailyDutyLogStatus(id, newVal)}
@@ -388,7 +388,7 @@ export const MonthlyBillingView: React.FC = () => {
     ];
 
     return (
-      <CustomStatusDropdown
+      <StatusDropdown
         value={status}
         options={billOptions}
         onChange={(newStatus) => updateBillStatus(id, newStatus)}

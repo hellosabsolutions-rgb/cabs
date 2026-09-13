@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -28,6 +27,7 @@ import {
   isGoogleSignInAvailable,
   signInWithGoogleNative,
 } from '../services/googleAuth';
+import { appDialog } from '../dialog';
 
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Login'>;
@@ -106,7 +106,7 @@ export function LoginScreen({ navigation: _navigation }: Props) {
   const signIn = async () => {
     const trimmed = identifier.trim();
     if (!trimmed || !password) {
-      Alert.alert(t('login.signIn'), t('login.required'));
+      appDialog.alert(t('login.signIn'), t('login.required'));
       return;
     }
 
@@ -123,13 +123,13 @@ export function LoginScreen({ navigation: _navigation }: Props) {
         (error as { code?: string })?.code === 'DRIVER_NOT_REGISTERED';
 
       if (isNotRegistered) {
-        Alert.alert(
+        appDialog.alert(
           '🚫 Not Registered',
           'Your number is not registered. Please contact your agency or fleet manager to get your login credentials.',
           [{ text: 'OK', style: 'default' }]
         );
       } else {
-        Alert.alert(t('login.signIn'), msg);
+        appDialog.alert(t('login.signIn'), msg);
       }
     } finally {
       setBusy(null);
@@ -138,7 +138,7 @@ export function LoginScreen({ navigation: _navigation }: Props) {
 
   const googleSignIn = async () => {
     if (!isGoogleSignInAvailable()) {
-      Alert.alert(
+      appDialog.alert(
         t('login.google'),
         'Google Sign-In needs the native KABPRO Driver build. Stop Expo Go and run: npx expo run:ios'
       );
@@ -155,7 +155,7 @@ export function LoginScreen({ navigation: _navigation }: Props) {
       });
     } catch (error) {
       const message = googleErrorMessage(error, t('login.googleFailed'));
-      if (message) Alert.alert(t('login.google'), message);
+      if (message) appDialog.alert(t('login.google'), message);
     } finally {
       setBusy(null);
     }
@@ -255,7 +255,7 @@ export function LoginScreen({ navigation: _navigation }: Props) {
                 </Text>
               </Pressable>
 
-              <Pressable onPress={() => Alert.alert(t('login.forgot'), t('login.forgotHint'))}>
+              <Pressable onPress={() => appDialog.alert(t('login.forgot'), t('login.forgotHint'))}>
                 <Text style={[styles.forgot, { color: colors.textFaint }]}>{t('login.forgot')}</Text>
               </Pressable>
             </View>

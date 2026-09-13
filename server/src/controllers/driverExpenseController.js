@@ -4,6 +4,7 @@ import { Driver } from '../models/Driver.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import { uploadToCloudinary } from '../services/cloudinaryService.js';
 import { broadcastAll, emitToDriver } from '../services/socketService.js';
+import { withAgencyFilter, stampAgencyId } from '../utils/tenantQuery.js';
 
 function escapeRegex(value) {
   return String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -164,13 +165,14 @@ export const getDriverExpenses = asyncHandler(async (req, res) => {
   }
 
   applyDriverScope(req, query);
+  const scoped = withAgencyFilter(req, query);
 
   const pageNum = Math.max(1, parseInt(page, 10) || 1);
   const limitNum = Math.min(500, Math.max(1, parseInt(limit, 10) || 100));
   const skip = (pageNum - 1) * limitNum;
 
-  const total = await DriverExpense.countDocuments(query);
-  const docs = await DriverExpense.find(query)
+  const total = await DriverExpense.countDocuments(scoped);
+  const docs = await DriverExpense.find(scoped)
     .sort(sort)
     .skip(skip)
     .limit(limitNum)
@@ -178,7 +180,7 @@ export const getDriverExpenses = asyncHandler(async (req, res) => {
 
   // Calculate sum of amounts
   const sumAggregate = await DriverExpense.aggregate([
-    { $match: query },
+    { $match: scoped },
     { $group: { _id: null, totalSum: { $sum: '$amount' } } }
   ]);
   const totalAmount = sumAggregate.length > 0 ? sumAggregate[0].totalSum : 0;
@@ -208,14 +210,14 @@ export const getDriverExpenseAnalytics = asyncHandler(async (req, res) => {
   const currentYear = req.query.year || today.getFullYear().toString(); // YYYY
   const currentDate = req.query.date || today.toISOString().split('T')[0];
 
-  const drivers = await Driver.find().sort({ name: 1 }).lean();
+  const drivers = await Driver.find(withAgencyFilter(req, {})).sort({ name: 1 }).lean();
 
   if (period === 'year') {
     // -------------------------------------------------------------
     // YEARLY ANALYTICS
     // -------------------------------------------------------------
     const yearPrefix = `^${currentYear}`;
-    const records = await DriverExpense.find({ date: { $regex: yearPrefix } }).lean();
+    const records = await DriverExpense.find(withAgencyFilter(req, { date: { $regex: yearPrefix } })).lean();
 
     const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     const monthlyTrends = monthNames.map((name, index) => {
@@ -311,7 +313,7 @@ export const getDriverExpenseAnalytics = asyncHandler(async (req, res) => {
   // MONTHLY ANALYTICS (DEFAULT)
   // -------------------------------------------------------------
   const monthPrefix = `^${currentMonth}`;
-  const records = await DriverExpense.find({ date: { $regex: monthPrefix } }).sort({ date: -1 }).lean();
+  const records = await DriverExpense.find(withAgencyFilter(req, { date: { $regex: monthPrefix } })).sort({ date: -1 }).lean();
 
   let overallTotal = 0;
   let overallPaid = 0;
@@ -469,7 +471,7 @@ export const getDriverExpenseAnalytics = asyncHandler(async (req, res) => {
 });
 
 export const getDriverExpenseById = asyncHandler(async (req, res) => {
-  const expense = await DriverExpense.findById(req.params.id);
+  const expense = await DriverExpense.findOne(withAgencyFilter(req, { _id: req.params.id }));
 
   if (!expense) {
     return res.status(404).json({
@@ -562,7 +564,7 @@ export const createDriverExpense = asyncHandler(async (req, res) => {
     }
   }
 
-  const expense = await DriverExpense.create({
+  const expense = await DriverExpense.create(stampAgencyId(req, {
     driverId: resolvedDriverId,
     driverName: resolvedDriverName,
     vehicle: resolvedVehicle || '—',
@@ -574,7 +576,7 @@ export const createDriverExpense = asyncHandler(async (req, res) => {
     receipt: receiptUrl,
     createdBy,
     createdByName: req.driver?.name || req.user?.name || 'Office'
-  });
+  }));
 
   const payload = serializeDriverExpense(expense);
   emitDriverExpense('created', { expense: payload });
@@ -588,7 +590,7 @@ export const createDriverExpense = asyncHandler(async (req, res) => {
 
 export const updateDriverExpense = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const query = mongoose.Types.ObjectId.isValid(id) ? { _id: id } : { id };
+  const query = withAgencyFilter(req, mongoose.Types.ObjectId.isValid(id) ? { _id: id } : { id });
   const expense = await DriverExpense.findOne(query);
 
   if (!expense) {
@@ -669,7 +671,7 @@ export const updateDriverExpenseStatus = asyncHandler(async (req, res) => {
     });
   }
 
-  const query = mongoose.Types.ObjectId.isValid(id) ? { _id: id } : { id };
+  const query = withAgencyFilter(req, mongoose.Types.ObjectId.isValid(id) ? { _id: id } : { id });
   const updated = await DriverExpense.findOneAndUpdate(query, { status }, { new: true });
 
   if (!updated) {
@@ -713,7 +715,7 @@ export const bulkUpdateDriverExpenseStatus = asyncHandler(async (req, res) => {
     return res.status(400).json({ success: false, error: 'No valid expense ids provided.' });
   }
 
-  const match = orQuery.length === 1 ? orQuery[0] : { $or: orQuery };
+  const match = withAgencyFilter(req, orQuery.length === 1 ? orQuery[0] : { $or: orQuery });
   await DriverExpense.updateMany(match, { $set: { status } });
   const docs = await DriverExpense.find(match);
   const expenses = docs.map(serializeDriverExpense);
@@ -728,7 +730,7 @@ export const bulkUpdateDriverExpenseStatus = asyncHandler(async (req, res) => {
 
 export const deleteDriverExpense = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const query = mongoose.Types.ObjectId.isValid(id) ? { _id: id } : { id };
+  const query = withAgencyFilter(req, mongoose.Types.ObjectId.isValid(id) ? { _id: id } : { id });
   const deleted = await DriverExpense.findOne(query);
 
   if (!deleted) {

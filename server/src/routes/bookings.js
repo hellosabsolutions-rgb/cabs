@@ -12,17 +12,19 @@ import {
   checkAvailability,
   deleteBooking
 } from '../controllers/bookingController.js';
-import { protectDriver } from '../middleware/authMiddleware.js';
+import { protect, protectDriver } from '../middleware/authMiddleware.js';
+import { resolveAgency } from '../middleware/resolveAgency.js';
 
 const router = express.Router();
 
-// Authenticated driver route (must be before /:id)
-router.get('/my', protectDriver, getMyBookings);
+// Driver app route (must be before tenant middleware)
+router.get('/my', protectDriver, resolveAgency, getMyBookings);
 
-// Vehicle availability route
+// Admin / dashboard routes — require user login + active agency
+router.use(protect, resolveAgency);
+
 router.get('/availability', checkAvailability);
 
-// CRUD routes
 router
   .route('/')
   .get(getAllBookings)

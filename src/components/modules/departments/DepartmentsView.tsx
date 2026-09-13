@@ -26,7 +26,7 @@ export const DepartmentsView: React.FC = () => {
   // First-time load: show full skeleton
   if (isLoadingDepartments && departmentContracts.length === 0 && dailyDutyLogs.length === 0) {
     return (
-      <div className="section active" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      <div className="section active module-page">
         <SkeletonCard count={4} />
         <SkeletonTable rows={5} columns={6} />
       </div>
@@ -34,7 +34,7 @@ export const DepartmentsView: React.FC = () => {
   }
 
   return (
-    <div className="section active">
+    <div className="section active module-page">
       <SoftRefreshBar visible={isLoadingDepartments && (departmentContracts.length > 0 || dailyDutyLogs.length > 0)} label="Syncing department data…" />
       {/* Department Sub-Tabs Navigation */}
       <div className="subtab-nav">

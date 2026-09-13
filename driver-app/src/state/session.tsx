@@ -1,7 +1,15 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { nowStamp } from '../data/format';
 import type { Attachment } from '../media/types';
-import { driverAuthApi, dutyApi, fuelApi, restoreDriverSession, type DriverAuthPayload } from '../services/api';
+import {
+  driverAuthApi,
+  dutyApi,
+  fuelApi,
+  onDriverSessionExpired,
+  restoreDriverSession,
+  SessionExpiredError,
+  type DriverAuthPayload,
+} from '../services/api';
 import { clearTokens, saveLastIdentifier, saveTokens } from '../services/authStorage';
 import { signOutGoogleNative } from '../services/googleAuth';
 import { driverSocket } from '../services/socket';
@@ -126,21 +134,14 @@ function uid(prefix: string) {
   return `${prefix}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
-const seedTxns: Txn[] = [
-  { id: 't1', label: 'Advance received', amount: 5000, at: '08 Sep, 09:20', ref: 'ADV-104', running: 5000 },
-  { id: 't2', label: 'Fuel expense', amount: -2100, at: '08 Sep, 14:05', ref: 'FUL-221', running: 2900 },
-  { id: 't3', label: 'Toll expense', amount: -420, at: '08 Sep, 16:40', ref: 'EXP-118', running: 2480 },
-  { id: 't4', label: 'Food expense', amount: -180, at: '08 Sep, 19:10', ref: 'EXP-119', running: 2300 },
-];
-
 const defaultDriver = {
-  name: 'Rahul Sharma',
-  id: 'DRV-1024',
-  mobile: '+91 98765 43210',
-  licence: 'DL-0420180092341',
-  licenceValid: '12 Jan 2028',
-  initials: 'RS',
-  agency: 'Sharma Logistics',
+  name: 'Driver',
+  id: '—',
+  mobile: '—',
+  licence: '—',
+  licenceValid: '—',
+  initials: 'DR',
+  agency: 'KABPRO',
   photo: null as string | null,
   email: null as string | null,
 };
@@ -154,14 +155,14 @@ const defaultVehicle: {
   fuelType?: string;
   departmentName?: string;
 } = {
-  reg: 'DL 01 AB 1234',
-  type: 'MUV',
-  model: 'Toyota Innova Crysta',
-  id: 'VEH-331',
+  reg: '—',
+  type: '—',
+  model: '—',
+  id: '—',
   odometer: 0,
 };
 
-const defaultTrip = { id: 'TRP-8841', status: 'In progress' };
+const defaultTrip = { id: '—', status: 'No active trip' };
 
 export function SessionProvider({ children }: { children: React.ReactNode }) {
   const [authReady, setAuthReady] = useState(false);
@@ -169,115 +170,17 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const [driver, setDriver] = useState(defaultDriver);
   const [vehicle, setVehicle] = useState(defaultVehicle);
   const [trip, setTrip] = useState(defaultTrip);
-  const [onDuty, setOnDuty] = useState(true);
-  const [odometer, setOdometer] = useState(45470);
-  const [todayKm, setTodayKm] = useState(86);
-  const [walletRemaining, setWalletRemaining] = useState(2300);
-  const [duties, setDuties] = useState<DutyLog[]>([
-    {
-      id: 'd-open',
-      startedAt: '11 Sep, 08:12',
-      startOdo: 45384,
-      photo: true,
-    },
-    {
-      id: 'd-1',
-      startedAt: '10 Sep, 07:40',
-      endedAt: '10 Sep, 19:05',
-      startOdo: 45110,
-      endOdo: 45384,
-      km: 274,
-      photo: true,
-    },
-  ]);
-  const [fuels, setFuels] = useState<FuelEntry[]>([
-    {
-      id: 'f1',
-      at: '08 Sep, 14:05',
-      odometer: 45220,
-      litres: 22,
-      cost: 2100,
-      station: 'IOCL Mayapuri',
-      fuelType: 'Diesel',
-      photo: true,
-    },
-  ]);
-  const [expenses, setExpenses] = useState<ExpenseEntry[]>([
-    {
-      id: 'e1',
-      at: '08 Sep, 16:40',
-      category: 'Toll',
-      amount: 420,
-      note: 'DND flyway',
-      status: 'approved',
-      photo: true,
-    },
-    {
-      id: 'e2',
-      at: '08 Sep, 19:10',
-      category: 'Food',
-      amount: 180,
-      note: 'Driver meal',
-      status: 'pending',
-      photo: true,
-    },
-  ]);
-  const [advances, setAdvances] = useState<AdvanceEntry[]>([
-    {
-      id: 'a1',
-      at: '08 Sep, 09:20',
-      amount: 5000,
-      reason: 'Trip petty cash',
-      status: 'paid',
-    },
-  ]);
-  const [documents, setDocuments] = useState<DocEntry[]>([
-    {
-      id: 'doc1',
-      type: 'Delivery Challan',
-      at: '11 Sep, 08:30',
-      tripId: 'TRP-8841',
-      status: 'uploaded',
-      fileName: 'challan_signed_8841.pdf',
-      kind: 'pdf',
-      size: '1.4 MB',
-      uri: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&q=80',
-    },
-    {
-      id: 'doc2',
-      type: 'POD',
-      at: '11 Sep, 09:10',
-      tripId: 'TRP-8841',
-      status: 'pending',
-      fileName: 'pod_receipt_8841.jpg',
-      kind: 'image',
-      size: '850 KB',
-      uri: 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&w=800&q=80',
-    },
-    {
-      id: 'doc3',
-      type: 'Invoice',
-      at: '10 Sep, 18:40',
-      tripId: 'TRP-8830',
-      status: 'uploaded',
-      fileName: 'tax_invoice_8830.pdf',
-      kind: 'pdf',
-      size: '2.1 MB',
-      uri: 'https://images.unsplash.com/photo-1554224154-26032ffc0d07?auto=format&fit=crop&w=800&q=80',
-    },
-    {
-      id: 'doc4',
-      type: 'Vehicle Documents',
-      at: '01 Sep, 10:00',
-      tripId: 'TRP-8841',
-      status: 'uploaded',
-      fileName: 'rc_fitness_insurance.pdf',
-      kind: 'pdf',
-      size: '3.6 MB',
-      uri: 'https://images.unsplash.com/photo-1586281380349-632531db7ed4?auto=format&fit=crop&w=800&q=80',
-    },
-  ]);
-  const [txns, setTxns] = useState<Txn[]>(seedTxns);
+  const [onDuty, setOnDuty] = useState(false);
+  const [odometer, setOdometer] = useState(0);
+  const [todayKm, setTodayKm] = useState(0);
+  const [walletOpening, setWalletOpening] = useState(0);
+  const [walletRemaining, setWalletRemaining] = useState(0);
+  const [duties, setDuties] = useState<DutyLog[]>([]);
+  const [fuels, setFuels] = useState<FuelEntry[]>([]);
+  const [expenses, setExpenses] = useState<ExpenseEntry[]>([]);
+  const [advances, setAdvances] = useState<AdvanceEntry[]>([]);
+  const [documents, setDocuments] = useState<DocEntry[]>([]);
+  const [txns, setTxns] = useState<Txn[]>([]);
 
   const applyProfile = useCallback((payload: DriverAuthPayload) => {
     setDriver({
@@ -307,9 +210,17 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     } else {
       setVehicle({ id: '—', reg: '—', type: '—', model: '—' });
     }
-    if (payload.trip) setTrip(payload.trip);
+    setTrip(payload.trip || defaultTrip);
     setOnDuty(payload.driver.onDuty);
-    if (payload.driver.odometer) setOdometer(payload.driver.odometer);
+    setOdometer(payload.vehicle?.odometer ?? payload.driver.odometer ?? 0);
+    setTodayKm(payload.driver.todayKm ?? 0);
+    if (payload.wallet) {
+      setWalletOpening(payload.wallet.opening ?? 0);
+      setWalletRemaining(payload.wallet.remaining ?? 0);
+    } else {
+      setWalletOpening(0);
+      setWalletRemaining(0);
+    }
     setSignedIn(true);
   }, []);
 
@@ -318,7 +229,14 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       const me = await driverAuthApi.me();
       if (me) applyProfile(me);
       return me;
-    } catch {
+    } catch (err) {
+      if (err instanceof SessionExpiredError) {
+        setSignedIn(false);
+        setDriver(defaultDriver);
+        setVehicle(defaultVehicle);
+        setTrip(defaultTrip);
+        driverSocket.disconnect();
+      }
       return null;
     }
   }, [applyProfile]);
@@ -351,7 +269,18 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     setDriver(defaultDriver);
     setVehicle(defaultVehicle);
     setTrip(defaultTrip);
+    setOnDuty(false);
+    setOdometer(0);
+    setTodayKm(0);
+    setWalletOpening(0);
+    setWalletRemaining(0);
   }, []);
+
+  useEffect(() => {
+    return onDriverSessionExpired(() => {
+      void signOut();
+    });
+  }, [signOut]);
 
   useEffect(() => {
     let cancelled = false;
@@ -379,17 +308,23 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
     void driverSocket.connect();
 
-    const unsubscribe = driverSocket.on('driver:any_change', async (eventData: any) => {
+    const refreshFromDashboard = async (eventData?: any) => {
       console.log('🔄 [Session] Dashboard action detected via socket, refreshing driver profile...', eventData);
       try {
         await refreshProfile();
       } catch (err) {
         console.warn('Could not refresh profile after socket event:', err);
       }
-    });
+    };
+
+    const unsubAny = driverSocket.on('driver:any_change', refreshFromDashboard);
+    const unsubExpense = driverSocket.on('driver-expense:updated', refreshFromDashboard);
+    const unsubExpenseCreated = driverSocket.on('driver-expense:created', refreshFromDashboard);
 
     return () => {
-      unsubscribe();
+      unsubAny();
+      unsubExpense();
+      unsubExpenseCreated();
     };
   }, [signedIn, refreshProfile]);
 
@@ -407,7 +342,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       odometer,
       todayKm,
       lastValidOdo: odometer,
-      walletOpening: 0,
+      walletOpening,
       walletRemaining,
       duties,
       fuels,

@@ -1,8 +1,12 @@
 import express from 'express';
 import { uploadSingle, uploadMultiple } from '../controllers/uploadController.js';
 import { upload } from '../middleware/uploadMiddleware.js';
+import { protectUserOrDriver } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
+
+// Dashboard users and driver app share upload endpoints
+router.use(protectUserOrDriver);
 
 /**
  * @route   POST /api/upload

@@ -74,6 +74,8 @@ const hi: Catalog = {
   'startDuty.confirm': 'ड्यूटी शुरू करें',
   'common.captureRequired': 'फोटो आवश्यक',
   'common.cancel': 'रद्द करें',
+  'common.ok': 'ठीक है',
+  'common.confirm': 'पुष्टि करें',
   'common.submit': 'जमा करें',
   'common.open': 'खोलें',
   'common.km': 'किमी',

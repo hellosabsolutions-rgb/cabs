@@ -3,6 +3,8 @@ import { DriverAttendance } from '../models/DriverAttendance.js';
 import { Driver } from '../models/Driver.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import { broadcastAll } from '../services/socketService.js';
+import { withAgencyFilter, stampAgencyId } from '../utils/tenantQuery.js';
+import { enrichAttendanceFromDutyLogs } from '../utils/dutyAttendanceSync.js';
 
 function serializeAttendance(doc) {
   if (!doc) return null;
@@ -88,24 +90,33 @@ export const getAttendance = asyncHandler(async (req, res) => {
   const limitNum = Math.min(500, Math.max(1, parseInt(limit, 10) || 100));
   const skip = (pageNum - 1) * limitNum;
 
-  const total = await DriverAttendance.countDocuments(query);
-  const records = await DriverAttendance.find(query)
+  const scoped = withAgencyFilter(req, query);
+  const total = await DriverAttendance.countDocuments(scoped);
+  const records = await DriverAttendance.find(scoped)
     .sort(sort)
     .skip(skip)
     .limit(limitNum)
     .lean();
 
-  const data = records.map(doc => ({
+  let data = records.map(doc => ({
     ...doc,
     id: doc._id.toString()
   }));
 
+  data = await enrichAttendanceFromDutyLogs(req, data, {
+    date,
+    month,
+    year,
+    startDate,
+    endDate
+  });
+
   res.status(200).json({
     success: true,
     count: data.length,
-    total,
+    total: Math.max(total, data.length),
     page: pageNum,
-    pages: Math.ceil(total / limitNum) || 1,
+    pages: Math.ceil(Math.max(total, data.length) / limitNum) || 1,
     data
   });
 });
@@ -118,8 +129,8 @@ export const getAttendance = asyncHandler(async (req, res) => {
 export const getAttendanceSummary = asyncHandler(async (req, res) => {
   const queryDate = req.query.date || new Date().toISOString().split('T')[0];
 
-  const records = await DriverAttendance.find({ date: queryDate }).lean();
-  const totalDrivers = await Driver.countDocuments({ status: { $ne: 'Inactive' } });
+  const records = await DriverAttendance.find(withAgencyFilter(req, { date: queryDate })).lean();
+  const totalDrivers = await Driver.countDocuments(withAgencyFilter(req, { status: { $ne: 'Inactive' } }));
 
   let present = 0;
   let onTrip = 0;
@@ -138,29 +149,28 @@ export const getAttendanceSummary = asyncHandler(async (req, res) => {
     totalWorkingHours += Number(r.workingHours) || 0;
   });
 
-  // Drivers without an explicit attendance log for this date default to Present (10 hrs)
   const unrecordedDrivers = Math.max(0, totalDrivers - records.length);
-  const effectivePresent = present + unrecordedDrivers;
-  const effectiveWorkingHours = totalWorkingHours + (unrecordedDrivers * 10);
+  const effectiveAbsent = absent + unrecordedDrivers;
 
-  const activeCount = effectivePresent + onTrip + late;
-  const avgDutyHours = activeCount > 0 ? (effectiveWorkingHours / activeCount).toFixed(1) : '10.0';
+  const activeCount = present + onTrip + late;
+  const avgDutyHours = activeCount > 0 ? (totalWorkingHours / activeCount).toFixed(1) : '0.0';
 
   res.status(200).json({
     success: true,
     date: queryDate,
     stats: {
       totalRegisteredDrivers: totalDrivers,
-      presentOnDuty: effectivePresent + onTrip,
-      presentOnly: effectivePresent,
+      presentOnDuty: present + onTrip,
+      presentOnly: present,
       onTrip,
       late,
-      absent,
+      absent: effectiveAbsent,
       onLeave,
-      lateAbsentLeave: late + absent + onLeave,
-      totalWorkingHours: Number(effectiveWorkingHours.toFixed(1)),
+      lateAbsentLeave: late + effectiveAbsent + onLeave,
+      totalWorkingHours: Number(totalWorkingHours.toFixed(1)),
       avgDutyHours: Number(avgDutyHours),
-      totalLogged: records.length
+      totalLogged: records.length,
+      unmarkedAbsent: unrecordedDrivers
     }
   });
 });
@@ -177,12 +187,12 @@ export const getAttendanceAnalytics = asyncHandler(async (req, res) => {
   const currentYear = req.query.year || today.getFullYear().toString(); // YYYY
 
   // Get active drivers list
-  const drivers = await Driver.find().sort({ name: 1 }).lean();
+  const drivers = await Driver.find(withAgencyFilter(req, {})).sort({ name: 1 }).lean();
 
   if (period === 'year') {
     // Yearly Analytics
     const yearPrefix = `^${currentYear}`;
-    const records = await DriverAttendance.find({ date: { $regex: yearPrefix } }).lean();
+    const records = await DriverAttendance.find(withAgencyFilter(req, { date: { $regex: yearPrefix } })).lean();
 
     const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     const monthlyTrends = monthNames.map((name, index) => {
@@ -289,7 +299,7 @@ export const getAttendanceAnalytics = asyncHandler(async (req, res) => {
 
   // Default: Monthly Analytics
   const monthPrefix = `^${currentMonth}`;
-  const records = await DriverAttendance.find({ date: { $regex: monthPrefix } }).sort({ date: 1 }).lean();
+  const records = await DriverAttendance.find(withAgencyFilter(req, { date: { $regex: monthPrefix } })).sort({ date: 1 }).lean();
 
   // Driver-wise monthly totals
   const driverTotals = drivers.map(d => {
@@ -385,7 +395,7 @@ export const getAttendanceAnalytics = asyncHandler(async (req, res) => {
  * @access  Public / Private
  */
 export const getAttendanceById = asyncHandler(async (req, res) => {
-  const record = await DriverAttendance.findById(req.params.id).lean();
+  const record = await DriverAttendance.findOne(withAgencyFilter(req, { _id: req.params.id })).lean();
 
   if (!record) {
     return res.status(404).json({
@@ -455,7 +465,7 @@ export const markAttendance = asyncHandler(async (req, res) => {
   const defaultCheckOut = isAbsentOrLeave ? '—' : (checkOut || '06:30 PM');
   const defaultHours = isAbsentOrLeave ? 0 : (workingHours !== undefined ? Number(workingHours) : 10);
 
-  const updatePayload = {
+  const updatePayload = stampAgencyId(req, {
     driverId: resolvedDriverId,
     driverName: resolvedDriverName,
     date,
@@ -466,11 +476,11 @@ export const markAttendance = asyncHandler(async (req, res) => {
     dutyType,
     workingHours: defaultHours,
     ...(notes !== undefined && { notes })
-  };
+  });
 
   // Upsert: Find existing record for this driver and date
   const record = await DriverAttendance.findOneAndUpdate(
-    { driverId: resolvedDriverId, date },
+    withAgencyFilter(req, { driverId: resolvedDriverId, date }),
     { $set: updatePayload },
     { new: true, upsert: true, setDefaultsOnInsert: true }
   );
@@ -529,7 +539,7 @@ export const bulkMarkAttendance = asyncHandler(async (req, res) => {
   const result = await DriverAttendance.bulkWrite(bulkOps);
 
   // Fetch updated records for this date
-  const updatedRecords = await DriverAttendance.find({ date }).lean();
+  const updatedRecords = await DriverAttendance.find(withAgencyFilter(req, { date })).lean();
   const serializedRecords = updatedRecords.map(doc => ({
     ...doc,
     id: doc._id.toString()
@@ -570,7 +580,7 @@ export const updateAttendanceStatus = asyncHandler(async (req, res) => {
   let existing = null;
 
   if (mongoose.Types.ObjectId.isValid(id)) {
-    existing = await DriverAttendance.findById(id);
+    existing = await DriverAttendance.findOne(withAgencyFilter(req, { _id: id }));
   }
 
   // If not found by ObjectId, try to find by driverId and date
@@ -578,12 +588,12 @@ export const updateAttendanceStatus = asyncHandler(async (req, res) => {
     const targetDriverId = driverId || (id.startsWith('temp_') ? id.replace('temp_', '') : id);
     const targetDate = date || new Date().toISOString().split('T')[0];
 
-    existing = await DriverAttendance.findOne({
+    existing = await DriverAttendance.findOne(withAgencyFilter(req, {
       $or: [
         { driverId: targetDriverId, date: targetDate },
         { driverId: id, date: targetDate }
       ]
-    });
+    }));
 
     // If still not found, upsert a new attendance record
     if (!existing) {
@@ -606,7 +616,7 @@ export const updateAttendanceStatus = asyncHandler(async (req, res) => {
       }
 
       const isOff = status === 'Absent' || status === 'On Leave';
-      existing = new DriverAttendance({
+      existing = new DriverAttendance(stampAgencyId(req, {
         driverId: targetDriverId,
         driverName: resolvedDriverName || `Driver ${targetDriverId}`,
         date: targetDate,
@@ -617,7 +627,7 @@ export const updateAttendanceStatus = asyncHandler(async (req, res) => {
         dutyType: dutyType || 'Department Duty',
         workingHours: isOff ? 0 : (workingHours !== undefined ? Number(workingHours) : 10),
         notes: notes || ''
-      });
+      }));
       await existing.save();
 
       emitAttendance('status', existing);
@@ -731,7 +741,7 @@ export const updateAttendance = asyncHandler(async (req, res) => {
  * @access  Public / Private
  */
 export const deleteAttendance = asyncHandler(async (req, res) => {
-  const record = await DriverAttendance.findByIdAndDelete(req.params.id);
+  const record = await DriverAttendance.findOneAndDelete(withAgencyFilter(req, { _id: req.params.id }));
 
   if (!record) {
     return res.status(404).json({

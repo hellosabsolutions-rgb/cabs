@@ -49,7 +49,7 @@ export const ExpensesView: React.FC = () => {
   // First-time load: show full skeleton
   if (isLoadingExpenses && fastagTransactions.length === 0) {
     return (
-      <div className="section active" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      <div className="section active module-page">
         <SkeletonCard count={4} />
         <SkeletonTable rows={5} columns={5} />
       </div>
@@ -57,7 +57,7 @@ export const ExpensesView: React.FC = () => {
   }
 
   return (
-    <div className="section active">
+    <div className="section active module-page">
       <SoftRefreshBar visible={isLoadingExpenses && fastagTransactions.length > 0} label="Syncing expenses…" />
       {/* Subtab Navigation: Fuel, FASTag & All Expenses */}
       <div className="subtab-nav">

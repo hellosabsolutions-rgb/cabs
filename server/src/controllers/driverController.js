@@ -601,7 +601,7 @@ export const bulkCreateDrivers = asyncHandler(async (req, res) => {
 
     const cleanName = String(item.name).trim();
     const cleanPhone = String(item.phone).trim();
-    const agencyId = req.user?.agencyId || item.agencyId;
+    const agencyId = req.agencyId || item.agencyId;
 
     const cleanVehicle = item.assignedVehicle && item.assignedVehicle !== '—' && item.assignedVehicle.toLowerCase() !== 'unassigned'
       ? String(item.assignedVehicle).trim()

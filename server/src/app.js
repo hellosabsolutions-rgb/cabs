@@ -7,6 +7,8 @@ import rateLimit from 'express-rate-limit';
 
 import { errorHandler, notFound } from './middleware/errorHandler.js';
 import { getDbStatus } from './config/db.js';
+import { protect } from './middleware/authMiddleware.js';
+import { resolveAgency } from './middleware/resolveAgency.js';
 
 // Route imports
 import vehicleRoutes from './routes/vehicles.js';
@@ -56,7 +58,7 @@ app.use(
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization']
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Agency-Id']
   })
 );
 
@@ -128,36 +130,47 @@ app.use('/api', (req, res, next) => {
   });
 });
 
-// API Routes
+// Public / auth routes (no tenant scope)
 app.use('/api/auth', authRoutes);
 app.use('/api/agencies', agencyRoutes);
-app.use('/api/profile', profileRoutes);
-app.use('/api/vehicles', vehicleRoutes);
-app.use('/api/drivers', driverRoutes);
-app.use('/api/attendance', attendanceRoutes);
+app.use('/api/sos', sosRoutes);
+
+// Mixed auth routes (dashboard user OR driver app)
+// IMPORTANT: register BEFORE tenantApi — tenantApi runs protect on all /api/* and blocks driver JWTs
+app.use('/api/upload', uploadRoutes);
 app.use('/api/driver-expenses', driverExpenseRoutes);
-app.use('/api/contracts', contractRoutes);
-app.use('/api/duty-logs', dutyLogRoutes);
-app.use('/api/bills', billRoutes);
-app.use('/api/monthly-bills', billRoutes);
-app.use('/api/payments', paymentRoutes);
 app.use('/api/fuel-logs', fuelLogRoutes);
-app.use('/api/fastag', fastagRoutes);
+app.use('/api/trip-expenses', tripExpenseRoutes);
 app.use('/api/bookings', bookingRoutes);
 app.use('/api/trips', bookingRoutes);
-app.use('/api/expenses', expenseRoutes);
-app.use('/api/trip-expenses', tripExpenseRoutes);
-app.use('/api/compliance', complianceRoutes);
-app.use('/api/maintenance', maintenanceRoutes);
-app.use('/api/dashboard', dashboardRoutes);
-app.use('/api/notifications', notificationRoutes);
-app.use('/api/payroll', payrollRoutes);
-app.use('/api/reports', reportRoutes);
-app.use('/api/upload', uploadRoutes);
-app.use('/api/driver-assignments', driverAssignmentRoutes);
-app.use('/api/sos', sosRoutes);
-app.use('/api/activities', activityRoutes);
-app.use('/api/revenue', revenueRoutes);
+
+// Tenant-scoped fleet routes (require dashboard login + active agency)
+const tenantApi = express.Router();
+tenantApi.use(protect);
+tenantApi.use(resolveAgency);
+
+tenantApi.use('/profile', profileRoutes);
+tenantApi.use('/vehicles', vehicleRoutes);
+tenantApi.use('/drivers', driverRoutes);
+tenantApi.use('/attendance', attendanceRoutes);
+tenantApi.use('/contracts', contractRoutes);
+tenantApi.use('/duty-logs', dutyLogRoutes);
+tenantApi.use('/bills', billRoutes);
+tenantApi.use('/monthly-bills', billRoutes);
+tenantApi.use('/payments', paymentRoutes);
+tenantApi.use('/fastag', fastagRoutes);
+tenantApi.use('/expenses', expenseRoutes);
+tenantApi.use('/compliance', complianceRoutes);
+tenantApi.use('/maintenance', maintenanceRoutes);
+tenantApi.use('/dashboard', dashboardRoutes);
+tenantApi.use('/notifications', notificationRoutes);
+tenantApi.use('/payroll', payrollRoutes);
+tenantApi.use('/reports', reportRoutes);
+tenantApi.use('/driver-assignments', driverAssignmentRoutes);
+tenantApi.use('/activities', activityRoutes);
+tenantApi.use('/revenue', revenueRoutes);
+
+app.use('/api', tenantApi);
 
 // Root route
 app.get('/', (req, res) => {

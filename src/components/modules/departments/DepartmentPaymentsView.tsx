@@ -3,7 +3,7 @@ import { useFleet } from '../../../context/FleetContext';
 import { StatCard } from '../../common/StatCard';
 import { RecordPaymentModal } from './RecordPaymentModal';
 import { DepartmentPayment } from '../../../types/fleet';
-import { CustomStatusDropdown, StatusOption } from '../../common/CustomStatusDropdown';
+import { StatusDropdown, StatusOption } from '../../common/StatusDropdown';
 import { Pagination } from '../../common/Pagination';
 import { usePagination } from '../../../hooks/usePagination';
 import { FileText, Building2, Receipt, ChevronDown } from 'lucide-react';
@@ -87,7 +87,7 @@ export const DepartmentPaymentsView: React.FC = () => {
     ];
 
     return (
-      <CustomStatusDropdown
+      <StatusDropdown
         value={status}
         options={paymentOptions}
         onChange={(newStatus) => updateDepartmentPaymentStatus(id, newStatus)}

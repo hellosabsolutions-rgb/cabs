@@ -1,6 +1,5 @@
 import React, { useState, useMemo } from 'react';
 import {
-  Alert,
   Dimensions,
   Image,
   Modal,
@@ -22,6 +21,7 @@ import { RootStackParamList } from '../navigation/types';
 import { radius, space } from '../theme/colors';
 import { useAppTheme } from '../theme/ThemeProvider';
 import { useSession, DocEntry } from '../state/session';
+import { appDialog } from '../dialog';
 import type { MessageKey } from '../i18n/en';
 import type { Attachment } from '../media/types';
 
@@ -104,7 +104,7 @@ export function DocumentsScreen({ navigation }: Props) {
 
   const handleUpload = () => {
     if (!file) {
-      Alert.alert(t('docs.title'), t('common.photoNeeded') || 'Please select a document or take a photo.');
+      appDialog.alert(t('docs.title'), t('common.photoNeeded') || 'Please select a document or take a photo.');
       return;
     }
     setUploading(true);
@@ -113,7 +113,7 @@ export function DocumentsScreen({ navigation }: Props) {
       setFile(null);
       setUploading(false);
       setShowUploadCard(false);
-      Alert.alert('Upload Successful', `${selectedType} has been securely uploaded and saved to fleet records.`);
+      appDialog.alert('Upload Successful', `${selectedType} has been securely uploaded and saved to fleet records.`);
     }, 450);
   };
 
@@ -132,10 +132,10 @@ export function DocumentsScreen({ navigation }: Props) {
           message: `${shareMessage}${doc.uri ? `\nFile Link: ${doc.uri}` : ''}`,
         });
       }
-      Alert.alert('Document Ready', `${doc.type} (${doc.tripId}) has been prepared and shared/saved to your device.`);
+      appDialog.alert('Document Ready', `${doc.type} (${doc.tripId}) has been prepared and shared/saved to your device.`);
     } catch (err: any) {
       console.warn('Download/Share error:', err);
-      Alert.alert('Download', 'Could not open save dialog: ' + (err?.message || 'Unknown error'));
+      appDialog.alert('Download', 'Could not open save dialog: ' + (err?.message || 'Unknown error'));
     }
   };
 

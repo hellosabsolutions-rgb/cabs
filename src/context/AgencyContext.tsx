@@ -1,6 +1,6 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { Agency } from '../types/fleet';
-import { api } from '../services/api';
+import { api, setStoredAgencyId } from '../services/api';
 import { useAuth } from './AuthContext';
 
 export interface CreateAgencyDto {
@@ -28,16 +28,26 @@ export interface AgencyContextType {
 
 const AgencyContext = createContext<AgencyContextType | undefined>(undefined);
 
+function agencyIdOf(agency: Agency | null | undefined): string | null {
+  if (!agency) return null;
+  return agency.id || agency._id || null;
+}
+
+function applyActiveAgency(agency: Agency | null) {
+  setStoredAgencyId(agencyIdOf(agency));
+}
+
 export const AgencyProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated, user } = useAuth();
   const [agencies, setAgencies] = useState<Agency[]>([]);
   const [currentAgency, setCurrentAgency] = useState<Agency | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  const fetchAgencies = async () => {
+  const fetchAgencies = useCallback(async () => {
     if (!isAuthenticated) {
       setAgencies([]);
       setCurrentAgency(null);
+      setStoredAgencyId(null);
       setIsLoading(false);
       return;
     }
@@ -48,20 +58,20 @@ export const AgencyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       if (res.success) {
         const agencyList: Agency[] = res.agencies || [];
         setAgencies(agencyList);
-        // If currentAgency returned from backend, set it, else default to first agency
         const active = res.currentAgency || agencyList[0] || null;
         setCurrentAgency(active);
+        applyActiveAgency(active);
       }
     } catch (err) {
       console.warn('Could not load user agencies from backend', err);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [isAuthenticated]);
 
   useEffect(() => {
     fetchAgencies();
-  }, [isAuthenticated, user?.id]);
+  }, [fetchAgencies, user?.id]);
 
   const createAgency = async (data: CreateAgencyDto) => {
     try {
@@ -70,6 +80,8 @@ export const AgencyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         const newAgency: Agency = res.agency;
         setAgencies(prev => [newAgency, ...prev]);
         setCurrentAgency(newAgency);
+        applyActiveAgency(newAgency);
+        window.dispatchEvent(new CustomEvent('fleetos:agency-switched', { detail: { agencyId: agencyIdOf(newAgency) } }));
         return { success: true, agency: newAgency };
       }
       return { success: false, error: res.error || 'Failed to create agency' };
@@ -86,6 +98,7 @@ export const AgencyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         setAgencies(prev => prev.map(a => (a.id === id || a._id === id ? updated : a)));
         if (currentAgency && (currentAgency.id === id || currentAgency._id === id)) {
           setCurrentAgency(updated);
+          applyActiveAgency(updated);
         }
         return { success: true, agency: updated };
       }
@@ -100,22 +113,12 @@ export const AgencyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       const res = await api.post(`/agencies/switch/${agencyId}`);
       if (res.success && res.currentAgency) {
         setCurrentAgency(res.currentAgency);
-        return { success: true };
-      }
-      // Local fallback if offline
-      const found = agencies.find(a => a.id === agencyId || a._id === agencyId);
-      if (found) {
-        setCurrentAgency(found);
+        applyActiveAgency(res.currentAgency);
+        window.dispatchEvent(new CustomEvent('fleetos:agency-switched', { detail: { agencyId } }));
         return { success: true };
       }
       return { success: false, error: res.error || 'Could not switch agency' };
     } catch (err: any) {
-      // Local fallback
-      const found = agencies.find(a => a.id === agencyId || a._id === agencyId);
-      if (found) {
-        setCurrentAgency(found);
-        return { success: true };
-      }
       return { success: false, error: err.message || 'Error switching agency' };
     }
   };

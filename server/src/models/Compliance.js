@@ -2,6 +2,11 @@ import mongoose from 'mongoose';
 
 const complianceSchema = new mongoose.Schema(
   {
+    agencyId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Agency',
+      index: true
+    },
     entityName: {
       type: String,
       required: true,

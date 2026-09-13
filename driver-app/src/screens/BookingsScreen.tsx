@@ -10,7 +10,6 @@ import {
   StyleSheet,
   Text,
   View,
-  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -21,6 +20,7 @@ import { ScreenHeader } from '../components/ScreenHeader';
 import { GlassButton, GlassCircleButton, GlassPill, GlassSurface, supportsLiquidGlass, usesIosGlass } from '../components/GlassChrome';
 import { useAppTheme } from '../theme/ThemeProvider';
 import { useSession } from '../state/session';
+import { appDialog } from '../dialog';
 import { API_BASE_URL } from '../constants/config';
 import { BookingItem } from '../types/booking';
 import { bookingApi } from '../services/api';
@@ -322,7 +322,7 @@ export function BookingsScreen({ navigation }: Props) {
 
   const callPassenger = (phone: string, name: string) => {
     Linking.openURL(`tel:${phone}`).catch(() => {
-      Alert.alert('Cannot Call', `Unable to call ${name} at ${phone}. Please dial manually.`);
+      appDialog.alert('Cannot Call', `Unable to call ${name} at ${phone}. Please dial manually.`);
     });
   };
 

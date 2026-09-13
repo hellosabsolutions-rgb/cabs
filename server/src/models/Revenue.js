@@ -2,6 +2,11 @@ import mongoose from 'mongoose';
 
 const revenueSchema = new mongoose.Schema(
   {
+    agencyId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Agency',
+      index: true
+    },
     revenueId: {
       type: String,
       trim: true,

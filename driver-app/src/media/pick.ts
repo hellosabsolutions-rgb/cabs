@@ -1,7 +1,7 @@
-import { Alert } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
 import type { Attachment } from './types';
+import { appDialog } from '../dialog';
 
 function imageName(uri: string) {
   const last = uri.split('/').pop() ?? `photo-${Date.now()}.jpg`;
@@ -11,7 +11,7 @@ function imageName(uri: string) {
 export async function pickFromCamera(): Promise<Attachment | null> {
   const permission = await ImagePicker.requestCameraPermissionsAsync();
   if (!permission.granted) {
-    Alert.alert('Camera', 'Camera access is needed to take a photo.');
+    appDialog.alert('Camera', 'Camera access is needed to take a photo.');
     return null;
   }
 
@@ -35,7 +35,7 @@ export async function pickFromCamera(): Promise<Attachment | null> {
 export async function pickFromGallery(): Promise<Attachment | null> {
   const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
   if (!permission.granted) {
-    Alert.alert('Photos', 'Photo library access is needed to attach an image.');
+    appDialog.alert('Photos', 'Photo library access is needed to attach an image.');
     return null;
   }
 

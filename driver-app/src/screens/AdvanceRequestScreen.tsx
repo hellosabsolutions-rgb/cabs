@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Alert, StyleSheet, Text } from 'react-native';
+import { StyleSheet, Text } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Screen } from '../components/Screen';
 import { PrimaryButton, ButtonRow } from '../components/PrimaryButton';
@@ -14,6 +14,7 @@ import { useAppTheme } from '../theme/ThemeProvider';
 import { useSession } from '../state/session';
 import { inrPlain } from '../data/format';
 import type { MessageKey } from '../i18n/en';
+import { appDialog } from '../dialog';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'AdvanceRequest'>;
 
@@ -26,11 +27,11 @@ export function AdvanceRequestScreen({ navigation }: Props) {
   const submit = () => {
     const value = Number(amount);
     if (!value || !reason.trim()) {
-      Alert.alert(t('nav.advanceRequest'), t('common.required'));
+      appDialog.alert(t('nav.advanceRequest'), t('common.required'));
       return;
     }
     session.addAdvance(value, reason.trim());
-    Alert.alert(t('nav.advanceRequest'), t('advance.saved'), [
+    appDialog.alert(t('nav.advanceRequest'), t('advance.saved'), [
       { text: 'OK', onPress: () => navigation.goBack() },
     ]);
   };

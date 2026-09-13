@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { Alert, Animated, Image, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Animated, Image, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { CompositeScreenProps } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { NativeBottomTabScreenProps } from '@react-navigation/bottom-tabs/unstable';
@@ -11,6 +11,7 @@ import { MainTabParamList, RootStackParamList } from '../navigation/types';
 import { radius } from '../theme/colors';
 import { useAppTheme } from '../theme/ThemeProvider';
 import { useSession } from '../state/session';
+import { appDialog } from '../dialog';
 
 type Props = CompositeScreenProps<
   NativeBottomTabScreenProps<MainTabParamList, 'Profile'>,
@@ -53,16 +54,17 @@ export function ProfileScreen({ navigation }: Props) {
   ];
 
   function signOut() {
-    Alert.alert(t('profile.signOut'), t('profile.signOutHint'), [
-      { text: t('common.cancel'), style: 'cancel' },
-      {
-        text: t('profile.signOut'),
-        style: 'destructive',
-        onPress: () => {
-          void session.signOut();
-        },
-      },
-    ]);
+    void appDialog
+      .confirm({
+        title: t('profile.signOut'),
+        message: t('profile.signOutHint'),
+        confirmText: t('profile.signOut'),
+        cancelText: t('common.cancel'),
+        destructive: true,
+      })
+      .then((ok) => {
+        if (ok) void session.signOut();
+      });
   }
 
   return (

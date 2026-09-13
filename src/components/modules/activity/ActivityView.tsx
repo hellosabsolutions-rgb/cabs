@@ -231,7 +231,7 @@ export const ActivityView: React.FC = () => {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+    <div className="section active module-page">
       {/* Top Header */}
       <div
         style={{

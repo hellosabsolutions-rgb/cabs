@@ -2,6 +2,11 @@ import mongoose from 'mongoose';
 
 const departmentContractSchema = new mongoose.Schema(
   {
+    agencyId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Agency',
+      index: true
+    },
     contractNumber: {
       type: String,
       required: true,

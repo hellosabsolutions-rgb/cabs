@@ -259,6 +259,10 @@ export function HomeScreen({ navigation }: Props) {
   );
 
   useEffect(() => {
+    void session.refreshProfile();
+  }, []);
+
+  useEffect(() => {
     if (!session.onDuty) {
       pulse.setValue(1);
       return;
@@ -321,8 +325,12 @@ export function HomeScreen({ navigation }: Props) {
   }[];
 
   const vehicleReg = session.vehicle?.reg && session.vehicle.reg !== '—' ? session.vehicle.reg : null;
-  const vehicleModel = session.vehicle?.model && session.vehicle.model !== '—' ? session.vehicle.model : 'Fleet Vehicle';
-  const tripLabel = session.trip?.id && session.trip.id !== '—' ? session.trip.id : 'Active Shift';
+  const vehicleModel = session.vehicle?.model && session.vehicle.model !== '—' ? session.vehicle.model : 'No vehicle assigned';
+  const vehicleType = session.vehicle?.type && session.vehicle.type !== '—' ? session.vehicle.type : null;
+  const tripLabel =
+    session.trip?.id && session.trip.id !== '—'
+      ? `${session.trip.id}${session.trip.status ? ` · ${session.trip.status}` : ''}`
+      : vehicleType || 'Standby';
 
   // ─── STICKY HEADER INTERPOLATIONS ───
   const stickyBg = scrollY.interpolate({

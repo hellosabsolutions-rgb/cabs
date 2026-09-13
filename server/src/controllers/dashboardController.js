@@ -19,7 +19,7 @@ const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Se
  * @access  Public / Private
  */
 export const getDashboardStats = asyncHandler(async (req, res) => {
-  const agencyId = req.headers['x-agency-id'] || req.query.agencyId || null;
+  const agencyId = req.agencyId || req.headers['x-agency-id'] || req.query.agencyId || null;
   const matchAgency = agencyId ? { agencyId } : {};
 
   // 1. Run parallel aggregations across collections

@@ -2,6 +2,11 @@ import mongoose from 'mongoose';
 
 const fastagTransactionSchema = new mongoose.Schema(
   {
+    agencyId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Agency',
+      index: true
+    },
     vehicle: {
       type: String,
       required: true,

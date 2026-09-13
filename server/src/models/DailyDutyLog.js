@@ -2,6 +2,11 @@ import mongoose from 'mongoose';
 
 const dailyDutyLogSchema = new mongoose.Schema(
   {
+    agencyId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Agency',
+      index: true
+    },
     dutySlipNumber: {
       type: String,
       required: true,
@@ -40,7 +45,13 @@ const dailyDutyLogSchema = new mongoose.Schema(
     driverName: {
       type: String,
       required: true,
-      trim: true
+      trim: true,
+      index: true
+    },
+    driverId: {
+      type: String,
+      trim: true,
+      index: true
     },
     dutyType: {
       type: String,

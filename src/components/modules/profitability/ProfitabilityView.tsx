@@ -161,7 +161,7 @@ export const ProfitabilityView: React.FC = () => {
 
   if (isLoadingProfitability && vehicles.length === 0) {
     return (
-      <div className="section active">
+      <div className="section active module-page">
         <SkeletonProfitability />
       </div>
     );
@@ -170,7 +170,7 @@ export const ProfitabilityView: React.FC = () => {
   // Full Page P&L Details Ledger View when a card is clicked or query param is set
   if (ledgerParam && ['bookings', 'departments', 'overheads'].includes(ledgerParam)) {
     return (
-      <div className="section active">
+      <div className="section active module-page">
         <SoftRefreshBar visible={isFetchingRevenue && vehicles.length > 0} label="Calculating live profitability…" />
         <PnLLedgerView
           ledgerType={ledgerParam}
@@ -186,7 +186,7 @@ export const ProfitabilityView: React.FC = () => {
   }
 
   return (
-    <div className="section active" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+    <div className="section active module-page">
       <SoftRefreshBar visible={isFetchingRevenue && vehicles.length > 0} label="Calculating live profitability…" />
 
       {/* Header */}

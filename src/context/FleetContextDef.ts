@@ -122,7 +122,7 @@ export interface FleetContextType {
   updateDepartmentContract: (id: string, data: Partial<DepartmentContract>) => Promise<{ success: boolean; contract?: DepartmentContract; error?: string }>;
   deleteDepartmentContract: (id: string) => Promise<{ success: boolean; error?: string }>;
   dailyDutyLogs: DailyDutyLog[];
-  fetchLiveDailyDutyLogs: (queryParam?: { month?: string; date?: string; vehicle?: string; department?: string; status?: string; search?: string }) => Promise<void>;
+  fetchLiveDailyDutyLogs: (queryParam?: { month?: string; date?: string; driverName?: string; driverId?: string; vehicle?: string; department?: string; status?: string; search?: string }) => Promise<void>;
   addDailyDutyLog: (log: Omit<DailyDutyLog, 'id'>) => Promise<{ success: boolean; log?: DailyDutyLog; error?: string }>;
   updateDailyDutyLogStatus: (id: string, status: DailyDutyLog['status']) => Promise<void>;
   deleteDailyDutyLog: (id: string) => Promise<{ success: boolean; error?: string }>;

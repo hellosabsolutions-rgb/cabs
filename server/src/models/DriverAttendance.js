@@ -2,6 +2,11 @@ import mongoose from 'mongoose';
 
 const driverAttendanceSchema = new mongoose.Schema(
   {
+    agencyId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Agency',
+      index: true
+    },
     driverId: {
       type: String,
       required: true,

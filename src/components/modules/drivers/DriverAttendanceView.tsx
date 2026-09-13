@@ -4,7 +4,7 @@ import { StatCard } from '../../common/StatCard';
 import { LogAttendanceModal } from './LogAttendanceModal';
 import { EditAttendanceModal } from './EditAttendanceModal';
 import { AttendanceStatus, DriverAttendance } from '../../../types/fleet';
-import { CustomStatusDropdown, StatusOption } from '../../common/CustomStatusDropdown';
+import { StatusDropdown, StatusOption } from '../../common/StatusDropdown';
 import { DatePicker } from '../../common/DatePicker';
 import {
   Calendar,
@@ -26,6 +26,18 @@ import { usePagination } from '../../../hooks/usePagination';
 
 type AttendanceTimeFrame = 'daily' | 'monthly' | 'yearly';
 
+function istTodayString() {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date());
+}
+
+function istCurrentMonthString() {
+  return istTodayString().slice(0, 7);
+}
+
+function istCurrentYearString() {
+  return istTodayString().slice(0, 4);
+}
+
 export const DriverAttendanceView: React.FC = () => {
   const {
     attendanceRecords,
@@ -42,17 +54,17 @@ export const DriverAttendanceView: React.FC = () => {
   const [timeFrame, setTimeFrame] = useState<AttendanceTimeFrame>('daily');
 
   // Daily State
-  const [selectedDate, setSelectedDate] = useState('2026-09-02');
+  const [selectedDate, setSelectedDate] = useState(istTodayString);
   const [dutyFilter, setDutyFilter] = useState<string>('All');
   const [isLogModalOpen, setIsLogModalOpen] = useState(false);
   const [isBulkMarking, setIsBulkMarking] = useState(false);
 
   // Monthly State
-  const [selectedMonth, setSelectedMonth] = useState('2026-09'); // YYYY-MM
+  const [selectedMonth, setSelectedMonth] = useState(istCurrentMonthString);
   const [monthSubTab, setMonthSubTab] = useState<'summary' | 'logs'>('summary');
 
   // Yearly State
-  const [selectedYear, setSelectedYear] = useState('2026'); // YYYY
+  const [selectedYear, setSelectedYear] = useState(istCurrentYearString);
 
   // Editing Record State
   const [editingAttendance, setEditingAttendance] = useState<DriverAttendance | null>(null);
@@ -100,18 +112,18 @@ export const DriverAttendanceView: React.FC = () => {
     return drivers.map(d => {
       const existing = currentDayRecords.find(r => r.driverId === d.id);
       if (existing) return existing;
-      // Default placeholder if not marked yet: All drivers are Present by default
+      // No duty log / attendance yet → absent until driver starts duty from mobile app
       return {
         id: 'temp_' + d.id,
         driverId: d.id,
         driverName: d.name,
         date: selectedDate,
-        status: 'Present' as AttendanceStatus,
-        checkIn: '08:30 AM',
-        checkOut: '06:30 PM',
+        status: 'Absent' as AttendanceStatus,
+        checkIn: '—',
+        checkOut: '—',
         assignedVehicle: d.assignedVehicle || '—',
         dutyType: 'Department Duty' as const,
-        workingHours: 10,
+        workingHours: 0,
         notes: undefined
       };
     });
@@ -283,7 +295,7 @@ export const DriverAttendanceView: React.FC = () => {
     ];
 
     return (
-      <CustomStatusDropdown
+      <StatusDropdown
         value={status}
         options={attendanceOptions}
         onChange={handleStatusSelect}
@@ -539,18 +551,38 @@ export const DriverAttendanceView: React.FC = () => {
     };
   }, [yearlyRecords]);
 
+  const renderAttendanceDriverCell = (name: string, vehicle?: string) => (
+    <div className="driver-info-cell">
+      <div className="driver-avatar-circle">{name.charAt(0)}</div>
+      <div className="cell-stack">
+        <span className="cell-primary">{name}</span>
+        <span className="cell-meta">{vehicle || '—'}</span>
+      </div>
+    </div>
+  );
+
+  const renderShiftCell = (r: DriverAttendance) => {
+    const start = r.checkIn && r.checkIn !== '—' ? r.checkIn : null;
+    const end = r.checkOut && r.checkOut !== '—' ? r.checkOut : null;
+    const onDuty = Boolean(start && !end);
+
+    return (
+      <div className="cell-stack">
+        <span className="cell-primary" style={{ fontFamily: 'monospace', fontSize: '12px' }}>
+          {start ? `Start ${start}` : '—'}
+          {end ? ` → End ${end}` : onDuty ? ' → On duty' : ''}
+        </span>
+        <span className="cell-meta">
+          {onDuty ? 'Duty in progress' : r.workingHours ? `${r.workingHours} hrs duty` : 'No duty logged'}
+        </span>
+      </div>
+    );
+  };
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+    <div className="module-page">
       {/* View Mode Switcher Header */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: '12px'
-        }}
-      >
+      <div className="module-toolbar">
         <div className="subtab-nav" style={{ margin: 0, padding: 0 }}>
           <button
             type="button"
@@ -590,7 +622,7 @@ export const DriverAttendanceView: React.FC = () => {
       {timeFrame === 'daily' && (
         <>
           {/* Daily Stats Cards */}
-          <div className="stats-grid">
+          <div className="stats-grid stats-grid--compact">
             <StatCard
               label="Present & On Duty"
               value={`${dailyStats.present} / ${drivers.length}`}
@@ -679,10 +711,10 @@ export const DriverAttendanceView: React.FC = () => {
           </div>
 
           {/* Daily Table */}
-          <div className="panel">
-            <div className="panel-head">
-              <span className="panel-title">Daily Attendance Roster</span>
-              <div style={{ display: 'flex', gap: '6px' }}>
+          <div className="panel panel--table">
+            <div className="panel-head" style={{ flexWrap: 'wrap', gap: '8px' }}>
+              <span className="panel-title">Daily Attendance · {formattedDateLabel}</span>
+              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                 {['All', 'Department Duty', 'Booking Duty', 'Standby'].map(f => (
                   <button
                     key={f}
@@ -696,60 +728,47 @@ export const DriverAttendanceView: React.FC = () => {
               </div>
             </div>
 
-            <div className="table-responsive">
+            <div className="table-responsive table-dense">
               <table>
                 <thead>
                   <tr>
                     <th>Driver</th>
-                    <th>Assigned vehicle</th>
-                    <th>Duty type</th>
-                    <th>Check in</th>
-                    <th>Check out</th>
-                    <th>Duty hours</th>
+                    <th>Duty Times</th>
+                    <th>Duty</th>
                     <th>Status</th>
-                    <th>Remarks / Route</th>
-                    <th style={{ textAlign: 'right' }}>Actions</th>
+                    <th>Notes</th>
+                    <th className="td-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {paginatedDailyRecords.length === 0 ? (
                     <tr>
-                      <td colSpan={9} style={{ textAlign: 'center', color: 'var(--text-faint)', padding: '30px 0' }}>
+                      <td colSpan={6} style={{ textAlign: 'center', color: 'var(--text-faint)', padding: '24px 0' }}>
                         No attendance records match your search criteria.
                       </td>
                     </tr>
                   ) : (
                     paginatedDailyRecords.map(r => (
                       <tr key={r.id}>
-                        <td style={{ fontWeight: 600 }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <div className="driver-avatar-circle" style={{ width: 28, height: 28, fontSize: 11 }}>
-                              {r.driverName.charAt(0)}
-                            </div>
-                            {r.driverName}
-                          </div>
-                        </td>
-                        <td style={{ fontWeight: 500 }}>{r.assignedVehicle || '—'}</td>
+                        <td>{renderAttendanceDriverCell(r.driverName, r.assignedVehicle)}</td>
+                        <td>{renderShiftCell(r)}</td>
                         <td>
                           <span style={{ fontSize: '12px', color: 'var(--text-dim)' }}>
                             {r.dutyType || 'Department Duty'}
                           </span>
                         </td>
-                        <td style={{ fontFamily: 'monospace', fontSize: '12px' }}>{r.checkIn || '—'}</td>
-                        <td style={{ fontFamily: 'monospace', fontSize: '12px' }}>{r.checkOut || '—'}</td>
-                        <td style={{ fontWeight: 600 }}>{r.workingHours ? `${r.workingHours} hrs` : '0 hrs'}</td>
                         <td>{renderStatusDropdown(r.status, r.id, r)}</td>
-                        <td style={{ fontSize: '12px', color: 'var(--text-dim)' }}>{r.notes || '—'}</td>
-                        <td style={{ textAlign: 'right' }}>
+                        <td style={{ fontSize: '12px', color: 'var(--text-dim)', maxWidth: 180 }} className="cell-truncate">
+                          {r.notes || '—'}
+                        </td>
+                        <td className="td-right">
                           <button
                             type="button"
-                            className="btn-secondary"
-                            style={{ padding: '4px 8px', fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                            className="icon-btn"
                             onClick={() => setEditingAttendance(r)}
                             title="Edit attendance details"
                           >
-                            <Edit2 size={11} color="var(--accent)" />
-                            <span>Edit</span>
+                            <Edit2 size={14} />
                           </button>
                         </td>
                       </tr>
@@ -776,7 +795,7 @@ export const DriverAttendanceView: React.FC = () => {
       {timeFrame === 'monthly' && (
         <>
           {/* Monthly Stats Cards */}
-          <div className="stats-grid">
+          <div className="stats-grid stats-grid--compact">
             <StatCard label="Monthly Duty Hours" value={`${monthStats.totalHours} hrs`} customColor="var(--accent)" />
             <StatCard label="Present Shifts" value={`${monthStats.presentCount}`} />
             <StatCard label="Late / Absent" value={`${monthStats.lateCount + monthStats.absentCount}`} />
@@ -861,68 +880,58 @@ export const DriverAttendanceView: React.FC = () => {
 
           {/* Monthly Driver Summary Table */}
           {monthSubTab === 'summary' && (
-            <div className="panel">
+            <div className="panel panel--table">
               <div className="panel-head">
-                <span className="panel-title">Monthly Driver Attendance Breakdown</span>
-                <span style={{ fontSize: '12px', color: 'var(--text-faint)' }}>{formattedMonthLabel}</span>
+                <span className="panel-title">Monthly Driver Attendance · {formattedMonthLabel}</span>
               </div>
 
-              <div className="table-responsive">
+              <div className="table-responsive table-dense">
                 <table>
                   <thead>
                     <tr>
                       <th>Driver</th>
-                      <th>Assigned vehicle</th>
                       <th>Type</th>
-                      <th>Present days</th>
-                      <th>On booking</th>
-                      <th>Late</th>
-                      <th>Absent / leave</th>
-                      <th>Total hours</th>
-                      <th>Avg duty / day</th>
-                      <th>Attendance %</th>
+                      <th>Days breakdown</th>
+                      <th className="td-right">Hours</th>
+                      <th className="td-right">Attendance</th>
                     </tr>
                   </thead>
                   <tbody>
                     {paginatedDriverSummary.length === 0 ? (
                       <tr>
-                        <td colSpan={10} style={{ textAlign: 'center', color: 'var(--text-faint)', padding: '30px 0' }}>
+                        <td colSpan={5} style={{ textAlign: 'center', color: 'var(--text-faint)', padding: '24px 0' }}>
                           No drivers registered for this month.
                         </td>
                       </tr>
                     ) : (
                       paginatedDriverSummary.map((item: any) => (
                         <tr key={item.driverId}>
-                          <td style={{ fontWeight: 600 }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                              <div className="driver-avatar-circle" style={{ width: 28, height: 28, fontSize: 11 }}>
-                                {item.driverName.charAt(0)}
-                              </div>
-                              {item.driverName}
-                            </div>
-                          </td>
-                          <td style={{ fontWeight: 500 }}>{item.assignedVehicle || '—'}</td>
+                          <td>{renderAttendanceDriverCell(item.driverName, item.assignedVehicle)}</td>
                           <td>
                             <span className="badge-chip">{item.driverType || 'Full Time'}</span>
                           </td>
-                          <td style={{ fontWeight: 600, color: 'var(--accent)' }}>
-                            {item.presentDays} days
-                          </td>
-                          <td>{item.onTripDays || 0}</td>
-                          <td style={{ color: item.lateDays > 0 ? 'var(--warning)' : 'inherit' }}>
-                            {item.lateDays}
-                          </td>
-                          <td style={{ color: item.absentDays + (item.leaveDays || 0) > 0 ? 'var(--danger)' : 'inherit' }}>
-                            {item.absentDays + (item.leaveDays || 0)}
-                          </td>
-                          <td style={{ fontWeight: 600 }}>{item.totalHours} hrs</td>
-                          <td>{item.avgDutyHours} hrs</td>
                           <td>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                              <span style={{ fontWeight: 600, fontSize: '12px' }}>{item.attendanceRate}%</span>
+                            <div className="cell-breakdown">
+                              <span style={{ color: 'var(--accent)' }}>Present {item.presentDays}</span>
+                              <span>Booking {item.onTripDays || 0}</span>
+                              <span style={{ color: item.lateDays > 0 ? 'var(--warning)' : undefined }}>Late {item.lateDays}</span>
+                              <span style={{ color: item.absentDays + (item.leaveDays || 0) > 0 ? 'var(--danger)' : undefined }}>
+                                Absent {item.absentDays + (item.leaveDays || 0)}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="td-right">
+                            <div className="cell-money-pair" style={{ alignItems: 'flex-end' }}>
+                              <span className="paid">{item.totalHours} hrs total</span>
+                              <span className="pending">{item.avgDutyHours} hrs avg</span>
+                            </div>
+                          </td>
+                          <td className="td-right">
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '6px' }}>
+                              <span style={{ fontWeight: 700, fontSize: '12px' }}>{item.attendanceRate}%</span>
                               <div
                                 style={{
-                                  width: '40px',
+                                  width: '36px',
                                   height: '5px',
                                   background: 'var(--surface-3)',
                                   borderRadius: '3px',
@@ -950,10 +959,10 @@ export const DriverAttendanceView: React.FC = () => {
 
           {/* All Monthly Logs Table with Edit Actions */}
           {monthSubTab === 'logs' && (
-            <div className="panel">
-              <div className="panel-head">
-                <span className="panel-title">Detailed Monthly Shift Logs</span>
-                <div style={{ display: 'flex', gap: '6px' }}>
+            <div className="panel panel--table">
+              <div className="panel-head" style={{ flexWrap: 'wrap', gap: '8px' }}>
+                <span className="panel-title">Monthly Shift Logs</span>
+                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                   {['All', 'Department Duty', 'Booking Duty', 'Standby'].map(f => (
                     <button
                       key={f}
@@ -967,55 +976,49 @@ export const DriverAttendanceView: React.FC = () => {
                 </div>
               </div>
 
-              <div className="table-responsive">
+              <div className="table-responsive table-dense">
                 <table>
                   <thead>
                     <tr>
                       <th>Date</th>
                       <th>Driver</th>
-                      <th>Assigned vehicle</th>
-                      <th>Duty type</th>
-                      <th>Check in</th>
-                      <th>Check out</th>
-                      <th>Duty hours</th>
+                      <th>Duty Times</th>
+                      <th>Duty</th>
                       <th>Status</th>
-                      <th>Remarks / Route</th>
-                      <th style={{ textAlign: 'right' }}>Actions</th>
+                      <th>Notes</th>
+                      <th className="td-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {paginatedMonthlyLogs.length === 0 ? (
                       <tr>
-                        <td colSpan={10} style={{ textAlign: 'center', color: 'var(--text-faint)', padding: '30px 0' }}>
+                        <td colSpan={7} style={{ textAlign: 'center', color: 'var(--text-faint)', padding: '24px 0' }}>
                           No shift logs found for this month matching criteria.
                         </td>
                       </tr>
                     ) : (
                       paginatedMonthlyLogs.map(r => (
                         <tr key={r.id}>
-                          <td style={{ fontWeight: 600, fontFamily: 'monospace', fontSize: '12px' }}>{r.date}</td>
-                          <td style={{ fontWeight: 600 }}>{r.driverName}</td>
-                          <td style={{ fontWeight: 500 }}>{r.assignedVehicle || '—'}</td>
+                          <td style={{ fontWeight: 600, fontFamily: 'monospace', fontSize: '12px', whiteSpace: 'nowrap' }}>{r.date}</td>
+                          <td>{renderAttendanceDriverCell(r.driverName, r.assignedVehicle)}</td>
+                          <td>{renderShiftCell(r)}</td>
                           <td>
                             <span style={{ fontSize: '12px', color: 'var(--text-dim)' }}>
                               {r.dutyType || 'Department Duty'}
                             </span>
                           </td>
-                          <td style={{ fontFamily: 'monospace', fontSize: '12px' }}>{r.checkIn || '—'}</td>
-                          <td style={{ fontFamily: 'monospace', fontSize: '12px' }}>{r.checkOut || '—'}</td>
-                          <td style={{ fontWeight: 600 }}>{r.workingHours ? `${r.workingHours} hrs` : '0 hrs'}</td>
                           <td>{renderStatusDropdown(r.status, r.id, r)}</td>
-                          <td style={{ fontSize: '12px', color: 'var(--text-dim)' }}>{r.notes || '—'}</td>
-                          <td style={{ textAlign: 'right' }}>
+                          <td style={{ fontSize: '12px', color: 'var(--text-dim)', maxWidth: 180 }} className="cell-truncate">
+                            {r.notes || '—'}
+                          </td>
+                          <td className="td-right">
                             <button
                               type="button"
-                              className="btn-secondary"
-                              style={{ padding: '4px 8px', fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                              className="icon-btn"
                               onClick={() => setEditingAttendance(r)}
                               title="Edit this attendance log"
                             >
-                              <Edit2 size={11} color="var(--accent)" />
-                              <span>Edit</span>
+                              <Edit2 size={14} />
                             </button>
                           </td>
                         </tr>
@@ -1035,7 +1038,7 @@ export const DriverAttendanceView: React.FC = () => {
       {timeFrame === 'yearly' && (
         <>
           {/* Yearly Stats Cards */}
-          <div className="stats-grid">
+          <div className="stats-grid stats-grid--compact">
             <StatCard label="Annual Total Hours" value={`${yearlyStats.totalHours} hrs`} customColor="var(--accent)" />
             <StatCard label="Total Driver Roster" value={`${drivers.length}`} />
             <StatCard label="Annual Shifts" value={`${yearlyStats.totalShifts}`} />
@@ -1194,57 +1197,52 @@ export const DriverAttendanceView: React.FC = () => {
           </div>
 
           {/* Annual Driver Roster Table */}
-          <div className="panel">
+          <div className="panel panel--table">
             <div className="panel-head">
-              <span className="panel-title">Annual Driver Roster Summary ({selectedYear})</span>
+              <span className="panel-title">Annual Driver Roster · {selectedYear}</span>
             </div>
 
-            <div className="table-responsive">
+            <div className="table-responsive table-dense">
               <table>
                 <thead>
                   <tr>
                     <th>Driver</th>
                     <th>Type</th>
-                    <th>Assigned vehicle</th>
-                    <th>Total shifts</th>
-                    <th>Present days</th>
-                    <th>Late days</th>
-                    <th>Absent days</th>
-                    <th>Annual hours</th>
-                    <th>Avg hours/day</th>
-                    <th>Attendance %</th>
+                    <th>Days breakdown</th>
+                    <th className="td-right">Hours</th>
+                    <th className="td-right">Attendance</th>
                   </tr>
                 </thead>
                 <tbody>
                   {yearlyDriverSummary.length === 0 ? (
                     <tr>
-                      <td colSpan={10} style={{ textAlign: 'center', color: 'var(--text-faint)', padding: '30px 0' }}>
+                      <td colSpan={5} style={{ textAlign: 'center', color: 'var(--text-faint)', padding: '24px 0' }}>
                         No attendance data logged for year {selectedYear}.
                       </td>
                     </tr>
                   ) : (
                     yearlyDriverSummary.map((item: any) => (
                       <tr key={item.driverId}>
-                        <td style={{ fontWeight: 600 }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <div className="driver-avatar-circle" style={{ width: 28, height: 28, fontSize: 11 }}>
-                              {item.driverName.charAt(0)}
-                            </div>
-                            {item.driverName}
-                          </div>
-                        </td>
+                        <td>{renderAttendanceDriverCell(item.driverName, item.assignedVehicle)}</td>
                         <td>
                           <span className="badge-chip">{item.driverType || 'Full Time'}</span>
                         </td>
-                        <td style={{ fontWeight: 500 }}>{item.assignedVehicle || '—'}</td>
-                        <td>{item.totalLogged}</td>
-                        <td style={{ fontWeight: 600, color: 'var(--accent)' }}>{item.presentDays}</td>
-                        <td style={{ color: item.lateDays > 0 ? 'var(--warning)' : 'inherit' }}>{item.lateDays}</td>
-                        <td style={{ color: item.absentDays > 0 ? 'var(--danger)' : 'inherit' }}>{item.absentDays}</td>
-                        <td style={{ fontWeight: 600 }}>{item.totalHours} hrs</td>
-                        <td>{item.avgDutyHours} hrs</td>
                         <td>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <div className="cell-breakdown">
+                            <span>Shifts {item.totalLogged}</span>
+                            <span style={{ color: 'var(--accent)' }}>Present {item.presentDays}</span>
+                            <span style={{ color: item.lateDays > 0 ? 'var(--warning)' : undefined }}>Late {item.lateDays}</span>
+                            <span style={{ color: item.absentDays > 0 ? 'var(--danger)' : undefined }}>Absent {item.absentDays}</span>
+                          </div>
+                        </td>
+                        <td className="td-right">
+                          <div className="cell-money-pair" style={{ alignItems: 'flex-end' }}>
+                            <span className="paid">{item.totalHours} hrs total</span>
+                            <span className="pending">{item.avgDutyHours} hrs avg</span>
+                          </div>
+                        </td>
+                        <td className="td-right">
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '6px' }}>
                             <span style={{ fontWeight: 600, fontSize: '12px' }}>{item.attendanceRate}%</span>
                             <div
                               style={{

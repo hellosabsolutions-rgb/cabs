@@ -1,8 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
-  Animated,
   Dimensions,
   Image,
   KeyboardAvoidingView,
@@ -21,6 +19,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
 import { useSession } from '../state/session';
+import { appDialog } from '../dialog';
 import { dutyApi } from '../services/api';
 import { km } from '../data/format';
 import { pickFromCamera } from '../media/pick';
@@ -59,41 +58,16 @@ export function StartDutyScreen({ navigation }: Props) {
   const [flash, setFlash] = useState<FlashMode>('off');
 
   // Form State
-  const initialOdo = String(session.vehicle?.odometer || session.odometer || '45470');
+  const initialOdo = String(session.vehicle?.odometer || session.odometer || '');
   const [odometer, setOdometer] = useState(initialOdo);
   const [capturedPhoto, setCapturedPhoto] = useState<Attachment | null>(null);
   const [isCapturing, setIsCapturing] = useState(false);
-  const [isDetectingOdo, setIsDetectingOdo] = useState(false);
-  const [detectedOdo, setDetectedOdo] = useState<number | null>(null);
-  const [candidates, setCandidates] = useState<number[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
 
   // Backend IST time sync
   const [serverTimeText, setServerTimeText] = useState<string>('');
   const [isTimeLoading, setIsTimeLoading] = useState<boolean>(true);
-
-  // Scan line animation
-  const scanAnim = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(scanAnim, {
-          toValue: 1,
-          duration: 2200,
-          useNativeDriver: true,
-        }),
-        Animated.timing(scanAnim, {
-          toValue: 0,
-          duration: 2200,
-          useNativeDriver: true,
-        }),
-      ])
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [scanAnim]);
 
   // Check if driver has an assigned vehicle from backend
   const hasAssignedVehicle = useMemo(() => {
@@ -151,40 +125,11 @@ export function StartDutyScreen({ navigation }: Props) {
     };
   }, []);
 
-  // Run OCR detection on captured photo base64
-  const runOdometerDetection = async (base64Image: string) => {
-    try {
-      setIsDetectingOdo(true);
-      const currentVal = Number(odometer.replace(/,/g, '')) || Number(session.vehicle?.odometer) || 0;
-      const res = await dutyApi.detectOdometer({
-        image: base64Image,
-        currentOdo: currentVal,
-      });
-
-      if (res?.detected && res.odometer) {
-        setOdometer(String(res.odometer));
-        setDetectedOdo(res.odometer);
-        if (res.candidates && Array.isArray(res.candidates)) {
-          setCandidates(res.candidates);
-        }
-        setError('');
-      } else if (res?.candidates && res.candidates.length > 0) {
-        setCandidates(res.candidates);
-      }
-    } catch (detectErr) {
-      console.warn('[StartDutyScreen] Auto-detect odometer warning:', detectErr);
-    } finally {
-      setIsDetectingOdo(false);
-    }
-  };
-
   // Capture Photo
   const handleCapture = async () => {
     if (isCapturing) return;
     try {
       setIsCapturing(true);
-      setDetectedOdo(null);
-      setCandidates([]);
 
       // Attempt capture via CameraView if ref is ready
       if (cameraRef.current && isCameraReady) {
@@ -203,10 +148,6 @@ export function StartDutyScreen({ navigation }: Props) {
             };
             setCapturedPhoto(photoItem);
             setIsCapturing(false);
-
-            if (photo.base64) {
-              void runOdometerDetection(photo.base64);
-            }
             return;
           }
         } catch (camErr) {
@@ -218,12 +159,9 @@ export function StartDutyScreen({ navigation }: Props) {
       const picked = await pickFromCamera();
       if (picked) {
         setCapturedPhoto(picked);
-        if (picked.base64) {
-          void runOdometerDetection(picked.base64);
-        }
       }
     } catch (err: any) {
-      Alert.alert('Capture Failed', err?.message || 'Unable to capture photo. Please try again.');
+      appDialog.alert('Capture Failed', err?.message || 'Unable to capture photo. Please try again.');
     } finally {
       setIsCapturing(false);
     }
@@ -245,13 +183,13 @@ export function StartDutyScreen({ navigation }: Props) {
   // Submit Start Duty
   const handleStartDuty = async () => {
     if (session.onDuty) {
-      Alert.alert('Start Duty', 'You are already on duty.');
+      appDialog.alert('Start Duty', 'You are already on duty.');
       navigation.goBack();
       return;
     }
 
     if (!hasAssignedVehicle) {
-      Alert.alert(
+      appDialog.alert(
         'Vehicle Required',
         'Cannot start duty: No vehicle is assigned to your profile in the fleet management system.'
       );
@@ -266,34 +204,29 @@ export function StartDutyScreen({ navigation }: Props) {
 
     const minOdo = session.vehicle?.odometer || session.lastValidOdo || 0;
     if (minOdo > 0 && value < minOdo) {
-      Alert.alert('Invalid Odometer', `Starting odometer cannot be less than current odometer (${km(minOdo)}).`);
+      appDialog.alert('Invalid Odometer', `Starting odometer cannot be less than current odometer (${km(minOdo)}).`);
       return;
     }
 
     if (!capturedPhoto) {
-      Alert.alert('Photo Required', 'Please capture a photo of the vehicle odometer to start duty.');
+      appDialog.alert('Photo Required', 'Please capture a photo of the vehicle odometer to start duty.');
       return;
     }
 
     try {
       setIsSubmitting(true);
       await session.startDuty(value, capturedPhoto.uri);
-      Alert.alert(
+      appDialog.alert(
         'Duty Started',
         `Duty started successfully.\n\nVehicle: ${session.vehicle?.reg || 'Assigned'}\nOdometer: ${km(value)}`,
         [{ text: 'OK', onPress: () => navigation.goBack() }]
       );
     } catch (err: any) {
-      Alert.alert('Error', err?.message || 'Failed to record duty start. Please try again.');
+      appDialog.alert('Error', err?.message || 'Failed to record duty start. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
   };
-
-  const scanTranslateY = scanAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [-75, 75],
-  });
 
   return (
     <View style={styles.screen}>
@@ -381,14 +314,6 @@ export function StartDutyScreen({ navigation }: Props) {
             {/* Bottom-Right Corner */}
             <View style={[styles.cornerBracket, styles.cornerBR]} />
 
-            {/* Animated Scanning Laser Line (Pure White Laser) */}
-            <Animated.View
-              style={[
-                styles.scanLaser,
-                { transform: [{ translateY: scanTranslateY }] },
-              ]}
-            />
-
             <View style={styles.reticleCenterTag}>
               <Ionicons name="scan-outline" size={15} color="#FFFFFF" style={{ marginRight: 5 }} />
               <Text style={styles.reticleTagText}>ALIGN ODOMETER HERE</Text>
@@ -405,7 +330,7 @@ export function StartDutyScreen({ navigation }: Props) {
         <View style={[styles.successBadgeWrap, { top: insets.top + 60 }]}>
           <GlassPill tone="dark" style={styles.successBadge}>
             <Ionicons name="checkmark-circle" size={17} color="#FFFFFF" style={{ marginRight: 6 }} />
-            <Text style={styles.successBadgeText}>Odometer Photo Captured & Verified</Text>
+            <Text style={styles.successBadgeText}>Odometer photo captured</Text>
           </GlassPill>
         </View>
       )}
@@ -431,7 +356,7 @@ export function StartDutyScreen({ navigation }: Props) {
                     }}
                     keyboardType="numeric"
                     style={styles.odoStripInput}
-                    placeholder="45470"
+                    placeholder="0"
                     placeholderTextColor="#71717A"
                   />
                   <Text style={styles.odoKmUnit}>KM</Text>
@@ -490,30 +415,7 @@ export function StartDutyScreen({ navigation }: Props) {
                   <Text style={styles.fieldCurrentKm}>Current: {km(session.vehicle?.odometer || session.lastValidOdo)}</Text>
                 </View>
 
-                {/* AI Detection in progress banner */}
-                {isDetectingOdo && (
-                  <View style={styles.detectingBanner}>
-                    <ActivityIndicator size="small" color="#FFFFFF" style={{ marginRight: 8 }} />
-                    <Text style={styles.detectingBannerText}>
-                      AI scanning integers from odometer photo...
-                    </Text>
-                  </View>
-                )}
-
-                {/* AI Auto-detected successfully banner */}
-                {detectedOdo && !isDetectingOdo ? (
-                  <View style={styles.detectedSuccessBanner}>
-                    <Ionicons name="sparkles" size={14} color="#FFFFFF" style={{ marginRight: 6 }} />
-                    <Text style={styles.detectedSuccessText}>
-                      Auto-detected {km(detectedOdo)} from photo • Auto-filled
-                    </Text>
-                  </View>
-                ) : null}
-
-                <View style={[
-                  styles.odoLargeInputBox,
-                  detectedOdo && !isDetectingOdo ? styles.odoLargeInputBoxDetected : null
-                ]}>
+                <View style={styles.odoLargeInputBox}>
                   <TextInput
                     value={odometer}
                     onChangeText={(v) => {
@@ -522,7 +424,7 @@ export function StartDutyScreen({ navigation }: Props) {
                     }}
                     keyboardType="numeric"
                     style={styles.odoLargeInput}
-                    placeholder="45470"
+                    placeholder="0"
                     placeholderTextColor="#71717A"
                   />
                   <Text style={styles.odoLargeKm}>KM</Text>
@@ -546,41 +448,6 @@ export function StartDutyScreen({ navigation }: Props) {
                   </Pressable>
                 </View>
 
-                {/* Detected candidates selector chips if multiple numbers found in cluster */}
-                {candidates.length > 1 && (
-                  <View style={styles.candidatesSection}>
-                    <Text style={styles.candidatesLabel}>Detected in cluster photo (tap to choose):</Text>
-                    <View style={styles.candidatesRow}>
-                      {candidates.map((cand) => {
-                        const isSelected = Number(odometer.replace(/,/g, '')) === cand;
-                        return (
-                          <Pressable
-                            key={cand}
-                            onPress={() => {
-                              setOdometer(String(cand));
-                              setDetectedOdo(cand);
-                              setError('');
-                            }}
-                            style={[
-                              styles.candidateChip,
-                              isSelected && styles.candidateChipSelected,
-                            ]}
-                          >
-                            <Ionicons
-                              name={isSelected ? 'checkmark-circle' : 'speedometer-outline'}
-                              size={12}
-                              color={isSelected ? '#000000' : '#FFFFFF'}
-                              style={{ marginRight: 4 }}
-                            />
-                            <Text style={[styles.candidateChipText, isSelected && styles.candidateChipTextSelected]}>
-                              {km(cand)}
-                            </Text>
-                          </Pressable>
-                        );
-                      })}
-                    </View>
-                  </View>
-                )}
               </View>
 
               {/* Vehicle & Verification Summary */}

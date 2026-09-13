@@ -4,7 +4,7 @@ import { StatCard } from '../../common/StatCard';
 import { AddDriverExpenseModal } from './AddDriverExpenseModal';
 import { EditDriverExpenseModal } from './EditDriverExpenseModal';
 import { DriverExpenseCategory, DriverExpenseItem, TripExpenseRecord } from '../../../types/fleet';
-import { CustomStatusDropdown, StatusOption } from '../../common/CustomStatusDropdown';
+import { StatusDropdown, StatusOption } from '../../common/StatusDropdown';
 import { DatePicker } from '../../common/DatePicker';
 import {
   Calendar,
@@ -15,7 +15,6 @@ import {
   Trash2,
   ChevronLeft,
   ChevronRight,
-  Users,
   Loader2,
   ArrowUpRight,
   Banknote
@@ -54,6 +53,49 @@ function isBataCategory(cat: string) {
 
 function isNightHaltCategory(cat: string) {
   return cat === 'Night Halt Allowance' || cat === 'Overtime';
+}
+
+function buildDriverExpenseSummary(
+  drivers: Array<{ id: string; name: string; assignedVehicle?: string; driverType?: string }>,
+  records: DriverExpenseItem[]
+) {
+  return drivers.map(d => {
+    const driverRecords = records.filter(
+      r => r.driverId === d.id || r.driverName.toLowerCase() === d.name.toLowerCase()
+    );
+
+    let total = 0;
+    let paid = 0;
+    let pending = 0;
+    let bata = 0;
+    let nightHalt = 0;
+    let advances = 0;
+
+    driverRecords.forEach(r => {
+      total += r.amount;
+      if (r.status === 'Paid') paid += r.amount;
+      else pending += r.amount;
+
+      if (isBataCategory(r.category)) bata += r.amount;
+      else if (isNightHaltCategory(r.category)) nightHalt += r.amount;
+      else advances += r.amount;
+    });
+
+    return {
+      driverId: d.id,
+      driverName: d.name,
+      vehicle: d.assignedVehicle || '—',
+      driverType: d.driverType || 'Permanent',
+      totalAmount: total,
+      paidAmount: paid,
+      pendingAmount: pending,
+      bataAmount: bata,
+      nightHaltAmount: nightHalt,
+      advanceAmount: advances,
+      transactionCount: driverRecords.length,
+      records: driverRecords
+    };
+  });
 }
 
 function mapTripToDriverExpense(e: TripExpenseRecord): DriverExpenseItem {
@@ -167,6 +209,35 @@ export const DriverExpensesView: React.FC = () => {
   // -------------------------------------------------------------
   // STATUS DROPDOWN HELPER ("status har jgha drop down ayega")
   // -------------------------------------------------------------
+  const getStatusColorStyle = (status: 'Approved' | 'Pending' | 'Paid') => {
+    switch (status) {
+      case 'Paid':
+        return {
+          background: 'rgba(34, 197, 94, 0.12)',
+          color: '#22c55e',
+          borderColor: 'rgba(34, 197, 94, 0.35)'
+        };
+      case 'Approved':
+        return {
+          background: 'rgba(56, 189, 248, 0.12)',
+          color: '#38bdf8',
+          borderColor: 'rgba(56, 189, 248, 0.35)'
+        };
+      case 'Pending':
+        return {
+          background: 'rgba(234, 179, 8, 0.12)',
+          color: '#eab308',
+          borderColor: 'rgba(234, 179, 8, 0.35)'
+        };
+      default:
+        return {
+          background: 'var(--surface-3)',
+          color: 'var(--text-dim)',
+          borderColor: 'var(--border)'
+        };
+    }
+  };
+
   const renderStatusDropdown = (exp: DriverExpenseItem) => {
     const handleStatusChange = async (newStatus: 'Approved' | 'Pending' | 'Paid') => {
       if (newStatus === exp.status) return;
@@ -177,38 +248,26 @@ export const DriverExpensesView: React.FC = () => {
       }
     };
 
-    const expenseOptions: StatusOption<'Approved' | 'Pending' | 'Paid'>[] = [
-      {
-        value: 'Paid',
-        label: 'Paid',
-        color: '#22c55e',
-        bg: 'rgba(34, 197, 94, 0.12)',
-        borderColor: 'rgba(34, 197, 94, 0.35)'
-      },
-      {
-        value: 'Approved',
-        label: 'Approved',
-        color: '#38bdf8',
-        bg: 'rgba(56, 189, 248, 0.12)',
-        borderColor: 'rgba(56, 189, 248, 0.35)'
-      },
-      {
-        value: 'Pending',
-        label: 'Pending',
-        color: '#eab308',
-        bg: 'rgba(234, 179, 8, 0.12)',
-        borderColor: 'rgba(234, 179, 8, 0.35)'
-      }
-    ];
+    const expenseOptions: StatusOption<'Approved' | 'Pending' | 'Paid'>[] = (
+      ['Paid', 'Approved', 'Pending'] as const
+    ).map(status => {
+      const style = getStatusColorStyle(status);
+      return {
+        value: status,
+        label: status,
+        color: style.color,
+        bg: style.background,
+        borderColor: style.borderColor
+      };
+    });
 
     return (
-      <CustomStatusDropdown
+      <StatusDropdown
         value={exp.status}
         options={expenseOptions}
         onChange={handleStatusChange}
         title="Select payout status"
       />
-
     );
   };
 
@@ -312,6 +371,61 @@ export const DriverExpensesView: React.FC = () => {
     return receipt;
   };
 
+  const renderCompactDriverCell = (name: string, sub?: string) => (
+    <div className="driver-info-cell">
+      <div className="driver-avatar-circle">{name.charAt(0)}</div>
+      <div className="cell-stack">
+        <span className="cell-primary">{name}</span>
+        {sub ? <span className="cell-meta">{sub}</span> : null}
+      </div>
+    </div>
+  );
+
+  const renderExpenseDetailsCell = (exp: DriverExpenseItem) => (
+    <div className="cell-stack">
+      <span className="cell-primary">{exp.category}</span>
+      <span className="cell-meta">
+        {exp.vehicle}
+        {' · '}
+        {exp.source === 'trip' ? `Trip${exp.bookingNumber ? ` ${exp.bookingNumber}` : ''}` : 'Driver claim'}
+      </span>
+      {exp.remarks ? <span className="cell-meta" title={exp.remarks}>{exp.remarks}</span> : null}
+    </div>
+  );
+
+  const renderExpenseActions = (exp: DriverExpenseItem) => (
+    <div className="table-actions">
+      {exp.receipt ? (
+        <button
+          type="button"
+          className="icon-btn"
+          onClick={() => setActiveReceipt(exp.receipt!)}
+          title="View receipt"
+        >
+          <FileText size={14} />
+        </button>
+      ) : null}
+      <button type="button" className="icon-btn" onClick={() => setEditingExpense(exp)} title="Edit expense">
+        <Edit2 size={14} />
+      </button>
+      <button type="button" className="icon-btn icon-btn--danger" onClick={() => handleDeleteExpense(exp)} title="Delete expense">
+        <Trash2 size={14} />
+      </button>
+    </div>
+  );
+
+  const renderBreakdownCell = (d: {
+    bataAmount?: number;
+    nightHaltAmount?: number;
+    advanceAmount?: number;
+  }) => (
+    <div className="cell-breakdown">
+      <span>Bata {formatINR(d.bataAmount || 0)}</span>
+      <span>Night {formatINR(d.nightHaltAmount || 0)}</span>
+      <span>Adv {formatINR(d.advanceAmount || 0)}</span>
+    </div>
+  );
+
   // -------------------------------------------------------------
   // 1. DAILY VIEW LOGIC
   // -------------------------------------------------------------
@@ -401,34 +515,23 @@ export const DriverExpensesView: React.FC = () => {
     return allExpenses.filter(r => r.date && r.date.startsWith(selectedMonth));
   }, [allExpenses, selectedMonth]);
 
-  // Comprehensive list of all fleet drivers and any drivers with expense records
   const allAvailableDrivers = useMemo(() => {
-    const map = new Map<string, { id?: string; name: string; vehicle?: string }>();
-
+    const byName = new Map<string, { id: string; name: string; vehicle?: string }>();
     drivers.forEach(d => {
-      if (d.name && d.name.trim()) {
-        map.set(d.name.trim().toLowerCase(), {
-          id: d.id,
-          name: d.name.trim(),
-          vehicle: d.assignedVehicle
-        });
-      }
+      byName.set(d.name.toLowerCase(), {
+        id: d.id,
+        name: d.name,
+        vehicle: d.assignedVehicle
+      });
     });
-
     allExpenses.forEach(e => {
-      if (e.driverName && e.driverName.trim()) {
-        const key = e.driverName.trim().toLowerCase();
-        if (!map.has(key)) {
-          map.set(key, {
-            id: e.driverId,
-            name: e.driverName.trim(),
-            vehicle: e.vehicle
-          });
-        }
+      if (!e.driverName) return;
+      const key = e.driverName.toLowerCase();
+      if (!byName.has(key)) {
+        byName.set(key, { id: e.driverId || key, name: e.driverName, vehicle: e.vehicle });
       }
     });
-
-    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
+    return Array.from(byName.values()).sort((a, b) => a.name.localeCompare(b.name));
   }, [drivers, allExpenses]);
 
   // Drivers who have actual recorded expenses in the selected month
@@ -485,42 +588,9 @@ export const DriverExpensesView: React.FC = () => {
     };
   }, [monthlyExpenses, driverFilter]);
 
-  // Driver-wise Monthly Summary: "saare driver ka total kitna expense diya hai unko"
+  // Driver-wise Monthly Summary — always from live expense state (updates instantly on pay/approve)
   const monthlyDriverSummary = useMemo(() => {
-    const list = allAvailableDrivers.map(d => {
-      const records = monthlyExpenses.filter(
-        r => (d.id && r.driverId === d.id) || r.driverName.toLowerCase() === d.name.toLowerCase()
-      );
-      const fleetDriver = drivers.find(
-        drv => (d.id && drv.id === d.id) || drv.name.toLowerCase() === d.name.toLowerCase()
-      );
-
-      let total = 0, paid = 0, pending = 0, bata = 0, nightHalt = 0, advances = 0;
-      records.forEach(r => {
-        total += r.amount;
-        if (r.status === 'Paid') paid += r.amount;
-        else pending += r.amount;
-
-        if (isBataCategory(r.category)) bata += r.amount;
-        else if (isNightHaltCategory(r.category)) nightHalt += r.amount;
-        else advances += r.amount;
-      });
-
-      return {
-        driverId: d.id || fleetDriver?.id,
-        driverName: d.name,
-        vehicle: d.vehicle || fleetDriver?.assignedVehicle || '—',
-        driverType: fleetDriver?.driverType || 'Permanent',
-        totalAmount: total,
-        paidAmount: paid,
-        pendingAmount: pending,
-        bataAmount: bata,
-        nightHaltAmount: nightHalt,
-        advanceAmount: advances,
-        transactionCount: records.length,
-        records
-      };
-    });
+    const list = buildDriverExpenseSummary(drivers, monthlyExpenses);
 
     return list.filter((d: any) => {
       const matchSearch =
@@ -529,13 +599,19 @@ export const DriverExpensesView: React.FC = () => {
       const matchDriver = driverFilter === 'All' || d.driverName.toLowerCase() === driverFilter.toLowerCase();
       return matchSearch && matchDriver;
     });
-  }, [allAvailableDrivers, monthlyExpenses, searchQuery, driverFilter, drivers]);
+  }, [drivers, monthlyExpenses, searchQuery, driverFilter]);
 
-  // Handle clicking on "X entries" badge to immediately filter that driver and open history
+  const clearDriverDrilldown = () => {
+    setDriverFilter('All');
+    setMonthSubTab('driverSummary');
+  };
+
   const handleDriverEntriesClick = (driverName: string) => {
     setDriverFilter(driverName);
     setMonthSubTab('dateWiseLogs');
   };
+
+  const isDriverDrilldown = driverFilter !== 'All' && monthSubTab === 'dateWiseLogs';
 
   // -------------------------------------------------------------
   // 3. YEARLY VIEW LOGIC
@@ -586,16 +662,13 @@ export const DriverExpensesView: React.FC = () => {
         transactionCount: recs.length
       };
     });
-  }, [analyticsData, selectedYear, yearlyExpenses]);
+  }, [selectedYear, yearlyExpenses]);
 
   const yearlyDriverSummary = useMemo(() => {
-    return allAvailableDrivers
+    return drivers
       .map(d => {
         const records = yearlyExpenses.filter(
-          r => (d.id && r.driverId === d.id) || r.driverName.toLowerCase() === d.name.toLowerCase()
-        );
-        const fleetDriver = drivers.find(
-          drv => (d.id && drv.id === d.id) || drv.name.toLowerCase() === d.name.toLowerCase()
+          r => r.driverId === d.id || r.driverName.toLowerCase() === d.name.toLowerCase()
         );
 
         let total = 0, paid = 0, pending = 0;
@@ -606,10 +679,10 @@ export const DriverExpensesView: React.FC = () => {
         });
 
         return {
-          driverId: d.id || fleetDriver?.id,
+          driverId: d.id,
           driverName: d.name,
-          vehicle: d.vehicle || fleetDriver?.assignedVehicle || '—',
-          driverType: fleetDriver?.driverType || 'Permanent',
+          vehicle: d.assignedVehicle || '—',
+          driverType: d.driverType || 'Permanent',
           totalAmount: total,
           paidAmount: paid,
           pendingAmount: pending,
@@ -617,56 +690,45 @@ export const DriverExpensesView: React.FC = () => {
         };
       })
       .filter(d => {
+        if (!d.transactionCount || d.transactionCount <= 0) return false;
         const matchSearch =
           d.driverName.toLowerCase().includes(searchQuery.toLowerCase()) ||
           (d.vehicle && d.vehicle.toLowerCase().includes(searchQuery.toLowerCase()));
         const matchDriver = driverFilter === 'All' || d.driverName.toLowerCase() === driverFilter.toLowerCase();
         return matchSearch && matchDriver;
       });
-  }, [allAvailableDrivers, selectedYear, drivers, yearlyExpenses, searchQuery, driverFilter]);
+  }, [selectedYear, drivers, yearlyExpenses, searchQuery, driverFilter]);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+    <div className="module-page">
       {/* Top View Mode Switcher Header */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: '12px'
-        }}
-      >
+      <div className="module-toolbar">
         <div className="subtab-nav" style={{ margin: 0, padding: 0 }}>
           <button
             type="button"
             className={`subtab-btn ${timeFrame === 'daily' ? 'active' : ''}`}
             onClick={() => setTimeFrame('daily')}
           >
-            <Calendar size={14} /> Particular Day
+            <Calendar size={14} /> Daily
           </button>
           <button
             type="button"
             className={`subtab-btn ${timeFrame === 'monthly' ? 'active' : ''}`}
             onClick={() => setTimeFrame('monthly')}
           >
-            <CalendarDays size={14} /> Monthly Overview
+            <CalendarDays size={14} /> Monthly
           </button>
           <button
             type="button"
             className={`subtab-btn ${timeFrame === 'yearly' ? 'active' : ''}`}
             onClick={() => setTimeFrame('yearly')}
           >
-            <TrendingUp size={14} /> Yearly View
+            <TrendingUp size={14} /> Yearly
           </button>
         </div>
 
-        <button
-          className="btn-primary-action"
-          style={{ fontSize: '12px', padding: '7px 16px', display: 'flex', alignItems: 'center', gap: '6px' }}
-          onClick={() => setIsAddModalOpen(true)}
-        >
-          + Add Driver Expense
+        <button type="button" className="btn-primary-action" onClick={() => setIsAddModalOpen(true)}>
+          + Add expense
         </button>
       </div>
 
@@ -675,170 +737,88 @@ export const DriverExpensesView: React.FC = () => {
       {/* ============================================================== */}
       {timeFrame === 'daily' && (
         <>
-          {/* Daily Stats Grid */}
-          <div className="stats-grid">
-            <StatCard
-              label={`Daily Total Expenses${driverFilter !== 'All' ? ` (${driverFilter})` : ''}`}
-              value={formatINR(dailyStats.total)}
-              customColor="var(--accent)"
-            />
-            <StatCard label={`Paid Out Today${driverFilter !== 'All' ? ` (${driverFilter})` : ''}`} value={formatINR(dailyStats.paid)} />
-            <StatCard label="Pending / In Review" value={formatINR(dailyStats.pending + dailyStats.approved)} />
-            <StatCard label="Expense Claims Today" value={`${dailyStats.count} entries`} />
+          <div className="stats-grid stats-grid--lean">
+            <StatCard label="Today total" value={formatINR(dailyStats.total)} customColor="var(--accent)" />
+            <StatCard label="Paid" value={formatINR(dailyStats.paid)} />
+            <StatCard label="Due" value={formatINR(dailyStats.pending + dailyStats.approved)} />
+            <StatCard label="Claims" value={`${dailyStats.count}`} />
           </div>
 
-          {/* Daily Table Panel */}
-          <div className="panel">
-            <div className="panel-head" style={{ flexWrap: 'wrap', gap: '10px' }}>
-              {/* Calendar Date Navigator */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  style={{ padding: '6px 10px', fontSize: '12px', display: 'flex', alignItems: 'center' }}
-                  onClick={() => shiftDate(-1)}
-                  title="Previous Day"
-                >
-                  <ChevronLeft size={14} />
-                </button>
-
-                <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', minWidth: '150px' }}>
-                  <DatePicker
-                    value={selectedDate}
-                    onChange={date => date && setSelectedDate(date)}
-                  />
+          <div className="panel panel--table">
+            <div className="module-filter-bar">
+              <div className="module-filter-bar__group">
+                <div className="period-nav">
+                  <button type="button" className="btn-secondary" onClick={() => shiftDate(-1)} title="Previous day">
+                    <ChevronLeft size={14} />
+                  </button>
+                  <DatePicker value={selectedDate} onChange={date => date && setSelectedDate(date)} />
+                  <button type="button" className="btn-secondary" onClick={() => shiftDate(1)} title="Next day">
+                    <ChevronRight size={14} />
+                  </button>
+                  <button type="button" className="btn-secondary" onClick={() => setSelectedDate(todayIST())}>
+                    Today
+                  </button>
+                  <span className="period-nav__label">{formattedDateLabel}</span>
                 </div>
 
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  style={{ padding: '6px 10px', fontSize: '12px', display: 'flex', alignItems: 'center' }}
-                  onClick={() => shiftDate(1)}
-                  title="Next Day"
-                >
-                  <ChevronRight size={14} />
-                </button>
-
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  style={{ padding: '5px 12px', fontSize: '12px' }}
-                  onClick={() => setSelectedDate(todayIST())}
-                >
-                  Today
-                </button>
-
-                <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text)', marginLeft: '6px' }}>
-                  {formattedDateLabel}
-                </span>
-                <span style={{ fontSize: '12px', color: 'var(--text-faint)' }}>
-                  ({filteredDailyExpenses.length} entries)
-                </span>
-              </div>
-
-              {/* Filters (Driver, Category, Status) */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                 <select
-                  className="form-input"
-                  style={{
-                    width: 'auto',
-                    padding: '5px 10px',
-                    fontSize: '12px',
-                    fontWeight: 600,
-                    borderColor: driverFilter !== 'All' ? 'var(--accent)' : undefined
-                  }}
+                  className={`form-input filter-select ${driverFilter !== 'All' ? 'filter-select--active' : ''}`}
                   value={driverFilter}
                   onChange={e => setDriverFilter(e.target.value)}
-                  title="Filter by driver"
                 >
-                  <option value="All">All Drivers {allAvailableDrivers.length > 0 ? `(${allAvailableDrivers.length})` : ''}</option>
+                  <option value="All">All drivers</option>
                   {allAvailableDrivers.map(d => (
                     <option key={d.id || d.name} value={d.name}>
-                      {d.name} {d.vehicle ? `(${d.vehicle})` : ''}
+                      {d.name}{d.vehicle ? ` · ${d.vehicle}` : ''}
                     </option>
                   ))}
                 </select>
 
                 <select
-                  className="form-input"
-                  style={{ width: 'auto', padding: '5px 10px', fontSize: '12px' }}
-                  value={categoryFilter}
-                  onChange={e => setCategoryFilter(e.target.value)}
-                >
-                  <option value="All">All Categories</option>
-                  {FILTER_CATEGORIES.map(cat => (
-                    <option key={`daily-${cat}`} value={cat}>
-                      {cat}
-                    </option>
-                  ))}
-                </select>
-
-                <select
-                  className="form-input"
-                  style={{ width: 'auto', padding: '5px 10px', fontSize: '12px' }}
+                  className="form-input filter-select"
                   value={statusFilter}
                   onChange={e => setStatusFilter(e.target.value)}
                 >
-                  <option value="All">All Status</option>
+                  <option value="All">All status</option>
                   <option value="Paid">Paid</option>
                   <option value="Approved">Approved</option>
                   <option value="Pending">Pending</option>
                 </select>
-                {renderPayControls(filteredDailyExpenses)}
+
               </div>
+
+              {renderPayControls(filteredDailyExpenses)}
             </div>
 
             {driverFilter !== 'All' && (
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  padding: '8px 16px',
-                  background: 'rgba(56, 189, 248, 0.08)',
-                  borderBottom: '1px solid rgba(56, 189, 248, 0.2)',
-                  fontSize: '12px',
-                  color: '#38bdf8'
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <Users size={14} />
-                  <span>
-                    Filtering daily records for driver: <strong>{driverFilter}</strong>
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  style={{ padding: '2px 8px', fontSize: '11px', color: '#38bdf8', borderColor: 'rgba(56, 189, 248, 0.35)' }}
-                  onClick={() => setDriverFilter('All')}
-                >
-                  ✕ Clear Driver Filter
+              <div className="module-drilldown-bar">
+                <button type="button" className="module-drilldown-bar__back" onClick={() => setDriverFilter('All')}>
+                  <ChevronLeft size={14} />
+                  All drivers
                 </button>
+                <span>
+                  Showing <strong>{driverFilter}</strong> · {formattedDateLabel} · {filteredDailyExpenses.length} claims
+                </span>
               </div>
             )}
 
-            <div className="table-responsive">
+            <div className="table-responsive table-dense">
               <table>
                 <thead>
                   <tr>
-                    <th style={{ width: 36 }}></th>
+                    <th style={{ width: 32 }}></th>
                     <th>Date</th>
                     <th>Driver</th>
-                    <th>Type</th>
-                    <th>Vehicle</th>
-                    <th>Category</th>
-                    <th>Amount</th>
-                    <th>Status (Dropdown)</th>
-                    <th>Remarks</th>
-                    <th>Receipt / Proof</th>
-                    <th style={{ textAlign: 'right' }}>Actions</th>
+                    <th>Expense details</th>
+                    <th className="td-right">Amount</th>
+                    <th>Status</th>
+                    <th className="td-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredDailyExpenses.length === 0 ? (
                     <tr>
-                      <td colSpan={11} style={{ textAlign: 'center', color: 'var(--text-faint)', padding: '36px 0' }}>
+                      <td colSpan={7} style={{ textAlign: 'center', color: 'var(--text-faint)', padding: '28px 0' }}>
                         No driver expenses recorded for {formattedDateLabel} {driverFilter !== 'All' ? `for ${driverFilter}` : ''}. Click "+ Add Driver Expense" above.
                       </td>
                     </tr>
@@ -859,79 +839,11 @@ export const DriverExpensesView: React.FC = () => {
                         <td style={{ fontSize: '12px', color: 'var(--text-dim)', whiteSpace: 'nowrap' }}>
                           {exp.date}
                         </td>
-                        <td style={{ fontWeight: 600 }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <div className="driver-avatar-circle" style={{ width: 26, height: 26, fontSize: 11 }}>
-                              {exp.driverName.charAt(0)}
-                            </div>
-                            {exp.driverName}
-                          </div>
-                        </td>
-                        <td>
-                          <span
-                            className="driver-type-badge"
-                            style={{
-                              background: exp.source === 'trip' ? 'rgba(56, 189, 248, 0.12)' : 'rgba(34, 197, 94, 0.12)',
-                              color: exp.source === 'trip' ? '#38bdf8' : '#22c55e'
-                            }}
-                          >
-                            {exp.source === 'trip' ? `Trip${exp.bookingNumber ? ` · ${exp.bookingNumber}` : ''}` : 'Driver'}
-                          </span>
-                        </td>
-                        <td style={{ fontWeight: 500 }}>{exp.vehicle}</td>
-                        <td>
-                          <span
-                            className="driver-type-badge"
-                            style={{ background: getCategoryColor(exp.category) }}
-                          >
-                            {exp.category}
-                          </span>
-                        </td>
-                        <td style={{ fontWeight: 600, color: 'var(--text)' }}>
-                          {formatINR(exp.amount)}
-                        </td>
+                        <td>{renderCompactDriverCell(exp.driverName)}</td>
+                        <td>{renderExpenseDetailsCell(exp)}</td>
+                        <td className="td-amount td-right">{formatINR(exp.amount)}</td>
                         <td>{renderStatusDropdown(exp)}</td>
-                        <td style={{ fontSize: '12px', color: 'var(--text-dim)', maxWidth: '200px' }}>
-                          {exp.remarks || '—'}
-                        </td>
-                        <td>
-                          {exp.receipt ? (
-                            <span
-                              className="bill-link"
-                              style={{ fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}
-                              onClick={() => setActiveReceipt(exp.receipt!)}
-                            >
-                              <FileText size={12} /> {receiptLabel(exp.receipt)}
-                            </span>
-                          ) : (
-                            <span style={{ color: 'var(--text-faint)', fontSize: '12px' }}>—</span>
-                          )}
-                        </td>
-                        <td style={{ textAlign: 'right' }}>
-                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                            <button
-                              className="btn-secondary"
-                              style={{ padding: '4px 8px', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px' }}
-                              onClick={() => setEditingExpense(exp)}
-                              title="Edit expense"
-                            >
-                              <Edit2 size={12} /> Edit
-                            </button>
-                            <button
-                              className="btn-secondary"
-                              style={{
-                                padding: '4px 8px',
-                                fontSize: '11px',
-                                color: 'var(--danger)',
-                                borderColor: 'rgba(255, 92, 92, 0.3)'
-                              }}
-                              onClick={() => handleDeleteExpense(exp)}
-                              title="Delete expense"
-                            >
-                              <Trash2 size={12} />
-                            </button>
-                          </div>
-                        </td>
+                        <td className="td-right">{renderExpenseActions(exp)}</td>
                       </tr>
                       );
                     })
@@ -948,183 +860,100 @@ export const DriverExpensesView: React.FC = () => {
       {/* ============================================================== */}
       {timeFrame === 'monthly' && (
         <>
-          {/* Monthly Stats Cards: calculates separately for all drivers or specific driver */}
-          <div className="stats-grid">
-            <StatCard
-              label={`Total Monthly Expenses${monthlyStats.labelSuffix}`}
-              value={formatINR(monthlyStats.total)}
-              customColor="var(--accent)"
-            />
-            <StatCard label={`Total Paid Out${monthlyStats.labelSuffix}`} value={formatINR(monthlyStats.paid)} />
-            <StatCard label={`Pending / In Review${monthlyStats.labelSuffix}`} value={formatINR(monthlyStats.pending + monthlyStats.approved)} />
-            <StatCard label={`Food & Daily Bata${monthlyStats.labelSuffix}`} value={formatINR(monthlyStats.bata)} />
-            <StatCard label={`Night Halt & Overtime${monthlyStats.labelSuffix}`} value={formatINR(monthlyStats.nightHaltAndOT)} />
-            <StatCard label={`Advances & Reimbursements${monthlyStats.labelSuffix}`} value={formatINR(monthlyStats.advanceAndMisc)} />
+          <div className="stats-grid stats-grid--lean">
+            <StatCard label="Monthly total" value={formatINR(monthlyStats.total)} customColor="var(--accent)" />
+            <StatCard label="Paid out" value={formatINR(monthlyStats.paid)} />
+            <StatCard label="Due" value={formatINR(monthlyStats.pending + monthlyStats.approved)} />
+            <StatCard label="Claims" value={`${monthlyStats.count}`} />
           </div>
 
-          {/* Monthly Panel */}
-          <div className="panel">
-            <div className="panel-head" style={{ flexWrap: 'wrap', gap: '10px' }}>
-              {/* Calendar Month Navigator */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  style={{ padding: '6px 10px', fontSize: '12px', display: 'flex', alignItems: 'center' }}
-                  onClick={() => shiftMonth(-1)}
-                  title="Previous Month"
+          <div className="panel panel--table">
+            <div className="module-filter-bar">
+              <div className="module-filter-bar__group">
+                <div className="period-nav">
+                  <button type="button" className="btn-secondary" onClick={() => shiftMonth(-1)} title="Previous month">
+                    <ChevronLeft size={14} />
+                  </button>
+                  <input
+                    type="month"
+                    className="form-input"
+                    value={selectedMonth}
+                    onChange={e => e.target.value && setSelectedMonth(e.target.value)}
+                    style={{ padding: '5px 10px', fontSize: '12.5px', fontWeight: 600, width: 'auto', cursor: 'pointer' }}
+                  />
+                  <button type="button" className="btn-secondary" onClick={() => shiftMonth(1)} title="Next month">
+                    <ChevronRight size={14} />
+                  </button>
+                  <span className="period-nav__label">{formattedMonthLabel}</span>
+                  {isLoadingAnalytics && <Loader2 size={14} className="animate-spin" style={{ color: 'var(--accent)' }} />}
+                </div>
+
+                <select
+                  className={`form-input filter-select ${driverFilter !== 'All' ? 'filter-select--active' : ''}`}
+                  value={driverFilter}
+                  onChange={e => setDriverFilter(e.target.value)}
+                  title="Filter by driver"
                 >
-                  <ChevronLeft size={14} />
-                </button>
+                  <option value="All">All drivers</option>
+                  {allAvailableDrivers.map(d => (
+                    <option key={d.id || d.name} value={d.name}>
+                      {d.name}{d.vehicle ? ` · ${d.vehicle}` : ''}
+                    </option>
+                  ))}
+                </select>
 
-                <input
-                  type="month"
-                  className="form-input"
-                  value={selectedMonth}
-                  onChange={e => e.target.value && setSelectedMonth(e.target.value)}
-                  style={{
-                    padding: '5px 10px',
-                    fontSize: '12.5px',
-                    fontWeight: 600,
-                    width: 'auto',
-                    cursor: 'pointer'
-                  }}
-                />
-
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  style={{ padding: '6px 10px', fontSize: '12px', display: 'flex', alignItems: 'center' }}
-                  onClick={() => shiftMonth(1)}
-                  title="Next Month"
-                >
-                  <ChevronRight size={14} />
-                </button>
-
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  style={{ padding: '5px 12px', fontSize: '12px' }}
-                  onClick={() => setSelectedMonth(todayIST().slice(0, 7))}
-                >
-                  This Month
-                </button>
-
-                <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text)', marginLeft: '6px' }}>
-                  {formattedMonthLabel}
-                </span>
-
-                {isLoadingAnalytics && (
-                  <Loader2 size={14} className="animate-spin" style={{ color: 'var(--accent)' }} />
-                )}
               </div>
 
-              {/* Sub-tab Switcher: Driver Totals vs Date-wise History */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-                {/* Driver Filter Dropdown */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <Users size={14} style={{ color: 'var(--text-dim)' }} />
-                  <select
-                    className="form-input"
-                    style={{
-                      width: 'auto',
-                      padding: '5px 10px',
-                      fontSize: '12px',
-                      fontWeight: 600,
-                      borderColor: driverFilter !== 'All' ? 'var(--accent)' : undefined
-                    }}
-                    value={driverFilter}
-                    onChange={e => setDriverFilter(e.target.value)}
-                    title="Filter by driver"
-                  >
-                    <option value="All">All Drivers {allAvailableDrivers.length > 0 ? `(${allAvailableDrivers.length})` : ''}</option>
-                    {allAvailableDrivers.map(d => (
-                      <option key={d.id || d.name} value={d.name}>
-                        {d.name} {d.vehicle ? `(${d.vehicle})` : ''}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="subtab-nav" style={{ margin: 0, padding: 0 }}>
-                  <button
-                    type="button"
-                    className={`subtab-btn ${monthSubTab === 'driverSummary' ? 'active' : ''}`}
-                    onClick={() => setMonthSubTab('driverSummary')}
-                  >
-                    <Users size={13} /> Driver Monthly Totals
-                  </button>
-                  <button
-                    type="button"
-                    className={`subtab-btn ${monthSubTab === 'dateWiseLogs' ? 'active' : ''}`}
-                    onClick={() => setMonthSubTab('dateWiseLogs')}
-                  >
-                    <Calendar size={13} /> Date-wise History ({filteredMonthlyExpenses.length})
-                  </button>
-                </div>
+              <div className="filter-pills">
+                <button
+                  type="button"
+                  className={`filter-pill ${monthSubTab === 'driverSummary' ? 'active' : ''}`}
+                  onClick={() => {
+                    if (driverFilter !== 'All') clearDriverDrilldown();
+                    else setMonthSubTab('driverSummary');
+                  }}
+                >
+                  By driver
+                </button>
+                <button
+                  type="button"
+                  className={`filter-pill ${monthSubTab === 'dateWiseLogs' ? 'active' : ''}`}
+                  onClick={() => setMonthSubTab('dateWiseLogs')}
+                >
+                  By date ({filteredMonthlyExpenses.length})
+                </button>
               </div>
             </div>
 
-            {/* Active Driver Filter Indicator Banner */}
-            {driverFilter !== 'All' && (
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  padding: '9px 16px',
-                  background: 'rgba(56, 189, 248, 0.08)',
-                  borderBottom: '1px solid rgba(56, 189, 248, 0.2)',
-                  fontSize: '12.5px',
-                  color: '#38bdf8'
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Users size={15} />
-                  <span>
-                    Viewing details for driver: <strong>{driverFilter}</strong> — Monthly Total: <strong>{formatINR(monthlyStats.total)}</strong> ({monthlyStats.count} entries in {formattedMonthLabel})
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  style={{
-                    padding: '3px 10px',
-                    fontSize: '11.5px',
-                    color: '#38bdf8',
-                    borderColor: 'rgba(56, 189, 248, 0.35)',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '4px'
-                  }}
-                  onClick={() => setDriverFilter('All')}
-                >
-                  ✕ Clear Filter (Show All Drivers)
+            {isDriverDrilldown && (
+              <div className="module-drilldown-bar">
+                <button type="button" className="module-drilldown-bar__back" onClick={clearDriverDrilldown}>
+                  <ChevronLeft size={14} />
+                  All drivers
                 </button>
+                <span>
+                  Showing <strong>{driverFilter}</strong> · {formattedMonthLabel} · {filteredMonthlyExpenses.length} claims · {formatINR(monthlyStats.total)}
+                </span>
               </div>
             )}
 
-            {/* SUBTAB 1: DRIVER MONTHLY SUMMARY ("saare driver ka total kitna expense diya hai unko") */}
             {monthSubTab === 'driverSummary' && (
-              <div className="table-responsive">
+              <div className="table-responsive table-dense">
                 <table>
                   <thead>
                     <tr>
-                      <th>Driver Name</th>
-                      <th>Assigned Vehicle</th>
-                      <th>Total Expense Given</th>
-                      <th>Daily Bata / Food</th>
-                      <th>Night Halt & OT</th>
-                      <th>Advances & Reimbursements</th>
-                      <th>Paid Out</th>
-                      <th>Pending</th>
-                      <th title="Click any entries badge to view history">Claims Count (Click to View History)</th>
+                      <th>Driver</th>
+                      <th>Vehicle</th>
+                      <th className="td-right">Total</th>
+                      <th>Category breakdown</th>
+                      <th className="td-right">Paid / Pending</th>
+                      <th>Claims</th>
                     </tr>
                   </thead>
                   <tbody>
                     {monthlyDriverSummary.length === 0 ? (
                       <tr>
-                        <td colSpan={9} style={{ textAlign: 'center', color: 'var(--text-faint)', padding: '36px 0' }}>
+                        <td colSpan={6} style={{ textAlign: 'center', color: 'var(--text-faint)', padding: '28px 0' }}>
                           No drivers found matching your search.
                         </td>
                       </tr>
@@ -1135,104 +964,60 @@ export const DriverExpensesView: React.FC = () => {
                           <tr
                             key={d.driverId || d.driverName}
                             onClick={() => handleDriverEntriesClick(d.driverName)}
-                            style={{
-                              background: isFiltered ? 'rgba(56, 189, 248, 0.06)' : undefined,
-                              transition: 'background 0.15s ease',
-                              cursor: 'pointer'
-                            }}
+                            className={`table-row-clickable${isFiltered ? ' table-row-active' : ''}`}
                             title={`View all expenses for ${d.driverName}`}
                           >
-                            <td style={{ fontWeight: 600 }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <div className="driver-avatar-circle" style={{ width: 28, height: 28, fontSize: 11 }}>
-                                  {d.driverName.charAt(0)}
-                                </div>
-                                <div>
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                    <span>{d.driverName}</span>
-                                    {isFiltered && (
-                                      <span
-                                        style={{
-                                          fontSize: '10px',
-                                          background: 'rgba(56, 189, 248, 0.15)',
-                                          color: '#38bdf8',
-                                          padding: '1px 6px',
-                                          borderRadius: '4px',
-                                          fontWeight: 600
-                                        }}
-                                      >
-                                        Filtered
-                                      </span>
-                                    )}
-                                  </div>
-                                  <span style={{ fontSize: '11px', color: 'var(--text-faint)', fontWeight: 400 }}>
-                                    {d.driverType}
-                                  </span>
-                                </div>
-                              </div>
+                            <td>
+                              {renderCompactDriverCell(
+                                d.driverName,
+                                `${d.driverType || 'Driver'}${isFiltered ? ' · Filtered' : ''}`
+                              )}
                             </td>
                             <td style={{ fontWeight: 500 }}>{d.vehicle || '—'}</td>
-                            <td style={{ fontWeight: 700, fontSize: '13.5px', color: 'var(--accent)' }}>
+                            <td className="td-amount td-right" style={{ color: 'var(--accent)' }}>
                               {formatINR(d.totalAmount)}
                             </td>
-                            <td style={{ fontWeight: 500 }}>{formatINR(d.bataAmount || 0)}</td>
-                            <td style={{ fontWeight: 500 }}>{formatINR(d.nightHaltAmount || 0)}</td>
-                            <td style={{ fontWeight: 500 }}>{formatINR(d.advanceAmount || 0)}</td>
-                            <td>
-                              <span className="status-chip running" style={{ fontSize: '11px' }}>
-                                ● {formatINR(d.paidAmount || 0)}
-                              </span>
+                            <td>{renderBreakdownCell(d)}</td>
+                            <td className="td-right">
+                              <div className="cell-money-pair">
+                                <span className="paid">Paid {formatINR(d.paidAmount || 0)}</span>
+                                <span className="pending">Due {formatINR(d.pendingAmount || 0)}</span>
+                              </div>
                             </td>
                             <td>
-                              {d.pendingAmount > 0 ? (
-                                <span className="status-chip idle" style={{ fontSize: '11px' }}>
-                                  ● {formatINR(d.pendingAmount)}
-                                </span>
-                              ) : (
-                                <span style={{ fontSize: '12px', color: 'var(--text-faint)' }}>₹0</span>
-                              )}
-                            </td>
-                            <td>
-                              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-                              <button
-                                type="button"
-                                className="btn-secondary"
-                                onClick={e => {
-                                  e.stopPropagation();
-                                  handleDriverEntriesClick(d.driverName);
-                                }}
-                                style={{
-                                  cursor: 'pointer',
-                                  background: d.transactionCount > 0 ? 'rgba(56, 189, 248, 0.12)' : 'var(--surface-2)',
-                                  color: d.transactionCount > 0 ? '#38bdf8' : 'var(--text-faint)',
-                                  borderColor: d.transactionCount > 0 ? 'rgba(56, 189, 248, 0.35)' : 'var(--border)',
-                                  borderRadius: '16px',
-                                  padding: '3px 10px',
-                                  fontSize: '11.5px',
-                                  fontWeight: 600,
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: '5px',
-                                  transition: 'all 0.15s ease'
-                                }}
-                                title={`Click to view date-wise history entries for ${d.driverName}`}
-                              >
-                                {d.transactionCount} {d.transactionCount === 1 ? 'entry' : 'entries'}
-                                {d.transactionCount > 0 && <ArrowUpRight size={12} />}
-                              </button>
-                              {d.pendingAmount > 0 && (
+                              <div className="table-actions" style={{ justifyContent: 'flex-start' }}>
                                 <button
                                   type="button"
-                                  className="btn-primary-action"
-                                  style={{ padding: '3px 10px', fontSize: '11px' }}
+                                  className="btn-secondary"
                                   onClick={e => {
                                     e.stopPropagation();
-                                    payItems(d.records || []);
+                                    handleDriverEntriesClick(d.driverName);
                                   }}
+                                  style={{
+                                    padding: '3px 10px',
+                                    fontSize: '11px',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: 4
+                                  }}
+                                  title={`View date-wise history for ${d.driverName}`}
                                 >
-                                  Pay pending
+                                  {d.transactionCount} {d.transactionCount === 1 ? 'entry' : 'entries'}
+                                  {d.transactionCount > 0 ? <ArrowUpRight size={12} /> : null}
                                 </button>
-                              )}
+                                {d.pendingAmount > 0 ? (
+                                  <button
+                                    type="button"
+                                    className="btn-primary-action"
+                                    style={{ padding: '3px 10px', fontSize: '11px' }}
+                                    onClick={e => {
+                                      e.stopPropagation();
+                                      payItems(d.records || []);
+                                    }}
+                                  >
+                                    Pay
+                                  </button>
+                                ) : null}
                               </div>
                             </td>
                           </tr>
@@ -1247,87 +1032,39 @@ export const DriverExpensesView: React.FC = () => {
             {/* SUBTAB 2: DATE-WISE EXPENSE HISTORY ("history bhi ayegi kb kb diya date wise") */}
             {monthSubTab === 'dateWiseLogs' && (
               <>
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'flex-end',
-                    gap: '8px',
-                    padding: '12px 16px',
-                    borderBottom: '1px solid var(--border)',
-                    flexWrap: 'wrap'
-                  }}
-                >
-                  <select
-                    className="form-input"
-                    style={{
-                      width: 'auto',
-                      padding: '5px 10px',
-                      fontSize: '12px',
-                      fontWeight: 600,
-                      borderColor: driverFilter !== 'All' ? 'var(--accent)' : undefined
-                    }}
-                    value={driverFilter}
-                    onChange={e => setDriverFilter(e.target.value)}
-                    title="Filter by driver"
-                  >
-                    <option value="All">All Drivers {allAvailableDrivers.length > 0 ? `(${allAvailableDrivers.length})` : ''}</option>
-                    {allAvailableDrivers.map(d => (
-                      <option key={d.id || d.name} value={d.name}>
-                        {d.name} {d.vehicle ? `(${d.vehicle})` : ''}
-                      </option>
-                    ))}
-                  </select>
-
-                  <select
-                    className="form-input"
-                    style={{ width: 'auto', padding: '5px 10px', fontSize: '12px' }}
-                    value={categoryFilter}
-                    onChange={e => setCategoryFilter(e.target.value)}
-                  >
-                    <option value="All">All Categories</option>
-                    {FILTER_CATEGORIES.map(cat => (
-                      <option key={`month-${cat}`} value={cat}>
-                        {cat}
-                      </option>
-                    ))}
-                  </select>
-
-                  <select
-                    className="form-input"
-                    style={{ width: 'auto', padding: '5px 10px', fontSize: '12px' }}
-                    value={statusFilter}
-                    onChange={e => setStatusFilter(e.target.value)}
-                  >
-                    <option value="All">All Status</option>
-                    <option value="Paid">Paid</option>
-                    <option value="Approved">Approved</option>
-                    <option value="Pending">Pending</option>
-                  </select>
+                <div className="module-filter-bar" style={{ borderBottom: '1px solid var(--border)' }}>
+                  <div className="module-filter-bar__group">
+                    <select
+                      className="form-input filter-select"
+                      value={statusFilter}
+                      onChange={e => setStatusFilter(e.target.value)}
+                    >
+                      <option value="All">All status</option>
+                      <option value="Paid">Paid</option>
+                      <option value="Approved">Approved</option>
+                      <option value="Pending">Pending</option>
+                    </select>
+                  </div>
                   {renderPayControls(filteredMonthlyExpenses)}
                 </div>
 
-                <div className="table-responsive">
+                <div className="table-responsive table-dense">
                   <table>
                     <thead>
                       <tr>
-                        <th style={{ width: 36 }}></th>
+                        <th style={{ width: 32 }}></th>
                         <th>Date</th>
                         <th>Driver</th>
-                        <th>Type</th>
-                        <th>Vehicle</th>
-                        <th>Category</th>
-                        <th>Amount</th>
-                        <th>Status (Dropdown)</th>
-                        <th>Remarks</th>
-                        <th>Receipt / Proof</th>
-                        <th style={{ textAlign: 'right' }}>Actions</th>
+                        <th>Expense details</th>
+                        <th className="td-right">Amount</th>
+                        <th>Status</th>
+                        <th className="td-right">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
                       {filteredMonthlyExpenses.length === 0 ? (
                         <tr>
-                          <td colSpan={11} style={{ textAlign: 'center', color: 'var(--text-faint)', padding: '36px 0' }}>
+                          <td colSpan={7} style={{ textAlign: 'center', color: 'var(--text-faint)', padding: '28px 0' }}>
                             No driver expenses recorded for {formattedMonthLabel} {driverFilter !== 'All' ? `for driver ${driverFilter}` : ''}. Click "+ Add Driver Expense" above.
                           </td>
                         </tr>
@@ -1348,79 +1085,11 @@ export const DriverExpensesView: React.FC = () => {
                             <td style={{ fontSize: '12px', color: 'var(--text-dim)', whiteSpace: 'nowrap' }}>
                               {exp.date}
                             </td>
-                            <td style={{ fontWeight: 600 }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <div className="driver-avatar-circle" style={{ width: 26, height: 26, fontSize: 11 }}>
-                                  {exp.driverName.charAt(0)}
-                                </div>
-                                {exp.driverName}
-                              </div>
-                            </td>
-                            <td>
-                              <span
-                                className="driver-type-badge"
-                                style={{
-                                  background: exp.source === 'trip' ? 'rgba(56, 189, 248, 0.12)' : 'rgba(34, 197, 94, 0.12)',
-                                  color: exp.source === 'trip' ? '#38bdf8' : '#22c55e'
-                                }}
-                              >
-                                {exp.source === 'trip' ? `Trip${exp.bookingNumber ? ` · ${exp.bookingNumber}` : ''}` : 'Driver'}
-                              </span>
-                            </td>
-                            <td style={{ fontWeight: 500 }}>{exp.vehicle}</td>
-                            <td>
-                              <span
-                                className="driver-type-badge"
-                                style={{ background: getCategoryColor(exp.category) }}
-                              >
-                                {exp.category}
-                              </span>
-                            </td>
-                            <td style={{ fontWeight: 600, color: 'var(--text)' }}>
-                              {formatINR(exp.amount)}
-                            </td>
+                            <td>{renderCompactDriverCell(exp.driverName)}</td>
+                            <td>{renderExpenseDetailsCell(exp)}</td>
+                            <td className="td-amount td-right">{formatINR(exp.amount)}</td>
                             <td>{renderStatusDropdown(exp)}</td>
-                            <td style={{ fontSize: '12px', color: 'var(--text-dim)', maxWidth: '200px' }}>
-                              {exp.remarks || '—'}
-                            </td>
-                            <td>
-                              {exp.receipt ? (
-                                <span
-                                  className="bill-link"
-                                  style={{ fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}
-                                  onClick={() => setActiveReceipt(exp.receipt!)}
-                                >
-                                  <FileText size={12} /> {receiptLabel(exp.receipt)}
-                                </span>
-                              ) : (
-                                <span style={{ color: 'var(--text-faint)', fontSize: '12px' }}>—</span>
-                              )}
-                            </td>
-                            <td style={{ textAlign: 'right' }}>
-                              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                                <button
-                                  className="btn-secondary"
-                                  style={{ padding: '4px 8px', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px' }}
-                                  onClick={() => setEditingExpense(exp)}
-                                  title="Edit expense"
-                                >
-                                  <Edit2 size={12} /> Edit
-                                </button>
-                                <button
-                                  className="btn-secondary"
-                                  style={{
-                                    padding: '4px 8px',
-                                    fontSize: '11px',
-                                    color: 'var(--danger)',
-                                    borderColor: 'rgba(255, 92, 92, 0.3)'
-                                  }}
-                                  onClick={() => handleDeleteExpense(exp)}
-                                  title="Delete expense"
-                                >
-                                  <Trash2 size={12} />
-                                </button>
-                              </div>
-                            </td>
+                            <td className="td-right">{renderExpenseActions(exp)}</td>
                           </tr>
                           );
                         })
@@ -1439,131 +1108,62 @@ export const DriverExpensesView: React.FC = () => {
       {/* ============================================================== */}
       {timeFrame === 'yearly' && (
         <>
-            {/* Annual Stats Grid */}
-          <div className="stats-grid">
-            <StatCard
-              label={`Annual Driver Expenses${driverFilter !== 'All' ? ` (${driverFilter})` : ''}`}
-              value={formatINR(yearlyStats.total)}
-              customColor="var(--accent)"
-            />
-            <StatCard label={`Total Paid Out${driverFilter !== 'All' ? ` (${driverFilter})` : ''}`} value={formatINR(yearlyStats.paid)} />
-            <StatCard label="Total Pending / Approved" value={formatINR(yearlyStats.pending)} />
-            <StatCard label="Total Annual Transactions" value={`${yearlyStats.count} entries`} />
+          <div className="stats-grid stats-grid--lean">
+            <StatCard label="Year total" value={formatINR(yearlyStats.total)} customColor="var(--accent)" />
+            <StatCard label="Paid out" value={formatINR(yearlyStats.paid)} />
+            <StatCard label="Due" value={formatINR(yearlyStats.pending)} />
+            <StatCard label="Claims" value={`${yearlyStats.count}`} />
           </div>
 
-          {/* Year Navigator Panel */}
-          <div className="panel">
-            <div className="panel-head" style={{ flexWrap: 'wrap', gap: '10px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  style={{ padding: '6px 10px', fontSize: '12px', display: 'flex', alignItems: 'center' }}
-                  onClick={() => shiftYear(-1)}
-                  title="Previous Year"
-                >
-                  <ChevronLeft size={14} />
-                </button>
+          <div className="panel panel--table">
+            <div className="module-filter-bar">
+              <div className="module-filter-bar__group">
+                <div className="period-nav">
+                  <button type="button" className="btn-secondary" onClick={() => shiftYear(-1)} title="Previous year">
+                    <ChevronLeft size={14} />
+                  </button>
+                  <select
+                    className="form-input"
+                    value={selectedYear}
+                    onChange={e => setSelectedYear(e.target.value)}
+                    style={{ padding: '5px 12px', fontSize: '13px', fontWeight: 600, width: 'auto' }}
+                  >
+                    <option value="2025">2025</option>
+                    <option value="2026">2026</option>
+                    <option value="2027">2027</option>
+                    <option value="2028">2028</option>
+                  </select>
+                  <button type="button" className="btn-secondary" onClick={() => shiftYear(1)} title="Next year">
+                    <ChevronRight size={14} />
+                  </button>
+                  {isLoadingAnalytics && <Loader2 size={14} className="animate-spin" style={{ color: 'var(--accent)' }} />}
+                </div>
 
                 <select
-                  className="form-input"
-                  value={selectedYear}
-                  onChange={e => setSelectedYear(e.target.value)}
-                  style={{
-                    padding: '5px 12px',
-                    fontSize: '13px',
-                    fontWeight: 600,
-                    width: 'auto',
-                    cursor: 'pointer'
-                  }}
-                >
-                  <option value="2025">2025</option>
-                  <option value="2026">2026</option>
-                  <option value="2027">2027</option>
-                  <option value="2028">2028</option>
-                </select>
-
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  style={{ padding: '6px 10px', fontSize: '12px', display: 'flex', alignItems: 'center' }}
-                  onClick={() => shiftYear(1)}
-                  title="Next Year"
-                >
-                  <ChevronRight size={14} />
-                </button>
-
-                <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text)', marginLeft: '6px' }}>
-                  Calendar Year {selectedYear}
-                </span>
-
-                {isLoadingAnalytics && (
-                  <Loader2 size={14} className="animate-spin" style={{ color: 'var(--accent)' }} />
-                )}
-              </div>
-
-              {/* Driver Filter Dropdown */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <Users size={14} style={{ color: 'var(--text-dim)' }} />
-                <select
-                  className="form-input"
-                  style={{
-                    width: 'auto',
-                    padding: '5px 10px',
-                    fontSize: '12px',
-                    fontWeight: 600,
-                    borderColor: driverFilter !== 'All' ? 'var(--accent)' : undefined
-                  }}
+                  className={`form-input filter-select ${driverFilter !== 'All' ? 'filter-select--active' : ''}`}
                   value={driverFilter}
                   onChange={e => setDriverFilter(e.target.value)}
-                  title="Filter by driver"
                 >
-                  <option value="All">All Drivers {allAvailableDrivers.length > 0 ? `(${allAvailableDrivers.length})` : ''}</option>
+                  <option value="All">All drivers</option>
                   {allAvailableDrivers.map(d => (
                     <option key={d.id || d.name} value={d.name}>
-                      {d.name} {d.vehicle ? `(${d.vehicle})` : ''}
+                      {d.name}{d.vehicle ? ` · ${d.vehicle}` : ''}
                     </option>
                   ))}
                 </select>
+
               </div>
             </div>
 
-            {/* Active Driver Filter Indicator Banner */}
             {driverFilter !== 'All' && (
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  padding: '9px 16px',
-                  background: 'rgba(56, 189, 248, 0.08)',
-                  borderBottom: '1px solid rgba(56, 189, 248, 0.2)',
-                  fontSize: '12.5px',
-                  color: '#38bdf8'
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Users size={15} />
-                  <span>
-                    Viewing annual totals for driver: <strong>{driverFilter}</strong> ({yearlyStats.count} entries in {selectedYear})
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  style={{
-                    padding: '3px 10px',
-                    fontSize: '11.5px',
-                    color: '#38bdf8',
-                    borderColor: 'rgba(56, 189, 248, 0.35)',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '4px'
-                  }}
-                  onClick={() => setDriverFilter('All')}
-                >
-                  ✕ Clear Filter (Show All Drivers)
+              <div className="module-drilldown-bar">
+                <button type="button" className="module-drilldown-bar__back" onClick={() => setDriverFilter('All')}>
+                  <ChevronLeft size={14} />
+                  All drivers
                 </button>
+                <span>
+                  Showing <strong>{driverFilter}</strong> · {selectedYear} · {yearlyStats.count} claims · {formatINR(yearlyStats.total)}
+                </span>
               </div>
             )}
 
@@ -1639,22 +1239,21 @@ export const DriverExpensesView: React.FC = () => {
               <div style={{ padding: '14px 16px', fontWeight: 600, fontSize: '13px', color: 'var(--text)' }}>
                 Annual Driver Expense Totals ({selectedYear})
               </div>
-              <div className="table-responsive">
+              <div className="table-responsive table-dense">
                 <table>
                   <thead>
                     <tr>
-                      <th>Driver Name</th>
-                      <th>Assigned Vehicle</th>
-                      <th>Total Given In {selectedYear}</th>
-                      <th>Paid Out</th>
-                      <th>Pending Amount</th>
-                      <th>Total Transactions</th>
+                      <th>Driver</th>
+                      <th>Vehicle</th>
+                      <th className="td-right">Total {selectedYear}</th>
+                      <th className="td-right">Paid / Pending</th>
+                      <th>Claims</th>
                     </tr>
                   </thead>
                   <tbody>
                     {yearlyDriverSummary.length === 0 ? (
                       <tr>
-                        <td colSpan={6} style={{ textAlign: 'center', color: 'var(--text-faint)', padding: '30px 0' }}>
+                        <td colSpan={5} style={{ textAlign: 'center', color: 'var(--text-faint)', padding: '28px 0' }}>
                           No driver records found.
                         </td>
                       </tr>
@@ -1670,39 +1269,19 @@ export const DriverExpensesView: React.FC = () => {
                             }
                             setTimeFrame('monthly');
                           }}
-                          style={{ cursor: 'pointer' }}
+                          className="table-row-clickable"
                           title={`View ${d.driverName}'s expenses`}
                         >
-                          <td style={{ fontWeight: 600 }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                              <div className="driver-avatar-circle" style={{ width: 28, height: 28, fontSize: 11 }}>
-                                {d.driverName.charAt(0)}
-                              </div>
-                              <div>
-                                <div>{d.driverName}</div>
-                                <span style={{ fontSize: '11px', color: 'var(--text-faint)', fontWeight: 400 }}>
-                                  {d.driverType}
-                                </span>
-                              </div>
-                            </div>
-                          </td>
+                          <td>{renderCompactDriverCell(d.driverName, d.driverType)}</td>
                           <td style={{ fontWeight: 500 }}>{d.vehicle || '—'}</td>
-                          <td style={{ fontWeight: 700, fontSize: '14px', color: 'var(--accent)' }}>
+                          <td className="td-amount td-right" style={{ color: 'var(--accent)' }}>
                             {formatINR(d.totalAmount)}
                           </td>
-                          <td>
-                            <span className="status-chip running" style={{ fontSize: '11px' }}>
-                              ● {formatINR(d.paidAmount || 0)}
-                            </span>
-                          </td>
-                          <td>
-                            {d.pendingAmount > 0 ? (
-                              <span className="status-chip idle" style={{ fontSize: '11px' }}>
-                                ● {formatINR(d.pendingAmount)}
-                              </span>
-                            ) : (
-                              <span style={{ fontSize: '12px', color: 'var(--text-faint)' }}>₹0</span>
-                            )}
+                          <td className="td-right">
+                            <div className="cell-money-pair">
+                              <span className="paid">Paid {formatINR(d.paidAmount || 0)}</span>
+                              <span className="pending">Due {formatINR(d.pendingAmount || 0)}</span>
+                            </div>
                           </td>
                           <td>
                             <span className="driver-type-badge" style={{ background: 'var(--surface-2)' }}>

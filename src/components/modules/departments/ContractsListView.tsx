@@ -3,7 +3,7 @@ import { useFleet } from '../../../context/FleetContext';
 import { StatCard } from '../../common/StatCard';
 import { AddContractModal } from './AddContractModal';
 import { DepartmentContract } from '../../../types/fleet';
-import { CustomStatusDropdown, StatusOption } from '../../common/CustomStatusDropdown';
+import { StatusDropdown, StatusOption } from '../../common/StatusDropdown';
 import { Pagination } from '../../common/Pagination';
 import { usePagination } from '../../../hooks/usePagination';
 import { FileText, Folder, Trash2, ChevronDown, RefreshCw, Radio } from 'lucide-react';
@@ -99,7 +99,7 @@ export const ContractsListView: React.FC = () => {
     ];
 
     return (
-      <CustomStatusDropdown
+      <StatusDropdown
         value={status}
         options={contractOptions}
         onChange={(newStatus) => updateContractStatus(id, newStatus)}

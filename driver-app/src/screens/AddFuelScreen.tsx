@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -18,6 +18,7 @@ import { useAppTheme } from '../theme/ThemeProvider';
 import { useSession } from '../state/session';
 import { inrPlain, km } from '../data/format';
 import type { Attachment } from '../media/types';
+import { appDialog } from '../dialog';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'AddFuel'>;
 
@@ -105,28 +106,28 @@ export function AddFuelScreen({ navigation }: Props) {
     const c = Number(cost);
 
     if (!odo) {
-      Alert.alert(t('nav.addFuel'), 'Please enter the odometer / meter reading.');
+      appDialog.alert(t('nav.addFuel'), 'Please enter the odometer / meter reading.');
       return;
     }
 
     const minOdo = session.vehicle?.odometer || session.lastValidOdo || 0;
     if (minOdo > 0 && odo < minOdo) {
-      Alert.alert(t('nav.addFuel'), `Odometer cannot be less than current vehicle reading (${km(minOdo)}).`);
+      appDialog.alert(t('nav.addFuel'), `Odometer cannot be less than current vehicle reading (${km(minOdo)}).`);
       return;
     }
 
     if (!l || l <= 0) {
-      Alert.alert(t('nav.addFuel'), 'Please enter fuel litres filled.');
+      appDialog.alert(t('nav.addFuel'), 'Please enter fuel litres filled.');
       return;
     }
 
     if (!c || c <= 0) {
-      Alert.alert(t('nav.addFuel'), 'Please enter the total fuel cost in Rupees (₹).');
+      appDialog.alert(t('nav.addFuel'), 'Please enter the total fuel cost in Rupees (₹).');
       return;
     }
 
     if (!file) {
-      Alert.alert(t('nav.addFuel'), 'Please attach a photo of the fuel bill / receipt slip from the petrol pump.');
+      appDialog.alert(t('nav.addFuel'), 'Please attach a photo of the fuel bill / receipt slip from the petrol pump.');
       return;
     }
 
@@ -145,13 +146,13 @@ export function AddFuelScreen({ navigation }: Props) {
         longitude: coords?.longitude ?? null,
       });
 
-      Alert.alert(
+      appDialog.alert(
         t('nav.addFuel'),
         `Fuel entry saved successfully.\n\nLitres: ${l} L\nTotal: ₹${c.toLocaleString('en-IN')}\nStation: ${station || locationAddress || '—'}\nOdometer: ${km(odo)}`,
         [{ text: 'OK', onPress: () => navigation.goBack() }]
       );
     } catch {
-      Alert.alert('Error', 'Failed to save fuel log. Please try again.');
+      appDialog.alert('Error', 'Failed to save fuel log. Please try again.');
     } finally {
       setIsSubmitting(false);
     }

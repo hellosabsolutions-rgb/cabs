@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
-  Alert,
   Animated,
   Linking,
   Platform,
@@ -20,6 +19,7 @@ import { Card } from '../components/Card';
 import { MainTabParamList } from '../navigation/types';
 import { useAppTheme } from '../theme/ThemeProvider';
 import { useSession } from '../state/session';
+import { appDialog } from '../dialog';
 import { sosApi, type SosPayload } from '../services/api';
 
 type Props = NativeBottomTabScreenProps<MainTabParamList, 'Sos'>;
@@ -190,7 +190,7 @@ export function SosScreen({ navigation }: Props) {
         Vibration.vibrate([0, 200, 100, 200, 100, 350]);
       } catch {}
 
-      Alert.alert(
+      appDialog.alert(
         '🚨 SOS Emergency Dispatched',
         `Alert received by Fleet Dispatch and Admin.\n\n${
           currentCoords?.address
@@ -204,7 +204,7 @@ export function SosScreen({ navigation }: Props) {
     } catch (error: any) {
       console.error('Failed to send SOS:', error);
       setStatus('sent');
-      Alert.alert(
+      appDialog.alert(
         'Emergency Alert Sent',
         'SOS alert recorded. Please call emergency services (112) or agency dispatch if immediate medical or police assistance is needed.',
         [{ text: 'OK' }]
@@ -284,7 +284,7 @@ export function SosScreen({ navigation }: Props) {
 
   const callEmergencyNumber = (phone: string) => {
     Linking.openURL(`tel:${phone}`).catch(() => {
-      Alert.alert('Cannot Place Call', `Please dial ${phone} manually.`);
+      appDialog.alert('Cannot Place Call', `Please dial ${phone} manually.`);
     });
   };
 

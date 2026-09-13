@@ -8,7 +8,7 @@ import { Pagination } from '../../common/Pagination';
 import { usePagination } from '../../../hooks/usePagination';
 import { Navigation, Plus, CheckCircle2, Clock, MapPin, Gauge, Fuel, CreditCard, User, TrendingUp, RotateCcw, ArrowRight, Building2, ChevronDown } from 'lucide-react';
 import { SkeletonCard, SkeletonTable } from '../../common/Skeleton';
-import { CustomStatusDropdown, StatusOption } from '../../common/CustomStatusDropdown';
+import { StatusDropdown, StatusOption } from '../../common/StatusDropdown';
 
 export const TripsView: React.FC = () => {
   const { trips, updateTripStatus, searchQuery, isLoading } = useFleet();
@@ -84,7 +84,7 @@ export const TripsView: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="section active" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      <div className="section active module-page">
         <SkeletonCard count={4} />
         <SkeletonTable rows={6} columns={7} />
       </div>
@@ -118,7 +118,7 @@ export const TripsView: React.FC = () => {
 
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', alignItems: 'flex-start' }}>
-        <CustomStatusDropdown
+        <StatusDropdown
           value={trip.status}
           options={tripOptions}
           onChange={(newStatus) => {
@@ -143,7 +143,7 @@ export const TripsView: React.FC = () => {
   };
 
   return (
-    <div className="section active" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+    <div className="section active module-page">
       {/* Overview Stat Cards */}
       <div className="stats-grid">
         <StatCard label="Total Trips Revenue" value={formatINR(stats.totalRevenue)} customColor="var(--accent)" />

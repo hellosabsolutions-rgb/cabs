@@ -278,6 +278,7 @@ export interface DailyDutyLog {
   departmentName: string;
   vehicle: string;
   driverName: string;
+  driverId?: string;
   dutyType?: 'Official Department Duty' | 'Weekend / Off-Duty Trip';
   tripDestination?: string;
   tripFare?: number;

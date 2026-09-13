@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import { broadcastAll } from '../services/socketService.js';
+import { getAgencyId, stampAgencyId, withAgencyFilter } from '../utils/tenantQuery.js';
 
 function serializeCrudDoc(doc) {
   if (!doc) return null;
@@ -18,43 +19,49 @@ function emitCrudSocket(socketPrefix, action, payload) {
   }
 }
 
+function tenantQuery(req, baseFilter, options) {
+  if (options.tenantScoped === false) return baseFilter;
+  return withAgencyFilter(req, baseFilter);
+}
+
+function tenantIdQuery(req, id, options) {
+  const base = mongoose.Types.ObjectId.isValid(id) ? { _id: id } : { id };
+  return tenantQuery(req, base, options);
+}
+
 /**
  * Creates standard high-performance CRUD handlers for a Mongoose Model
- * Features: Pagination, lean queries, search, filtering, field projection, and sorting
+ * Features: Pagination, lean queries, search, filtering, field projection, sorting, agency scoping
  */
 export const createCrudController = (Model, searchFields = [], options = {}) => {
   const socketPrefix = options.socketPrefix || null;
+  const tenantScoped = options.tenantScoped !== false;
 
   return {
-    // GET ALL with search, filter, sort, pagination, lean
     getAll: asyncHandler(async (req, res) => {
       let queryObj = { ...req.query };
 
-      // Exclude special query parameters from direct filter
-      const excludedFields = ['page', 'sort', 'limit', 'fields', 'search'];
+      const excludedFields = ['page', 'sort', 'limit', 'fields', 'search', 'agencyId'];
       excludedFields.forEach(el => delete queryObj[el]);
 
-      // Advanced filtering ($gte, $gt, $lte, $lt)
       let queryStr = JSON.stringify(queryObj);
       queryStr = queryStr.replace(/\b(gte|gt|lte|lt|in|ne)\b/g, match => `$${match}`);
-      const mongoFilter = JSON.parse(queryStr);
+      let mongoFilter = JSON.parse(queryStr);
 
-      // Search across specified string fields
       if (req.query.search && searchFields.length > 0) {
         const searchRegex = new RegExp(req.query.search, 'i');
         mongoFilter.$or = searchFields.map(field => ({ [field]: searchRegex }));
       }
 
-      // Initial Query with .lean() for maximum memory/speed performance
+      mongoFilter = tenantScoped ? withAgencyFilter(req, mongoFilter) : mongoFilter;
+
       let query = Model.find(mongoFilter);
 
-      // Field Selection (?fields=name,registrationNumber)
       if (req.query.fields) {
         const fields = req.query.fields.split(',').join(' ');
         query = query.select(fields);
       }
 
-      // Sorting (?sort=-createdAt,profit)
       if (req.query.sort) {
         const sortBy = req.query.sort.split(',').join(' ');
         query = query.sort(sortBy);
@@ -62,7 +69,6 @@ export const createCrudController = (Model, searchFields = [], options = {}) => 
         query = query.sort('-createdAt');
       }
 
-      // Pagination (?page=1&limit=25)
       const page = Math.max(1, parseInt(req.query.page, 10) || 1);
       const limit = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 50));
       const skip = (page - 1) * limit;
@@ -70,7 +76,6 @@ export const createCrudController = (Model, searchFields = [], options = {}) => 
       const total = await Model.countDocuments(mongoFilter);
       const docs = await query.skip(skip).limit(limit).lean();
 
-      // Transform _id to id for client convenience
       const data = docs.map(doc => ({
         ...doc,
         id: doc._id.toString()
@@ -86,17 +91,10 @@ export const createCrudController = (Model, searchFields = [], options = {}) => 
       });
     }),
 
-    // GET SINGLE BY ID (supports _id or custom id field)
     getById: asyncHandler(async (req, res) => {
       const { id } = req.params;
-      let doc = null;
-
-      if (mongoose.Types.ObjectId.isValid(id)) {
-        doc = await Model.findById(id).lean();
-      }
-      if (!doc) {
-        doc = await Model.findOne({ id }).lean();
-      }
+      const query = tenantIdQuery(req, id, { tenantScoped });
+      const doc = await Model.findOne(query).lean();
 
       if (!doc) {
         return res.status(404).json({
@@ -114,9 +112,9 @@ export const createCrudController = (Model, searchFields = [], options = {}) => 
       });
     }),
 
-    // CREATE
     create: asyncHandler(async (req, res) => {
-      const doc = await Model.create(req.body);
+      const payload = tenantScoped ? stampAgencyId(req, req.body) : req.body;
+      const doc = await Model.create(payload);
       const serialized = serializeCrudDoc(doc);
       emitCrudSocket(socketPrefix, 'created', { action: 'created', log: serialized, data: serialized });
       res.status(201).json({
@@ -125,12 +123,12 @@ export const createCrudController = (Model, searchFields = [], options = {}) => 
       });
     }),
 
-    // UPDATE BY ID
     update: asyncHandler(async (req, res) => {
       const { id } = req.params;
-      let query = mongoose.Types.ObjectId.isValid(id) ? { _id: id } : { id };
+      const query = tenantIdQuery(req, id, { tenantScoped });
+      const { agencyId: _drop, ...body } = req.body;
 
-      const doc = await Model.findOneAndUpdate(query, req.body, {
+      const doc = await Model.findOneAndUpdate(query, body, {
         new: true,
         runValidators: true
       });
@@ -150,10 +148,9 @@ export const createCrudController = (Model, searchFields = [], options = {}) => 
       });
     }),
 
-    // DELETE BY ID
     delete: asyncHandler(async (req, res) => {
       const { id } = req.params;
-      let query = mongoose.Types.ObjectId.isValid(id) ? { _id: id } : { id };
+      const query = tenantIdQuery(req, id, { tenantScoped });
 
       const doc = await Model.findOneAndDelete(query);
 

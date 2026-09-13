@@ -1,6 +1,7 @@
 import { Agency } from '../models/Agency.js';
 import { User } from '../models/User.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
+import { userCanAccessAgency } from '../utils/tenantQuery.js';
 
 /**
  * @desc    Create a new Agency / Company (Onboarding or new branch)
@@ -93,6 +94,14 @@ export const getAgencyById = asyncHandler(async (req, res) => {
     });
   }
 
+  const allowed = await userCanAccessAgency(req.user, agency._id);
+  if (!allowed) {
+    return res.status(403).json({
+      success: false,
+      error: 'Not authorized to view this agency.'
+    });
+  }
+
   res.status(200).json({
     success: true,
     agency
@@ -114,8 +123,8 @@ export const updateAgency = asyncHandler(async (req, res) => {
     });
   }
 
-  // Verify ownership
-  if (agency.owner.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
+  const allowed = await userCanAccessAgency(req.user, agency._id);
+  if (!allowed) {
     return res.status(403).json({
       success: false,
       error: 'Not authorized to update this agency profile.'
@@ -150,7 +159,14 @@ export const switchAgency = asyncHandler(async (req, res) => {
     });
   }
 
-  // Update currentAgency on user
+  const allowed = await userCanAccessAgency(req.user, targetAgency._id);
+  if (!allowed) {
+    return res.status(403).json({
+      success: false,
+      error: 'You do not have access to switch to this agency.'
+    });
+  }
+
   const user = await User.findByIdAndUpdate(
     req.user._id,
     { currentAgency: targetAgency._id },

@@ -27,12 +27,28 @@ function processQueue(error: any, token: string | null = null) {
   failedQueue = [];
 }
 
+const AGENCY_ID_STORAGE_KEY = 'fleetos_current_agency_id';
+
+export function getStoredAgencyId(): string | null {
+  return localStorage.getItem(AGENCY_ID_STORAGE_KEY);
+}
+
+export function setStoredAgencyId(agencyId: string | null) {
+  if (agencyId) {
+    localStorage.setItem(AGENCY_ID_STORAGE_KEY, agencyId);
+  } else {
+    localStorage.removeItem(AGENCY_ID_STORAGE_KEY);
+  }
+}
+
 export async function apiRequest<T = any>(endpoint: string, options: RequestOptions = {}): Promise<T> {
   let token = localStorage.getItem('fleetos_auth_token');
+  const agencyId = getStoredAgencyId();
 
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(agencyId ? { 'X-Agency-Id': agencyId } : {}),
     ...(options.headers || {})
   };
 
@@ -70,6 +86,7 @@ export async function apiRequest<T = any>(endpoint: string, options: RequestOpti
       localStorage.removeItem('fleetos_auth_token');
       localStorage.removeItem('fleetos_refresh_token');
       localStorage.removeItem('fleetos_auth_user');
+      setStoredAgencyId(null);
       window.dispatchEvent(new CustomEvent('fleetos:unauthorized'));
       const errResult = await response.json().catch(() => ({}));
       throw new Error(errResult.error || 'Session expired. Please log in again.');
@@ -132,6 +149,7 @@ export async function apiRequest<T = any>(endpoint: string, options: RequestOpti
       localStorage.removeItem('fleetos_auth_token');
       localStorage.removeItem('fleetos_refresh_token');
       localStorage.removeItem('fleetos_auth_user');
+      setStoredAgencyId(null);
       window.dispatchEvent(new CustomEvent('fleetos:unauthorized'));
       throw new Error('Your session has expired. Please sign in again.');
     }

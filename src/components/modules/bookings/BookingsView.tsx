@@ -195,7 +195,7 @@ export const BookingsView: React.FC = () => {
   // First-time load: show full skeleton
   if (isLoadingBookings && bookingList.length === 0) {
     return (
-      <div className="section active" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      <div className="section active module-page">
         <SkeletonCard count={4} />
         <SkeletonTable rows={6} columns={8} />
       </div>
@@ -225,7 +225,7 @@ export const BookingsView: React.FC = () => {
   };
 
   return (
-    <div className="section active" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+    <div className="section active module-page">
       <SoftRefreshBar visible={isLoadingBookings && bookingList.length > 0} label="Syncing bookings…" />
       {/* Overview Stat Cards (Revenue, Advance, Pending Payment, Active) */}
       <div className="stats-grid">

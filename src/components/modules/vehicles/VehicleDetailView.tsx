@@ -34,6 +34,7 @@ import {
   Navigation
 } from 'lucide-react';
 import { StatCard } from '../../common/StatCard';
+import { StatusDropdown } from '../../common/StatusDropdown';
 import { EditVehicleModal } from './EditVehicleModal';
 import { VehicleAvailabilityModal } from '../bookings/VehicleAvailabilityModal';
 
@@ -187,7 +188,7 @@ export const VehicleDetailView: React.FC<VehicleDetailViewProps> = ({
 
   if (!vehicle) {
     return (
-      <div className="section active" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      <div className="section active module-page">
         <button
           type="button"
           onClick={handleBack}
@@ -286,7 +287,7 @@ export const VehicleDetailView: React.FC<VehicleDetailViewProps> = ({
   ];
 
   return (
-    <div className="section active" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+    <div className="section active module-page">
       {/* TOP NAVIGATION & ACTIONS BAR */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
         <button
@@ -307,16 +308,17 @@ export const VehicleDetailView: React.FC<VehicleDetailViewProps> = ({
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
           {/* Quick Status Toggle Dropdown */}
-          <select
-            className="form-input"
-            style={{ width: 'auto', padding: '6px 12px', fontSize: '12px', fontWeight: 600 }}
+          <StatusDropdown
             value={vehicle.status}
-            onChange={e => updateVehicleStatus(vehicle.id, e.target.value as VehicleStatus)}
-          >
-            <option value="Running">● Running / Active</option>
-            <option value="Idle">● Idle in Yard</option>
-            <option value="Maintenance">● Under Maintenance</option>
-          </select>
+            options={[
+              { value: 'Running', label: 'Running / Active' },
+              { value: 'Idle', label: 'Idle in Yard' },
+              { value: 'Maintenance', label: 'Under Maintenance' }
+            ]}
+            onChange={newStatus => updateVehicleStatus(vehicle.id, newStatus as VehicleStatus)}
+            title="Change vehicle status"
+            size="md"
+          />
 
           {/* Availability Check */}
           <button

@@ -1,5 +1,5 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, StyleSheet, Text, View } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Screen } from '../components/Screen';
 import { PrimaryButton, ButtonRow } from '../components/PrimaryButton';
@@ -17,8 +17,9 @@ import { useSession } from '../state/session';
 import { inrPlain } from '../data/format';
 import type { MessageKey } from '../i18n/en';
 import type { Attachment } from '../media/types';
-import { driverExpenseApi, uploadApi, type DriverExpenseApiItem } from '../services/api';
+import { driverExpenseApi, type DriverExpenseApiItem } from '../services/api';
 import { driverSocket } from '../services/socket';
+import { appDialog } from '../dialog';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'AddExpense'>;
 
@@ -74,6 +75,17 @@ export function AddExpenseScreen({ navigation }: Props) {
   const canEdit = (item: DriverExpenseApiItem) =>
     item.createdBy !== 'admin' && mapStatus(item.status) !== 'paid';
 
+  const expenseTotals = useMemo(() => {
+    let paid = 0;
+    let due = 0;
+    history.forEach((item) => {
+      const amount = Number(item.amount) || 0;
+      if (mapStatus(item.status) === 'paid') paid += amount;
+      else due += amount;
+    });
+    return { paid, due };
+  }, [history]);
+
   const loadHistory = useCallback(async () => {
     try {
       const res = await driverExpenseApi.list();
@@ -122,11 +134,11 @@ export function AddExpenseScreen({ navigation }: Props) {
 
   const openEdit = (item: DriverExpenseApiItem) => {
     if (item.createdBy === 'admin') {
-      Alert.alert(t('nav.addExpense'), 'This expense was added by office. You can view it but cannot edit it.');
+      appDialog.alert(t('nav.addExpense'), 'This expense was added by office. You can view it but cannot edit it.');
       return;
     }
     if (mapStatus(item.status) === 'paid') {
-      Alert.alert(t('nav.addExpense'), 'This expense is already paid. Ask office if it needs a change.');
+      appDialog.alert(t('nav.addExpense'), 'This expense is already paid. Ask office if it needs a change.');
       return;
     }
     setEditingId(item.id);
@@ -137,16 +149,12 @@ export function AddExpenseScreen({ navigation }: Props) {
     setFile(receiptFromUrl(item.receipt));
   };
 
-  const uploadReceiptIfNeeded = async () => {
+  const resolveReceipt = () => {
     if (file?.uri && (file.uri.startsWith('http://') || file.uri.startsWith('https://'))) {
       return file.uri;
     }
     if (file?.base64) {
-      const dataUri = `data:${file.mime || 'image/jpeg'};base64,${file.base64}`;
-      const uploaded = await uploadApi.uploadBase64(dataUri, 'fleetos/driver-expenses');
-      const url = uploaded.url || uploaded.data?.secure_url;
-      if (!url) throw new Error(uploaded.error || 'Could not upload receipt photo.');
-      return url;
+      return `data:${file.mime || 'image/jpeg'};base64,${file.base64}`;
     }
     return existingReceiptUrl;
   };
@@ -154,23 +162,23 @@ export function AddExpenseScreen({ navigation }: Props) {
   const submit = async () => {
     const value = Number(amount);
     if (!value) {
-      Alert.alert(t('nav.addExpense'), t('common.required'));
+      appDialog.alert(t('nav.addExpense'), t('common.required'));
       return;
     }
     if (!file && !existingReceiptUrl) {
-      Alert.alert(t('nav.addExpense'), t('common.photoNeeded'));
+      appDialog.alert(t('nav.addExpense'), t('common.photoNeeded'));
       return;
     }
     if (file?.kind === 'pdf') {
-      Alert.alert(t('nav.addExpense'), 'Please upload a photo of the receipt, not a PDF.');
+      appDialog.alert(t('nav.addExpense'), 'Please upload a photo of the receipt, not a PDF.');
       return;
     }
 
     setSaving(true);
     try {
-      const receiptUrl = await uploadReceiptIfNeeded();
+      const receiptUrl = resolveReceipt();
       if (!receiptUrl || receiptUrl.startsWith('file:')) {
-        throw new Error('Could not upload receipt photo.');
+        throw new Error('Could not attach receipt photo.');
       }
 
       if (editingId) {
@@ -185,7 +193,7 @@ export function AddExpenseScreen({ navigation }: Props) {
           setHistory((prev) => prev.map((row) => (row.id === res.data.id ? { ...row, ...res.data } : row)));
         }
         resetForm();
-        Alert.alert(t('nav.addExpense'), t('common.saved'));
+        appDialog.alert(t('nav.addExpense'), t('common.saved'));
       } else {
         const res = await driverExpenseApi.create({
           category,
@@ -198,12 +206,12 @@ export function AddExpenseScreen({ navigation }: Props) {
           setHistory((prev) => (prev.some((row) => row.id === res.data.id) ? prev : [res.data, ...prev]));
         }
         session.addExpense({ category, amount: value, note, photo: true });
-        Alert.alert(t('nav.addExpense'), t('expense.saved'), [
+        appDialog.alert(t('nav.addExpense'), t('expense.saved'), [
           { text: 'OK', onPress: () => navigation.goBack() },
         ]);
       }
     } catch (err: any) {
-      Alert.alert(t('nav.addExpense'), err?.message || 'Could not save expense.');
+      appDialog.alert(t('nav.addExpense'), err?.message || 'Could not save expense.');
     } finally {
       setSaving(false);
     }
@@ -246,6 +254,12 @@ export function AddExpenseScreen({ navigation }: Props) {
       </ButtonRow>
 
       <SectionTitle title={t('expense.history')} />
+      {history.length > 0 ? (
+        <View style={styles.totalsRow}>
+          <Text style={[type.body, styles.paidText]}>Paid {inrPlain(expenseTotals.paid)}</Text>
+          <Text style={[type.body, styles.dueText]}>Due {inrPlain(expenseTotals.due)}</Text>
+        </View>
+      ) : null}
       {loading ? (
         <View style={styles.loader}>
           <ActivityIndicator color={colors.accent} />
@@ -281,4 +295,12 @@ export function AddExpenseScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   loader: { paddingVertical: 16, alignItems: 'center' },
+  totalsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+    paddingHorizontal: 4,
+  },
+  paidText: { color: '#22c55e', fontWeight: '700' },
+  dueText: { color: '#eab308', fontWeight: '700' },
 });

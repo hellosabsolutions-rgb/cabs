@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Animated,
   Dimensions,
   Linking,
@@ -28,6 +27,7 @@ import { useAppTheme } from '../theme/ThemeProvider';
 import { BookingItem } from '../types/booking';
 import { GoogleMapView } from '../components/GoogleMapView';
 import { useSession } from '../state/session';
+import { appDialog } from '../dialog';
 import { bookingApi, tripExpenseApi, uploadApi, TRIP_EXPENSE_CATEGORIES, type TripExpenseItem } from '../services/api';
 import { driverSocket } from '../services/socket';
 import { GlassButton, GlassCircleButton, GlassPill } from '../components/GlassChrome';
@@ -213,7 +213,7 @@ export function BookingDetailScreen({ route, navigation }: Props) {
         const isDifferentDriver = myName && bDriver && bDriver !== myName;
 
         if (isUnassigned || isDifferentDriver) {
-          Alert.alert(
+          appDialog.alert(
             'Booking Unassigned',
             'This booking is no longer assigned to you by dispatch.',
             [{ text: 'OK', onPress: () => navigation.goBack() }]
@@ -242,7 +242,7 @@ export function BookingDetailScreen({ route, navigation }: Props) {
         (targetId && (targetId === booking.id || targetId === (booking as any)._id)) ||
         (targetNumber && targetNumber === booking.bookingNumber)
       ) {
-        Alert.alert(
+        appDialog.alert(
           'Booking Unassigned',
           'This booking was unassigned from you by dispatch.',
           [{ text: 'OK', onPress: () => navigation.goBack() }]
@@ -257,7 +257,7 @@ export function BookingDetailScreen({ route, navigation }: Props) {
         (targetId && (targetId === booking.id || targetId === (booking as any)._id)) ||
         (targetNumber && targetNumber === booking.bookingNumber)
       ) {
-        Alert.alert(
+        appDialog.alert(
           'Booking Removed',
           'This booking has been cancelled or removed by dispatch.',
           [{ text: 'OK', onPress: () => navigation.goBack() }]
@@ -333,50 +333,44 @@ export function BookingDetailScreen({ route, navigation }: Props) {
     };
   }, [booking?.id, navigation]);
 
-  const handleStartTrip = () => {
+  const handleStartTrip = async () => {
     if (!booking) return;
-    Alert.alert(
-      'Start Trip',
-      `Ready to start trip to ${booking.dropLocation} for ${booking.customerName || 'passenger'}?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Start Trip',
-          style: 'default',
-          onPress: async () => {
-            if (!booking) return;
-            setIsUpdatingStatus(true);
-            try {
-              const res = await bookingApi.updateStatus(booking.id, {
-                status: 'Ongoing',
-                startOdometer: booking.startOdometer || session.odometer || 0,
-              });
-              if (res.success && res.data) {
-                setBooking((prev) => (prev ? { ...prev, ...res.data, status: 'Ongoing' } : null));
-              } else {
-                setBooking((prev) => (prev ? { ...prev, status: 'Ongoing' } : null));
-              }
-              Alert.alert('Trip Started', 'Trip is now active in transit. Dashboard has been notified.');
-            } catch (err: any) {
-              Alert.alert('Error', err?.message || 'Could not start trip.');
-            } finally {
-              setIsUpdatingStatus(false);
-            }
-          },
-        },
-      ]
-    );
+    const ok = await appDialog.confirm({
+      title: 'Start Trip',
+      message: `Ready to start trip to ${booking.dropLocation} for ${booking.customerName || 'passenger'}?`,
+      confirmText: 'Start Trip',
+      cancelText: 'Cancel',
+    });
+    if (!ok) return;
+
+    setIsUpdatingStatus(true);
+    try {
+      const res = await bookingApi.updateStatus(booking.id, {
+        status: 'Ongoing',
+        startOdometer: booking.startOdometer || session.odometer || 0,
+      });
+      if (res.success && res.data) {
+        setBooking((prev) => (prev ? { ...prev, ...res.data, status: 'Ongoing' } : null));
+      } else {
+        setBooking((prev) => (prev ? { ...prev, status: 'Ongoing' } : null));
+      }
+      appDialog.alert('Trip Started', 'Trip is now active in transit. Dashboard has been notified.');
+    } catch (err: any) {
+      appDialog.alert('Error', err?.message || 'Could not start trip.');
+    } finally {
+      setIsUpdatingStatus(false);
+    }
   };
 
   const handleConfirmComplete = async () => {
     if (!booking) return;
     const odoNum = Number(endOdometerInput);
     if (isNaN(odoNum) || odoNum <= 0) {
-      Alert.alert('Invalid Odometer', 'Please enter a valid ending odometer reading.');
+      appDialog.alert('Invalid Odometer', 'Please enter a valid ending odometer reading.');
       return;
     }
     if (booking.startOdometer && odoNum < booking.startOdometer) {
-      Alert.alert(
+      appDialog.alert(
         'Invalid Reading',
         `End odometer (${odoNum} km) cannot be less than start odometer (${booking.startOdometer} km).`
       );
@@ -399,9 +393,9 @@ export function BookingDetailScreen({ route, navigation }: Props) {
         setBooking((prev) => (prev ? { ...prev, status: 'Completed', endOdometer: odoNum } : null));
       }
       completeSheetRef.current?.dismiss();
-      Alert.alert('Trip Completed', 'Booking marked as completed. Dashboard synced in real time.');
+      appDialog.alert('Trip Completed', 'Booking marked as completed. Dashboard synced in real time.');
     } catch (err: any) {
-      Alert.alert('Error', err?.message || 'Could not complete trip.');
+      appDialog.alert('Error', err?.message || 'Could not complete trip.');
     } finally {
       setIsUpdatingStatus(false);
     }
@@ -437,7 +431,7 @@ export function BookingDetailScreen({ route, navigation }: Props) {
 
   const openExpenseSheet = (item?: TripExpenseItem) => {
     if (item && !canEditExpense(item)) {
-      Alert.alert('Office expense', 'This expense was added by office. You can view it but cannot edit it.');
+      appDialog.alert('Office expense', 'This expense was added by office. You can view it but cannot edit it.');
       return;
     }
     if (item) {
@@ -462,22 +456,22 @@ export function BookingDetailScreen({ route, navigation }: Props) {
     if (!booking) return;
     const amountNum = Number(expenseAmount);
     if (!Number.isFinite(amountNum) || amountNum <= 0) {
-      Alert.alert('Trip expense', 'Enter a valid amount.');
+      appDialog.alert('Trip expense', 'Enter a valid amount.');
       return;
     }
     if (!expenseReceipt && !existingReceiptUrl) {
-      Alert.alert('Trip expense', 'Receipt photo is required.');
+      appDialog.alert('Trip expense', 'Receipt photo is required.');
       return;
     }
     if (expenseReceipt?.kind === 'pdf') {
-      Alert.alert('Trip expense', 'Please upload a photo of the receipt, not a PDF.');
+      appDialog.alert('Trip expense', 'Please upload a photo of the receipt, not a PDF.');
       return;
     }
     setIsSavingExpense(true);
     try {
       const receiptUrl = await uploadReceiptIfNeeded(expenseReceipt, existingReceiptUrl);
       if (!receiptUrl) {
-        Alert.alert('Trip expense', 'Receipt photo is required.');
+        appDialog.alert('Trip expense', 'Receipt photo is required.');
         return;
       }
       if (editingExpenseId) {
@@ -511,36 +505,31 @@ export function BookingDetailScreen({ route, navigation }: Props) {
       }
       expenseSheetRef.current?.dismiss();
     } catch (err: any) {
-      Alert.alert('Trip expense', err?.message || 'Could not save expense.');
+      appDialog.alert('Trip expense', err?.message || 'Could not save expense.');
     } finally {
       setIsSavingExpense(false);
     }
   };
 
-  const confirmDeleteExpense = (item: TripExpenseItem) => {
+  const confirmDeleteExpense = async (item: TripExpenseItem) => {
     if (!canEditExpense(item)) {
-      Alert.alert('Office expense', 'This expense was added by office. You cannot delete it.');
+      appDialog.alert('Office expense', 'This expense was added by office. You cannot delete it.');
       return;
     }
-    Alert.alert(
-      'Delete expense',
-      `Remove ${item.category} · ₹${Number(item.amount).toLocaleString('en-IN')}?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await tripExpenseApi.delete(item.id);
-              setTripExpenses((prev) => prev.filter((e) => e.id !== item.id));
-            } catch (err: any) {
-              Alert.alert('Trip expense', err?.message || 'Could not delete expense.');
-            }
-          },
-        },
-      ]
-    );
+    const ok = await appDialog.confirm({
+      title: 'Delete expense',
+      message: `Remove ${item.category} · ₹${Number(item.amount).toLocaleString('en-IN')}?`,
+      confirmText: 'Delete',
+      cancelText: 'Cancel',
+      destructive: true,
+    });
+    if (!ok) return;
+    try {
+      await tripExpenseApi.delete(item.id);
+      setTripExpenses((prev) => prev.filter((e) => e.id !== item.id));
+    } catch (err: any) {
+      appDialog.alert('Trip expense', err?.message || 'Could not delete expense.');
+    }
   };
 
   if (!booking) {
@@ -584,18 +573,18 @@ export function BookingDetailScreen({ route, navigation }: Props) {
 
   const callPassenger = () => {
     if (!booking.customerPhone) {
-      Alert.alert('No Phone', 'No contact number available for this passenger.');
+      appDialog.alert('No Phone', 'No contact number available for this passenger.');
       return;
     }
     Linking.openURL(`tel:${booking.customerPhone}`).catch(() => {
-      Alert.alert('Cannot Call', `Please dial ${booking.customerPhone} manually.`);
+      appDialog.alert('Cannot Call', `Please dial ${booking.customerPhone} manually.`);
     });
   };
 
   const smsPassenger = () => {
     if (!booking.customerPhone) return;
     Linking.openURL(`sms:${booking.customerPhone}`).catch(() => {
-      Alert.alert('Cannot SMS', 'Could not open messaging app.');
+      appDialog.alert('Cannot SMS', 'Could not open messaging app.');
     });
   };
 
@@ -1102,7 +1091,7 @@ export function BookingDetailScreen({ route, navigation }: Props) {
             <Pressable
               onPress={() => {
                 Linking.openURL('tel:112').catch(() => {
-                  Alert.alert('Support Helpline', 'Please contact fleet dispatch via your agency phone.');
+                  appDialog.alert('Support Helpline', 'Please contact fleet dispatch via your agency phone.');
                 });
               }}
               style={styles.accordionRow}

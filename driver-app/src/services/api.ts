@@ -38,6 +38,12 @@ export type TripProfile = {
   status: string;
 } | null;
 
+export type DriverWallet = {
+  opening: number;
+  spent: number;
+  remaining: number;
+};
+
 export type DriverAuthPayload = {
   success: boolean;
   accessToken?: string;
@@ -46,6 +52,7 @@ export type DriverAuthPayload = {
   driver: DriverProfile;
   vehicle: VehicleProfile;
   trip: TripProfile;
+  wallet?: DriverWallet;
   session?: {
     id: string;
     rememberMe: boolean;
@@ -66,6 +73,35 @@ let refreshWaiters: Array<{
   resolve: (ok: boolean) => void;
   reject: (err: unknown) => void;
 }> = [];
+
+export class SessionExpiredError extends Error {
+  constructor(message = 'Session expired. Please sign in again.') {
+    super(message);
+    this.name = 'SessionExpiredError';
+  }
+}
+
+type SessionExpiredListener = () => void;
+const sessionExpiredListeners = new Set<SessionExpiredListener>();
+
+/** Subscribe to forced logout when refresh fails or API returns 401. */
+export function onDriverSessionExpired(listener: SessionExpiredListener) {
+  sessionExpiredListeners.add(listener);
+  return () => {
+    sessionExpiredListeners.delete(listener);
+  };
+}
+
+async function forceDriverLogout() {
+  await clearTokens();
+  sessionExpiredListeners.forEach((listener) => {
+    try {
+      listener();
+    } catch (err) {
+      console.warn('[Auth] session expired listener failed:', err);
+    }
+  });
+}
 
 function flushRefreshWaiters(ok: boolean, error?: unknown) {
   refreshWaiters.forEach((waiter) => {
@@ -113,7 +149,8 @@ export async function refreshAccessToken(): Promise<boolean> {
     const data = await response.json().catch(() => ({}));
     const accessToken = data.accessToken || data.token;
     if (!response.ok || !accessToken) {
-      flushRefreshWaiters(false, new Error(data.error || 'Refresh failed'));
+      await forceDriverLogout();
+      flushRefreshWaiters(false, new SessionExpiredError(data.error || 'Refresh failed'));
       return false;
     }
 
@@ -122,6 +159,7 @@ export async function refreshAccessToken(): Promise<boolean> {
     flushRefreshWaiters(true);
     return true;
   } catch (error) {
+    await forceDriverLogout();
     flushRefreshWaiters(false, error);
     return false;
   } finally {
@@ -160,8 +198,8 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
     if (refreshed) {
       return apiRequest<T>(path, { ...options, _retry: true });
     }
-    await clearTokens();
-    throw new Error(await parseError(response));
+    await forceDriverLogout();
+    throw new SessionExpiredError(await parseError(response));
   }
 
   const result = await response.json().catch(() => ({}));
@@ -188,8 +226,7 @@ export async function restoreDriverSession(): Promise<DriverAuthPayload | null> 
   try {
     return await apiRequest<DriverAuthPayload>('/auth/driver/me');
   } catch {
-    // apiRequest already cleared tokens when silent refresh failed.
-    await clearTokens();
+    // apiRequest / refresh already cleared tokens and notified session layer.
     return null;
   }
 }
@@ -258,20 +295,6 @@ export const dutyApi = {
       timezone: string;
       ist: string;
     }>('/server-time', { auth: false }),
-
-  detectOdometer: (data: { image: string; currentOdo?: number }) =>
-    apiRequest<{
-      success: boolean;
-      detected: boolean;
-      odometer: number | null;
-      confidence?: number;
-      candidates?: number[];
-      allNumbers?: number[];
-      rawText?: string;
-    }>('/auth/driver/duty/detect-odometer', {
-      method: 'POST',
-      data,
-    }),
 
   startDuty: (data: { startOdometer: number; photoUrl?: string; location?: string }) =>
     apiRequest<{

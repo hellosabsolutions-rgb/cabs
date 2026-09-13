@@ -12,13 +12,14 @@ import {
   notifyDriverByName
 } from '../services/notificationEmitter.js';
 import { broadcastAll, emitToDriver } from '../services/socketService.js';
+import { withAgencyFilter, stampAgencyId, getAgencyId } from '../utils/tenantQuery.js';
 
 // @desc    Get all bookings with optional filters (month, date, status, paymentStatus, search)
 // @route   GET /api/bookings
 export const getAllBookings = async (req, res, next) => {
   try {
     const { month, date, status, paymentStatus, vehicle, search, driverName } = req.query;
-    const query = {};
+    const query = withAgencyFilter(req, {});
 
     // Filter by specific date (YYYY-MM-DD)
     if (date) {
@@ -117,7 +118,7 @@ export const getAllBookings = async (req, res, next) => {
 // @route   GET /api/bookings/:id
 export const getBookingById = async (req, res, next) => {
   try {
-    const booking = await Booking.findById(req.params.id);
+    const booking = await Booking.findOne(withAgencyFilter(req, { _id: req.params.id }));
     if (!booking) {
       return res.status(404).json({ success: false, error: 'Booking not found' });
     }
@@ -168,7 +169,7 @@ export const createBooking = async (req, res, next) => {
 
     // Check if vehicle is already booked on this date (unless forceBook is requested)
     if (!req.body.forceBook) {
-      const conflictingBooking = await Booking.findOne({
+      const conflictingBooking = await Booking.findOne(withAgencyFilter(req, {
         vehicle,
         $or: [
           { startDate },
@@ -178,7 +179,7 @@ export const createBooking = async (req, res, next) => {
           }
         ],
         status: { $in: ['Scheduled', 'Ongoing'] }
-      });
+      }));
 
       if (conflictingBooking) {
         return res.status(400).json({
@@ -217,7 +218,7 @@ export const createBooking = async (req, res, next) => {
       if (vDoc) vehicleModel = vDoc.model || vDoc.make || 'Commercial Vehicle';
     }
 
-    const booking = await Booking.create({
+    const booking = await Booking.create(stampAgencyId(req, {
       bookingNumber,
       tripType: tripType || 'Round Trip',
       vehicle,
@@ -249,12 +250,12 @@ export const createBooking = async (req, res, next) => {
       otherExpenses: Number(otherExpenses) || 0,
       status: initialStatus,
       notes
-    });
+    }));
 
     // Dispatch real-time notification
     emitBookingCreated({
       userId: req.user?._id,
-      agencyId: req.user?.currentAgency,
+      agencyId: getAgencyId(req),
       booking
     });
 
@@ -287,7 +288,7 @@ export const getMyBookings = async (req, res, next) => {
 
     // A trip belongs to this driver ONLY if it is actively assigned to them
     // It must NEVER return trips that are unassigned or assigned to someone else
-    const query = {
+    const query = withAgencyFilter(req, {
       $and: [
         {
           $or: [
@@ -299,7 +300,7 @@ export const getMyBookings = async (req, res, next) => {
           driverName: { $nin: ['Unassigned', 'None', '—', '', null] }
         }
       ]
-    };
+    });
 
     if (req.query.status && req.query.status !== 'All') {
       query.status = req.query.status;
@@ -321,7 +322,7 @@ export const getMyBookings = async (req, res, next) => {
 // @route   PUT /api/bookings/:id
 export const updateBooking = async (req, res, next) => {
   try {
-    const booking = await Booking.findById(req.params.id);
+    const booking = await Booking.findOne(withAgencyFilter(req, { _id: req.params.id }));
     if (!booking) {
       return res.status(404).json({ success: false, error: 'Booking not found' });
     }
@@ -391,7 +392,7 @@ export const updateBooking = async (req, res, next) => {
         // Fallback: name-based lookup
         emitBookingUnassigned({
           userId: req.user?._id,
-          agencyId: req.user?.currentAgency,
+          agencyId: getAgencyId(req),
           booking,
           previousDriverName: prevDriver
         });
@@ -404,7 +405,7 @@ export const updateBooking = async (req, res, next) => {
         // Fallback: name-based lookup
         emitBookingAssigned({
           userId: req.user?._id,
-          agencyId: req.user?.currentAgency,
+          agencyId: getAgencyId(req),
           booking,
           driverName: booking.driverName
         });
@@ -413,7 +414,7 @@ export const updateBooking = async (req, res, next) => {
 
     emitBookingUpdated({
       userId: req.user?._id,
-      agencyId: req.user?.currentAgency,
+      agencyId: getAgencyId(req),
       booking
     });
 
@@ -442,7 +443,7 @@ export const updateBookingStatus = async (req, res, next) => {
       });
     }
 
-    const booking = await Booking.findById(id);
+    const booking = await Booking.findOne(withAgencyFilter(req, { _id: id }));
     if (!booking) {
       return res.status(404).json({ success: false, error: 'Booking not found' });
     }
@@ -518,19 +519,19 @@ export const updateBookingStatus = async (req, res, next) => {
     if (status === 'Completed') {
       emitBookingCompleted({
         userId: req.user?._id,
-        agencyId: req.user?.currentAgency,
+        agencyId: getAgencyId(req),
         booking
       });
     } else if (status === 'Cancelled') {
       emitBookingCancelled({
         userId: req.user?._id,
-        agencyId: req.user?.currentAgency,
+        agencyId: getAgencyId(req),
         booking
       });
     } else {
       emitBookingUpdated({
         userId: req.user?._id,
-        agencyId: req.user?.currentAgency,
+        agencyId: getAgencyId(req),
         booking,
         changes: `Status changed from ${prevStatus} to ${status}`
       });
@@ -563,9 +564,10 @@ export const assignBookingDriver = async (req, res, next) => {
     const { vehicle } = req.body;
 
     const mongoose = (await import('mongoose')).default;
-    const booking = mongoose.Types.ObjectId.isValid(id)
-      ? await Booking.findById(id)
-      : await Booking.findOne({ $or: [{ bookingNumber: id }, { tripNumber: id }] });
+    const idFilter = mongoose.Types.ObjectId.isValid(id)
+      ? { _id: id }
+      : { $or: [{ bookingNumber: id }, { tripNumber: id }] };
+    const booking = await Booking.findOne(withAgencyFilter(req, idFilter));
 
     if (!booking) {
       return res.status(404).json({ success: false, error: 'Booking not found' });
@@ -597,7 +599,7 @@ export const assignBookingDriver = async (req, res, next) => {
     if (prevDriver && prevDriver !== 'Unassigned' && prevDriver !== 'None' && prevDriver !== '—') {
       emitBookingUnassigned({
         userId: req.user?._id,
-        agencyId: req.user?.currentAgency,
+        agencyId: getAgencyId(req),
         booking,
         previousDriverName: prevDriver
       });
@@ -611,7 +613,7 @@ export const assignBookingDriver = async (req, res, next) => {
     if (!isUnassigning && booking.driverName) {
       emitBookingAssigned({
         userId: req.user?._id,
-        agencyId: req.user?.currentAgency,
+        agencyId: getAgencyId(req),
         booking,
         driverName: booking.driverName
       });
@@ -640,7 +642,7 @@ export const assignBookingDriver = async (req, res, next) => {
 // @route   PATCH /api/bookings/:id/complete
 export const completeBooking = async (req, res, next) => {
   try {
-    const booking = await Booking.findById(req.params.id);
+    const booking = await Booking.findOne(withAgencyFilter(req, { _id: req.params.id }));
     if (!booking) {
       return res.status(404).json({ success: false, error: 'Booking not found' });
     }
@@ -690,7 +692,7 @@ export const completeBooking = async (req, res, next) => {
 
     emitBookingCompleted({
       userId: req.user?._id,
-      agencyId: req.user?.currentAgency,
+      agencyId: getAgencyId(req),
       booking
     });
 
@@ -712,7 +714,7 @@ export const completeBooking = async (req, res, next) => {
 // @route   PATCH /api/bookings/:id/payment
 export const recordPayment = async (req, res, next) => {
   try {
-    const booking = await Booking.findById(req.params.id);
+    const booking = await Booking.findOne(withAgencyFilter(req, { _id: req.params.id }));
     if (!booking) {
       return res.status(404).json({ success: false, error: 'Booking not found' });
     }
@@ -729,7 +731,7 @@ export const recordPayment = async (req, res, next) => {
 
     emitPaymentReceived({
       userId: req.user?._id,
-      agencyId: req.user?.currentAgency,
+      agencyId: getAgencyId(req),
       booking,
       amount: paidAmount
     });
@@ -752,10 +754,10 @@ export const checkAvailability = async (req, res, next) => {
     const checkDate = date || new Date().toISOString().split('T')[0];
 
     // Fetch all vehicles
-    const allVehicles = await Vehicle.find().sort({ registrationNumber: 1 });
+    const allVehicles = await Vehicle.find(withAgencyFilter(req, {})).sort({ registrationNumber: 1 });
 
     // Fetch all bookings for this date that are scheduled or ongoing
-    const activeBookings = await Booking.find({
+    const activeBookings = await Booking.find(withAgencyFilter(req, {
       $or: [
         { startDate: checkDate },
         {
@@ -764,7 +766,7 @@ export const checkAvailability = async (req, res, next) => {
         }
       ],
       status: { $in: ['Scheduled', 'Ongoing'] }
-    });
+    }));
 
     const bookedVehicleMap = new Map();
     activeBookings.forEach(b => {
@@ -819,14 +821,14 @@ export const checkAvailability = async (req, res, next) => {
 // @route   DELETE /api/bookings/:id
 export const deleteBooking = async (req, res, next) => {
   try {
-    const booking = await Booking.findByIdAndDelete(req.params.id);
+    const booking = await Booking.findOneAndDelete(withAgencyFilter(req, { _id: req.params.id }));
     if (!booking) {
       return res.status(404).json({ success: false, error: 'Booking not found' });
     }
 
     emitBookingCancelled({
       userId: req.user?._id,
-      agencyId: req.user?.currentAgency,
+      agencyId: getAgencyId(req),
       booking
     });
 
