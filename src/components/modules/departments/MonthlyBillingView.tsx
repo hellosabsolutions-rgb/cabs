@@ -1,13 +1,30 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useFleet } from '../../../context/FleetContext';
+import { StatCard } from '../../common/StatCard';
 import { GenerateBillModal } from './GenerateBillModal';
-import { BillPrintModal } from './BillPrintModal';
-import { MonthlyDepartmentBill } from '../../../types/fleet';
+import { BillPrintModal, CashMemoBillView } from './BillPrintModal';
+import { WeekendTripBillModal } from './WeekendTripBillModal';
+import { MonthlyDepartmentBill, DailyDutyLog } from '../../../types/fleet';
+import { StatusDropdown, StatusOption } from '../../common/StatusDropdown';
 import {
+  Building2,
+  Layers,
+  ListFilter,
+  FileText,
   ChevronDown,
+  Printer,
+  Percent,
+  Zap,
+  Check,
+  Briefcase,
+  MapPin,
+  Fuel,
+  CreditCard,
+  Plus,
   X
 } from 'lucide-react';
+import { MonthPicker } from '../../common/MonthPicker';
 import { Pagination } from '../../common/Pagination';
 import { usePagination } from '../../../hooks/usePagination';
 
@@ -15,1034 +32,1566 @@ export const MonthlyBillingView: React.FC = () => {
   const navigate = useNavigate();
   const {
     monthlyBills,
+    dailyDutyLogs,
+    updateDailyDutyLogStatus,
+    updateBillStatus,
+    generateWeekendMemoBill,
+    searchQuery,
     departmentContracts,
     activeGstRate,
     activeGstType,
-    applyGstRate,
-    updateBillStatus
+    applyGstRate
   } = useFleet();
 
-  // Selected Department Filter
-  const [selectedDept, setSelectedDept] = useState<string>('All');
-  const [monthFilter, setMonthFilter] = useState<string>('All');
+  const [deptFilter, setDeptFilter] = useState<string>('All');
   const [statusFilter, setStatusFilter] = useState<string>('All');
+  const [monthFilter, setMonthFilter] = useState<string>('All');
+  const [viewMode, setViewMode] = useState<'by-dept' | 'flat' | 'invoice'>('by-dept');
+  const [activeInvoiceBill, setActiveInvoiceBill] = useState<MonthlyDepartmentBill | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedBillForPreview, setSelectedBillForPreview] = useState<MonthlyDepartmentBill | null>(null);
+  const [selectedWeekendLogForBill, setSelectedWeekendLogForBill] = useState<DailyDutyLog | null>(null);
+  const [selectedWeekendBillForPreview, setSelectedWeekendBillForPreview] = useState<MonthlyDepartmentBill | null>(null);
+  const [deptRecordTabs, setDeptRecordTabs] = useState<Record<string, 'all' | 'tender' | 'weekend'>>({});
 
-  // Modals state
-  const [isGenerateModalOpen, setIsGenerateModalOpen] = useState(false);
-  const [billToPrint, setBillToPrint] = useState<MonthlyDepartmentBill | null>(null);
-
-  // GST Settings Popover State
+  // Active GST Configurator State (Pop-up on the side)
   const [isGstConfigOpen, setIsGstConfigOpen] = useState(false);
-  const [customGstInput, setCustomGstInput] = useState<string>(String(activeGstRate ?? 5));
-  const [customGstType, setCustomGstType] = useState<'CGST_SGST' | 'IGST'>(activeGstType || 'CGST_SGST');
-  const [isApplyingGst, setIsApplyingGst] = useState(false);
   const gstPopoverRef = useRef<HTMLDivElement>(null);
 
-  // Status dropdown popover on table rows
-  const [activeStatusMenuBillId, setActiveStatusMenuBillId] = useState<string | null>(null);
-
-  // Close popovers on click outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (gstPopoverRef.current && !gstPopoverRef.current.contains(event.target as Node)) {
         setIsGstConfigOpen(false);
       }
-      if (activeStatusMenuBillId) {
-        setActiveStatusMenuBillId(null);
-      }
     };
-    document.addEventListener('mousedown', handleClickOutside);
+    if (isGstConfigOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [activeStatusMenuBillId]);
+  }, [isGstConfigOpen]);
 
-  const formatINR = (val: number) => '₹' + Math.round(val || 0).toLocaleString('en-IN');
+  const [customGstInput, setCustomGstInput] = useState<string>(String(activeGstRate ?? 5));
+  const [customGstType, setCustomGstType] = useState<'CGST_SGST' | 'IGST'>(activeGstType || 'CGST_SGST');
+  const [isApplyingGst, setIsApplyingGst] = useState(false);
 
-  const formatDate = (dateStr?: string) => {
-    if (!dateStr) return '—';
-    try {
-      const d = new Date(dateStr);
-      if (isNaN(d.getTime())) return dateStr;
-      return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
-    } catch {
-      return dateStr;
-    }
-  };
-
-  const formatMonth = (monthStr?: string) => {
-    if (!monthStr) return '';
-    if (monthStr.includes('-')) {
-      const [y, m] = monthStr.split('-');
-      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-      const idx = parseInt(m, 10) - 1;
-      if (idx >= 0 && idx < 12) {
-        return `${months[idx]} ${y}`;
-      }
-    }
-    return monthStr;
-  };
-
-  const getDepartmentInitials = (name: string) => {
-    const clean = name.replace(/\([^)]*\)/g, '').trim();
-    const words = clean.split(/\s+/).filter(Boolean);
-    if (words.length >= 2) {
-      return (words[0][0] + words[1][0]).toUpperCase();
-    }
-    return clean.slice(0, 2).toUpperCase();
-  };
-
-  // Distinct client departments from contracts and bills
-  const clientDepartments = useMemo(() => {
-    const deptMap = new Map<
-      string,
-      {
-        name: string;
-        initials: string;
-        vehicles: string[];
-        totalBilled: number;
-        totalPaid: number;
-        totalDue: number;
-        invoiceCount: number;
-      }
-    >();
-
-    // Seed from contracts
-    departmentContracts.forEach(c => {
-      if (!c.departmentName) return;
-      if (!deptMap.has(c.departmentName)) {
-        deptMap.set(c.departmentName, {
-          name: c.departmentName,
-          initials: getDepartmentInitials(c.departmentName),
-          vehicles: c.vehicle ? [c.vehicle] : [],
-          totalBilled: 0,
-          totalPaid: 0,
-          totalDue: 0,
-          invoiceCount: 0
-        });
-      } else {
-        const existing = deptMap.get(c.departmentName)!;
-        if (c.vehicle && !existing.vehicles.includes(c.vehicle)) {
-          existing.vehicles.push(c.vehicle);
-        }
-      }
-    });
-
-    // Accumulate from monthly bills
-    monthlyBills.forEach(b => {
-      if (!b.departmentName) return;
-      if (!deptMap.has(b.departmentName)) {
-        deptMap.set(b.departmentName, {
-          name: b.departmentName,
-          initials: getDepartmentInitials(b.departmentName),
-          vehicles: b.vehicle ? [b.vehicle] : [],
-          totalBilled: b.totalBill || 0,
-          totalPaid: b.paidAmount || 0,
-          totalDue: b.balanceDue || 0,
-          invoiceCount: 1
-        });
-      } else {
-        const existing = deptMap.get(b.departmentName)!;
-        if (b.vehicle && !existing.vehicles.includes(b.vehicle)) {
-          existing.vehicles.push(b.vehicle);
-        }
-        existing.totalBilled += (b.totalBill || 0);
-        existing.totalPaid += (b.paidAmount || 0);
-        existing.totalDue += (b.balanceDue || 0);
-        existing.invoiceCount += 1;
-      }
-    });
-
-    return Array.from(deptMap.values());
-  }, [departmentContracts, monthlyBills]);
-
-  // Set default selectedDept if needed
-  useEffect(() => {
-    if (clientDepartments.length > 0) {
-      if (selectedDept !== 'All' && !clientDepartments.some(d => d.name === selectedDept)) {
-        setSelectedDept(clientDepartments[0].name);
-      }
-    } else {
-      setSelectedDept('All');
-    }
-  }, [clientDepartments, selectedDept]);
-
-  // Overall Cycle Stats for right panel summary card
-  const cycleStats = useMemo(() => {
-    let totalInvoiced = 0;
-    let totalPaid = 0;
-    let totalDue = 0;
-    let totalGstEarned = 0;
-
-    monthlyBills.forEach(b => {
-      totalInvoiced += (b.totalBill || 0);
-      totalPaid += (b.paidAmount || 0);
-      totalDue += (b.balanceDue || 0);
-      totalGstEarned += (b.gstAmount || 0);
-    });
-
-    const paidPercent = totalInvoiced > 0 ? Math.min(100, Math.round((totalPaid / totalInvoiced) * 100)) : 0;
-    const duePercent = totalInvoiced > 0 ? 100 - paidPercent : 0;
-
-    return {
-      totalInvoiced,
-      totalPaid,
-      totalDue,
-      totalGstEarned,
-      paidPercent,
-      duePercent
-    };
-  }, [monthlyBills]);
-
-  // Available unique months
-  const availableMonths = useMemo(() => {
-    const set = new Set<string>();
-    monthlyBills.forEach(b => {
-      if (b.billingMonth) set.add(b.billingMonth);
-    });
-    return Array.from(set).sort().reverse();
-  }, [monthlyBills]);
-
-  // Filtered bills for the currently selected department & filters
-  const filteredInvoices = useMemo(() => {
-    return monthlyBills.filter(b => {
-      if (selectedDept !== 'All' && b.departmentName !== selectedDept) {
-        return false;
-      }
-      if (monthFilter !== 'All' && b.billingMonth !== monthFilter) {
-        return false;
-      }
-      if (statusFilter !== 'All' && b.status !== statusFilter) {
-        return false;
-      }
-      return true;
-    });
-  }, [monthlyBills, selectedDept, monthFilter, statusFilter]);
-
-  // Selected Department specific KPI Stats (Main View)
-  const currentDeptStats = useMemo(() => {
-    let invoiced = 0;
-    let received = 0;
-    let outstanding = 0;
-
-    filteredInvoices.forEach(b => {
-      invoiced += (b.totalBill || 0);
-      received += (b.paidAmount || 0);
-      outstanding += (b.balanceDue || 0);
-    });
-
-    return { invoiced, received, outstanding };
-  }, [filteredInvoices]);
-
-  // Active department object for subtitle details
-  const activeDepartmentObj = useMemo(() => {
-    if (selectedDept === 'All') return null;
-    return clientDepartments.find(d => d.name === selectedDept) || null;
-  }, [clientDepartments, selectedDept]);
-
-  // Pagination for main table
-  const {
-    currentPage,
-    setCurrentPage,
-    pageSize,
-    setPageSize,
-    totalItems,
-    paginatedItems: paginatedInvoices
-  } = usePagination(filteredInvoices, 10);
-
-  // Apply GST action
-  const handleApplyGst = async () => {
+  const handleApplyGstToBills = async () => {
     const rate = parseFloat(customGstInput);
     if (isNaN(rate) || rate < 0) return;
     setIsApplyingGst(true);
     try {
-      await applyGstRate(rate, customGstType, selectedDept === 'All' ? undefined : selectedDept);
-      setIsGstConfigOpen(false);
+      await applyGstRate(rate, customGstType, deptFilter === 'All' ? undefined : deptFilter);
     } finally {
       setIsApplyingGst(false);
     }
   };
 
-  const handlePrintActiveBill = () => {
-    if (filteredInvoices.length > 0) {
-      setBillToPrint(filteredInvoices[0]);
-    } else {
-      window.print();
+  const handleGenerateCashMemoBill = async (log: DailyDutyLog) => {
+    try {
+      await generateWeekendMemoBill(log.id);
+    } catch (err) {
+      console.error('Failed to generate cash memo bill:', err);
     }
   };
 
+  const formatINR = (val: number) => '₹' + Math.round(val).toLocaleString('en-IN');
+
+  // List of all unique departments from contracts, bills and duty logs
+  const allDepartmentNames = useMemo(() => {
+    const set = new Set<string>();
+    departmentContracts.forEach(c => set.add(c.departmentName));
+    monthlyBills.forEach(b => set.add(b.departmentName));
+    dailyDutyLogs.forEach(l => {
+      if (l.departmentName) set.add(l.departmentName);
+    });
+    return Array.from(set).filter(Boolean);
+  }, [departmentContracts, monthlyBills, dailyDutyLogs]);
+
+  // Months available
+  const availableMonths = useMemo(() => {
+    const set = new Set<string>();
+    monthlyBills.forEach(b => set.add(b.billingMonth));
+    dailyDutyLogs.forEach(l => {
+      if (l.month) set.add(l.month);
+    });
+    return Array.from(set);
+  }, [monthlyBills, dailyDutyLogs]);
+
+  // Filtered bills (Only Monthly Tender Rent contracts, Weekend cash memos have their own dedicated section & tab)
+  const filteredBills = useMemo(() => {
+    return monthlyBills.filter(bill => {
+      if (bill.billType === 'Weekend / Off-Duty Cash Memo') {
+        return false;
+      }
+
+      const matchSearch =
+        bill.departmentName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        bill.billNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        bill.vehicle.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        bill.billingMonth.toLowerCase().includes(searchQuery.toLowerCase());
+
+      const matchDept = deptFilter === 'All' || bill.departmentName === deptFilter;
+      const matchStatus = statusFilter === 'All' || bill.status === statusFilter;
+      const matchMonth = monthFilter === 'All' || bill.billingMonth === monthFilter;
+
+      return matchSearch && matchDept && matchStatus && matchMonth;
+    });
+  }, [monthlyBills, searchQuery, deptFilter, statusFilter, monthFilter]);
+
+  // Department-wise grouping (includes both Tender Monthly bills AND Weekend / Sat-Sun off-duty logs & memos)
+  const departmentGroups = useMemo(() => {
+    const groupsMap: Record<
+      string,
+      {
+        departmentName: string;
+        bills: MonthlyDepartmentBill[];
+        weekendLogs: DailyDutyLog[];
+        totalTenderBilled: number;
+        totalTenderPaid: number;
+        totalTenderPending: number;
+        totalWeekendBilled: number;
+        totalWeekendPaid: number;
+        totalWeekendPending: number;
+        totalBilled: number;
+        totalPaid: number;
+        totalPending: number;
+        vehicles: string[];
+        activeContractNo?: string;
+      }
+    > = {};
+
+    allDepartmentNames.forEach(dept => {
+      const contract = departmentContracts.find(c => c.departmentName === dept);
+      const contractVehicles = departmentContracts.filter(c => c.departmentName === dept).map(c => c.vehicle);
+
+      // Find weekend logs for this department
+      const deptWeekendLogs = dailyDutyLogs.filter(l => {
+        if (l.dutyType !== 'Weekend / Off-Duty Trip') return false;
+        const matchDept = l.departmentName === dept || contractVehicles.includes(l.vehicle);
+        if (!matchDept) return false;
+
+        const q = searchQuery.toLowerCase();
+        const matchSearch =
+          !q ||
+          l.departmentName.toLowerCase().includes(q) ||
+          l.dutySlipNumber.toLowerCase().includes(q) ||
+          l.vehicle.toLowerCase().includes(q) ||
+          (l.driverName && l.driverName.toLowerCase().includes(q)) ||
+          (l.officerName && l.officerName.toLowerCase().includes(q));
+
+        const matchMonth =
+          monthFilter === 'All' ||
+          (l.month && l.month.toLowerCase().includes(monthFilter.toLowerCase())) ||
+          (l.date && l.date.startsWith(monthFilter));
+
+        const matchStatus =
+          statusFilter === 'All' ||
+          (l.billingStatus || 'Unbilled').toLowerCase() === statusFilter.toLowerCase() ||
+          l.status.toLowerCase() === statusFilter.toLowerCase();
+
+        return matchSearch && matchMonth && matchStatus;
+      });
+
+      // Find tender bills for this department
+      const deptBills = filteredBills.filter(b => b.departmentName === dept);
+
+      // Calculate totals
+      let tenderBilled = 0;
+      let tenderPaid = 0;
+      let tenderPending = 0;
+      deptBills.forEach(b => {
+        tenderBilled += b.totalBill;
+        tenderPaid += b.paidAmount;
+        tenderPending += b.balanceDue;
+      });
+
+      let weekendBilled = 0;
+      let weekendPaid = 0;
+      let weekendPending = 0;
+      deptWeekendLogs.forEach(l => {
+        const fare = (l.totalFare && l.totalFare > 0) ? l.totalFare : (l.tripFare || 0);
+        weekendBilled += fare;
+        if (l.billingStatus === 'Paid' || l.billingStatus === 'Billed') {
+          weekendPaid += fare;
+        } else {
+          weekendPending += fare;
+        }
+      });
+
+      // Collect vehicles
+      const vehiclesSet = new Set<string>();
+      if (contract?.vehicle) vehiclesSet.add(contract.vehicle);
+      deptBills.forEach(b => vehiclesSet.add(b.vehicle));
+      deptWeekendLogs.forEach(l => vehiclesSet.add(l.vehicle));
+
+      groupsMap[dept] = {
+        departmentName: dept,
+        bills: deptBills,
+        weekendLogs: deptWeekendLogs,
+        totalTenderBilled: tenderBilled,
+        totalTenderPaid: tenderPaid,
+        totalTenderPending: tenderPending,
+        totalWeekendBilled: weekendBilled,
+        totalWeekendPaid: weekendPaid,
+        totalWeekendPending: weekendPending,
+        totalBilled: tenderBilled + weekendBilled,
+        totalPaid: tenderPaid + weekendPaid,
+        totalPending: tenderPending + weekendPending,
+        vehicles: Array.from(vehiclesSet),
+        activeContractNo: contract?.contractNumber
+      };
+    });
+
+    // If deptFilter is specific, only show that department
+    if (deptFilter !== 'All') {
+      return Object.values(groupsMap).filter(g => g.departmentName === deptFilter);
+    }
+
+    // Filter out empty groups if search or other filters are applied
+    if (searchQuery || statusFilter !== 'All' || monthFilter !== 'All') {
+      return Object.values(groupsMap).filter(g => g.bills.length > 0 || g.weekendLogs.length > 0);
+    }
+
+    return Object.values(groupsMap);
+  }, [allDepartmentNames, departmentContracts, filteredBills, dailyDutyLogs, deptFilter, searchQuery, statusFilter, monthFilter]);
+
+  const {
+    currentPage: deptPage,
+    setCurrentPage: setDeptPage,
+    pageSize: deptPageSize,
+    setPageSize: setDeptPageSize,
+    totalItems: totalDeptGroups,
+    paginatedItems: paginatedDeptGroups
+  } = usePagination(departmentGroups, 10);
+
+  const {
+    currentPage: flatPage,
+    setCurrentPage: setFlatPage,
+    pageSize: flatPageSize,
+    setPageSize: setFlatPageSize,
+    totalItems: totalFlatBills,
+    paginatedItems: paginatedFlatBills
+  } = usePagination(filteredBills, 10);
+
+  // Quick stats
+  const stats = useMemo(() => {
+    let totalBilled = 0;
+    let totalPaid = 0;
+    let totalPending = 0;
+    let totalGstEarned = 0;
+
+    monthlyBills.forEach(b => {
+      totalBilled += b.totalBill;
+      totalPaid += b.paidAmount;
+      totalPending += b.balanceDue;
+      totalGstEarned += (b.gstAmount || 0);
+    });
+
+    // Also include weekend logs that aren't already represented in monthlyBills
+    dailyDutyLogs.forEach(l => {
+      if (l.dutyType === 'Weekend / Off-Duty Trip') {
+        const fare = (l.totalFare && l.totalFare > 0) ? l.totalFare : (l.tripFare || 0);
+        const hasBill = monthlyBills.some(b => b.dailyDutyLogId === l.id || (l.weekendBillNumber && b.billNumber === l.weekendBillNumber));
+        if (!hasBill) {
+          totalBilled += fare;
+          totalGstEarned += (l.gstAmount || 0);
+          if (l.billingStatus === 'Paid') {
+            totalPaid += fare;
+          } else {
+            totalPending += fare;
+          }
+        }
+      }
+    });
+
+    return {
+      totalBilled,
+      totalPaid,
+      totalPending,
+      totalGstEarned,
+      totalCount: monthlyBills.length,
+      deptCount: allDepartmentNames.length
+    };
+  }, [monthlyBills, dailyDutyLogs, allDepartmentNames]);
+
+  const renderDutyLogStatusDropdown = (status: DailyDutyLog['status'], id: string) => {
+    const dutyLogOptions: StatusOption<DailyDutyLog['status']>[] = [
+      {
+        value: 'Approved',
+        label: 'Approved',
+        color: 'var(--success, #22c55e)',
+        bg: 'rgba(34, 197, 94, 0.12)',
+        borderColor: 'rgba(34, 197, 94, 0.35)'
+      },
+      {
+        value: 'Pending',
+        label: 'Pending',
+        color: '#ffc107',
+        bg: 'rgba(255, 193, 7, 0.12)',
+        borderColor: 'rgba(255, 193, 7, 0.35)'
+      },
+      {
+        value: 'Rejected',
+        label: 'Rejected',
+        color: '#ff5c5c',
+        bg: 'rgba(255, 92, 92, 0.12)',
+        borderColor: 'rgba(255, 92, 92, 0.35)'
+      }
+    ];
+
+    return (
+      <StatusDropdown
+        value={status}
+        options={dutyLogOptions}
+        onChange={newVal => updateDailyDutyLogStatus(id, newVal)}
+        size="sm"
+      />
+    );
+  };
+
+  const renderStatusDropdown = (status: MonthlyDepartmentBill['status'], id: string) => {
+    const billOptions: StatusOption<MonthlyDepartmentBill['status']>[] = [
+      {
+        value: 'Paid',
+        label: 'Paid',
+        color: 'var(--success, #26b8d8)',
+        bg: 'rgba(38, 184, 216, 0.12)',
+        borderColor: 'rgba(38, 184, 216, 0.35)'
+      },
+      {
+        value: 'Sent',
+        label: 'Sent',
+        color: '#38bdf8',
+        bg: 'rgba(56, 189, 248, 0.12)',
+        borderColor: 'rgba(56, 189, 248, 0.35)'
+      },
+      {
+        value: 'Pending',
+        label: 'Pending',
+        color: '#ffc107',
+        bg: 'rgba(255, 193, 7, 0.12)',
+        borderColor: 'rgba(255, 193, 7, 0.35)'
+      },
+      {
+        value: 'Overdue',
+        label: 'Overdue',
+        color: 'var(--danger, #ff5c5c)',
+        bg: 'rgba(255, 92, 92, 0.12)',
+        borderColor: 'rgba(255, 92, 92, 0.35)'
+      },
+      {
+        value: 'Draft',
+        label: 'Draft',
+        color: 'var(--text-dim)',
+        bg: 'var(--surface-3)',
+        borderColor: 'var(--border)'
+      }
+    ];
+
+    return (
+      <StatusDropdown
+        value={status}
+        options={billOptions}
+        onChange={(newStatus) => updateBillStatus(id, newStatus)}
+      />
+    );
+  };
+
   return (
-    <div
-      style={{
-        display: 'grid',
-        gridTemplateColumns: 'minmax(0, 1fr) 280px',
-        gap: '32px',
-        alignItems: 'start',
-        width: '100%',
-        padding: '8px 4px'
-      }}
-      className="monthly-billing-layout-grid"
-    >
-      {/* ========================================================= */}
-      {/* LEFT COLUMN: MAIN CONTENT (EXACTLY MATCHING SCREENSHOT)   */}
-      {/* ========================================================= */}
-      <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-        {/* Header: Title & Action Buttons */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'flex-start',
-            justifyContent: 'space-between',
-            gap: '16px',
-            marginBottom: '18px'
-          }}
-        >
-          <div>
-            <h2
-              style={{
-                margin: 0,
-                fontSize: '20px',
-                fontWeight: 700,
-                color: 'var(--text, #111827)',
-                letterSpacing: '-0.2px'
-              }}
-            >
-              {selectedDept === 'All' ? 'All Client Departments' : selectedDept}
-            </h2>
-            <div
-              style={{
-                fontSize: '11px',
-                color: 'var(--text-faint, #6b7280)',
-                marginTop: '3px'
-              }}
-            >
-              {activeDepartmentObj ? (
-                <>
-                  <span>
-                    {activeDepartmentObj.vehicles.length > 0
-                      ? `Vehicle ${activeDepartmentObj.vehicles.join(', ')}`
-                      : 'Contract vehicle'}
-                  </span>
-                  {' · '}
-                  <span>billed monthly</span>
-                </>
-              ) : (
-                <span>Overview across all {clientDepartments.length} client departments · billed monthly</span>
-              )}
-            </div>
-          </div>
-
-          {/* Top Right Action Buttons (exact look from screenshot) */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <button
-              type="button"
-              onClick={handlePrintActiveBill}
-              style={{
-                padding: '6px 14px',
-                fontSize: '11.5px',
-                fontWeight: 500,
-                borderRadius: '6px',
-                background: 'var(--surface, #ffffff)',
-                border: '1px solid var(--border, #d1d5db)',
-                color: 'var(--text-dim, #374151)',
-                cursor: 'pointer',
-                transition: 'all 0.15s ease'
-              }}
-            >
-              Print bill
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setIsGenerateModalOpen(true)}
-              style={{
-                padding: '6px 16px',
-                fontSize: '11.5px',
-                fontWeight: 600,
-                borderRadius: '6px',
-                background: '#1e3a5f',
-                border: 'none',
-                color: '#ffffff',
-                cursor: 'pointer',
-                transition: 'background 0.15s ease'
-              }}
-            >
-              + Generate bill
-            </button>
-          </div>
-        </div>
-
-        {/* Filter Row: Dropdowns (exact pills from screenshot) */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            marginBottom: '16px'
-          }}
-        >
-          {/* Month Dropdown */}
-          <div style={{ position: 'relative' }}>
-            <select
-              value={monthFilter}
-              onChange={e => setMonthFilter(e.target.value)}
-              style={{
-                padding: '4px 24px 4px 10px',
-                fontSize: '11.5px',
-                fontWeight: 500,
-                borderRadius: '6px',
-                border: '1px solid var(--border, #e5e7eb)',
-                background: 'var(--surface, #ffffff)',
-                color: 'var(--text-dim, #374151)',
-                cursor: 'pointer',
-                appearance: 'none',
-                WebkitAppearance: 'none'
-              }}
-            >
-              <option value="All">All months</option>
-              {availableMonths.map(m => (
-                <option key={m} value={m}>
-                  {formatMonth(m)}
-                </option>
-              ))}
-            </select>
-            <ChevronDown
-              size={12}
-              style={{
-                position: 'absolute',
-                right: '8px',
-                top: '50%',
-                transform: 'translateY(-50%)',
-                pointerEvents: 'none',
-                color: 'var(--text-faint, #6b7280)'
-              }}
-            />
-          </div>
-
-          {/* Status Dropdown */}
-          <div style={{ position: 'relative' }}>
-            <select
-              value={statusFilter}
-              onChange={e => setStatusFilter(e.target.value)}
-              style={{
-                padding: '4px 24px 4px 10px',
-                fontSize: '11.5px',
-                fontWeight: 500,
-                borderRadius: '6px',
-                border: '1px solid var(--border, #e5e7eb)',
-                background: 'var(--surface, #ffffff)',
-                color: 'var(--text-dim, #374151)',
-                cursor: 'pointer',
-                appearance: 'none',
-                WebkitAppearance: 'none'
-              }}
-            >
-              <option value="All">All statuses</option>
-              <option value="Paid">Paid</option>
-              <option value="Pending">Pending</option>
-              <option value="Sent">Sent</option>
-              <option value="Overdue">Overdue</option>
-            </select>
-            <ChevronDown
-              size={12}
-              style={{
-                position: 'absolute',
-                right: '8px',
-                top: '50%',
-                transform: 'translateY(-50%)',
-                pointerEvents: 'none',
-                color: 'var(--text-faint, #6b7280)'
-              }}
-            />
-          </div>
-        </div>
-
-        {/* Thin Divider under filter bar */}
-        <div style={{ borderTop: '1px solid var(--border-soft, #f3f4f6)', marginBottom: '16px' }} />
-
-        {/* 3 KPI Metrics Row (exact spacing and typography from screenshot) */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'flex-start',
-            gap: '64px',
-            marginBottom: '26px'
-          }}
-        >
-          <div>
-            <div style={{ fontSize: '10.5px', color: 'var(--text-faint, #6b7280)', fontWeight: 500 }}>
-              Invoiced
-            </div>
-            <div style={{ fontSize: '18px', fontWeight: 700, color: 'var(--text, #111827)', marginTop: '4px' }}>
-              {formatINR(currentDeptStats.invoiced)}
-            </div>
-          </div>
-
-          <div>
-            <div style={{ fontSize: '10.5px', color: 'var(--text-faint, #6b7280)', fontWeight: 500 }}>
-              Received
-            </div>
-            <div style={{ fontSize: '18px', fontWeight: 700, color: '#15803d', marginTop: '4px' }}>
-              {formatINR(currentDeptStats.received)}
-            </div>
-          </div>
-
-          <div>
-            <div style={{ fontSize: '10.5px', color: 'var(--text-faint, #6b7280)', fontWeight: 500 }}>
-              Outstanding
-            </div>
-            <div
-              style={{
-                fontSize: '18px',
-                fontWeight: 700,
-                color: currentDeptStats.outstanding > 0 ? '#ea580c' : 'var(--text, #111827)',
-                marginTop: '4px'
-              }}
-            >
-              {formatINR(currentDeptStats.outstanding)}
-            </div>
-          </div>
-        </div>
-
-        {/* Invoices Table (exact structure & clean style from screenshot) */}
-        <div style={{ width: '100%', overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-            <thead>
-              <tr style={{ borderBottom: '1px solid var(--border-soft, #f3f4f6)' }}>
-                <th style={{ padding: '8px 12px', fontSize: '10.5px', fontWeight: 500, color: 'var(--text-faint, #6b7280)' }}>
-                  Invoice
-                </th>
-                <th style={{ padding: '8px 12px', fontSize: '10.5px', fontWeight: 500, color: 'var(--text-faint, #6b7280)' }}>
-                  Base + fuel
-                </th>
-                <th style={{ padding: '8px 12px', fontSize: '10.5px', fontWeight: 500, color: 'var(--text-faint, #6b7280)' }}>
-                  Total bill
-                </th>
-                <th style={{ padding: '8px 12px', fontSize: '10.5px', fontWeight: 500, color: 'var(--text-faint, #6b7280)' }}>
-                  Status
-                </th>
-                <th style={{ padding: '8px 12px', fontSize: '10.5px', fontWeight: 500, color: 'var(--text-faint, #6b7280)' }}>
-                  Due date
-                </th>
-                <th style={{ padding: '8px 12px', textAlign: 'right' }} />
-              </tr>
-            </thead>
-            <tbody>
-              {filteredInvoices.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={6}
-                    style={{
-                      textAlign: 'center',
-                      padding: '36px 12px',
-                      color: 'var(--text-faint, #6b7280)',
-                      fontSize: '12px'
-                    }}
-                  >
-                    No invoices found for this department. Click <strong>+ Generate bill</strong> to create one.
-                  </td>
-                </tr>
-              ) : (
-                paginatedInvoices.map(b => {
-                  const baseRent = b.baseContractAmount || 0;
-                  const extraFuel = b.fuelCost || 0;
-                  const extraNight = b.nightCost || 0;
-                  const extraKm = b.extraKmCost || 0;
-                  const hasExtras = extraFuel > 0 || extraNight > 0 || extraKm > 0;
-                  const st = b.status || 'Pending';
-
-                  return (
-                    <tr
-                      key={b.id || b.billNumber}
-                      style={{ borderBottom: '1px solid var(--border-soft, #f9fafb)' }}
-                    >
-                      {/* Invoice # & Month */}
-                      <td style={{ padding: '12px 12px', verticalAlign: 'top' }}>
-                        <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text, #111827)' }}>
-                          {b.billNumber}
-                        </div>
-                        <div style={{ fontSize: '10px', color: 'var(--text-faint, #6b7280)', marginTop: '2px' }}>
-                          {formatMonth(b.billingMonth)}
-                          {selectedDept === 'All' && ` · ${b.departmentName}`}
-                        </div>
-                      </td>
-
-                      {/* Base + Fuel */}
-                      <td style={{ padding: '12px 12px', verticalAlign: 'top' }}>
-                        <div style={{ fontSize: '11.5px', color: 'var(--text-dim, #374151)' }}>
-                          {formatINR(baseRent)} base {hasExtras ? '+ fuel/night' : ''}
-                        </div>
-                      </td>
-
-                      {/* Total Bill */}
-                      <td style={{ padding: '12px 12px', verticalAlign: 'top' }}>
-                        <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text, #111827)' }}>
-                          {formatINR(b.totalBill)}
-                        </div>
-                        <div style={{ fontSize: '10px', color: 'var(--text-faint, #6b7280)', marginTop: '2px' }}>
-                          incl. GST {formatINR(b.gstAmount || 0)}
-                        </div>
-                      </td>
-
-                      {/* Status */}
-                      <td style={{ padding: '12px 12px', verticalAlign: 'top', position: 'relative' }}>
-                        <button
-                          type="button"
-                          onClick={() => setActiveStatusMenuBillId(activeStatusMenuBillId === b.id ? null : b.id)}
-                          style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '4px',
-                            fontSize: '10.5px',
-                            fontWeight: 600,
-                            padding: '2px 8px',
-                            borderRadius: '12px',
-                            background: st === 'Paid' ? '#ecfdf5' : st === 'Overdue' ? '#fef2f2' : '#fffbeb',
-                            color: st === 'Paid' ? '#065f46' : st === 'Overdue' ? '#991b1b' : '#92400e',
-                            border: `1px solid ${st === 'Paid' ? '#a7f3d0' : st === 'Overdue' ? '#fecaca' : '#fde68a'}`,
-                            cursor: 'pointer'
-                          }}
-                          title="Click to change status"
-                        >
-                          <span style={{ fontSize: '7px' }}>●</span>
-                          <span>{st}</span>
-                        </button>
-
-                        {/* Status update menu */}
-                        {activeStatusMenuBillId === b.id && (
-                          <div
-                            onClick={e => e.stopPropagation()}
-                            style={{
-                              position: 'absolute',
-                              top: '32px',
-                              left: '12px',
-                              background: '#ffffff',
-                              border: '1px solid #e5e7eb',
-                              borderRadius: '6px',
-                              boxShadow: '0 8px 20px rgba(0,0,0,0.12)',
-                              zIndex: 100,
-                              minWidth: '100px',
-                              padding: '3px',
-                              display: 'flex',
-                              flexDirection: 'column'
-                            }}
-                          >
-                            {(['Paid', 'Pending', 'Sent', 'Overdue'] as const).map(s => (
-                              <button
-                                key={s}
-                                type="button"
-                                onClick={() => {
-                                  updateBillStatus(b.id, s);
-                                  setActiveStatusMenuBillId(null);
-                                }}
-                                style={{
-                                  background: b.status === s ? '#f3f4f6' : 'transparent',
-                                  color: '#111827',
-                                  border: 'none',
-                                  borderRadius: '4px',
-                                  padding: '5px 8px',
-                                  fontSize: '11px',
-                                  fontWeight: 500,
-                                  textAlign: 'left',
-                                  cursor: 'pointer'
-                                }}
-                              >
-                                {s}
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                      </td>
-
-                      {/* Due Date */}
-                      <td style={{ padding: '12px 12px', verticalAlign: 'top', fontSize: '11px', color: 'var(--text-dim, #374151)' }}>
-                        {formatDate(b.dueDate || b.dutyEndDate)}
-                      </td>
-
-                      {/* Print Action link */}
-                      <td style={{ padding: '12px 12px', verticalAlign: 'top', textAlign: 'right' }}>
-                        <button
-                          type="button"
-                          onClick={() => setBillToPrint(b)}
-                          style={{
-                            background: 'transparent',
-                            border: 'none',
-                            color: '#2563eb',
-                            fontSize: '11px',
-                            fontWeight: 500,
-                            cursor: 'pointer',
-                            padding: '2px 4px'
-                          }}
-                        >
-                          Print
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Pagination if multiple */}
-        {filteredInvoices.length > 10 && (
-          <div style={{ marginTop: '16px', paddingTop: '10px', borderTop: '1px solid var(--border-soft, #f3f4f6)' }}>
-            <Pagination
-              currentPage={currentPage}
-              totalItems={totalItems}
-              pageSize={pageSize}
-              onPageChange={setCurrentPage}
-              onPageSizeChange={setPageSize}
-              itemLabel="invoices"
-            />
-          </div>
-        )}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      {/* Stats Grid */}
+      <div className="stats-grid">
+        <StatCard label="Total Invoiced Billing" value={formatINR(stats.totalBilled)} customColor="var(--accent)" />
+        <StatCard label="Total GST Earned" value={formatINR(stats.totalGstEarned)} customColor="#ffcc4d" />
+        <StatCard label="Payments Realized (Paid)" value={formatINR(stats.totalPaid)} />
+        <StatCard label="Outstanding Balance Due" value={formatINR(stats.totalPending)} customColor={stats.totalPending > 0 ? 'var(--danger)' : undefined} />
+        <StatCard label="Client Departments" value={stats.deptCount} />
       </div>
 
-      {/* ========================================================= */}
-      {/* RIGHT COLUMN: SIDE PANEL (EXACTLY MATCHING SCREENSHOT)   */}
-      {/* ========================================================= */}
-      <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-        {/* Title */}
-        <div style={{ marginBottom: '14px' }}>
-          <h3
-            style={{
-              margin: 0,
-              fontSize: '15px',
-              fontWeight: 700,
-              color: 'var(--text, #111827)',
-              letterSpacing: '-0.1px'
-            }}
-          >
-            Departments & Contracts
-          </h3>
-          <p style={{ margin: '2px 0 0 0', fontSize: '11px', color: 'var(--text-faint, #6b7280)' }}>
-            Contract vehicles, duty logs and billing
-          </p>
-        </div>
-
-        {/* Total Invoiced Card (exact border, bar, and typography from screenshot) */}
-        <div
-          style={{
-            background: 'var(--surface, #ffffff)',
-            border: '1px solid var(--border, #e5e7eb)',
-            borderRadius: '12px',
-            padding: '16px 16px 14px 16px',
-            marginBottom: '20px',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
-            position: 'relative'
-          }}
+      {/* Department Quick Filter Tabs */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          overflowX: 'auto',
+          paddingBottom: '4px'
+        }}
+      >
+        <button
+          className={`subtab-btn ${deptFilter === 'All' ? 'active' : ''}`}
+          onClick={() => setDeptFilter('All')}
+          style={{ padding: '6px 14px', fontSize: '12px' }}
         >
-          <div style={{ fontSize: '11px', color: 'var(--text-dim, #4b5563)', fontWeight: 500 }}>
-            Total invoiced (this cycle)
-          </div>
+          <Building2 size={14} />
+          All Departments
+          <span className="subtab-counter">{monthlyBills.length}</span>
+        </button>
 
-          <div
-            style={{
-              fontSize: '24px',
-              fontWeight: 800,
-              color: 'var(--text, #111827)',
-              marginTop: '4px',
-              marginBottom: '10px',
-              letterSpacing: '-0.4px'
-            }}
-          >
-            {formatINR(cycleStats.totalInvoiced)}
-          </div>
+        {allDepartmentNames.map(dept => {
+          const deptBills = monthlyBills.filter(b => b.departmentName === dept);
+          const deptTotal = deptBills.reduce((acc, curr) => acc + curr.totalBill, 0);
+          const hasPending = deptBills.some(b => b.balanceDue > 0);
 
-          {/* Two-tone Horizontal Bar */}
-          <div
-            style={{
-              width: '100%',
-              height: '5px',
-              borderRadius: '3px',
-              background: '#f3f4f6',
-              display: 'flex',
-              overflow: 'hidden',
-              marginBottom: '6px'
-            }}
-          >
-            <div
-              style={{
-                width: `${cycleStats.paidPercent}%`,
-                background: '#15803d'
-              }}
-            />
-            <div
-              style={{
-                width: `${cycleStats.duePercent}%`,
-                background: '#c2410c'
-              }}
-            />
-          </div>
-
-          {/* Paid / Due breakdown */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              fontSize: '10.5px',
-              marginBottom: '12px'
-            }}
-          >
-            <span style={{ color: '#15803d', fontWeight: 600 }}>
-              Paid {formatINR(cycleStats.totalPaid)}
-            </span>
-            <span style={{ color: '#c2410c', fontWeight: 600 }}>
-              Due {formatINR(cycleStats.totalDue)}
-            </span>
-          </div>
-
-          {/* Divider */}
-          <div style={{ borderTop: '1px solid var(--border-soft, #f3f4f6)', marginBottom: '8px' }} />
-
-          {/* GST Info row */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'flex-start',
-              justifyContent: 'space-between',
-              fontSize: '10px',
-              color: 'var(--text-faint, #6b7280)',
-              position: 'relative'
-            }}
-          >
-            <div style={{ lineHeight: '1.3' }}>
-              <div>GST rate applied: {activeGstRate}%</div>
-              <div>({formatINR(cycleStats.totalGstEarned)} earned)</div>
-            </div>
-
+          return (
             <button
-              type="button"
-              onClick={() => navigate('/profile?tab=tax')}
-              style={{
-                background: 'transparent',
-                border: 'none',
-                color: '#2563eb',
-                fontSize: '11px',
-                fontWeight: 600,
-                cursor: 'pointer',
-                padding: '2px 0',
-                textDecoration: 'underline'
-              }}
+              key={dept}
+              className={`subtab-btn ${deptFilter === dept ? 'active' : ''}`}
+              onClick={() => setDeptFilter(dept)}
+              style={{ padding: '6px 12px', fontSize: '12px', whiteSpace: 'nowrap' }}
             >
-              Change in Settings
-            </button>
-
-            {/* GST Configurator Popover */}
-            {isGstConfigOpen && (
-              <div
-                ref={gstPopoverRef}
-                onClick={e => e.stopPropagation()}
+              {dept}
+              <span
+                className="subtab-counter"
                 style={{
-                  position: 'absolute',
-                  top: '100%',
-                  right: 0,
-                  marginTop: '8px',
-                  background: '#ffffff',
-                  border: '1px solid #e5e7eb',
-                  borderRadius: '10px',
-                  boxShadow: '0 10px 25px rgba(0,0,0,0.15)',
-                  zIndex: 200,
-                  padding: '12px',
-                  width: '240px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '8px'
+                  background: hasPending ? 'rgba(255, 92, 92, 0.18)' : undefined,
+                  color: hasPending ? 'var(--danger)' : undefined,
+                  borderColor: hasPending ? 'rgba(255, 92, 92, 0.3)' : undefined
                 }}
               >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontWeight: 600, fontSize: '11.5px', color: '#111827' }}>
-                    Configure GST
-                  </span>
+                {formatINR(deptTotal)}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+
+
+      {/* Main Filter & View Mode Toolbar */}
+      <div
+        className="panel"
+        style={{
+          padding: '14px 18px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: '12px'
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          {/* View Mode Toggle */}
+          <button
+            className={`subtab-btn ${viewMode === 'by-dept' ? 'active' : ''}`}
+            onClick={() => setViewMode('by-dept')}
+            style={{ padding: '5px 12px', fontSize: '12px' }}
+          >
+            <Layers size={14} />
+            Group by Department
+          </button>
+          <button
+            className={`subtab-btn ${viewMode === 'flat' ? 'active' : ''}`}
+            onClick={() => setViewMode('flat')}
+            style={{ padding: '5px 12px', fontSize: '12px' }}
+          >
+            <ListFilter size={14} />
+            All Invoices Table
+          </button>
+          <button
+            className={`subtab-btn ${viewMode === 'invoice' ? 'active' : ''}`}
+            onClick={() => {
+              setViewMode('invoice');
+              if (!activeInvoiceBill && filteredBills.length > 0) {
+                setActiveInvoiceBill(filteredBills[0]);
+              }
+            }}
+            style={{ padding: '5px 12px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '5px' }}
+          >
+            <FileText size={14} />
+            Cash Memo / Bill View
+          </button>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          {/* Department Select */}
+          <select
+            className="form-input"
+            style={{ width: 'auto', padding: '5px 10px', fontSize: '12px' }}
+            value={deptFilter}
+            onChange={e => setDeptFilter(e.target.value)}
+          >
+            <option value="All">All Departments</option>
+            {allDepartmentNames.map(d => (
+              <option key={d} value={d}>
+                {d}
+              </option>
+            ))}
+          </select>
+
+          {/* Month Select */}
+          <MonthPicker
+            value={monthFilter}
+            onChange={setMonthFilter}
+            availableMonths={availableMonths}
+            placeholder="All Months"
+            align="left"
+          />
+
+          {/* Status Select */}
+          <select
+            className="form-input"
+            style={{ width: 'auto', padding: '5px 10px', fontSize: '12px' }}
+            value={statusFilter}
+            onChange={e => setStatusFilter(e.target.value)}
+          >
+            <option value="All">All Statuses</option>
+            <option value="Sent">Sent</option>
+            <option value="Paid">Paid</option>
+            <option value="Overdue">Overdue</option>
+          </select>
+
+          {/* Side GST Config Button & Popover */}
+          <div style={{ position: 'relative' }} ref={gstPopoverRef}>
+            <button
+              type="button"
+              className={`subtab-btn ${isGstConfigOpen ? 'active' : ''}`}
+              onClick={() => setIsGstConfigOpen(!isGstConfigOpen)}
+              style={{
+                padding: '5px 12px',
+                fontSize: '12px',
+                fontWeight: 700,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                cursor: 'pointer'
+              }}
+              title="Click to configure GST and apply to bills"
+            >
+              <Percent size={13} color="var(--accent)" />
+              <span>% GST: <b>{customGstInput}%</b></span>
+              <button
+                type="button"
+                onClick={e => {
+                  e.stopPropagation();
+                  navigate('/profile?tab=tax');
+                }}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: 'var(--accent)',
+                  fontSize: '10px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  textDecoration: 'underline',
+                  padding: 0
+                }}
+              >
+                Settings
+              </button>
+              <span
+                style={{
+                  fontSize: '10.5px',
+                  color: 'var(--warning)',
+                  background: 'var(--warning-bg)',
+                  border: '1px solid var(--border-soft)',
+                  padding: '1px 6px',
+                  borderRadius: '10px',
+                  fontWeight: 800
+                }}
+              >
+                {formatINR(stats.totalGstEarned)}
+              </span>
+              <ChevronDown
+                size={12}
+                style={{
+                  transform: isGstConfigOpen ? 'rotate(180deg)' : 'none',
+                  transition: 'transform 0.2s'
+                }}
+              />
+            </button>
+
+            {/* Dropdown Popover Panel */}
+            {isGstConfigOpen && (
+              <div
+                style={{
+                  position: 'absolute',
+                  right: 0,
+                  top: 'calc(100% + 8px)',
+                  zIndex: 1000,
+                  width: '360px',
+                  maxWidth: '90vw',
+                  padding: '16px',
+                  background: 'var(--surface)',
+                  color: 'var(--text)',
+                  border: '1px solid var(--border)',
+                  boxShadow: '0 16px 36px -6px rgba(0, 0, 0, 0.25), 0 0 0 1px var(--border)',
+                  borderRadius: '14px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '14px',
+                  boxSizing: 'border-box',
+                  transformOrigin: 'top right',
+                  animation: 'modalFadeIn 0.16s cubic-bezier(0.16, 1, 0.3, 1) forwards'
+                }}
+              >
+                {/* Header */}
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    borderBottom: '1px solid var(--border)',
+                    paddingBottom: '10px'
+                  }}
+                >
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '7px',
+                      fontWeight: 700,
+                      fontSize: '13.5px',
+                      color: 'var(--accent)'
+                    }}
+                  >
+                    <Percent size={16} />
+                    <span>GST Configuration for Bills</span>
+                  </div>
                   <button
                     type="button"
                     onClick={() => setIsGstConfigOpen(false)}
-                    style={{ background: 'transparent', border: 'none', color: '#9ca3af', cursor: 'pointer' }}
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      color: 'var(--text-faint)',
+                      cursor: 'pointer',
+                      padding: '4px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      borderRadius: '6px',
+                      transition: 'color 0.15s ease'
+                    }}
+                    onMouseEnter={e => (e.currentTarget.style.color = 'var(--text)')}
+                    onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-faint)')}
+                    title="Close"
                   >
-                    <X size={13} />
+                    <X size={15} />
                   </button>
                 </div>
 
-                <div style={{ display: 'flex', gap: '4px' }}>
-                  {[0, 5, 12, 18].map(r => (
-                    <button
-                      key={r}
-                      type="button"
-                      onClick={() => setCustomGstInput(String(r))}
+                {/* Quick Presets */}
+                <div>
+                  <div
+                    style={{
+                      fontSize: '11px',
+                      color: 'var(--text-faint)',
+                      fontWeight: 600,
+                      letterSpacing: '0.3px',
+                      marginBottom: '6px',
+                      textTransform: 'uppercase'
+                    }}
+                  >
+                    Select GST Rate Preset:
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px' }}>
+                    {[0, 5, 12, 18].map(rate => {
+                      const isSelected = customGstInput === String(rate);
+                      return (
+                        <button
+                          key={rate}
+                          type="button"
+                          onClick={() => setCustomGstInput(String(rate))}
+                          style={{
+                            padding: '7px 0',
+                            fontSize: '11.5px',
+                            fontWeight: 700,
+                            textAlign: 'center',
+                            borderRadius: '8px',
+                            cursor: 'pointer',
+                            transition: 'all 0.15s ease',
+                            border: isSelected ? '1px solid var(--accent)' : '1px solid var(--border)',
+                            background: isSelected ? 'var(--accent)' : 'var(--surface-3)',
+                            color: isSelected ? 'var(--accent-text, #ffffff)' : 'var(--text)',
+                            boxShadow: isSelected ? 'var(--glow)' : 'none'
+                          }}
+                          onMouseEnter={e => {
+                            if (!isSelected) {
+                              e.currentTarget.style.borderColor = 'var(--text-faint)';
+                              e.currentTarget.style.background = 'var(--surface-2)';
+                            }
+                          }}
+                          onMouseLeave={e => {
+                            if (!isSelected) {
+                              e.currentTarget.style.borderColor = 'var(--border)';
+                              e.currentTarget.style.background = 'var(--surface-3)';
+                            }
+                          }}
+                        >
+                          {rate === 0 ? '0% Exempt' : `${rate}%`}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Custom Rate Input & GST Type */}
+                <div style={{ display: 'grid', gridTemplateColumns: '110px 1fr', gap: '10px', alignItems: 'end' }}>
+                  <div>
+                    <label
                       style={{
-                        flex: 1,
-                        padding: '3px 0',
-                        fontSize: '10.5px',
-                        borderRadius: '4px',
-                        background: customGstInput === String(r) ? '#1e3a5f' : '#f3f4f6',
-                        color: customGstInput === String(r) ? '#ffffff' : '#374151',
-                        border: 'none',
-                        cursor: 'pointer',
-                        fontWeight: 600
+                        fontSize: '11px',
+                        color: 'var(--text-faint)',
+                        fontWeight: 600,
+                        letterSpacing: '0.3px',
+                        display: 'block',
+                        marginBottom: '4px',
+                        textTransform: 'uppercase'
                       }}
                     >
-                      {r}%
-                    </button>
-                  ))}
+                      Custom Rate
+                    </label>
+                    <div style={{ position: 'relative' }}>
+                      <input
+                        type="number"
+                        min="0"
+                        max="28"
+                        step="0.5"
+                        style={{
+                          width: '100%',
+                          padding: '6px 22px 6px 8px',
+                          fontSize: '12.5px',
+                          fontWeight: 700,
+                          textAlign: 'right',
+                          background: 'var(--surface-3)',
+                          border: '1px solid var(--border)',
+                          borderRadius: '8px',
+                          color: 'var(--text)',
+                          outline: 'none',
+                          boxSizing: 'border-box'
+                        }}
+                        value={customGstInput}
+                        onChange={e => setCustomGstInput(e.target.value)}
+                        placeholder="Rate"
+                      />
+                      <span
+                        style={{
+                          position: 'absolute',
+                          right: '8px',
+                          top: '50%',
+                          transform: 'translateY(-50%)',
+                          fontSize: '12px',
+                          color: 'var(--text-faint)',
+                          fontWeight: 700
+                        }}
+                      >
+                        %
+                      </span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label
+                      style={{
+                        fontSize: '11px',
+                        color: 'var(--text-faint)',
+                        fontWeight: 600,
+                        letterSpacing: '0.3px',
+                        display: 'block',
+                        marginBottom: '4px',
+                        textTransform: 'uppercase'
+                      }}
+                    >
+                      Tax Split Type
+                    </label>
+                    <select
+                      style={{
+                        width: '100%',
+                        padding: '6px 8px',
+                        fontSize: '11.5px',
+                        fontWeight: 500,
+                        background: 'var(--surface-3)',
+                        border: '1px solid var(--border)',
+                        borderRadius: '8px',
+                        color: 'var(--text)',
+                        outline: 'none',
+                        boxSizing: 'border-box'
+                      }}
+                      value={customGstType}
+                      onChange={e => setCustomGstType(e.target.value as 'CGST_SGST' | 'IGST')}
+                    >
+                      <option value="CGST_SGST" style={{ background: 'var(--surface)', color: 'var(--text)' }}>CGST + SGST (50/50)</option>
+                      <option value="IGST" style={{ background: 'var(--surface)', color: 'var(--text)' }}>IGST (Inter-state Full)</option>
+                    </select>
+                  </div>
                 </div>
 
-                <div style={{ display: 'flex', gap: '6px' }}>
-                  <input
-                    type="number"
-                    value={customGstInput}
-                    onChange={e => setCustomGstInput(e.target.value)}
-                    style={{ width: '60px', padding: '3px 6px', fontSize: '11px', borderRadius: '4px', border: '1px solid #d1d5db' }}
-                  />
-                  <select
-                    value={customGstType}
-                    onChange={e => setCustomGstType(e.target.value as any)}
-                    style={{ flex: 1, padding: '3px 6px', fontSize: '10.5px', borderRadius: '4px', border: '1px solid #d1d5db' }}
-                  >
-                    <option value="CGST_SGST">CGST+SGST</option>
-                    <option value="IGST">IGST</option>
-                  </select>
-                </div>
-
-                <button
-                  type="button"
-                  disabled={isApplyingGst}
-                  onClick={handleApplyGst}
+                {/* Summary Box */}
+                <div
                   style={{
-                    padding: '5px',
-                    fontSize: '11px',
-                    fontWeight: 600,
-                    borderRadius: '4px',
-                    background: '#1e3a5f',
-                    color: '#ffffff',
-                    border: 'none',
-                    cursor: 'pointer'
+                    background: 'var(--surface-3)',
+                    padding: '9px 12px',
+                    borderRadius: '8px',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    border: '1px solid var(--border-soft)'
                   }}
                 >
-                  {isApplyingGst ? 'Applying...' : 'Apply GST'}
+                  <span style={{ fontSize: '11.5px', color: 'var(--text-dim)', fontWeight: 500 }}>
+                    Total GST Earned on Bills:
+                  </span>
+                  <span style={{ fontWeight: 800, fontSize: '13px', color: 'var(--warning)' }}>
+                    {formatINR(stats.totalGstEarned)}
+                  </span>
+                </div>
+
+                {/* Apply Button */}
+                <button
+                  type="button"
+                  className="btn-primary-action"
+                  onClick={async () => {
+                    await handleApplyGstToBills();
+                    setIsGstConfigOpen(false);
+                  }}
+                  disabled={isApplyingGst}
+                  style={{
+                    width: '100%',
+                    padding: '8px 16px',
+                    fontSize: '12.5px',
+                    fontWeight: 700,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px',
+                    borderRadius: '8px'
+                  }}
+                >
+                  <Zap size={14} /> {isApplyingGst ? 'Applying...' : `Apply ${customGstInput}% GST to Bills`}
                 </button>
               </div>
             )}
           </div>
-        </div>
 
-        {/* Client Departments List Header */}
-        <div style={{ fontSize: '11px', color: 'var(--text-faint, #6b7280)', fontWeight: 500, marginBottom: '8px' }}>
-          {clientDepartments.length} client departments
-        </div>
-
-        {/* Departments List (exact avatar, typography, due amount from screenshot) */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-          {clientDepartments.map(dept => {
-            const isSelected = selectedDept === dept.name;
-            const vehicleDesc =
-              dept.vehicles.length === 0
-                ? 'No vehicles'
-                : dept.vehicles.length === 1
-                ? `1 vehicle - ${dept.vehicles[0]}`
-                : `${dept.vehicles.length} vehicles`;
-
-            return (
-              <div
-                key={dept.name}
-                onClick={() => setSelectedDept(dept.name)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  padding: '7px 8px',
-                  borderRadius: '6px',
-                  cursor: 'pointer',
-                  background: isSelected ? 'var(--surface-3, #f1f5f9)' : 'transparent',
-                  transition: 'background 0.1s ease'
-                }}
-              >
-                {/* Left: Avatar & Text */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
-                  <div
-                    style={{
-                      width: '28px',
-                      height: '28px',
-                      borderRadius: '5px',
-                      background: isSelected ? '#1e3a5f' : 'var(--surface-3, #f3f4f6)',
-                      border: isSelected ? '1px solid #1e3a5f' : '1px solid var(--border, #e5e7eb)',
-                      color: isSelected ? '#ffffff' : 'var(--text-dim, #374151)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: '10.5px',
-                      fontWeight: 600,
-                      flexShrink: 0
-                    }}
-                  >
-                    {dept.initials}
-                  </div>
-
-                  <div style={{ minWidth: 0 }}>
-                    <div
-                      style={{
-                        fontSize: '12px',
-                        fontWeight: 600,
-                        color: 'var(--text, #111827)',
-                        whiteSpace: 'nowrap',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis'
-                      }}
-                      title={dept.name}
-                    >
-                      {dept.name}
-                    </div>
-                    <div
-                      style={{
-                        fontSize: '10px',
-                        color: 'var(--text-faint, #6b7280)',
-                        marginTop: '1px',
-                        whiteSpace: 'nowrap',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis'
-                      }}
-                    >
-                      {dept.invoiceCount === 0 ? 'No invoices yet' : vehicleDesc}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Right: Due Amount */}
-                <div style={{ textAlign: 'right', flexShrink: 0, paddingLeft: '6px' }}>
-                  <div
-                    style={{
-                      fontSize: '10.5px',
-                      fontWeight: 600,
-                      color: dept.totalDue > 0 ? '#c2410c' : 'var(--text-faint, #6b7280)'
-                    }}
-                  >
-                    {formatINR(dept.totalDue)}
-                  </div>
-                  <div style={{ fontSize: '9px', color: 'var(--text-faint, #9ca3af)', marginTop: '-1px' }}>
-                    due
-                  </div>
-                </div>
-              </div>
-            );
-          })}
+          <button
+            className="btn-primary-action"
+            style={{ fontSize: '12px', padding: '7px 16px' }}
+            onClick={() => setIsModalOpen(true)}
+          >
+            + Generate Monthly Bill
+          </button>
         </div>
       </div>
 
+      {/* VIEW 1: ACCORDING TO DEPARTMENT (GROUPED VIEW) */}
+      {viewMode === 'by-dept' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          {departmentGroups.length === 0 ? (
+            <div className="panel" style={{ textAlign: 'center', color: 'var(--text-faint)', padding: '40px 0' }}>
+              No department billing records found matching your filters.
+            </div>
+          ) : (
+            paginatedDeptGroups.map(group => {
+              const deptTab = deptRecordTabs[group.departmentName] || 'all';
+
+              return (
+                <div key={group.departmentName} className="dept-billing-card">
+                  {/* Department Header Card */}
+                  <div className="dept-billing-header">
+                    <div className="dept-billing-title-group">
+                      <div className="dept-billing-icon">
+                        <Building2 size={18} color="var(--accent)" />
+                      </div>
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                          <span style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text)' }}>
+                            {group.departmentName}
+                          </span>
+                          {group.weekendLogs.length > 0 && (
+                            <span
+                              style={{
+                                fontSize: '11px',
+                                padding: '2px 8px',
+                                borderRadius: '20px',
+                                background: 'rgba(128, 0, 32, 0.12)',
+                                border: '1px solid rgba(128, 0, 32, 0.3)',
+                                color: '#800020',
+                                fontWeight: 700,
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px'
+                              }}
+                            >
+                              <Briefcase size={11} color="#e11d48" /> {group.weekendLogs.length} Weekend Bookings ({formatINR(group.totalWeekendBilled)})
+                            </span>
+                          )}
+                        </div>
+                        <div style={{ fontSize: '11.5px', color: 'var(--text-dim)', marginTop: '2px' }}>
+                          {group.vehicles.length > 0 ? (
+                            <span>Vehicles: <b>{group.vehicles.join(', ')}</b></span>
+                          ) : null}
+                          {group.activeContractNo ? (
+                            <span> · Tender: <b>{group.activeContractNo}</b></span>
+                          ) : null}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="dept-billing-stats-strip">
+                      <div className="dept-stat-item">
+                        <span className="dept-stat-label">Total Invoiced</span>
+                        <span className="dept-stat-val" style={{ color: 'var(--accent)' }}>
+                          {formatINR(group.totalBilled)}
+                        </span>
+                        {group.totalWeekendBilled > 0 && (
+                          <span style={{ fontSize: '10px', color: 'var(--text-dim)' }}>
+                            (Tender: {formatINR(group.totalTenderBilled)} + Wknd: {formatINR(group.totalWeekendBilled)})
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="dept-stat-item">
+                        <span className="dept-stat-label">Received / Paid</span>
+                        <span className="dept-stat-val" style={{ color: 'var(--text)' }}>
+                          {formatINR(group.totalPaid)}
+                        </span>
+                      </div>
+
+                      <div className="dept-stat-item">
+                        <span className="dept-stat-label">Outstanding Due</span>
+                        <span
+                          className="dept-stat-val"
+                          style={{ color: group.totalPending > 0 ? 'var(--danger)' : 'var(--text-dim)' }}
+                        >
+                          {formatINR(group.totalPending)}
+                        </span>
+                      </div>
+
+                      <button
+                        className="btn-secondary"
+                        style={{ fontSize: '11px', padding: '6px 12px' }}
+                        onClick={() => setIsModalOpen(true)}
+                      >
+                        + Bill Dept
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Subtabs for this department when weekend bookings exist */}
+                  {group.weekendLogs.length > 0 && (
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '8px 16px',
+                        background: 'var(--surface-2)',
+                        borderBottom: '1px solid var(--border)',
+                        flexWrap: 'wrap',
+                        gap: '8px'
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <button
+                          type="button"
+                          className={`subtab-btn ${deptTab === 'all' ? 'active' : ''}`}
+                          onClick={() => setDeptRecordTabs(prev => ({ ...prev, [group.departmentName]: 'all' }))}
+                          style={{ padding: '4px 10px', fontSize: '11.5px' }}
+                        >
+                          All Records ({group.bills.length + group.weekendLogs.length})
+                        </button>
+                        <button
+                          type="button"
+                          className={`subtab-btn ${deptTab === 'tender' ? 'active' : ''}`}
+                          onClick={() => setDeptRecordTabs(prev => ({ ...prev, [group.departmentName]: 'tender' }))}
+                          style={{ padding: '4px 10px', fontSize: '11.5px' }}
+                        >
+                          Monthly Tender Invoices ({group.bills.length})
+                        </button>
+                        <button
+                          type="button"
+                          className={`subtab-btn ${deptTab === 'weekend' ? 'active' : ''}`}
+                          onClick={() => setDeptRecordTabs(prev => ({ ...prev, [group.departmentName]: 'weekend' }))}
+                          style={{
+                            padding: '4px 10px',
+                            fontSize: '11.5px',
+                            background: deptTab === 'weekend' ? '#800020' : 'rgba(128, 0, 32, 0.08)',
+                            color: deptTab === 'weekend' ? '#ffffff' : '#800020',
+                            borderColor: 'rgba(128, 0, 32, 0.35)',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            fontWeight: 600
+                          }}
+                        >
+                          <Briefcase size={12} color={deptTab === 'weekend' ? '#ffffff' : '#e11d48'} />
+                          Sat/Sun Weekend Logs & Memos ({group.weekendLogs.length})
+                        </button>
+                      </div>
+
+                      <span style={{ fontSize: '11px', color: 'var(--text-dim)' }}>
+                        {group.bills.length} Tender Monthly Bills · {group.weekendLogs.length} Weekend Bookings
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Section A: Monthly Tender Invoices Table */}
+                  {(deptTab === 'all' || deptTab === 'tender') && (
+                    <div>
+                      {deptTab === 'all' && group.weekendLogs.length > 0 && (
+                        <div
+                          style={{
+                            padding: '8px 16px',
+                            background: 'var(--surface-1)',
+                            borderBottom: '1px solid var(--border)',
+                            fontSize: '12px',
+                            fontWeight: 700,
+                            color: 'var(--text)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px'
+                          }}
+                        >
+                          <FileText size={13} color="var(--accent)" />
+                          Monthly Tender Contract Invoices ({group.bills.length})
+                        </div>
+                      )}
+
+                      <div className="table-responsive">
+                        <table>
+                          <thead>
+                            <tr>
+                              <th>Invoice No & Month</th>
+                              <th>Vehicle</th>
+                              <th>Base Rent</th>
+                              <th>Fuel</th>
+                              <th>Night + Extra</th>
+                              <th>Total bill</th>
+                              <th>Status</th>
+                              <th>Due date</th>
+                              <th>Action</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {group.bills.length === 0 ? (
+                              <tr>
+                                <td colSpan={9} style={{ textAlign: 'center', color: 'var(--text-faint)', padding: '20px 0' }}>
+                                  No monthly invoices generated yet for this department.
+                                </td>
+                              </tr>
+                            ) : (
+                              group.bills.map(b => (
+                                <tr key={b.id}>
+                                  <td>
+                                    <div>
+                                      <div style={{ fontWeight: 600, color: 'var(--text)' }}>{b.billNumber}</div>
+                                      <div style={{ fontSize: '11px', color: 'var(--text-faint)', marginTop: '2px' }}>
+                                        Month: {b.billingMonth}
+                                      </div>
+                                    </div>
+                                  </td>
+                                  <td style={{ fontWeight: 500 }}>{b.vehicle}</td>
+                                  <td className="num">{formatINR(b.baseContractAmount)}</td>
+                                  <td className="num" style={{ color: '#f97316' }}>
+                                    {formatINR(b.fuelCost || 0)}
+                                    {(b.fuelLitresUsed || 0) > 0 && (
+                                      <div style={{ fontSize: '10px', color: 'var(--text-faint)', fontWeight: 400 }}>
+                                        {b.fuelLitresUsed?.toFixed(0)}L
+                                      </div>
+                                    )}
+                                  </td>
+                                  <td className="num" style={{ color: 'var(--warning)' }}>
+                                    {formatINR((b.nightCost || 0) + b.extraKmCost + b.extraHoursCost + b.tollParkingCost)}
+                                  </td>
+                                  <td className="num" style={{ fontWeight: 700, color: 'var(--accent)' }}>
+                                    {formatINR(b.totalBill)}
+                                    {b.gstRate !== undefined && b.gstRate > 0 && (
+                                      <div style={{ fontSize: '10.5px', color: 'var(--text-dim)', fontWeight: 400 }}>
+                                        {b.gstRate}% {b.gstType === 'IGST' ? 'IGST' : 'CGST+SGST'} ({formatINR(b.gstAmount || 0)})
+                                      </div>
+                                    )}
+                                  </td>
+                                  <td>{renderStatusDropdown(b.status, b.id)}</td>
+                                  <td style={{ fontSize: '12px', color: 'var(--text-dim)' }}>{b.dueDate}</td>
+                                  <td>
+                                    <span
+                                      className="bill-link"
+                                      style={{ fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}
+                                      onClick={() => setSelectedBillForPreview(b)}
+                                    >
+                                      <Printer size={12} /> Print Bill
+                                    </span>
+                                  </td>
+                                </tr>
+                              ))
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Section B: Weekend / Sat-Sun Off-Duty Bookings & Cash Memos Table */}
+                  {((deptTab === 'all' && group.weekendLogs.length > 0) || deptTab === 'weekend') && (
+                    <div style={{ marginTop: deptTab === 'all' ? '8px' : '0', borderTop: deptTab === 'all' ? '2px dashed rgba(128, 0, 32, 0.25)' : 'none' }}>
+                      <div
+                        style={{
+                          padding: '10px 16px',
+                          background: 'linear-gradient(90deg, rgba(128, 0, 32, 0.08), transparent)',
+                          borderBottom: '1px solid var(--border)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          flexWrap: 'wrap',
+                          gap: '8px'
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12.5px', fontWeight: 700, color: '#800020' }}>
+                          <Briefcase size={14} color="#e11d48" /> Sat/Sun Off-Duty Duty Slips & Cash Memos ({group.weekendLogs.length} entries · {formatINR(group.totalWeekendBilled)})
+                        </div>
+                        <span style={{ fontSize: '11px', color: 'var(--text-faint)' }}>
+                          Fixed pkg 80km + extra km @ rate + toll (Department Sat/Sun Cash Memo)
+                        </span>
+                      </div>
+
+                      <div className="table-responsive">
+                        <table>
+                          <thead>
+                            <tr>
+                              <th>Slip No & Date</th>
+                              <th>Duty Type & Dept</th>
+                              <th>Vehicle & Driver</th>
+                              <th>Odometer (Start → End)</th>
+                              <th>Total KM & Route</th>
+                              <th>Financials & Expenses</th>
+                              <th>Timings & Hours</th>
+                              <th>Officer / Private Client</th>
+                              <th>Status</th>
+                              <th>Receipts / Slips</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {group.weekendLogs.length === 0 ? (
+                              <tr>
+                                <td colSpan={10} style={{ textAlign: 'center', color: 'var(--text-faint)', padding: '20px 0' }}>
+                                  No weekend off-duty bookings logged for this department.
+                                </td>
+                              </tr>
+                            ) : (
+                              group.weekendLogs.map(log => {
+                                const fare = (log.totalFare && log.totalFare > 0) ? log.totalFare : (log.tripFare || 0);
+
+                                return (
+                                  <tr
+                                    key={log.id}
+                                    style={{
+                                      background: 'rgba(56, 189, 248, 0.02)'
+                                    }}
+                                  >
+                                    {/* Slip No & Date */}
+                                    <td>
+                                      <div>
+                                        <div style={{ fontWeight: 700, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                          <span>{log.dutySlipNumber}</span>
+                                          <span
+                                            style={{
+                                              fontSize: '10px',
+                                              background: 'rgba(56, 189, 248, 0.1)',
+                                              color: '#38bdf8',
+                                              padding: '1px 5px',
+                                              borderRadius: '4px',
+                                              fontWeight: 600
+                                            }}
+                                          >
+                                            Pg {log.logBookPageNo || '122'}
+                                          </span>
+                                        </div>
+                                        <div style={{ fontSize: '11px', color: 'var(--text-faint)', marginTop: '2px' }}>
+                                          {log.date}
+                                        </div>
+                                      </div>
+                                    </td>
+
+                                    {/* Duty Type & Dept */}
+                                    <td>
+                                      <div>
+                                        <span className="tag trip" style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                                          <Briefcase size={10} /> Sat/Sun Booking
+                                        </span>
+                                        <div style={{ fontSize: '11.5px', fontWeight: 500, marginTop: '3px' }}>
+                                          {log.departmentName}
+                                        </div>
+                                      </div>
+                                    </td>
+
+                                    {/* Vehicle & Driver */}
+                                    <td>
+                                      <div style={{ fontWeight: 600 }}>{log.vehicle}</div>
+                                      <div style={{ fontSize: '11px', color: 'var(--text-faint)', marginTop: '1px' }}>
+                                        {log.driverName}
+                                      </div>
+                                    </td>
+
+                                    {/* Odometer */}
+                                    <td style={{ fontFamily: 'monospace', fontSize: '12px' }}>
+                                      {log.startKm} → {log.endKm}
+                                    </td>
+
+                                    {/* Total KM & Route */}
+                                    <td>
+                                      <div style={{ fontWeight: 700, color: '#38bdf8' }}>
+                                        {log.totalKm} km
+                                      </div>
+                                      <div style={{ fontSize: '10.5px', color: 'var(--text-dim)', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                                        <MapPin size={10} /> {log.journeyFrom && log.journeyTo ? `${log.journeyFrom} → ${log.journeyTo}` : (log.tripDestination || 'Outstation Run')}
+                                      </div>
+                                    </td>
+
+                                    {/* Financials & Expenses */}
+                                    <td>
+                                      <div>
+                                        <div style={{ fontSize: '12.5px', fontWeight: 800, color: 'var(--success)' }}>
+                                          {formatINR(fare)} Total
+                                        </div>
+                                        {log.packageBasePrice ? (
+                                          <div style={{ fontSize: '10.5px', color: 'var(--text-dim)', marginTop: '2px' }}>
+                                            Pkg: ₹{log.packageBasePrice} ({log.packageFreeKm || 80}km free)
+                                            {log.extraKmCost ? ` + Ext: ₹${log.extraKmCost}` : ''}
+                                          </div>
+                                        ) : (
+                                          <div style={{ fontSize: '10.5px', color: 'var(--text-faint)', marginTop: '2px' }}>
+                                            Net Profit: {formatINR(log.tripNetProfit || 0)}
+                                          </div>
+                                        )}
+                                        {log.tollParkingAmount > 0 && (
+                                          <div style={{ fontSize: '10px', color: '#ffcc4d' }}>
+                                            + Toll: ₹{log.tollParkingAmount}
+                                          </div>
+                                        )}
+                                        <div style={{ fontSize: '9.5px', color: '#800020', fontWeight: 700, marginTop: '2px' }}>
+                                          Sat/Sun Memo Bill
+                                        </div>
+                                      </div>
+                                    </td>
+
+                                    {/* Timings & Hours */}
+                                    <td>
+                                      <div style={{ fontSize: '12px', color: 'var(--text)' }}>
+                                        {log.totalHours} hrs
+                                      </div>
+                                      <div style={{ fontSize: '10.5px', color: 'var(--text-faint)' }}>
+                                        {log.startTime} - {log.endTime}
+                                      </div>
+                                    </td>
+
+                                    {/* Officer / Private Client */}
+                                    <td>
+                                      <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text)' }}>
+                                        {log.officerName || 'Private Client'}
+                                      </div>
+                                      {log.officerDesignation && (
+                                        <div style={{ fontSize: '10.5px', color: 'var(--text-faint)' }}>
+                                          {log.officerDesignation}
+                                        </div>
+                                      )}
+                                      {log.purposeOfJourney && (
+                                        <div style={{ fontSize: '10.5px', color: 'var(--accent)', marginTop: '2px' }}>
+                                          {log.purposeOfJourney}
+                                        </div>
+                                      )}
+                                    </td>
+
+                                    {/* Status Dropdown */}
+                                    <td>
+                                      {renderDutyLogStatusDropdown(log.status, log.id)}
+                                    </td>
+
+                                    {/* Receipts / Slips */}
+                                    <td>
+                                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                        <button
+                                          className="btn-secondary"
+                                          style={{
+                                            fontSize: '11px',
+                                            padding: '4px 8px',
+                                            background: 'rgba(128, 0, 32, 0.08)',
+                                            borderColor: 'rgba(128, 0, 32, 0.3)',
+                                            color: '#800020',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '4px',
+                                            fontWeight: 600
+                                          }}
+                                          onClick={() => setSelectedWeekendLogForBill(log)}
+                                        >
+                                          <FileText size={11} color="#e11d48" /> Print Sat-Sun Bill
+                                        </button>
+                                        {log.billingStatus !== 'Billed' ? (
+                                          <button
+                                            className="btn-primary-action"
+                                            style={{
+                                              fontSize: '10px',
+                                              padding: '3px 6px',
+                                              display: 'flex',
+                                              alignItems: 'center',
+                                              gap: '3px'
+                                            }}
+                                            onClick={() => handleGenerateCashMemoBill(log)}
+                                          >
+                                            + Issue Cash Memo
+                                          </button>
+                                        ) : (
+                                          <span style={{ fontSize: '10px', color: 'var(--success)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '3px' }}>
+                                            ✓ Memo {log.weekendBillNumber || 'Issued'}
+                                          </span>
+                                        )}
+                                      </div>
+                                    </td>
+                                  </tr>
+                                );
+                              })
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })
+          )}
+
+          <Pagination
+            currentPage={deptPage}
+            totalItems={totalDeptGroups}
+            pageSize={deptPageSize}
+            onPageChange={setDeptPage}
+            onPageSizeChange={setDeptPageSize}
+            itemLabel="departments"
+          />
+        </div>
+      )}
+
+      {/* VIEW 2: ALL INVOICES FLAT TABLE VIEW */}
+      {viewMode === 'flat' && (
+        <div className="panel">
+          <div className="panel-head">
+            <span className="panel-title">Master Billing Register</span>
+            <span style={{ fontSize: '12px', color: 'var(--text-faint)' }}>
+              ({filteredBills.length} invoices)
+            </span>
+          </div>
+
+          <div className="table-responsive">
+            <table>
+              <thead>
+                <tr>
+                  <th>Invoice No & Month</th>
+                  <th>Department</th>
+                  <th>Vehicle</th>
+                  <th>Base Rent</th>
+                  <th>Fuel</th>
+                  <th>Night + Extra + Toll</th>
+                  <th>Total bill</th>
+                  <th>Status</th>
+                  <th>Due date</th>
+                  <th>Invoice</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredBills.length === 0 ? (
+                  <tr>
+                    <td colSpan={10} style={{ textAlign: 'center', color: 'var(--text-faint)', padding: '30px 0' }}>
+                      No department monthly invoices found matching your filters.
+                    </td>
+                  </tr>
+                ) : (
+                  paginatedFlatBills.map(b => (
+                    <tr key={b.id}>
+                      <td>
+                        <div>
+                          <div style={{ fontWeight: 600, color: 'var(--text)' }}>{b.billNumber}</div>
+                          <div style={{ fontSize: '11px', color: 'var(--text-faint)', marginTop: '2px' }}>
+                            Month: {b.billingMonth}
+                          </div>
+                        </div>
+                      </td>
+                      <td style={{ fontWeight: 500 }}>{b.departmentName}</td>
+                      <td style={{ fontWeight: 500 }}>{b.vehicle}</td>
+                      <td className="num">{formatINR(b.baseContractAmount)}</td>
+                      <td className="num" style={{ color: '#f97316' }}>
+                        {formatINR(b.fuelCost || 0)}
+                        {(b.fuelLitresUsed || 0) > 0 && (
+                          <div style={{ fontSize: '10px', color: 'var(--text-faint)', fontWeight: 400 }}>
+                            {b.fuelLitresUsed?.toFixed(0)}L
+                          </div>
+                        )}
+                      </td>
+                      <td className="num" style={{ color: 'var(--warning)' }}>
+                        {formatINR((b.nightCost || 0) + b.extraKmCost + b.extraHoursCost + b.tollParkingCost)}
+                      </td>
+                      <td className="num" style={{ fontWeight: 700, color: 'var(--accent)' }}>
+                        {formatINR(b.totalBill)}
+                        {b.gstRate !== undefined && b.gstRate > 0 && (
+                          <div style={{ fontSize: '10.5px', color: 'var(--text-dim)', fontWeight: 400 }}>
+                            {b.gstRate}% {b.gstType === 'IGST' ? 'IGST' : 'CGST+SGST'} ({formatINR(b.gstAmount || 0)})
+                          </div>
+                        )}
+                      </td>
+                      <td>{renderStatusDropdown(b.status, b.id)}</td>
+                      <td style={{ fontSize: '12px', color: 'var(--text-dim)' }}>{b.dueDate}</td>
+                      <td>
+                        <span
+                          className="bill-link"
+                          style={{ fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}
+                          onClick={() => setSelectedBillForPreview(b)}
+                        >
+                          <Printer size={12} /> Print Bill
+                        </span>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          <Pagination
+            currentPage={flatPage}
+            totalItems={totalFlatBills}
+            pageSize={flatPageSize}
+            onPageChange={setFlatPage}
+            onPageSizeChange={setFlatPageSize}
+            itemLabel="invoices"
+          />
+        </div>
+      )}
+
+      {/* VIEW 3: CASH MEMO / INVOICE DOCUMENT VIEW */}
+      {viewMode === 'invoice' && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(280px, 340px) 1fr', gap: '16px', alignItems: 'start' }}>
+          {/* Left Invoices Sidebar */}
+          <div className="panel" style={{ padding: '14px', maxHeight: '85vh', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+              <span className="panel-title" style={{ fontSize: '13px' }}>Select Invoice</span>
+              <span style={{ fontSize: '11.5px', color: 'var(--text-faint)' }}>{filteredBills.length} found</span>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {filteredBills.length === 0 ? (
+                <div style={{ textAlign: 'center', color: 'var(--text-faint)', padding: '20px 0', fontSize: '12px' }}>
+                  No invoices match filters.
+                </div>
+              ) : (
+                filteredBills.map(b => {
+                  const currentSelected = activeInvoiceBill || filteredBills[0];
+                  const isSelected = currentSelected?.id === b.id;
+                  return (
+                    <div
+                      key={b.id}
+                      onClick={() => setActiveInvoiceBill(b)}
+                      style={{
+                        padding: '10px 12px',
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                        border: isSelected ? '1.5px solid var(--accent)' : '1px solid var(--border)',
+                        background: isSelected ? 'var(--surface-3)' : 'var(--surface-1)',
+                        transition: 'all 0.2s ease'
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontWeight: 700, fontSize: '13px', color: isSelected ? 'var(--accent)' : 'var(--text)' }}>
+                          {b.billNumber}
+                        </span>
+                        <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text)' }}>
+                          {formatINR(b.totalBill)}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: '12px', color: 'var(--text)', marginTop: '2px', fontWeight: 500 }}>
+                        {b.departmentName}
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--text-faint)', marginTop: '4px' }}>
+                        <span>Taxi: <strong>{b.vehicle}</strong></span>
+                        <span>{b.billingMonth}</span>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+
+          {/* Right Cash Memo View */}
+          <div>
+            {(activeInvoiceBill || filteredBills[0]) ? (
+              <div>
+                <div
+                  className="panel"
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    padding: '12px 18px',
+                    marginBottom: '14px'
+                  }}
+                >
+                  <div>
+                    <span style={{ fontWeight: 700, fontSize: '14px', color: 'var(--text)' }}>
+                      {(activeInvoiceBill || filteredBills[0]).billNumber}
+                    </span>
+                    <span style={{ fontSize: '12px', color: 'var(--text-faint)', marginLeft: '8px' }}>
+                      • {(activeInvoiceBill || filteredBills[0]).departmentName}
+                    </span>
+                  </div>
+                  <button
+                    className="btn-primary-action"
+                    style={{ padding: '7px 16px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}
+                    onClick={() => setSelectedBillForPreview(activeInvoiceBill || filteredBills[0])}
+                  >
+                    <Printer size={14} /> Print / Save as PDF
+                  </button>
+                </div>
+
+                <div
+                  style={{
+                    background: '#e2e8f0',
+                    padding: '24px 16px',
+                    borderRadius: '10px',
+                    display: 'flex',
+                    justifyContent: 'center',
+                    overflow: 'auto'
+                  }}
+                >
+                  <CashMemoBillView bill={activeInvoiceBill || filteredBills[0]} />
+                </div>
+              </div>
+            ) : (
+              <div className="panel" style={{ padding: '40px', textAlign: 'center', color: 'var(--text-faint)' }}>
+                No invoice selected.
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Generate Bill Modal */}
       <GenerateBillModal
-        isOpen={isGenerateModalOpen}
-        onClose={() => setIsGenerateModalOpen(false)}
-        defaultGstRate={activeGstRate}
-        defaultGstType={activeGstType}
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        defaultGstRate={Number(customGstInput) || 5}
+        defaultGstType={customGstType}
       />
 
-      {/* Bill Print Modal */}
-      {billToPrint && (
+      {/* Printable Cash Memo / Invoice Modal */}
+      {selectedBillForPreview && (
         <BillPrintModal
-          bill={billToPrint}
-          onClose={() => setBillToPrint(null)}
+          bill={selectedBillForPreview}
+          onClose={() => setSelectedBillForPreview(null)}
+        />
+      )}
+
+      {/* Weekend Trip Sat/Sun Cash Memo Bill Modal */}
+      {selectedWeekendLogForBill && (
+        <WeekendTripBillModal
+          log={selectedWeekendLogForBill}
+          onClose={() => setSelectedWeekendLogForBill(null)}
+        />
+      )}
+
+      {selectedWeekendBillForPreview && (
+        <WeekendTripBillModal
+          bill={selectedWeekendBillForPreview}
+          onClose={() => setSelectedWeekendBillForPreview(null)}
         />
       )}
     </div>

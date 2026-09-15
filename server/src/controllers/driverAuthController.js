@@ -44,7 +44,8 @@ async function upsertOpenDutyLog({ driver, vehicle, odoNumber, istTime, todayDat
   const agencyId = driver.agencyId || vehicle?.agencyId || null;
   const driverId = driver._id.toString();
   const openQuery = {
-    driverId,
+    driverName: driver.name || 'Driver',
+    vehicle: vehicleReg,
     date: todayDate,
     dutyType: 'Official Department Duty',
     status: 'Pending'
@@ -297,6 +298,41 @@ export const startDriverDuty = asyncHandler(async (req, res) => {
   }
   await Vehicle.findByIdAndUpdate(vehicle._id, vehicleUpdateFields);
 
+  // Auto-record / update attendance for today as Present with check-in location
+  let attendanceDoc = null;
+  try {
+    const attendanceSetFields = {
+      status: 'Present',
+      checkIn: istTime,
+      checkOut: '—',
+      workingHours: 0,
+      assignedVehicle: vehicle.registrationNumber
+    };
+    if (locationAddress) {
+      attendanceSetFields.location = locationAddress;
+    }
+    if (latitude && longitude) {
+      attendanceSetFields.coordinates = { latitude, longitude };
+    }
+
+    attendanceDoc = await DriverAttendance.findOneAndUpdate(
+      { driverId: driver._id.toString(), date: todayDate },
+      {
+        $setOnInsert: {
+          driverId: driver._id.toString(),
+          driverName: driver.name,
+          date: todayDate,
+          dutyType: 'Department Duty',
+          ...(driver.agencyId ? { agencyId: driver.agencyId } : {})
+        },
+        $set: attendanceSetFields
+      },
+      { upsert: true, new: true }
+    );
+  } catch (attErr) {
+    console.warn('Could not auto-log attendance on start duty:', attErr.message);
+  }
+
   let dutyLogDoc = null;
   let dutyLogCreated = false;
   try {
@@ -473,7 +509,8 @@ export const endDriverDuty = asyncHandler(async (req, res) => {
     const agencyId = driver.agencyId || vehicle?.agencyId || null;
     const driverId = driver._id.toString();
     const openLogQuery = {
-      driverId,
+      driverName: driver.name || 'Driver',
+      vehicle: vehicleReg,
       date: todayDate,
       dutyType: 'Official Department Duty',
       status: 'Pending'

@@ -861,10 +861,12 @@ export const DriverExpensesView: React.FC = () => {
       {timeFrame === 'monthly' && (
         <>
           <div className="stats-grid stats-grid--lean">
-            <StatCard label="Monthly total" value={formatINR(monthlyStats.total)} customColor="var(--accent)" />
-            <StatCard label="Paid out" value={formatINR(monthlyStats.paid)} />
-            <StatCard label="Due" value={formatINR(monthlyStats.pending + monthlyStats.approved)} />
-            <StatCard label="Claims" value={`${monthlyStats.count}`} />
+            <StatCard label={`Monthly total${monthlyStats.labelSuffix}`} value={formatINR(monthlyStats.total)} customColor="var(--accent)" />
+            <StatCard label={`Paid out${monthlyStats.labelSuffix}`} value={formatINR(monthlyStats.paid)} />
+            <StatCard label={`Due${monthlyStats.labelSuffix}`} value={formatINR(monthlyStats.pending + monthlyStats.approved)} />
+            <StatCard label={`Food & daily bata${monthlyStats.labelSuffix}`} value={formatINR(monthlyStats.bata)} />
+            <StatCard label={`Night halt & OT${monthlyStats.labelSuffix}`} value={formatINR(monthlyStats.nightHaltAndOT)} />
+            <StatCard label={`Claims${monthlyStats.labelSuffix}`} value={`${monthlyStats.count}`} />
           </div>
 
           <div className="panel panel--table">

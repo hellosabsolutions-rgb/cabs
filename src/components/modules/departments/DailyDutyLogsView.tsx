@@ -51,10 +51,17 @@ export const DailyDutyLogsView: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<string>('All');
 
   useEffect(() => {
-    if (dailyDutyLogs.length === 0) {
-      void fetchLiveDailyDutyLogs();
-    }
-  }, []);
+    void fetchLiveDailyDutyLogs({
+      driverName: driverFilter !== 'All' ? driverFilter : undefined,
+      date: dateFilter || undefined,
+      month: monthFilter !== 'All' && !dateFilter ? monthFilter : undefined,
+      vehicle: vehicleFilter !== 'All' ? vehicleFilter : undefined,
+      department: deptFilter !== 'All' ? deptFilter : undefined,
+      status: statusFilter !== 'All' ? statusFilter : undefined,
+      search: searchQuery || undefined
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [driverFilter, dateFilter, monthFilter, vehicleFilter, deptFilter, statusFilter, searchQuery]);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalDefaultDutyType, setModalDefaultDutyType] = useState<
@@ -66,11 +73,31 @@ export const DailyDutyLogsView: React.FC = () => {
   const [printModalSingleLog, setPrintModalSingleLog] = useState<DailyDutyLog | null>(null);
   const [selectedWeekendLogForPrint, setSelectedWeekendLogForPrint] = useState<DailyDutyLog | null>(null);
 
+  // Unique lists for filtering
+  const departments = useMemo(() => {
+    return Array.from(new Set(dailyDutyLogs.map(l => l.departmentName))).filter(Boolean);
+  }, [dailyDutyLogs]);
+
+  const vehicles = useMemo(() => {
+    return Array.from(new Set(dailyDutyLogs.map(l => l.vehicle))).filter(Boolean);
+  }, [dailyDutyLogs]);
+
   const driverNames = useMemo(() => {
     const fromLogs = dailyDutyLogs.map(l => l.driverName).filter(Boolean);
     const fromFleet = drivers.map(d => d.name).filter(Boolean);
     return Array.from(new Set([...fromFleet, ...fromLogs])).sort((a, b) => a.localeCompare(b));
   }, [dailyDutyLogs, drivers]);
+
+  const months = useMemo(() => {
+    const values = new Set<string>();
+    dailyDutyLogs.forEach(l => {
+      if (l.month) values.add(l.month);
+      if (l.date && l.date.length >= 7) {
+        values.add(l.date.slice(0, 7));
+      }
+    });
+    return Array.from(values).sort().reverse();
+  }, [dailyDutyLogs]);
 
   const filteredLogs = useMemo(() => {
     return dailyDutyLogs.filter(log => {
@@ -260,32 +287,86 @@ export const DailyDutyLogsView: React.FC = () => {
         <StatCard label="Weekend profit" value={`₹${stats.weekendTripProfit.toLocaleString('en-IN')}`} customColor="var(--success)" />
       </div>
 
-      <div className="panel panel--table">
-        <div className="module-filter-bar">
-          <div className="module-filter-bar__group">
-            <div className="filter-pills">
+      {/* Main Panel */}
+      <div className="panel">
+        <div className="panel-head" style={{ flexWrap: 'wrap', gap: '10px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span className="panel-title">
+              {viewMode === 'logbook'
+                ? 'Official Vehicle Log Book Register'
+                : 'Daily Duty Slips & Weekend Booking Logs'}
+            </span>
+            <span style={{ fontSize: '12px', color: 'var(--text-faint)' }}>
+              ({filteredLogs.length} entries)
+            </span>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+            {/* Duty Category Filter: All, Official, Weekend */}
+            <button
+              className={`subtab-btn ${dutyCategoryFilter === 'All' ? 'active' : ''}`}
+              onClick={() => setDutyCategoryFilter('All')}
+              style={{ padding: '5px 10px', fontSize: '12px' }}
+            >
+              All Logs
+            </button>
+            <button
+              className={`subtab-btn ${dutyCategoryFilter === 'Official' ? 'active' : ''}`}
+              onClick={() => setDutyCategoryFilter('Official')}
+              style={{ padding: '5px 10px', fontSize: '12px' }}
+            >
+              <Building2 size={13} /> Official (Mon-Fri)
+            </button>
+            <button
+              className={`subtab-btn ${dutyCategoryFilter === 'Weekend' ? 'active' : ''}`}
+              onClick={() => setDutyCategoryFilter('Weekend')}
+              style={{
+                padding: '5px 10px',
+                fontSize: '12px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                color: dutyCategoryFilter === 'Weekend' ? '#38bdf8' : undefined
+              }}
+            >
+              <Briefcase size={13} /> Sat/Sun Bookings ({stats.weekendTripsCount})
+            </button>
+
+            {/* Driver Filter */}
+            <select
+              className="form-input"
+              style={{ width: 'auto', padding: '5px 10px', fontSize: '12px', maxWidth: '180px' }}
+              value={driverFilter}
+              onChange={e => setDriverFilter(e.target.value)}
+              title="Filter by Driver"
+            >
+              <option value="All">All Drivers</option>
+              {driverNames.map(name => (
+                <option key={name} value={name}>
+                  {name}
+                </option>
+              ))}
+            </select>
+
+            {/* Date Filter */}
+            <input
+              type="date"
+              className="form-input"
+              style={{ width: 'auto', padding: '5px 10px', fontSize: '12px' }}
+              value={dateFilter}
+              onChange={e => setDateFilter(e.target.value)}
+              title="Filter by duty date"
+            />
+            {dateFilter ? (
               <button
                 type="button"
-                className={`filter-pill ${dutyCategoryFilter === 'All' ? 'active' : ''}`}
-                onClick={() => setDutyCategoryFilter('All')}
+                className="btn-secondary"
+                style={{ fontSize: '11px', padding: '5px 10px' }}
+                onClick={() => setDateFilter('')}
               >
-                All
+                Clear date
               </button>
-              <button
-                type="button"
-                className={`filter-pill ${dutyCategoryFilter === 'Official' ? 'active' : ''}`}
-                onClick={() => setDutyCategoryFilter('Official')}
-              >
-                Official
-              </button>
-              <button
-                type="button"
-                className={`filter-pill ${dutyCategoryFilter === 'Weekend' ? 'active' : ''}`}
-                onClick={() => setDutyCategoryFilter('Weekend')}
-              >
-                Weekend
-              </button>
-            </div>
+            ) : null}
 
             <select
               className={`form-input filter-select ${driverFilter !== 'All' ? 'filter-select--active' : ''}`}
@@ -299,13 +380,38 @@ export const DailyDutyLogsView: React.FC = () => {
               ))}
             </select>
 
-            <input
-              type="date"
-              className={`form-input filter-select ${dateFilter ? 'filter-select--active' : ''}`}
-              value={dateFilter}
-              onChange={e => setDateFilter(e.target.value)}
-              title="Filter by date"
-            />
+            {/* Month Filter */}
+            <select
+              className="form-input"
+              style={{ width: 'auto', padding: '5px 10px', fontSize: '12px' }}
+              value={monthFilter}
+              onChange={e => setMonthFilter(e.target.value)}
+              title="Filter by Month"
+            >
+              <option value="All">All Months</option>
+              {months.map(m => (
+                <option key={m} value={m}>
+                  {/^\d{4}-\d{2}$/.test(m)
+                    ? new Date(`${m}-01`).toLocaleString('en-IN', { month: 'long', year: 'numeric' })
+                    : m}
+                </option>
+              ))}
+            </select>
+
+            {/* Department Filter */}
+            <select
+              className="form-input"
+              style={{ width: 'auto', padding: '5px 10px', fontSize: '12px' }}
+              value={deptFilter}
+              onChange={e => setDeptFilter(e.target.value)}
+            >
+              <option value="All">All Departments</option>
+              {departments.map(d => (
+                <option key={d} value={d}>
+                  {d}
+                </option>
+              ))}
+            </select>
 
             {hasActiveFilters ? (
               <button type="button" className="btn-secondary" onClick={clearFilters}>

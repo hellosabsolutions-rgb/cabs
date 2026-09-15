@@ -135,16 +135,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/agencies', agencyRoutes);
 app.use('/api/sos', sosRoutes);
 
-// Mixed auth routes (dashboard user OR driver app)
-// IMPORTANT: register BEFORE tenantApi — tenantApi runs protect on all /api/* and blocks driver JWTs
-app.use('/api/upload', uploadRoutes);
-app.use('/api/driver-expenses', driverExpenseRoutes);
-app.use('/api/fuel-logs', fuelLogRoutes);
-app.use('/api/trip-expenses', tripExpenseRoutes);
-app.use('/api/bookings', bookingRoutes);
-app.use('/api/trips', bookingRoutes);
-
-// Tenant-scoped fleet routes (require dashboard login + active agency)
+// Tenant-scoped fleet routes (require login + active agency)
 const tenantApi = express.Router();
 tenantApi.use(protect);
 tenantApi.use(resolveAgency);
@@ -171,6 +162,16 @@ tenantApi.use('/activities', activityRoutes);
 tenantApi.use('/revenue', revenueRoutes);
 
 app.use('/api', tenantApi);
+
+// Mixed auth routes (dashboard user OR driver app)
+app.use('/api/upload', uploadRoutes);
+app.use('/api/driver-expenses', driverExpenseRoutes);
+app.use('/api/fuel-logs', fuelLogRoutes);
+app.use('/api/trip-expenses', tripExpenseRoutes);
+
+// Bookings: driver /my route + admin routes with own middleware chain
+app.use('/api/bookings', bookingRoutes);
+app.use('/api/trips', bookingRoutes);
 
 // Root route
 app.get('/', (req, res) => {
