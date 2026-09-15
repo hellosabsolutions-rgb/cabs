@@ -20,6 +20,7 @@ STAMP="$(date +%Y%m%d-%H%M%S)"
 HOSTS=(
   "api.kabpro.pro"
   "admin.kabpro.pro"
+  "superadmin.kabpro.pro"
   "www.kabpro.pro"
   "kabpro.pro"
 )

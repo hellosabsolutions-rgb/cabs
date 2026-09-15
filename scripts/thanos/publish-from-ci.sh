@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Publish KABPRO admin + server from GitHub Actions (self-hosted runner on THANOS).
+# Publish KABPRO admin + superadmin + server from GitHub Actions (self-hosted runner on THANOS).
 set -euo pipefail
 
 REPO_ROOT="${REPO_ROOT:-/srv/apps/cabs}"
@@ -7,12 +7,18 @@ WORKSPACE="${GITHUB_WORKSPACE:-$(pwd)}"
 
 echo "==> Publishing KABPRO to ${REPO_ROOT}"
 
-mkdir -p "${REPO_ROOT}/admin" "${REPO_ROOT}/server" "${REPO_ROOT}/scripts/thanos"
+mkdir -p "${REPO_ROOT}/admin" "${REPO_ROOT}/superadmin" "${REPO_ROOT}/server" "${REPO_ROOT}/scripts/thanos"
 
 # ── Admin SPA ────────────────────────────────────────────────────────────────
 if [[ -d "${WORKSPACE}/admin/dist" ]]; then
   echo "==> Admin dist"
   rsync -a --delete "${WORKSPACE}/admin/dist/" "${REPO_ROOT}/admin/dist/"
+fi
+
+# ── Superadmin SPA ───────────────────────────────────────────────────────────
+if [[ -d "${WORKSPACE}/superadmin/dist" ]]; then
+  echo "==> Superadmin dist"
+  rsync -a --delete "${WORKSPACE}/superadmin/dist/" "${REPO_ROOT}/superadmin/dist/"
 fi
 
 # ── THANOS helper scripts (nginx / cloudflared) ──────────────────────────────

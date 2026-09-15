@@ -1,12 +1,5 @@
 import { io, Socket } from 'socket.io-client';
-
-function socketBase(): string {
-  const api = import.meta.env.VITE_API_URL || '';
-  if (api.startsWith('http')) {
-    return api.replace(/\/api\/?$/, '');
-  }
-  return window.location.origin;
-}
+import { SOCKET_URL } from '../config/env';
 
 let socket: Socket | null = null;
 
@@ -15,7 +8,7 @@ export function connectSuperadminSocket(
   onEvent: (payload: unknown) => void
 ) {
   disconnectSuperadminSocket();
-  socket = io(`${socketBase()}/notifications`, {
+  socket = io(`${SOCKET_URL}/notifications`, {
     auth: { token },
     transports: ['websocket', 'polling'],
   });

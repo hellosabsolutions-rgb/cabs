@@ -5,13 +5,14 @@ on:
     branches: [main]
     paths:
       - 'admin/**'
+      - 'superadmin/**'
       - 'server/**'
       - 'scripts/thanos/**'
       - '.github/workflows/deploy-production.yml'
   workflow_dispatch:
     inputs:
       deploy_all:
-        description: 'Deploy admin + server'
+        description: 'Deploy admin + superadmin + server'
         type: boolean
         default: true
 
@@ -34,6 +35,7 @@ jobs:
           cache: npm
           cache-dependency-path: |
             admin/package-lock.json
+            superadmin/package-lock.json
             server/package-lock.json
 
       - name: Build admin dashboard
@@ -48,6 +50,19 @@ jobs:
           npm ci --include=dev
           npm run build
           echo "==> Admin build output"
+          du -sh dist/assets 2>/dev/null || true
+          ls -la dist/assets/*.js 2>/dev/null | head -10 || true
+
+      - name: Build superadmin console
+        working-directory: superadmin
+        env:
+          VITE_API_URL: https://api.kabpro.pro/api
+          VITE_SOCKET_URL: https://api.kabpro.pro
+          VITE_APP_URL: https://superadmin.kabpro.pro
+        run: |
+          npm ci --include=dev
+          npm run build
+          echo "==> Superadmin build output"
           du -sh dist/assets 2>/dev/null || true
           ls -la dist/assets/*.js 2>/dev/null | head -10 || true
 
@@ -101,6 +116,13 @@ jobs:
           echo "${PUB}"
           if ! echo "${PUB}" | grep -q '"status":"online"'; then
             echo "WARN: public URL check failed (tunnel/DNS) — local checks passed"
+          fi
+
+          echo "==> Smoke: nginx Host superadmin.kabpro.pro"
+          SA_CODE="$(curl -sS -o /dev/null -w "%{http_code}" -H "Host: superadmin.kabpro.pro" http://127.0.0.1/ || true)"
+          echo "superadmin HTTP ${SA_CODE}"
+          if [[ "${SA_CODE}" != "200" ]]; then
+            echo "WARN: superadmin nginx host not ready (reload nginx after first deploy)"
           fi
 
           echo "==> Smoke OK"

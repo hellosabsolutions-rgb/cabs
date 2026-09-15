@@ -6,6 +6,7 @@
 |-----|-----|----------------|
 | API | `https://api.kabpro.pro` | PM2 `kabpro-api` · port **5002** |
 | Admin | `https://admin.kabpro.pro` | Static `admin/dist` via nginx |
+| Superadmin | `https://superadmin.kabpro.pro` | Static `superadmin/dist` via nginx |
 | Landing | `https://kabpro.pro` | PM2 landing · port **3001** |
 
 Repo root on server: **`/srv/apps/cabs`**
@@ -35,12 +36,18 @@ PORT=5002
 
 MONGO_URI=mongodb+srv://USER:PASSWORD@cluster.mongodb.net/kabpro?retryWrites=true&w=majority
 
-CORS_ORIGINS=https://admin.kabpro.pro,https://kabpro.pro,https://www.kabpro.pro,https://admin-kabpro.opsiva.in,https://kabpro.opsiva.in
+CORS_ORIGINS=https://admin.kabpro.pro,https://kabpro.pro,https://www.kabpro.pro,https://superadmin.kabpro.pro,https://admin-kabpro.opsiva.in,https://kabpro.opsiva.in
 CLIENT_URL=https://admin.kabpro.pro
 PUBLIC_API_URL=https://api.kabpro.pro
 
 JWT_SECRET=<long-random-32+-chars>
 ACCESS_TOKEN_EXPIRE=15m
+
+# Superadmin console login (created on API boot)
+SUPERADMIN_EMAIL=<your-login-email>
+SUPERADMIN_PASSWORD=<your-strong-password>
+SUPERADMIN_NAME=KABPRO Superadmin
+SUPERADMIN_APP_URL=https://superadmin.kabpro.pro
 
 GOOGLE_CLIENT_ID=546992458715-dbhmfbb7bj36h6sfm2m4l8qjisdmd491.apps.googleusercontent.com
 
@@ -76,6 +83,7 @@ Reuse the **existing** THANOS tunnel. Do **not** create a second tunnel.
 
 - `api.kabpro.pro` → `http://127.0.0.1:80`
 - `admin.kabpro.pro` → `http://127.0.0.1:80`
+- `superadmin.kabpro.pro` → `http://127.0.0.1:80`
 - `kabpro.pro` → `http://127.0.0.1:80`
 - `www.kabpro.pro` → `http://127.0.0.1:80`
 
@@ -110,7 +118,7 @@ Expect the **KABPRO** banner with green Firebase + Cloudinary + MongoDB.
 ### Preferred: push to `main` (CI)
 
 1. Push/merge to **`main`**.
-2. Runner builds admin with `VITE_*` for `*.kabpro.pro`, publishes to `/srv/apps/cabs`, restarts `kabpro-api`.
+2. Runner builds admin + superadmin with `VITE_*` for `*.kabpro.pro`, publishes to `/srv/apps/cabs`, restarts `kabpro-api`.
 
 ### Verify
 
@@ -119,6 +127,7 @@ pm2 logs kabpro-api --lines 50 --nostream
 curl -sS http://127.0.0.1:5002/api/health
 curl -sS -H "Host: api.kabpro.pro" http://127.0.0.1/api/health
 curl -sS -o /dev/null -w "%{http_code}\n" -H "Host: admin.kabpro.pro" http://127.0.0.1/
+curl -sS -o /dev/null -w "%{http_code}\n" -H "Host: superadmin.kabpro.pro" http://127.0.0.1/
 ```
 
 ### Env-only change

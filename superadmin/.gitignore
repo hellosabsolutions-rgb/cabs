@@ -1,8 +1,22 @@
+# Dependencies
 node_modules
 dist
-.DS_Store
-*.local
+dist-ssr
+
+# Logs
+*.log
+npm-debug.log*
+
+# Secrets — never commit local overrides
 .env
 .env.local
 .env.production.local
 .env.*.local
+
+# .env.development and .env.production are committed (public VITE_* URLs only)
+
+# Editor / OS
+.DS_Store
+.vscode/*
+!.vscode/extensions.json
+.idea

@@ -1,6 +1,6 @@
 # KABPRO domain cutover — `kabpro.pro`
 
-Landing is already on **kabpro.pro**. This guide wires **API + Admin** on the same Cloudflare account / THANOS host.
+Landing is already on **kabpro.pro**. This guide wires **API + Admin + Superadmin** on the same Cloudflare account / THANOS host.
 
 ## Target hostnames
 
@@ -8,6 +8,7 @@ Landing is already on **kabpro.pro**. This guide wires **API + Admin** on the sa
 |-----|-----|----------------|
 | Landing | `https://kabpro.pro` (+ `www`) | nginx → `127.0.0.1:3001` |
 | Admin | `https://admin.kabpro.pro` | nginx → `/srv/apps/cabs/admin/dist` |
+| Superadmin | `https://superadmin.kabpro.pro` | nginx → `/srv/apps/cabs/superadmin/dist` |
 | API + Socket.IO | `https://api.kabpro.pro` | nginx → `127.0.0.1:5002` |
 
 Legacy `*.opsiva.in` can stay live during cutover (nginx + CORS already accept both).
@@ -36,6 +37,7 @@ Creating a second tunnel means:
 |-----------|--------|---------|
 | `api` | `kabpro.pro` | `http://127.0.0.1:80` |
 | `admin` | `kabpro.pro` | `http://127.0.0.1:80` |
+| `superadmin` | `kabpro.pro` | `http://127.0.0.1:80` |
 | *(empty = apex)* | `kabpro.pro` | `http://127.0.0.1:80` |
 | `www` | `kabpro.pro` | `http://127.0.0.1:80` |
 
@@ -61,7 +63,7 @@ Manual merge:
 ```bash
 sudo cp /etc/cloudflared/config.yml /etc/cloudflared/backups/config.yml.$(date +%Y%m%d-%H%M%S)
 sudo nano /etc/cloudflared/config.yml
-# add api.kabpro.pro / admin.kabpro.pro / kabpro.pro / www.kabpro.pro → http://127.0.0.1:80
+# add api.kabpro.pro / admin.kabpro.pro / superadmin.kabpro.pro / kabpro.pro / www.kabpro.pro → http://127.0.0.1:80
 # KEEP your existing opsiva / other hostnames
 # catch-all "service: http_status:404" must stay LAST
 
@@ -75,7 +77,7 @@ sudo systemctl status cloudflared --no-pager
 - `kabpro.pro` must live on a **different** machine, or
 - you want a completely separate connector for isolation
 
-Then: Zero Trust → Create tunnel → install connector on that host → add the same 4 public hostnames → still use `http://127.0.0.1:80`.
+Then: Zero Trust → Create tunnel → install connector on that host → add the same 5 public hostnames → still use `http://127.0.0.1:80`.
 
 ---
 
@@ -110,6 +112,7 @@ Local checks (before public DNS matters):
 ```bash
 curl -sS -H "Host: api.kabpro.pro" http://127.0.0.1/api/health
 curl -sS -o /dev/null -w "%{http_code}\n" -H "Host: admin.kabpro.pro" http://127.0.0.1/
+curl -sS -o /dev/null -w "%{http_code}\n" -H "Host: superadmin.kabpro.pro" http://127.0.0.1/
 curl -sS -o /dev/null -w "%{http_code}\n" -H "Host: kabpro.pro" http://127.0.0.1/
 ```
 
@@ -126,9 +129,14 @@ nano /srv/apps/cabs/server/.env.production
 Set / merge:
 
 ```env
-CORS_ORIGINS=https://admin.kabpro.pro,https://kabpro.pro,https://www.kabpro.pro,https://admin-kabpro.opsiva.in,https://kabpro.opsiva.in
+CORS_ORIGINS=https://admin.kabpro.pro,https://kabpro.pro,https://www.kabpro.pro,https://superadmin.kabpro.pro,https://admin-kabpro.opsiva.in,https://kabpro.opsiva.in
 CLIENT_URL=https://admin.kabpro.pro
 PUBLIC_API_URL=https://api.kabpro.pro
+
+SUPERADMIN_EMAIL=<your-login-email>
+SUPERADMIN_PASSWORD=<your-strong-password>
+SUPERADMIN_NAME=KABPRO Superadmin
+SUPERADMIN_APP_URL=https://superadmin.kabpro.pro
 ```
 
 Then:
@@ -139,18 +147,22 @@ pm2 restart kabpro-api --update-env
 pm2 logs kabpro-api --lines 30 --nostream
 ```
 
-Expect CORS list to include `https://admin.kabpro.pro` and `https://kabpro.pro`.
+Expect CORS list to include `https://admin.kabpro.pro`, `https://superadmin.kabpro.pro`, and `https://kabpro.pro`.
+API logs should show `✅ Superadmin seed (...)` after `SUPERADMIN_EMAIL` / `SUPERADMIN_PASSWORD` are set.
 
 ---
 
-## 5. Admin + landing rebuild (baked URLs)
+## 5. Admin + superadmin + landing rebuild (baked URLs)
 
-Repo already points production env at `*.kabpro.pro`. After push to `main`, CI rebuilds admin.
+Repo already points production env at `*.kabpro.pro`. After push to `main`, CI rebuilds admin and superadmin.
 
 Or manually:
 
 ```bash
 cd /srv/apps/cabs/admin
+npm ci --include=dev && npm run build
+
+cd /srv/apps/cabs/superadmin
 npm ci --include=dev && npm run build
 
 cd /srv/apps/cabs/landing
