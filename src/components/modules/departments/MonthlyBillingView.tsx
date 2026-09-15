@@ -354,17 +354,19 @@ export const MonthlyBillingView: React.FC = () => {
 
             <button
               type="button"
+              className="btn-primary-action"
               onClick={() => setIsGenerateModalOpen(true)}
               style={{
                 padding: '6px 16px',
                 fontSize: '11.5px',
                 fontWeight: 600,
                 borderRadius: '6px',
-                background: '#1e3a5f',
+                background: 'var(--accent, #1687f5)',
                 border: 'none',
-                color: '#ffffff',
+                color: 'var(--accent-text, #ffffff)',
+                boxShadow: 'var(--glow)',
                 cursor: 'pointer',
-                transition: 'background 0.15s ease'
+                transition: 'all 0.15s ease'
               }}
             >
               + Generate bill
@@ -877,8 +879,8 @@ export const MonthlyBillingView: React.FC = () => {
                         padding: '3px 0',
                         fontSize: '10.5px',
                         borderRadius: '4px',
-                        background: customGstInput === String(r) ? '#1e3a5f' : '#f3f4f6',
-                        color: customGstInput === String(r) ? '#ffffff' : '#374151',
+                        background: customGstInput === String(r) ? 'var(--accent, #1687f5)' : 'var(--surface-3, #f3f4f6)',
+                        color: customGstInput === String(r) ? '#ffffff' : 'var(--text-dim, #374151)',
                         border: 'none',
                         cursor: 'pointer',
                         fontWeight: 600
@@ -915,7 +917,7 @@ export const MonthlyBillingView: React.FC = () => {
                     fontSize: '11px',
                     fontWeight: 600,
                     borderRadius: '4px',
-                    background: '#1e3a5f',
+                    background: 'var(--accent, #1687f5)',
                     color: '#ffffff',
                     border: 'none',
                     cursor: 'pointer'
@@ -966,8 +968,8 @@ export const MonthlyBillingView: React.FC = () => {
                       width: '28px',
                       height: '28px',
                       borderRadius: '5px',
-                      background: isSelected ? '#1e3a5f' : 'var(--surface-3, #f3f4f6)',
-                      border: isSelected ? '1px solid #1e3a5f' : '1px solid var(--border, #e5e7eb)',
+                      background: isSelected ? 'var(--accent, #1687f5)' : 'var(--surface-3, #f3f4f6)',
+                      border: isSelected ? '1px solid var(--accent, #1687f5)' : '1px solid var(--border, #e5e7eb)',
                       color: isSelected ? '#ffffff' : 'var(--text-dim, #374151)',
                       display: 'flex',
                       alignItems: 'center',

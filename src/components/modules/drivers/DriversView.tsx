@@ -274,21 +274,6 @@ export const DriversView: React.FC = () => {
           </>
         ) : (
           <div className="driver-page-container">
-            {/* Header */}
-            <div className="driver-page-head">
-              <div>
-                <h1>Drivers</h1>
-                <p>View and manage driver accounts and activity</p>
-              </div>
-              <button
-                type="button"
-                className="btn-driver-main primary"
-                onClick={() => setIsModalOpen(true)}
-              >
-                + Add driver
-              </button>
-            </div>
-
             {/* Stats Row */}
             <div className="driver-stats-grid">
               <div className="driver-stat-card">
@@ -446,6 +431,15 @@ export const DriversView: React.FC = () => {
                     onClick={() => setIsImportModalOpen(true)}
                   >
                     <span>⬆ Import</span>
+                  </button>
+
+                  {/* Add Driver Button */}
+                  <button
+                    type="button"
+                    className="btn-driver-main primary"
+                    onClick={() => setIsModalOpen(true)}
+                  >
+                    + Add driver
                   </button>
                 </div>
               </div>

@@ -241,11 +241,8 @@ export const DailyDutyLogsView: React.FC = () => {
         </div>
 
         <div className="module-filter-bar__group">
-          <button type="button" className="btn-secondary" onClick={() => openLogBookPrint()}>
-            <Printer size={13} /> Print
-          </button>
           <button type="button" className="btn-secondary" onClick={() => handleOpenModal('Weekend / Off-Duty Trip')}>
-            <Briefcase size={13} /> Weekend trip
+            <Briefcase size={13} /> Weekend booking
           </button>
           <button type="button" className="btn-primary-action" onClick={() => handleOpenModal('Official Department Duty')}>
             <Plus size={14} /> Log duty
@@ -256,7 +253,7 @@ export const DailyDutyLogsView: React.FC = () => {
       <div className="stats-grid stats-grid--lean">
         <StatCard label="Duty slips" value={stats.totalSlips} customColor="var(--accent)" />
         <StatCard label="Kilometres" value={`${stats.totalKm.toLocaleString('en-IN')} km`} />
-        <StatCard label="Weekend trips" value={stats.weekendTripsCount} customColor="#38bdf8" />
+        <StatCard label="Weekend bookings" value={stats.weekendTripsCount} customColor="#38bdf8" />
         <StatCard label="Weekend profit" value={`₹${stats.weekendTripProfit.toLocaleString('en-IN')}`} customColor="var(--success)" />
       </div>
 
