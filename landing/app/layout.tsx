@@ -10,16 +10,16 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "KABPRO - Commercial Fleet & Logistics Management",
+  title: "KABPRO - Fleet software for Indian cab operators",
   description:
-    "Manage department contracts, trip profits, FASTag, fuel logs, and compliance from one dashboard. Built for Indian fleet operators.",
+    "Department billing, trip profit, FASTag, fuel logs, and compliance alerts in one dashboard. Built for Indian fleet operators.",
   icons: {
     icon: "/favicon.png",
   },
   openGraph: {
-    title: "KABPRO - Commercial Fleet & Logistics Management",
+    title: "KABPRO - Fleet software for Indian cab operators",
     description:
-      "Your entire fleet. One dashboard. Department billing, trip profitability, compliance alerts, and more.",
+      "Department billing, trip profit, FASTag, fuel logs, and compliance alerts in one dashboard.",
     type: "website",
   },
 };

@@ -33,7 +33,8 @@ import {
   KeyRound,
   Copy,
   Lock,
-  ShieldAlert
+  ShieldAlert,
+  Radio
 } from 'lucide-react';
 import { StatCard } from '../../common/StatCard';
 import { resolveAssignedVehicle, plateKey } from '../../../utils/assignment';
@@ -978,8 +979,8 @@ export const DriverDetailView: React.FC<DriverDetailViewProps> = ({
                     href={`https://wa.me/${String(currentDriver.phone).replace(/\D/g, '')}?text=${encodeURIComponent(`Hi ${currentDriver.name},
 
 Your KABPRO Driver App login:
-📱 Mobile: ${currentDriver.phone}
-🔐 Password: ${effectivePassword}
+Mobile: ${currentDriver.phone}
+Password: ${effectivePassword}
 
 Download the app and log in to start your duty.
 
@@ -993,7 +994,7 @@ Download the app and log in to start your duty.
 
                   <button
                     type="button"
-                    onClick={() => copyText(`Hi ${currentDriver.name},\n\nYour KABPRO Driver App login:\n📱 Mobile: ${currentDriver.phone}\n🔐 Password: ${effectivePassword}\n\nDownload the app and log in to start your duty.\n\n— ${(currentDriver as any).agencyName || 'Your Fleet Manager'}`, 'all')}
+                    onClick={() => copyText(`Hi ${currentDriver.name},\n\nYour KABPRO Driver App login:\nMobile: ${currentDriver.phone}\nPassword: ${effectivePassword}\n\nDownload the app and log in to start your duty.\n\n— ${(currentDriver as any).agencyName || 'Your Fleet Manager'}`, 'all')}
                     style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '9px 14px', borderRadius: '8px', border: '1px dashed var(--border-soft)', background: 'var(--surface-muted)', color: copiedCred === 'all' ? '#22c55e' : 'var(--text-dim)', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}
                   >
                     {copiedCred === 'all' ? <><Check size={13} /> Full Login Message Copied!</> : <><Copy size={13} /> Copy Full Login Message</>}
@@ -1564,7 +1565,11 @@ Download the app and log in to start your duty.
                             }`
                           }}
                         >
-                          {isActive ? '● Currently Assigned' : isCompleted ? 'Completed' : 'Unassigned'}
+                          {isActive ? (
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                              <Radio size={10} /> Currently assigned
+                            </span>
+                          ) : isCompleted ? 'Completed' : 'Unassigned'}
                         </span>
                       </div>
 

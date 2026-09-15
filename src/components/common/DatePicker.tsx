@@ -270,10 +270,10 @@ export const DatePicker: React.FC<DatePickerProps> = ({
       <div
         ref={triggerRef}
         onClick={handleToggle}
-        className="custom-datepicker-trigger"
-        style={{ display: "flex", alignItems: "center", gap: "10px", width: "100%", padding: "8px 12px", background: "var(--surface-2)", border: isOpen ? "1.5px solid #6366f1" : "1px solid var(--border)", borderRadius: "9px", cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.6 : 1, boxShadow: isOpen ? "0 0 0 3px rgba(99,102,241,0.15)" : "none", transition: "all 0.2s ease", userSelect: "none", boxSizing: "border-box", ...inputStyle }}
+        className={`custom-datepicker-trigger ${isOpen ? 'is-open' : ''}`}
+        style={{ opacity: disabled ? 0.6 : 1, cursor: disabled ? 'not-allowed' : 'pointer', ...inputStyle }}
       >
-        <CalendarIcon size={16} style={{ color: isOpen || value ? "#6366f1" : "var(--text-faint)", flexShrink: 0 }} />
+        <CalendarIcon size={16} style={{ color: isOpen || value ? 'var(--accent)' : 'var(--text-faint)', flexShrink: 0 }} />
         <span style={{ flex: 1, fontSize: "13px", color: value ? "var(--text)" : "var(--text-faint)", fontWeight: value ? 500 : 400, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
           {value ? formatDateDisplay(value) : placeholder}
         </span>

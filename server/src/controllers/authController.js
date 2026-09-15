@@ -11,6 +11,7 @@ import {
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import { emitLoginAlert } from '../services/notificationEmitter.js';
 import { parseDeviceInfo } from '../utils/deviceParser.js';
+import { uploadMediaValue } from '../utils/mediaUploadHelper.js';
 
 /**
  * @desc    Register a new user
@@ -381,7 +382,9 @@ export const updateProfile = asyncHandler(async (req, res) => {
   const fieldsToUpdate = {};
   if (req.body.name) fieldsToUpdate.name = req.body.name.trim();
   if (req.body.phone !== undefined) fieldsToUpdate.phone = req.body.phone.trim();
-  if (req.body.avatar !== undefined) fieldsToUpdate.avatar = req.body.avatar;
+  if (req.body.avatar !== undefined) {
+    fieldsToUpdate.avatar = await uploadMediaValue(req.body.avatar, 'fleetos/users/avatars');
+  }
 
   const user = await User.findByIdAndUpdate(req.user.id, fieldsToUpdate, {
     new: true,

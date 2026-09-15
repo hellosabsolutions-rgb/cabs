@@ -170,7 +170,7 @@ export const FastagExpensesView: React.FC = () => {
                   borderRadius: '12px'
                 }}
               >
-                ● Live Sync Active
+                <Radio size={10} /> Live sync active
               </span>
             </div>
             <div style={{ fontSize: '11.5px', color: 'var(--text-dim)', marginTop: '2px' }}>
@@ -401,8 +401,8 @@ export const FastagExpensesView: React.FC = () => {
                             <AlertTriangle size={11} /> Low balance! Refill needed
                           </div>
                         ) : (
-                          <div style={{ fontSize: '11px', color: 'var(--text-faint)', marginTop: '2px' }}>
-                            ● Wallet Active
+                          <div style={{ fontSize: '11px', color: 'var(--text-faint)', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <Radio size={10} /> Wallet active
                           </div>
                         )}
                       </div>

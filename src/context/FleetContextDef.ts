@@ -130,6 +130,25 @@ export interface FleetContextType {
   fetchLiveMonthlyBills: () => Promise<void>;
   addMonthlyBill: (bill: Omit<MonthlyDepartmentBill, 'id'>) => Promise<{ success: boolean; bill?: MonthlyDepartmentBill; error?: string }>;
   generateWeekendMemoBill: (dailyDutyLogId: string) => Promise<{ success: boolean; bill?: MonthlyDepartmentBill; error?: string }>;
+  previewMonthlyBillFromLogs: (payload: {
+    contractId: string;
+    billingMonth: string;
+    gstRate?: number;
+    gstType?: 'CGST_SGST' | 'IGST';
+    gstTaxableOn?: 'RENT_ONLY' | 'TOTAL' | 'BASE_AND_NIGHT';
+  }) => Promise<{ success: boolean; data?: any; error?: string }>;
+  generateMonthlyBillFromLogs: (payload: {
+    contractId: string;
+    billingMonth: string;
+    gstRate?: number;
+    gstType?: 'CGST_SGST' | 'IGST';
+    gstTaxableOn?: 'RENT_ONLY' | 'TOTAL' | 'BASE_AND_NIGHT';
+    status?: MonthlyDepartmentBill['status'];
+    dueDate?: string;
+    partyGstin?: string;
+    extraDriverAllowance?: number;
+  }) => Promise<{ success: boolean; bill?: MonthlyDepartmentBill; error?: string }>;
+  unlockMonthlyBill: (id: string, reason?: string) => Promise<{ success: boolean; error?: string }>;
   updateBillStatus: (id: string, status: MonthlyDepartmentBill['status']) => Promise<void>;
   applyGstRate: (gstRate: number, gstType?: 'CGST_SGST' | 'IGST', departmentName?: string) => Promise<{ success: boolean; error?: string }>;
   deleteMonthlyBill: (id: string) => Promise<{ success: boolean; error?: string }>;
@@ -146,7 +165,8 @@ export interface FleetContextType {
   expenseSubTab: 'fuel' | 'fastag' | 'all' | 'trips';
   setExpenseSubTab: (tab: 'fuel' | 'fastag' | 'all' | 'trips') => void;
   fuelLogs: FuelLogEntry[];
-  addFuelLog: (entry: Omit<FuelLogEntry, 'id'>) => void;
+  fetchLiveFuelLogs: (queryParam?: { vehicle?: string; search?: string }) => Promise<void>;
+  addFuelLog: (entry: Omit<FuelLogEntry, 'id'>) => Promise<void>;
   fastagTransactions: FastagTransaction[];
   addFastagTransaction: (tx: Omit<FastagTransaction, 'id'>) => Promise<void> | void;
   rechargeFastag: (vehicleReg: string, amount: number, paymentMode: string, proof?: string | null) => Promise<void> | void;

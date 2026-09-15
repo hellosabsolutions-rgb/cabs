@@ -19,7 +19,8 @@ import {
   Clock,
   Trash2,
   Search,
-  Receipt
+  Receipt,
+  Radio
 } from 'lucide-react';
 import { MonthPicker } from '../../common/MonthPicker';
 
@@ -612,7 +613,7 @@ export const WeekendBillingView: React.FC = () => {
                             fontWeight: 700
                           }}
                         >
-                          ● {b.status}
+                          <Radio size={10} /> {b.status}
                         </span>
                       </td>
 

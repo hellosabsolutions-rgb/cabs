@@ -97,6 +97,10 @@ class DriverSocketManager {
         'driver-expense:created',
         'driver-expense:updated',
         'driver-expense:deleted',
+        'fuel-log:created',
+        'fuel-log:updated',
+        'fuel-log:deleted',
+        'fastag:balance_updated',
       ];
 
       driverEvents.forEach((eventName) => {

@@ -3,6 +3,7 @@ import { Booking } from '../models/Booking.js';
 import { Driver } from '../models/Driver.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import { broadcastAll, emitToDriver } from '../services/socketService.js';
+import { uploadMediaValue } from '../utils/mediaUploadHelper.js';
 import mongoose from 'mongoose';
 
 function todayIST() {
@@ -114,7 +115,11 @@ export const createTripExpense = asyncHandler(async (req, res) => {
   }
 
   const createdBy = req.driver ? 'driver' : 'admin';
-  const receiptUrl = typeof receipt === 'string' && receipt.trim() ? receipt.trim() : null;
+  let receiptUrl = typeof receipt === 'string' && receipt.trim() ? receipt.trim() : null;
+
+  if (receiptUrl) {
+    receiptUrl = await uploadMediaValue(receiptUrl, 'fleetos/trip-expenses/receipts');
+  }
 
   if (createdBy === 'driver' && !receiptUrl) {
     return res.status(400).json({ success: false, error: 'Receipt photo is required.' });
@@ -208,9 +213,12 @@ export const updateTripExpense = asyncHandler(async (req, res) => {
     expense.status = status;
   }
   if (receipt !== undefined) {
-    const receiptUrl = typeof receipt === 'string' && receipt.trim() ? receipt.trim() : null;
+    let receiptUrl = typeof receipt === 'string' && receipt.trim() ? receipt.trim() : null;
     if (req.driver && !receiptUrl) {
       return res.status(400).json({ success: false, error: 'Receipt photo is required.' });
+    }
+    if (receiptUrl) {
+      receiptUrl = await uploadMediaValue(receiptUrl, 'fleetos/trip-expenses/receipts');
     }
     expense.receipt = receiptUrl;
   }

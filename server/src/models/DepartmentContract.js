@@ -22,13 +22,13 @@ const departmentContractSchema = new mongoose.Schema(
     },
     contactPerson: {
       type: String,
-      required: true,
-      trim: true
+      trim: true,
+      default: ''
     },
     phone: {
       type: String,
-      required: true,
-      trim: true
+      trim: true,
+      default: ''
     },
     vehicle: {
       type: String,
@@ -60,6 +60,11 @@ const departmentContractSchema = new mongoose.Schema(
     extraHourRate: {
       type: Number,
       default: 120
+    },
+    nightChargePerDay: {
+      type: Number,
+      default: 0,
+      min: 0
     },
     startDate: {
       type: String,

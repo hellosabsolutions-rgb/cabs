@@ -1,9 +1,13 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useFleet } from '../../../context/FleetContext';
-import { StatCard } from '../../common/StatCard';
-import { LogAttendanceModal } from './LogAttendanceModal';
 import { EditAttendanceModal } from './EditAttendanceModal';
-import { AttendanceStatus, DriverAttendance } from '../../../types/fleet';
+import { FilterDropdown } from '../../common/FilterDropdown';
+import {
+  AttendanceStatus,
+  DriverAttendance,
+  isPresentAttendance,
+  normalizeAttendanceStatus
+} from '../../../types/fleet';
 import { StatusDropdown, StatusOption } from '../../common/StatusDropdown';
 import { DatePicker } from '../../common/DatePicker';
 import {
@@ -13,18 +17,28 @@ import {
   CheckCircle2,
   Loader2,
   Edit2,
-  Clock,
-  Car,
   ChevronLeft,
   ChevronRight,
-  ChevronDown,
-  Filter
+  Briefcase
 } from 'lucide-react';
 import { api } from '../../../services/api';
 import { Pagination } from '../../common/Pagination';
 import { usePagination } from '../../../hooks/usePagination';
 
 type AttendanceTimeFrame = 'daily' | 'monthly' | 'yearly';
+
+const DUTY_FILTER_OPTIONS = [
+  { value: 'All', label: 'All duties' },
+  { value: 'Department Duty', label: 'Department duty' },
+  { value: 'Booking Duty', label: 'Booking duty' },
+  { value: 'Standby', label: 'Standby' }
+];
+
+const STATUS_FILTER_OPTIONS = [
+  { value: 'All', label: 'All status' },
+  { value: 'Present', label: 'Present' },
+  { value: 'Absent', label: 'Absent' }
+];
 
 function istTodayString() {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date());
@@ -57,7 +71,6 @@ export const DriverAttendanceView: React.FC = () => {
   const [selectedDate, setSelectedDate] = useState(istTodayString);
   const [dutyFilter, setDutyFilter] = useState<string>('All');
   const [statusFilter, setStatusFilter] = useState<string>('All');
-  const [isLogModalOpen, setIsLogModalOpen] = useState(false);
   const [isBulkMarking, setIsBulkMarking] = useState(false);
 
   // Monthly State
@@ -144,8 +157,8 @@ export const DriverAttendanceView: React.FC = () => {
 
       const matchStatus =
         statusFilter === 'All' ||
-        item.status === statusFilter ||
-        (statusFilter === 'Active' && (item.status === 'Present' || item.status === 'On Trip'));
+        (statusFilter === 'Present' && isPresentAttendance(item.status)) ||
+        (statusFilter === 'Absent' && !isPresentAttendance(item.status));
 
       return matchSearch && matchDuty && matchStatus;
     });
@@ -162,77 +175,30 @@ export const DriverAttendanceView: React.FC = () => {
 
   const dailyStats = useMemo(() => {
     let present = 0;
-    let onTrip = 0;
-    let late = 0;
     let absent = 0;
     let totalHours = 0;
 
     driverAttendanceList.forEach(r => {
-      if (r.status === 'Present') present++;
-      else if (r.status === 'On Trip') onTrip++;
-      else if (r.status === 'Late') late++;
+      if (isPresentAttendance(r.status)) present++;
       else absent++;
-
       totalHours += r.workingHours || 0;
     });
 
-    const activeCount = present + onTrip + late;
-    const avgHours = activeCount > 0 ? (totalHours / activeCount).toFixed(1) : '0.0';
+    const avgHours = present > 0 ? (totalHours / present).toFixed(1) : '0.0';
 
     return {
-      present: present + onTrip,
-      onTrip,
-      late,
+      present,
       absent,
       totalHours: totalHours.toFixed(1),
       avgHours
     };
   }, [driverAttendanceList]);
 
-  const getStatusColorStyle = (st: AttendanceStatus) => {
-    switch (st) {
-      case 'Present':
-        return {
-          background: 'rgba(34, 197, 94, 0.12)',
-          color: '#22c55e',
-          borderColor: 'rgba(34, 197, 94, 0.35)'
-        };
-      case 'On Trip':
-        return {
-          background: 'rgba(56, 189, 248, 0.12)',
-          color: '#38bdf8',
-          borderColor: 'rgba(56, 189, 248, 0.35)'
-        };
-      case 'Late':
-        return {
-          background: 'rgba(234, 179, 8, 0.12)',
-          color: '#eab308',
-          borderColor: 'rgba(234, 179, 8, 0.35)'
-        };
-      case 'Absent':
-        return {
-          background: 'rgba(239, 68, 68, 0.12)',
-          color: '#ef4444',
-          borderColor: 'rgba(239, 68, 68, 0.35)'
-        };
-      case 'On Leave':
-        return {
-          background: 'var(--surface-3)',
-          color: 'var(--text-dim)',
-          borderColor: 'var(--border)'
-        };
-      default:
-        return {
-          background: 'var(--surface-2)',
-          color: 'var(--text)',
-          borderColor: 'var(--border)'
-        };
-    }
-  };
-
   const renderStatusDropdown = (status: AttendanceStatus, id: string, record: DriverAttendance) => {
+    const displayStatus = normalizeAttendanceStatus(status);
+
     const handleStatusSelect = async (newStatus: AttendanceStatus) => {
-      if (newStatus === status) return;
+      if (newStatus === displayStatus) return;
       const isMongoId = /^[0-9a-fA-F]{24}$/.test(id);
 
       if (!isMongoId || id.startsWith('temp_') || id.startsWith('att')) {
@@ -242,11 +208,11 @@ export const DriverAttendanceView: React.FC = () => {
           driverName: record.driverName,
           date: record.date || selectedDate,
           status: newStatus,
-          checkIn: newStatus === 'Absent' || newStatus === 'On Leave' ? '—' : (record.checkIn && record.checkIn !== '—' ? record.checkIn : '08:30 AM'),
-          checkOut: newStatus === 'Absent' || newStatus === 'On Leave' ? '—' : (record.checkOut && record.checkOut !== '—' ? record.checkOut : '06:30 PM'),
+          checkIn: newStatus === 'Absent' ? '—' : (record.checkIn && record.checkIn !== '—' ? record.checkIn : '08:30 AM'),
+          checkOut: newStatus === 'Absent' ? '—' : (record.checkOut && record.checkOut !== '—' ? record.checkOut : '06:30 PM'),
           assignedVehicle: record.assignedVehicle,
           dutyType: record.dutyType,
-          workingHours: newStatus === 'Absent' || newStatus === 'On Leave' ? 0 : (record.workingHours || 10),
+          workingHours: newStatus === 'Absent' ? 0 : (record.workingHours || 10),
           notes: record.notes
         });
       } else {
@@ -256,9 +222,9 @@ export const DriverAttendanceView: React.FC = () => {
           date: record.date || selectedDate,
           assignedVehicle: record.assignedVehicle,
           dutyType: record.dutyType,
-          workingHours: newStatus === 'Absent' || newStatus === 'On Leave' ? 0 : (record.workingHours || 10),
-          checkIn: newStatus === 'Absent' || newStatus === 'On Leave' ? '—' : (record.checkIn && record.checkIn !== '—' ? record.checkIn : '08:30 AM'),
-          checkOut: newStatus === 'Absent' || newStatus === 'On Leave' ? '—' : (record.checkOut && record.checkOut !== '—' ? record.checkOut : '06:30 PM')
+          workingHours: newStatus === 'Absent' ? 0 : (record.workingHours || 10),
+          checkIn: newStatus === 'Absent' ? '—' : (record.checkIn && record.checkIn !== '—' ? record.checkIn : '08:30 AM'),
+          checkOut: newStatus === 'Absent' ? '—' : (record.checkOut && record.checkOut !== '—' ? record.checkOut : '06:30 PM')
         });
       }
     };
@@ -272,38 +238,17 @@ export const DriverAttendanceView: React.FC = () => {
         borderColor: 'rgba(34, 197, 94, 0.35)'
       },
       {
-        value: 'On Trip',
-        label: 'On Booking',
-        color: '#38bdf8',
-        bg: 'rgba(56, 189, 248, 0.12)',
-        borderColor: 'rgba(56, 189, 248, 0.35)'
-      },
-      {
-        value: 'Late',
-        label: 'Late',
-        color: '#eab308',
-        bg: 'rgba(234, 179, 8, 0.12)',
-        borderColor: 'rgba(234, 179, 8, 0.35)'
-      },
-      {
         value: 'Absent',
         label: 'Absent',
         color: '#ef4444',
         bg: 'rgba(239, 68, 68, 0.12)',
         borderColor: 'rgba(239, 68, 68, 0.35)'
-      },
-      {
-        value: 'On Leave',
-        label: 'On Leave',
-        color: 'var(--text-dim)',
-        bg: 'var(--surface-3)',
-        borderColor: 'var(--border)'
       }
     ];
 
     return (
       <StatusDropdown
-        value={status}
+        value={displayStatus}
         options={attendanceOptions}
         onChange={handleStatusSelect}
       />
@@ -410,24 +355,17 @@ export const DriverAttendanceView: React.FC = () => {
     return drivers.map(d => {
       const recs = monthlyRecords.filter(r => r.driverId === d.id || r.driverName.toLowerCase() === d.name.toLowerCase());
       let present = 0;
-      let onTrip = 0;
-      let late = 0;
       let absent = 0;
-      let leave = 0;
       let hours = 0;
 
       recs.forEach(r => {
-        if (r.status === 'Present') present++;
-        else if (r.status === 'On Trip') onTrip++;
-        else if (r.status === 'Late') late++;
-        else if (r.status === 'Absent') absent++;
-        else if (r.status === 'On Leave') leave++;
+        if (isPresentAttendance(r.status)) present++;
+        else absent++;
         hours += r.workingHours || 0;
       });
 
-      const activeDays = present + onTrip + late;
       const totalLogged = recs.length;
-      const rate = totalLogged > 0 ? Math.round((activeDays / totalLogged) * 100) : 0;
+      const rate = totalLogged > 0 ? Math.round((present / totalLogged) * 100) : 0;
 
       return {
         driverId: d.id,
@@ -435,13 +373,10 @@ export const DriverAttendanceView: React.FC = () => {
         assignedVehicle: d.assignedVehicle,
         driverType: d.driverType,
         totalLogged,
-        presentDays: present + onTrip,
-        onTripDays: onTrip,
-        lateDays: late,
+        presentDays: present,
         absentDays: absent,
-        leaveDays: leave,
         totalHours: Number(hours.toFixed(1)),
-        avgDutyHours: activeDays > 0 ? Number((hours / activeDays).toFixed(1)) : 0,
+        avgDutyHours: present > 0 ? Number((hours / present).toFixed(1)) : 0,
         attendanceRate: rate
       };
     });
@@ -459,24 +394,20 @@ export const DriverAttendanceView: React.FC = () => {
   const monthStats = useMemo(() => {
     let totalHours = 0;
     let presentCount = 0;
-    let lateCount = 0;
     let absentCount = 0;
 
     monthlyRecords.forEach(r => {
-      if (r.status === 'Present' || r.status === 'On Trip') presentCount++;
-      else if (r.status === 'Late') lateCount++;
-      else if (r.status === 'Absent' || r.status === 'On Leave') absentCount++;
+      if (isPresentAttendance(r.status)) presentCount++;
+      else absentCount++;
       totalHours += r.workingHours || 0;
     });
 
-    const activeCount = presentCount + lateCount;
-    const avgDutyHours = activeCount > 0 ? (totalHours / activeCount).toFixed(1) : '0.0';
-    const rate = monthlyRecords.length > 0 ? Math.round((activeCount / monthlyRecords.length) * 100) : 0;
+    const avgDutyHours = presentCount > 0 ? (totalHours / presentCount).toFixed(1) : '0.0';
+    const rate = monthlyRecords.length > 0 ? Math.round((presentCount / monthlyRecords.length) * 100) : 0;
 
     return {
       totalHours: totalHours.toFixed(1),
       presentCount,
-      lateCount,
       absentCount,
       avgDutyHours,
       rate,
@@ -499,21 +430,17 @@ export const DriverAttendanceView: React.FC = () => {
     return drivers.map(d => {
       const recs = yearlyRecords.filter(r => r.driverId === d.id || r.driverName.toLowerCase() === d.name.toLowerCase());
       let present = 0;
-      let late = 0;
       let absent = 0;
-      let leave = 0;
       let hours = 0;
 
       recs.forEach(r => {
-        if (r.status === 'Present' || r.status === 'On Trip') present++;
-        else if (r.status === 'Late') late++;
-        else if (r.status === 'Absent') absent++;
-        else if (r.status === 'On Leave') leave++;
+        if (isPresentAttendance(r.status)) present++;
+        else absent++;
         hours += r.workingHours || 0;
       });
 
       const totalLogged = recs.length;
-      const rate = totalLogged > 0 ? Math.round(((present + late) / totalLogged) * 100) : 0;
+      const rate = totalLogged > 0 ? Math.round((present / totalLogged) * 100) : 0;
 
       return {
         driverId: d.id,
@@ -522,11 +449,9 @@ export const DriverAttendanceView: React.FC = () => {
         driverType: d.driverType,
         totalLogged,
         presentDays: present,
-        lateDays: late,
         absentDays: absent,
-        leaveDays: leave,
         totalHours: Number(hours.toFixed(1)),
-        avgDutyHours: (present + late > 0) ? Number((hours / (present + late)).toFixed(1)) : 0,
+        avgDutyHours: present > 0 ? Number((hours / present).toFixed(1)) : 0,
         attendanceRate: rate
       };
     });
@@ -535,23 +460,19 @@ export const DriverAttendanceView: React.FC = () => {
   const yearlyStats = useMemo(() => {
     let totalHours = 0;
     let presentCount = 0;
-    let lateCount = 0;
     let absentCount = 0;
 
     yearlyRecords.forEach(r => {
-      if (r.status === 'Present' || r.status === 'On Trip') presentCount++;
-      else if (r.status === 'Late') lateCount++;
+      if (isPresentAttendance(r.status)) presentCount++;
       else absentCount++;
       totalHours += r.workingHours || 0;
     });
 
-    const activeCount = presentCount + lateCount;
-    const rate = yearlyRecords.length > 0 ? Math.round((activeCount / yearlyRecords.length) * 100) : 0;
+    const rate = yearlyRecords.length > 0 ? Math.round((presentCount / yearlyRecords.length) * 100) : 0;
 
     return {
       totalHours: totalHours.toFixed(1),
       presentCount,
-      lateCount,
       absentCount,
       rate,
       totalShifts: yearlyRecords.length
@@ -568,27 +489,8 @@ export const DriverAttendanceView: React.FC = () => {
     </div>
   );
 
-  const renderShiftCell = (r: DriverAttendance) => {
-    const start = r.checkIn && r.checkIn !== '—' ? r.checkIn : null;
-    const end = r.checkOut && r.checkOut !== '—' ? r.checkOut : null;
-    const onDuty = Boolean(start && !end);
-
-    return (
-      <div className="cell-stack">
-        <span className="cell-primary" style={{ fontFamily: 'monospace', fontSize: '12px' }}>
-          {start ? `Start ${start}` : '—'}
-          {end ? ` → End ${end}` : onDuty ? ' → On duty' : ''}
-        </span>
-        <span className="cell-meta">
-          {onDuty ? 'Duty in progress' : r.workingHours ? `${r.workingHours} hrs duty` : 'No duty logged'}
-        </span>
-      </div>
-    );
-  };
-
   return (
     <div className="att-page-wrap">
-      {/* View Mode Switcher Header */}
       <div className="att-view-row">
         <div className="att-view-switch">
           <button
@@ -596,31 +498,23 @@ export const DriverAttendanceView: React.FC = () => {
             className={timeFrame === 'daily' ? 'active' : ''}
             onClick={() => setTimeFrame('daily')}
           >
-            <span>📅</span> Particular day
+            <Calendar size={14} /> Day
           </button>
           <button
             type="button"
             className={timeFrame === 'monthly' ? 'active' : ''}
             onClick={() => setTimeFrame('monthly')}
           >
-            <span>🗓</span> Monthly view
+            <CalendarDays size={14} /> Month
           </button>
           <button
             type="button"
             className={timeFrame === 'yearly' ? 'active' : ''}
             onClick={() => setTimeFrame('yearly')}
           >
-            <span>📈</span> Yearly view
+            <TrendingUp size={14} /> Year
           </button>
         </div>
-
-        <button
-          type="button"
-          className="btn-att primary"
-          onClick={() => setIsLogModalOpen(true)}
-        >
-          + Log attendance
-        </button>
       </div>
 
       {/* ============================================================== */}
@@ -629,18 +523,14 @@ export const DriverAttendanceView: React.FC = () => {
       {timeFrame === 'daily' && (
         <>
           {/* Daily Stats Cards */}
-          <div className="att-stats-grid">
+          <div className="att-stats-grid att-stats-grid--3">
             <div className="att-stat-card present">
-              <div className="label">Present & on duty</div>
+              <div className="label">Present</div>
               <div className="value">{dailyStats.present} / {drivers.length}</div>
             </div>
-            <div className="att-stat-card">
-              <div className="label">On bookings</div>
-              <div className="value">{dailyStats.onTrip}</div>
-            </div>
             <div className="att-stat-card alert">
-              <div className="label">Late / absent / leave</div>
-              <div className="value">{dailyStats.late + dailyStats.absent}</div>
+              <div className="label">Absent</div>
+              <div className="value">{dailyStats.absent}</div>
             </div>
             <div className="att-stat-card">
               <div className="label">Avg. duty hours</div>
@@ -648,57 +538,50 @@ export const DriverAttendanceView: React.FC = () => {
             </div>
           </div>
 
-          {/* Consolidated Date Control Card */}
           <div className="att-card">
-            <div className="att-date-bar">
-              <div className="att-date-nav">
-                <button
-                  type="button"
-                  className="att-date-step"
-                  onClick={() => shiftDate(-1)}
-                  title="Previous day"
-                >
-                  ◀
-                </button>
-                <div
-                  className="att-date-display"
-                  onClick={() => {
-                    const el = document.getElementById('att-date-native-picker');
-                    if (el) (el as HTMLInputElement).showPicker?.() || el.click();
-                  }}
-                  title="Click to select date"
-                >
-                  <span className="cal">📅</span>
-                  <span>{formattedDateLabel}</span>
-                  <input
-                    id="att-date-native-picker"
-                    type="date"
-                    value={selectedDate}
-                    onChange={e => setSelectedDate(e.target.value)}
-                    style={{
-                      position: 'absolute',
-                      opacity: 0,
-                      pointerEvents: 'none',
-                      width: 0,
-                      height: 0
-                    }}
-                  />
+            <div className="module-filter-bar">
+              <div className="module-filter-bar__group">
+                <div className="period-nav">
+                  <button
+                    type="button"
+                    className="att-date-step"
+                    onClick={() => shiftDate(-1)}
+                    title="Previous day"
+                  >
+                    <ChevronLeft size={16} />
+                  </button>
+                  <DatePicker value={selectedDate} onChange={date => date && setSelectedDate(date)} />
+                  <button
+                    type="button"
+                    className="att-date-step"
+                    onClick={() => shiftDate(1)}
+                    title="Next day"
+                  >
+                    <ChevronRight size={16} />
+                  </button>
+                  <button
+                    type="button"
+                    className="att-today-link"
+                    onClick={() => setSelectedDate(istTodayString())}
+                  >
+                    Today
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  className="att-date-step"
-                  onClick={() => shiftDate(1)}
-                  title="Next day"
-                >
-                  ▶
-                </button>
-                <button
-                  type="button"
-                  className="att-today-link"
-                  onClick={() => setSelectedDate(new Date().toISOString().split('T')[0])}
-                >
-                  Today
-                </button>
+
+                <FilterDropdown
+                  value={dutyFilter}
+                  options={DUTY_FILTER_OPTIONS}
+                  onChange={setDutyFilter}
+                  icon={<Briefcase size={13} />}
+                  title="Filter by duty"
+                />
+                <FilterDropdown
+                  value={statusFilter}
+                  options={STATUS_FILTER_OPTIONS}
+                  onChange={setStatusFilter}
+                  icon={<CheckCircle2 size={13} />}
+                  title="Filter by status"
+                />
               </div>
 
               <button
@@ -710,69 +593,47 @@ export const DriverAttendanceView: React.FC = () => {
               >
                 {isBulkMarking ? (
                   <>
-                    <Loader2 size={13} className="animate-spin" /> Marking All...
+                    <Loader2 size={13} className="spin-loader" /> Marking...
                   </>
                 ) : (
                   <>
-                    <CheckCircle2 size={14} color="#16a34a" /> Mark all present
+                    <CheckCircle2 size={14} /> Mark all present
                   </>
                 )}
               </button>
             </div>
-          </div>
-
-          {/* Table Card */}
-          <div className="att-card">
-            <div className="att-table-head">
-              <div>
-                <h2>Daily attendance</h2>
-                <div className="sub">{formattedDateLabel}</div>
-              </div>
-
-              {/* Side Filter Dropdowns */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                <select
-                  className="driver-select"
-                  value={dutyFilter}
-                  onChange={e => setDutyFilter(e.target.value)}
-                  style={{ minWidth: '150px' }}
-                >
-                  <option value="All">All Duties</option>
-                  <option value="Department Duty">Department duty</option>
-                  <option value="Booking Duty">Booking duty</option>
-                  <option value="Standby">Standby</option>
-                </select>
-
-                <select
-                  className="driver-select"
-                  value={statusFilter}
-                  onChange={e => setStatusFilter(e.target.value)}
-                  style={{ minWidth: '135px' }}
-                >
-                  <option value="All">Status: All</option>
-                  <option value="Present">Present</option>
-                  <option value="On Trip">On Booking</option>
-                  <option value="Late">Late</option>
-                  <option value="Absent">Absent</option>
-                  <option value="On Leave">On Leave</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="att-divider" />
 
             {paginatedDailyRecords.length === 0 ? (
               <div className="att-empty-box">
-                <div className="icon">🗓</div>
-                <h3>No attendance logged for this day</h3>
-                <p>Log attendance for your drivers, or mark everyone present at once if it's a normal working day.</p>
-                <button
-                  type="button"
-                  className="btn-att primary"
-                  onClick={() => setIsLogModalOpen(true)}
-                >
-                  + Log attendance
-                </button>
+                <div className="icon">
+                  <CalendarDays size={22} />
+                </div>
+                <h3>
+                  {drivers.length === 0
+                    ? 'No drivers on the roster'
+                    : dutyFilter !== 'All' || statusFilter !== 'All'
+                      ? 'No records match these filters'
+                      : 'No attendance for this day'}
+                </h3>
+                <p>
+                  {drivers.length === 0
+                    ? 'Add drivers first. Attendance is logged when they start duty from the app.'
+                    : dutyFilter !== 'All' || statusFilter !== 'All'
+                      ? 'Try another duty type or status, or clear the filters.'
+                      : 'Attendance is logged when a driver starts duty from the app, or use Mark all present.'}
+                </p>
+                {(dutyFilter !== 'All' || statusFilter !== 'All') && (
+                  <button
+                    type="button"
+                    className="btn-att"
+                    onClick={() => {
+                      setDutyFilter('All');
+                      setStatusFilter('All');
+                    }}
+                  >
+                    Clear filters
+                  </button>
+                )}
               </div>
             ) : (
               <>
@@ -781,7 +642,6 @@ export const DriverAttendanceView: React.FC = () => {
                     <thead>
                       <tr>
                         <th>Driver</th>
-                        <th>Duty times</th>
                         <th>Duty</th>
                         <th>Status</th>
                         <th>Notes</th>
@@ -792,7 +652,6 @@ export const DriverAttendanceView: React.FC = () => {
                       {paginatedDailyRecords.map(r => (
                         <tr key={r.id}>
                           <td>{renderAttendanceDriverCell(r.driverName, r.assignedVehicle)}</td>
-                          <td>{renderShiftCell(r)}</td>
                           <td>
                             <span style={{ fontSize: '12px', color: 'var(--text-dim)' }}>
                               {r.dutyType || 'Department Duty'}
@@ -848,8 +707,8 @@ export const DriverAttendanceView: React.FC = () => {
               <div className="value">{monthStats.presentCount}</div>
             </div>
             <div className="att-stat-card alert">
-              <div className="label">Late / absent</div>
-              <div className="value">{monthStats.lateCount + monthStats.absentCount}</div>
+              <div className="label">Absent</div>
+              <div className="value">{monthStats.absentCount}</div>
             </div>
             <div className="att-stat-card">
               <div className="label">Attendance rate</div>
@@ -867,30 +726,17 @@ export const DriverAttendanceView: React.FC = () => {
                   onClick={() => shiftMonth(-1)}
                   title="Previous month"
                 >
-                  ◀
+                  <ChevronLeft size={16} />
                 </button>
-                <div
-                  className="att-date-display"
-                  onClick={() => {
-                    const el = document.getElementById('att-month-native-picker');
-                    if (el) (el as HTMLInputElement).showPicker?.() || el.click();
-                  }}
-                  title="Click to select month"
-                >
-                  <span className="cal">🗓</span>
+                <div className="att-date-display">
+                  <CalendarDays size={15} />
                   <span>{formattedMonthLabel}</span>
                   <input
                     id="att-month-native-picker"
                     type="month"
                     value={selectedMonth}
                     onChange={e => setSelectedMonth(e.target.value)}
-                    style={{
-                      position: 'absolute',
-                      opacity: 0,
-                      pointerEvents: 'none',
-                      width: 0,
-                      height: 0
-                    }}
+                    aria-label="Select month"
                   />
                 </div>
                 <button
@@ -899,14 +745,14 @@ export const DriverAttendanceView: React.FC = () => {
                   onClick={() => shiftMonth(1)}
                   title="Next month"
                 >
-                  ▶
+                  <ChevronRight size={16} />
                 </button>
                 <button
                   type="button"
                   className="att-today-link"
-                  onClick={() => setSelectedMonth(new Date().toISOString().slice(0, 7))}
+                  onClick={() => setSelectedMonth(istCurrentMonthString())}
                 >
-                  This Month
+                  This month
                 </button>
               </div>
 
@@ -970,10 +816,8 @@ export const DriverAttendanceView: React.FC = () => {
                           <td>
                             <div className="cell-breakdown">
                               <span style={{ color: '#16a34a' }}>Present {item.presentDays}</span>
-                              <span>Booking {item.onTripDays || 0}</span>
-                              <span style={{ color: item.lateDays > 0 ? 'var(--warning)' : undefined }}>Late {item.lateDays}</span>
-                              <span style={{ color: item.absentDays + (item.leaveDays || 0) > 0 ? '#dc2626' : undefined }}>
-                                Absent {item.absentDays + (item.leaveDays || 0)}
+                              <span style={{ color: item.absentDays > 0 ? '#dc2626' : undefined }}>
+                                Absent {item.absentDays}
                               </span>
                             </div>
                           </td>
@@ -1022,19 +866,13 @@ export const DriverAttendanceView: React.FC = () => {
                   <h2>Monthly shift logs</h2>
                   <div className="sub">{formattedMonthLabel}</div>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                  <select
-                    className="driver-select"
-                    value={dutyFilter}
-                    onChange={e => setDutyFilter(e.target.value)}
-                    style={{ minWidth: '150px' }}
-                  >
-                    <option value="All">All Duties</option>
-                    <option value="Department Duty">Department duty</option>
-                    <option value="Booking Duty">Booking duty</option>
-                    <option value="Standby">Standby</option>
-                  </select>
-                </div>
+                <FilterDropdown
+                  value={dutyFilter}
+                  options={DUTY_FILTER_OPTIONS}
+                  onChange={setDutyFilter}
+                  icon={<Briefcase size={13} />}
+                  title="Filter by duty"
+                />
               </div>
 
               <div className="att-divider" />
@@ -1045,7 +883,6 @@ export const DriverAttendanceView: React.FC = () => {
                     <tr>
                       <th>Date</th>
                       <th>Driver</th>
-                      <th>Duty times</th>
                       <th>Duty</th>
                       <th>Status</th>
                       <th>Notes</th>
@@ -1055,7 +892,7 @@ export const DriverAttendanceView: React.FC = () => {
                   <tbody>
                     {paginatedMonthlyLogs.length === 0 ? (
                       <tr>
-                        <td colSpan={7} style={{ textAlign: 'center', color: 'var(--text-faint)', padding: '32px 0' }}>
+                        <td colSpan={6} style={{ textAlign: 'center', color: 'var(--text-faint)', padding: '32px 0' }}>
                           No shift logs found for this month matching criteria.
                         </td>
                       </tr>
@@ -1064,7 +901,6 @@ export const DriverAttendanceView: React.FC = () => {
                         <tr key={r.id}>
                           <td style={{ fontWeight: 600, fontFamily: 'monospace', fontSize: '12px', whiteSpace: 'nowrap' }}>{r.date}</td>
                           <td>{renderAttendanceDriverCell(r.driverName, r.assignedVehicle)}</td>
-                          <td>{renderShiftCell(r)}</td>
                           <td>
                             <span style={{ fontSize: '12px', color: 'var(--text-dim)' }}>
                               {r.dutyType || 'Department Duty'}
@@ -1130,38 +966,32 @@ export const DriverAttendanceView: React.FC = () => {
                   onClick={() => setSelectedYear(String(parseInt(selectedYear, 10) - 1))}
                   title="Previous year"
                 >
-                  ◀
+                  <ChevronLeft size={16} />
                 </button>
-                <div className="att-date-display">
-                  <TrendingUp size={15} color="var(--accent)" />
-                  <span>Year:</span>
-                  <select
-                    className="driver-select"
-                    style={{ padding: '2px 24px 2px 8px', fontSize: '13px', height: '28px', border: 'none' }}
-                    value={selectedYear}
-                    onChange={e => setSelectedYear(e.target.value)}
-                  >
-                    {['2024', '2025', '2026', '2027', '2028'].map(y => (
-                      <option key={y} value={y}>
-                        {y}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                <FilterDropdown
+                  value={selectedYear}
+                  options={Array.from(new Set(['2024', '2025', '2026', '2027', '2028', selectedYear]))
+                    .sort()
+                    .map(y => ({ value: y, label: y }))}
+                  onChange={setSelectedYear}
+                  icon={<TrendingUp size={13} />}
+                  title="Select year"
+                  showActive={false}
+                />
                 <button
                   type="button"
                   className="att-date-step"
                   onClick={() => setSelectedYear(String(parseInt(selectedYear, 10) + 1))}
                   title="Next year"
                 >
-                  ▶
+                  <ChevronRight size={16} />
                 </button>
                 <button
                   type="button"
                   className="att-today-link"
-                  onClick={() => setSelectedYear(new Date().getFullYear().toString())}
+                  onClick={() => setSelectedYear(istCurrentYearString())}
                 >
-                  Current Year
+                  This year
                 </button>
               </div>
             </div>
@@ -1194,17 +1024,15 @@ export const DriverAttendanceView: React.FC = () => {
                 const mRecs = yearlyRecords.filter(r => r.date && r.date.startsWith(monthCode));
                 let mHours = 0;
                 let mPresent = 0;
-                let mLate = 0;
                 let mAbsent = 0;
 
                 mRecs.forEach(r => {
-                  if (r.status === 'Present' || r.status === 'On Trip') mPresent++;
-                  else if (r.status === 'Late') mLate++;
+                  if (isPresentAttendance(r.status)) mPresent++;
                   else mAbsent++;
                   mHours += r.workingHours || 0;
                 });
 
-                const rate = mRecs.length > 0 ? Math.round(((mPresent + mLate) / mRecs.length) * 100) : 0;
+                const rate = mRecs.length > 0 ? Math.round((mPresent / mRecs.length) * 100) : 0;
                 const isCurrentSelected = selectedMonth === monthCode;
 
                 return (
@@ -1247,11 +1075,11 @@ export const DriverAttendanceView: React.FC = () => {
                         <strong style={{ color: 'var(--text)' }}>{mHours.toFixed(1)} hrs</strong>
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <span>Present / Late:</span>
-                        <span style={{ color: 'var(--text)' }}>{mPresent} / {mLate}</span>
+                        <span>Present:</span>
+                        <span style={{ color: 'var(--text)' }}>{mPresent}</span>
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <span>Absent / Leave:</span>
+                        <span>Absent:</span>
                         <span style={{ color: mAbsent > 0 ? '#dc2626' : 'inherit' }}>{mAbsent}</span>
                       </div>
                     </div>
@@ -1301,7 +1129,6 @@ export const DriverAttendanceView: React.FC = () => {
                           <div className="cell-breakdown">
                             <span>Shifts {item.totalLogged}</span>
                             <span style={{ color: '#16a34a' }}>Present {item.presentDays}</span>
-                            <span style={{ color: item.lateDays > 0 ? 'var(--warning)' : undefined }}>Late {item.lateDays}</span>
                             <span style={{ color: item.absentDays > 0 ? '#dc2626' : undefined }}>Absent {item.absentDays}</span>
                           </div>
                         </td>
@@ -1343,14 +1170,6 @@ export const DriverAttendanceView: React.FC = () => {
         </>
       )}
 
-      {/* Slide-from-bottom Log Attendance Modal */}
-      <LogAttendanceModal
-        isOpen={isLogModalOpen}
-        onClose={() => setIsLogModalOpen(false)}
-        defaultDate={selectedDate}
-      />
-
-      {/* Slide-from-bottom Edit Attendance Modal */}
       <EditAttendanceModal
         isOpen={!!editingAttendance}
         record={editingAttendance}

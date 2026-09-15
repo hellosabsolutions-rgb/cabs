@@ -9,6 +9,7 @@ import { StatusDropdown, StatusOption } from '../../common/StatusDropdown';
 import { Pagination } from '../../common/Pagination';
 import { usePagination } from '../../../hooks/usePagination';
 import {
+  X,
   Building2,
   Briefcase,
   Plus,
@@ -509,7 +510,6 @@ export const DailyDutyLogsView: React.FC = () => {
                     <th style={{ padding: '8px 10px', textAlign: 'right' }}>K.M. To</th>
                     <th style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 700 }}>K.M. Done</th>
                     <th style={{ padding: '8px 10px', textAlign: 'center' }}>Petrol / Diesel Litres</th>
-                    <th style={{ padding: '8px 10px', textAlign: 'center' }}>M. Oil Litres / Stores</th>
                     <th style={{ padding: '8px 10px' }}>Purpose of Journey</th>
                     <th style={{ padding: '8px 10px' }}>Head of A/c</th>
                     <th style={{ padding: '8px 10px' }}>Sig. Of Officer & Designation</th>
@@ -552,6 +552,16 @@ export const DailyDutyLogsView: React.FC = () => {
                             >
                               Pg {log.logBookPageNo || '122'}
                             </span>
+                            <div style={{ display: 'flex', gap: '4px', marginTop: '4px', flexWrap: 'wrap' }}>
+                              <span style={{ fontSize: '9px', padding: '1px 5px', borderRadius: '4px', background: 'var(--surface-3)', color: 'var(--text-dim)' }}>
+                                {log.entrySource === 'App' ? 'App' : 'Admin'}
+                              </span>
+                              {log.isNightShift && (
+                                <span style={{ fontSize: '9px', padding: '1px 5px', borderRadius: '4px', background: 'rgba(167, 139, 250, 0.15)', color: '#a78bfa' }}>
+                                  Night
+                                </span>
+                              )}
+                            </div>
                           </td>
 
                           {/* Details of Journey */}
@@ -594,17 +604,6 @@ export const DailyDutyLogsView: React.FC = () => {
                             )}
                           </td>
 
-                          {/* M. Oil Liters / Stores Used */}
-                          <td style={{ padding: '8px 10px', textAlign: 'center' }}>
-                            {log.mOilLitres && log.mOilLitres !== '—' ? (
-                              <span style={{ color: '#38bdf8', fontWeight: 600 }}>{log.mOilLitres}</span>
-                            ) : log.motorOilUsed && log.motorOilUsed !== 'None' ? (
-                              <span style={{ color: 'var(--text-dim)', fontSize: '11px' }}>{log.motorOilUsed}</span>
-                            ) : (
-                              <span style={{ color: 'var(--text-faint)' }}>—</span>
-                            )}
-                          </td>
-
                           {/* Purpose of Journey */}
                           <td style={{ padding: '8px 10px' }}>
                             <div style={{ fontWeight: 600 }}>
@@ -638,7 +637,7 @@ export const DailyDutyLogsView: React.FC = () => {
                                   fontWeight: 700
                                 }}
                               >
-                                {isSignedOfficer ? '✓ Sig.' : 'Pending'}
+                                {isSignedOfficer ? <><Check size={10} /> Sig.</> : 'Pending'}
                               </span>
                               <span style={{ fontWeight: 600, fontSize: '11.5px' }}>
                                 {log.officerName || 'Officer'}
@@ -666,7 +665,7 @@ export const DailyDutyLogsView: React.FC = () => {
                                 fontWeight: 700
                               }}
                             >
-                              {isSignedDriver ? '✓ Signed' : 'Pending'}
+                              {isSignedDriver ? <><Check size={10} /> Signed</> : 'Pending'}
                             </span>
                             <div style={{ fontSize: '10px', color: 'var(--text-faint)', marginTop: '2px' }}>
                               {log.driverName}
@@ -926,11 +925,6 @@ export const DailyDutyLogsView: React.FC = () => {
                               ) : (
                                 <div style={{ fontSize: '11px', color: 'var(--text-faint)' }}>No fuel logged</div>
                               )}
-                              {log.mOilLitres && log.mOilLitres !== '—' ? (
-                                <div style={{ fontSize: '10.5px', color: '#38bdf8', marginTop: '2px' }}>
-                                  M. Oil: {log.mOilLitres}
-                                </div>
-                              ) : null}
                               {log.tollParkingAmount > 0 ? (
                                 <div style={{ fontSize: '11px', color: 'var(--text-dim)', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '3px' }}>
                                   <CreditCard size={11} /> Toll: ₹{log.tollParkingAmount}
@@ -1109,7 +1103,7 @@ export const DailyDutyLogsView: React.FC = () => {
                 <FileText size={16} /> {viewSlip.title}
               </h3>
               <button className="modal-close-btn" onClick={() => setViewSlip(null)}>
-                ✕
+                <X size={15} />
               </button>
             </div>
             <div className="modal-body" style={{ textAlign: 'center', padding: '20px' }}>

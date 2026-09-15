@@ -52,6 +52,8 @@ const hi: Catalog = {
   'home.odometer': 'ओडोमीटर',
   'home.todayKm': 'आज का किमी',
   'home.wallet': 'वॉलेट',
+  'home.fastag': 'FASTag',
+  'home.fastagLow': 'कम बैलेंस — जल्दी रिचार्ज करें',
   'home.startDuty': 'ड्यूटी शुरू करें',
   'home.endDuty': 'ड्यूटी समाप्त करें',
   'home.quickActions': 'त्वरित कार्य',

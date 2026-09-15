@@ -30,6 +30,8 @@ import {
 } from 'lucide-react';
 import { StatCard } from '../../common/StatCard';
 import { CustomDropdown, CustomDropdownOption } from '../../common/CustomDropdown';
+import { Pagination } from '../../common/Pagination';
+import { usePagination } from '../../../hooks/usePagination';
 
 export const ActivityView: React.FC = () => {
   const { currentAgency } = useAgency();
@@ -57,7 +59,7 @@ export const ActivityView: React.FC = () => {
       const [actRes, statsRes] = await Promise.all([
         activitiesApi.getAll({
           agencyId: agencyId || undefined,
-          limit: 100
+          limit: 500
         }),
         activitiesApi.getUserStats(agencyId || undefined)
       ]);
@@ -163,6 +165,15 @@ export const ActivityView: React.FC = () => {
       return true;
     });
   }, [activities, selectedUserId, selectedActorType, selectedCategory, searchQuery]);
+
+  const {
+    currentPage,
+    setCurrentPage,
+    pageSize,
+    setPageSize,
+    totalItems,
+    paginatedItems: paginatedActivities
+  } = usePagination(filteredActivities, 10);
 
   // Calculated high level KPIs
   const statsSummary = useMemo(() => {
@@ -599,7 +610,10 @@ export const ActivityView: React.FC = () => {
               className="form-input"
               placeholder="Search by name, action, vehicle, route..."
               value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
+              onChange={e => {
+                setSearchQuery(e.target.value);
+                setCurrentPage(1);
+              }}
               style={{ paddingLeft: '34px', height: '38px', borderRadius: '8px', fontSize: '12.5px' }}
             />
             {searchQuery && (
@@ -617,7 +631,7 @@ export const ActivityView: React.FC = () => {
                   cursor: 'pointer'
                 }}
               >
-                ✕
+                <X size={15} />
               </button>
             )}
           </div>
@@ -626,7 +640,10 @@ export const ActivityView: React.FC = () => {
           <div style={{ minWidth: '220px', flex: '1 1 220px' }}>
             <CustomDropdown
               value={selectedUserId}
-              onChange={val => setSelectedUserId(val)}
+              onChange={val => {
+                setSelectedUserId(val);
+                setCurrentPage(1);
+              }}
               options={memberDropdownOptions}
               searchable={true}
               placeholder="Filter by user or driver..."
@@ -644,7 +661,10 @@ export const ActivityView: React.FC = () => {
               <button
                 key={tab.id}
                 type="button"
-                onClick={() => setSelectedActorType(tab.id)}
+                onClick={() => {
+                  setSelectedActorType(tab.id);
+                  setCurrentPage(1);
+                }}
                 style={{
                   background: selectedActorType === tab.id ? 'var(--surface)' : 'transparent',
                   border: 'none',
@@ -676,7 +696,10 @@ export const ActivityView: React.FC = () => {
               <button
                 key={cat.id}
                 type="button"
-                onClick={() => setSelectedCategory(cat.id)}
+                onClick={() => {
+                  setSelectedCategory(cat.id);
+                  setCurrentPage(1);
+                }}
                 style={{
                   background: selectedCategory === cat.id ? 'var(--surface-3)' : 'transparent',
                   border: `1px solid ${selectedCategory === cat.id ? 'var(--accent)' : 'var(--border)'}`,
@@ -728,6 +751,7 @@ export const ActivityView: React.FC = () => {
                     setSelectedUserId('all');
                     setSelectedCategory('all');
                     setSelectedActorType('all');
+                    setCurrentPage(1);
                   }}
                   style={{ fontSize: '12px', padding: '6px 14px' }}
                 >
@@ -737,7 +761,7 @@ export const ActivityView: React.FC = () => {
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {filteredActivities.map(item => {
+              {paginatedActivities.map(item => {
                 const theme = getCategoryTheme(item.category);
                 const isDriver = item.actorType === 'driver';
                 const createdDate = new Date(item.createdAt);
@@ -790,7 +814,10 @@ export const ActivityView: React.FC = () => {
                               color: 'var(--text)',
                               cursor: 'pointer'
                             }}
-                            onClick={() => setSelectedUserId(item.actorId || item.actorName)}
+                            onClick={() => {
+                              setSelectedUserId(item.actorId || item.actorName);
+                              setCurrentPage(1);
+                            }}
                             title="Click to filter by this member"
                           >
                             {item.actorName}
@@ -934,6 +961,17 @@ export const ActivityView: React.FC = () => {
             </div>
           )}
         </div>
+
+        {!isLoading && filteredActivities.length > 0 && (
+          <Pagination
+            currentPage={currentPage}
+            totalItems={totalItems}
+            pageSize={pageSize}
+            onPageChange={setCurrentPage}
+            onPageSizeChange={setPageSize}
+            itemLabel="events"
+          />
+        )}
       </div>
     </div>
   );

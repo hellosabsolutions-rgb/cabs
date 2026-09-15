@@ -77,7 +77,7 @@ export const VehicleAvailabilityModal: React.FC<VehicleAvailabilityModalProps> =
   };
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div className="modal-overlay modal-center" onClick={onClose}>
       <div
         className="modal-dialog"
         style={{ maxWidth: 780, maxHeight: '90vh' }}
@@ -93,7 +93,7 @@ export const VehicleAvailabilityModal: React.FC<VehicleAvailabilityModalProps> =
               Check which vehicles are free or already booked on any chosen date
             </span>
           </div>
-          <button className="modal-close-btn" onClick={onClose} type="button">✕</button>
+          <button className="modal-close-btn" onClick={onClose} type="button"><X size={15} /></button>
         </div>
 
         <div className="modal-body" style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '18px 22px' }}>
@@ -171,13 +171,17 @@ export const VehicleAvailabilityModal: React.FC<VehicleAvailabilityModalProps> =
             </div>
           </div>
           <div style={{ background: 'rgba(22, 135, 245, 0.08)', padding: '12px', borderRadius: '8px', border: '1px solid rgba(22, 135, 245, 0.25)' }}>
-            <div style={{ fontSize: '11px', color: 'var(--accent)' }}>🟢 Free / Available Vehicles</div>
+            <div style={{ fontSize: '11px', color: 'var(--accent)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <CheckCircle2 size={13} /> Free / available vehicles
+            </div>
             <div style={{ fontSize: '20px', fontWeight: 800, color: 'var(--accent)', marginTop: '2px' }}>
               {data ? data.availableCount : '...'}
             </div>
           </div>
           <div style={{ background: 'rgba(255, 92, 92, 0.08)', padding: '12px', borderRadius: '8px', border: '1px solid rgba(255, 92, 92, 0.25)' }}>
-            <div style={{ fontSize: '11px', color: 'var(--danger)' }}>🔴 Booked / Busy Vehicles</div>
+            <div style={{ fontSize: '11px', color: 'var(--danger)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <AlertTriangle size={13} /> Booked / busy vehicles
+            </div>
             <div style={{ fontSize: '20px', fontWeight: 800, color: 'var(--danger)', marginTop: '2px' }}>
               {data ? data.bookedCount : '...'}
             </div>

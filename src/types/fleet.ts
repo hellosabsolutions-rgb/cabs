@@ -217,6 +217,17 @@ export interface DriverPayrollItem {
 
 export type AttendanceStatus = 'Present' | 'Late' | 'Absent' | 'On Trip' | 'On Leave';
 
+/** UI + new records: only Present or Absent */
+export const ATTENDANCE_STATUS_OPTIONS = ['Present', 'Absent'] as const;
+
+export function isPresentAttendance(status?: AttendanceStatus | string): boolean {
+  return status === 'Present';
+}
+
+export function normalizeAttendanceStatus(status?: AttendanceStatus | string): 'Present' | 'Absent' {
+  return status === 'Present' ? 'Present' : 'Absent';
+}
+
 export interface DriverAttendance {
   id: string;
   driverId: string;
@@ -277,6 +288,8 @@ export interface DepartmentContract {
   includedHoursPerMonth: number;
   extraKmRate: number;
   extraHourRate: number;
+  /** Per night-shift day; applied at monthly billing (GST on base + night only). */
+  nightChargePerDay?: number;
   startDate: string;
   endDate: string;
   status: 'Active' | 'Expired' | 'Pending Renewal';
@@ -293,6 +306,9 @@ export interface DailyDutyLog {
   vehicle: string;
   driverName: string;
   driverId?: string;
+  entrySource?: 'Admin' | 'App';
+  isNightShift?: boolean;
+  monthlyBillId?: string | null;
   dutyType?: 'Official Department Duty' | 'Weekend / Off-Duty Trip';
   tripDestination?: string;
   tripFare?: number;
@@ -308,8 +324,6 @@ export interface DailyDutyLog {
   tollParkingAmount: number;
   fuelAmount?: number;
   fuelLitres?: number;
-  motorOilUsed?: string;
-  mOilLitres?: string;
   officerName?: string;
   officerDesignation?: string;
   journeyFrom?: string;
@@ -372,7 +386,12 @@ export interface MonthlyDepartmentBill {
   subtotal?: number;
   gstRate?: number;
   gstType?: 'CGST_SGST' | 'IGST';
-  gstTaxableOn?: 'RENT_ONLY' | 'TOTAL';
+  gstTaxableOn?: 'RENT_ONLY' | 'TOTAL' | 'BASE_AND_NIGHT';
+  contractId?: string | null;
+  dutyLogIds?: string[];
+  locked?: boolean;
+  lockedAt?: string | null;
+  lockReason?: string | null;
   gstAmount?: number;
   cgstAmount?: number;
   sgstAmount?: number;
@@ -415,6 +434,8 @@ export interface FuelLogEntry {
   paymentMode: 'Fleet Card' | 'Cash' | 'UPI' | 'Company Credit';
   meterPhoto?: string | null;
   receiptPhoto?: string | null;
+  location?: string | null;
+  coordinates?: { latitude: number | null; longitude: number | null } | null;
   notes?: string;
 }
 

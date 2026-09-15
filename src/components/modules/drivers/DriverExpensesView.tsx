@@ -6,7 +6,7 @@ import { EditDriverExpenseModal } from './EditDriverExpenseModal';
 import { DriverExpenseCategory, DriverExpenseItem, TripExpenseRecord } from '../../../types/fleet';
 import { StatusDropdown, StatusOption } from '../../common/StatusDropdown';
 import { DatePicker } from '../../common/DatePicker';
-import {
+import { X,
   Calendar,
   CalendarDays,
   TrendingUp,
@@ -1331,7 +1331,7 @@ export const DriverExpensesView: React.FC = () => {
                 <FileText size={16} /> Receipt / Voucher Document
               </h3>
               <button className="modal-close-btn" onClick={() => setActiveReceipt(null)}>
-                ✕
+                <X size={15} />
               </button>
             </div>
             <div className="modal-body" style={{ alignItems: 'center', textAlign: 'center' }}>

@@ -31,7 +31,8 @@ import {
   RefreshCw,
   ChevronDown,
   Eye,
-  Edit2
+  Edit2,
+  Phone
 } from 'lucide-react';
 import { SkeletonCard, SkeletonTable, SoftRefreshBar } from '../../common/Skeleton';
 import { StatusDropdown } from '../../common/StatusDropdown';
@@ -339,7 +340,7 @@ export const BookingsView: React.FC = () => {
                 color: stats.scheduledCount > 0 ? '#38bdf8' : undefined
               }}
             >
-              📅 Advance / Scheduled ({stats.scheduledCount})
+              <Calendar size={13} /> Advance / Scheduled ({stats.scheduledCount})
             </button>
 
             <button
@@ -351,7 +352,10 @@ export const BookingsView: React.FC = () => {
                 color: stats.ongoingCount > 0 ? 'var(--success)' : undefined
               }}
             >
-              ● Ongoing ({stats.ongoingCount})
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'currentColor', display: 'inline-block' }} />
+                Ongoing ({stats.ongoingCount})
+              </span>
             </button>
 
             <button
@@ -359,7 +363,7 @@ export const BookingsView: React.FC = () => {
               onClick={() => setStatusFilter('Completed')}
               style={{ padding: '5px 10px', fontSize: '12px' }}
             >
-              ✓ Completed ({stats.completedCount})
+              <CheckCircle2 size={13} /> Completed ({stats.completedCount})
             </button>
 
             <button
@@ -371,7 +375,7 @@ export const BookingsView: React.FC = () => {
                 color: stats.pendingAccountsCount > 0 ? '#ffb400' : undefined
               }}
             >
-              ⚠️ Pending Payment ({stats.pendingAccountsCount})
+              <AlertTriangle size={13} /> Pending payment ({stats.pendingAccountsCount})
             </button>
           </div>
 
@@ -463,8 +467,8 @@ export const BookingsView: React.FC = () => {
                               </>
                             )}
                           </span>
-                          <div style={{ fontSize: '10.5px', color: 'var(--text-faint)', marginTop: '3px' }}>
-                            📅 {b.startDate} {b.startTime && `• ${b.startTime}`}
+                          <div style={{ fontSize: '10.5px', color: 'var(--text-faint)', marginTop: '3px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <Calendar size={11} /> {b.startDate} {b.startTime && `• ${b.startTime}`}
                           </div>
                           {b.endDate && b.endDate !== b.startDate && (
                             <div style={{ fontSize: '10px', color: 'var(--text-faint)' }}>
@@ -541,8 +545,8 @@ export const BookingsView: React.FC = () => {
                             Client: <b>{b.customerName || 'Customer'}</b>
                           </div>
                           {b.customerPhone && (
-                            <div style={{ fontSize: '10.5px', color: 'var(--text-faint)', whiteSpace: 'nowrap' }}>
-                              📞 {b.customerPhone}
+                            <div style={{ fontSize: '10.5px', color: 'var(--text-faint)', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                              <Phone size={11} /> {b.customerPhone}
                             </div>
                           )}
                         </div>
@@ -619,7 +623,11 @@ export const BookingsView: React.FC = () => {
                                 color: pendingDue > 0 ? '#ffb400' : 'var(--accent)'
                               }}
                             >
-                              {pendingDue > 0 ? formatINR(pendingDue) : '✓ Paid Full'}
+                              {pendingDue > 0 ? formatINR(pendingDue) : (
+                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                  <CheckCircle2 size={12} /> Paid full
+                                </span>
+                              )}
                             </span>
                           </div>
                         </div>

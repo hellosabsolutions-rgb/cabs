@@ -22,7 +22,9 @@ import {
   Fuel,
   CreditCard,
   Plus,
-  X
+  X,
+  Lock,
+  Unlock
 } from 'lucide-react';
 import { MonthPicker } from '../../common/MonthPicker';
 import { Pagination } from '../../common/Pagination';
@@ -40,8 +42,11 @@ export const MonthlyBillingView: React.FC = () => {
     departmentContracts,
     activeGstRate,
     activeGstType,
-    applyGstRate
+    applyGstRate,
+    unlockMonthlyBill
   } = useFleet();
+
+  const [unlockingBillId, setUnlockingBillId] = useState<string | null>(null);
 
   const [deptFilter, setDeptFilter] = useState<string>('All');
   const [statusFilter, setStatusFilter] = useState<string>('All');
@@ -349,6 +354,91 @@ export const MonthlyBillingView: React.FC = () => {
       />
     );
   };
+
+  const isMonthlyTenderBill = (b: MonthlyDepartmentBill) =>
+    !b.billType || b.billType === 'Monthly Tender Rent';
+
+  const handleUnlockBill = async (b: MonthlyDepartmentBill, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    if (!b.locked || !isMonthlyTenderBill(b)) return;
+    const confirmed = window.confirm(
+      `Unlock invoice ${b.billNumber}?\n\nLine items can be edited again. Duty logs remain marked as billed until this invoice is deleted.`
+    );
+    if (!confirmed) return;
+    setUnlockingBillId(b.id);
+    try {
+      await unlockMonthlyBill(b.id, 'Unlocked from monthly billing view');
+    } finally {
+      setUnlockingBillId(null);
+    }
+  };
+
+  const renderBillLockMeta = (b: MonthlyDepartmentBill) => (
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginTop: '4px' }}>
+      {b.locked && isMonthlyTenderBill(b) && (
+        <span
+          style={{
+            fontSize: '9px',
+            fontWeight: 700,
+            letterSpacing: '0.04em',
+            padding: '1px 6px',
+            borderRadius: '4px',
+            background: 'rgba(255, 193, 7, 0.15)',
+            color: '#ffc107',
+            border: '1px solid rgba(255, 193, 7, 0.35)',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '3px'
+          }}
+        >
+          <Lock size={9} /> Locked
+        </span>
+      )}
+      {(b.dutyLogIds?.length ?? 0) > 0 && (
+        <span
+          style={{
+            fontSize: '9px',
+            padding: '1px 6px',
+            borderRadius: '4px',
+            background: 'var(--surface-3)',
+            color: 'var(--text-dim)'
+          }}
+        >
+          {b.dutyLogIds!.length} duty log{b.dutyLogIds!.length === 1 ? '' : 's'}
+        </span>
+      )}
+    </div>
+  );
+
+  const renderBillActionCell = (b: MonthlyDepartmentBill) => (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', alignItems: 'flex-start' }}>
+      <span
+        className="bill-link"
+        style={{ fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}
+        onClick={() => setSelectedBillForPreview(b)}
+      >
+        <Printer size={12} /> Print Bill
+      </span>
+      {b.locked && isMonthlyTenderBill(b) && (
+        <button
+          type="button"
+          className="btn-secondary"
+          style={{
+            fontSize: '11px',
+            padding: '4px 8px',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '4px'
+          }}
+          disabled={unlockingBillId === b.id}
+          onClick={e => void handleUnlockBill(b, e)}
+        >
+          <Unlock size={11} />
+          {unlockingBillId === b.id ? 'Unlocking…' : 'Unlock edit'}
+        </button>
+      )}
+    </div>
+  );
 
   const renderStatusDropdown = (status: MonthlyDepartmentBill['status'], id: string) => {
     const billOptions: StatusOption<MonthlyDepartmentBill['status']>[] = [
@@ -837,6 +927,10 @@ export const MonthlyBillingView: React.FC = () => {
                   </span>
                 </div>
 
+                <p style={{ fontSize: '10.5px', color: 'var(--text-faint)', margin: '0 0 8px', lineHeight: 1.4 }}>
+                  Locked monthly tender invoices are skipped. Bulk GST uses base + night taxable amount when configured on each bill.
+                </p>
+
                 {/* Apply Button */}
                 <button
                   type="button"
@@ -1079,6 +1173,7 @@ export const MonthlyBillingView: React.FC = () => {
                                       <div style={{ fontSize: '11px', color: 'var(--text-faint)', marginTop: '2px' }}>
                                         Month: {b.billingMonth}
                                       </div>
+                                      {renderBillLockMeta(b)}
                                     </div>
                                   </td>
                                   <td style={{ fontWeight: 500 }}>{b.vehicle}</td>
@@ -1104,15 +1199,7 @@ export const MonthlyBillingView: React.FC = () => {
                                   </td>
                                   <td>{renderStatusDropdown(b.status, b.id)}</td>
                                   <td style={{ fontSize: '12px', color: 'var(--text-dim)' }}>{b.dueDate}</td>
-                                  <td>
-                                    <span
-                                      className="bill-link"
-                                      style={{ fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}
-                                      onClick={() => setSelectedBillForPreview(b)}
-                                    >
-                                      <Printer size={12} /> Print Bill
-                                    </span>
-                                  </td>
+                                  <td>{renderBillActionCell(b)}</td>
                                 </tr>
                               ))
                             )}
@@ -1333,7 +1420,7 @@ export const MonthlyBillingView: React.FC = () => {
                                           </button>
                                         ) : (
                                           <span style={{ fontSize: '10px', color: 'var(--success)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '3px' }}>
-                                            ✓ Memo {log.weekendBillNumber || 'Issued'}
+                                            <Check size={11} /> Memo {log.weekendBillNumber || 'Issued'}
                                           </span>
                                         )}
                                       </div>
@@ -1405,6 +1492,7 @@ export const MonthlyBillingView: React.FC = () => {
                           <div style={{ fontSize: '11px', color: 'var(--text-faint)', marginTop: '2px' }}>
                             Month: {b.billingMonth}
                           </div>
+                          {renderBillLockMeta(b)}
                         </div>
                       </td>
                       <td style={{ fontWeight: 500 }}>{b.departmentName}</td>
@@ -1431,15 +1519,7 @@ export const MonthlyBillingView: React.FC = () => {
                       </td>
                       <td>{renderStatusDropdown(b.status, b.id)}</td>
                       <td style={{ fontSize: '12px', color: 'var(--text-dim)' }}>{b.dueDate}</td>
-                      <td>
-                        <span
-                          className="bill-link"
-                          style={{ fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}
-                          onClick={() => setSelectedBillForPreview(b)}
-                        >
-                          <Printer size={12} /> Print Bill
-                        </span>
-                      </td>
+                      <td>{renderBillActionCell(b)}</td>
                     </tr>
                   ))
                 )}
@@ -1504,6 +1584,7 @@ export const MonthlyBillingView: React.FC = () => {
                         <span>Taxi: <strong>{b.vehicle}</strong></span>
                         <span>{b.billingMonth}</span>
                       </div>
+                      {renderBillLockMeta(b)}
                     </div>
                   );
                 })
@@ -1515,6 +1596,9 @@ export const MonthlyBillingView: React.FC = () => {
           <div>
             {(activeInvoiceBill || filteredBills[0]) ? (
               <div>
+                {(() => {
+                  const docBill = activeInvoiceBill || filteredBills[0];
+                  return (
                 <div
                   className="panel"
                   style={{
@@ -1522,25 +1606,44 @@ export const MonthlyBillingView: React.FC = () => {
                     justifyContent: 'space-between',
                     alignItems: 'center',
                     padding: '12px 18px',
-                    marginBottom: '14px'
+                    marginBottom: '14px',
+                    flexWrap: 'wrap',
+                    gap: '10px'
                   }}
                 >
                   <div>
                     <span style={{ fontWeight: 700, fontSize: '14px', color: 'var(--text)' }}>
-                      {(activeInvoiceBill || filteredBills[0]).billNumber}
+                      {docBill.billNumber}
                     </span>
                     <span style={{ fontSize: '12px', color: 'var(--text-faint)', marginLeft: '8px' }}>
-                      • {(activeInvoiceBill || filteredBills[0]).departmentName}
+                      • {docBill.departmentName}
                     </span>
+                    <div style={{ marginTop: '6px' }}>{renderBillLockMeta(docBill)}</div>
                   </div>
-                  <button
-                    className="btn-primary-action"
-                    style={{ padding: '7px 16px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}
-                    onClick={() => setSelectedBillForPreview(activeInvoiceBill || filteredBills[0])}
-                  >
-                    <Printer size={14} /> Print / Save as PDF
-                  </button>
+                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                    {docBill.locked && isMonthlyTenderBill(docBill) && (
+                      <button
+                        type="button"
+                        className="btn-secondary"
+                        style={{ padding: '7px 14px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}
+                        disabled={unlockingBillId === docBill.id}
+                        onClick={() => void handleUnlockBill(docBill)}
+                      >
+                        <Unlock size={14} />
+                        {unlockingBillId === docBill.id ? 'Unlocking…' : 'Unlock edit'}
+                      </button>
+                    )}
+                    <button
+                      className="btn-primary-action"
+                      style={{ padding: '7px 16px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}
+                      onClick={() => setSelectedBillForPreview(docBill)}
+                    >
+                      <Printer size={14} /> Print / Save as PDF
+                    </button>
+                  </div>
                 </div>
+                  );
+                })()}
 
                 <div
                   style={{

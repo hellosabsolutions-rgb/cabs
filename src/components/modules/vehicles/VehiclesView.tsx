@@ -9,7 +9,7 @@ import { ImportVehiclesModal } from './ImportVehiclesModal';
 import { VehicleDetailView } from './VehicleDetailView';
 import { VehicleAvailabilityModal } from '../bookings/VehicleAvailabilityModal';
 import { Vehicle, VehicleStatus, VehicleType } from '../../../types/fleet';
-import { Briefcase, Building2, Plus, FileText, RotateCcw, MapPin, Fuel, AlertTriangle, Shield, Wind, FileCheck, Award, Eye, Calendar, Edit2, Trash2, Download, FileSpreadsheet } from 'lucide-react';
+import { X, Briefcase, Building2, Plus, FileText, RotateCcw, MapPin, Fuel, AlertTriangle, Shield, Wind, FileCheck, Award, Eye, Calendar, Edit2, Trash2, Download, FileSpreadsheet } from 'lucide-react';
 import { downloadVehicleExcelTemplate } from '../../../utils/csvHelper';
 import { SkeletonCard, SkeletonTable, SoftRefreshBar } from '../../common/Skeleton';
 
@@ -557,7 +557,7 @@ export const VehiclesView: React.FC = () => {
                 </span>
               </div>
               <button className="modal-close-btn" onClick={() => setSelectedVehicleDocs(null)}>
-                ✕
+                <X size={15} />
               </button>
             </div>
 
@@ -683,7 +683,7 @@ export const VehiclesView: React.FC = () => {
                 <FileText size={16} color="var(--accent)" /> Verified Document Scan Copy
               </h3>
               <button className="modal-close-btn" onClick={() => setViewRc(null)}>
-                ✕
+                <X size={15} />
               </button>
             </div>
             <div className="modal-body" style={{ textAlign: 'center', padding: '16px' }}>

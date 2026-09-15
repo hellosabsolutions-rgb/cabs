@@ -3,6 +3,7 @@ import { asyncHandler } from '../middleware/asyncHandler.js';
 import { Maintenance } from '../models/Maintenance.js';
 import { Expense } from '../models/Expense.js';
 import { broadcastAll } from '../services/socketService.js';
+import { processMediaFields } from '../utils/mediaUploadHelper.js';
 
 /**
  * Get all maintenance records with optional filtering
@@ -76,6 +77,10 @@ export const createMaintenance = asyncHandler(async (req, res) => {
   }
 
   const numCost = Number(cost) || 0;
+  const mediaProcessed = await processMediaFields(
+    { bill: bill || null },
+    [{ field: 'bill', folder: 'fleetos/maintenance/bills' }]
+  );
 
   // 1. Create Maintenance record
   const maintenance = await Maintenance.create({
@@ -85,7 +90,7 @@ export const createMaintenance = asyncHandler(async (req, res) => {
     type,
     tyreCount: type === 'Tyre Change' ? (Number(tyreCount) || 0) : 0,
     cost: numCost,
-    bill: bill || null,
+    bill: mediaProcessed.bill || null,
     status,
     notes: notes || ''
   });
@@ -138,8 +143,11 @@ export const updateMaintenance = asyncHandler(async (req, res) => {
   const updateFields = { ...req.body };
   delete updateFields._id;
   delete updateFields.id;
+  const payload = await processMediaFields(updateFields, [
+    { field: 'bill', folder: 'fleetos/maintenance/bills' }
+  ]);
 
-  const maintenance = await Maintenance.findByIdAndUpdate(id, updateFields, {
+  const maintenance = await Maintenance.findByIdAndUpdate(id, payload, {
     new: true,
     runValidators: true
   });

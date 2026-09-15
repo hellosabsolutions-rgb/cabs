@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { useFleet } from '../../../context/FleetContext';
 import { StatCard } from '../../common/StatCard';
-import { Receipt, MapPin, Plus } from 'lucide-react';
+import { X, Receipt, MapPin, Plus } from 'lucide-react';
 import { TripExpenseCategory } from '../../../types/fleet';
 import { AddTripExpenseModal } from './AddTripExpenseModal';
 
@@ -180,7 +180,7 @@ export const TripExpensesView: React.FC = () => {
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
               <strong>Receipt</strong>
               <button className="modal-close-btn" type="button" onClick={() => setPreviewUrl(null)}>
-                ✕
+                <X size={15} />
               </button>
             </div>
             {previewUrl.toLowerCase().includes('.pdf') || previewUrl.startsWith('data:application/pdf') ? (

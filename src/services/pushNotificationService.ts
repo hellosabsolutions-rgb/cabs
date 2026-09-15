@@ -46,6 +46,20 @@ export const registerServiceWorker = async (): Promise<ServiceWorkerRegistration
 };
 
 /**
+ * Open the browser notification permission prompt if it has not been decided yet.
+ */
+export const promptNotificationPermission = async (): Promise<NotificationPermission> => {
+  if (!isPushSupported()) return 'denied';
+  const current = getPushPermissionState();
+  if (current !== 'default') return current;
+  try {
+    return await Notification.requestPermission();
+  } catch {
+    return getPushPermissionState();
+  }
+};
+
+/**
  * Request notification permission, register service worker, acquire FCM token,
  * and register the device token with the backend.
  */
@@ -173,20 +187,5 @@ export const setupForegroundPushListener = async (
   } catch (err) {
     console.warn('⚠️ [Push] Could not attach foreground listener:', err);
     return null;
-  }
-};
-
-/**
- * Send a test push notification through the backend.
- */
-export const sendDirectTestPush = async (): Promise<{ success: boolean; message?: string; error?: string }> => {
-  try {
-    const res = await api.post<{ success: boolean; message: string }>('/notifications/test-push');
-    return res;
-  } catch (err: any) {
-    return {
-      success: false,
-      error: err.response?.data?.error || err.message || 'Failed to dispatch test push'
-    };
   }
 };

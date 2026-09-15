@@ -25,6 +25,29 @@ const monthlyBillSchema = new mongoose.Schema(
       default: null,
       index: true
     },
+    contractId: {
+      type: String,
+      default: null,
+      index: true
+    },
+    dutyLogIds: {
+      type: [String],
+      default: []
+    },
+    locked: {
+      type: Boolean,
+      default: false,
+      index: true
+    },
+    lockedAt: {
+      type: Date,
+      default: null
+    },
+    lockReason: {
+      type: String,
+      default: null,
+      trim: true
+    },
     departmentName: {
       type: String,
       required: true,
@@ -135,8 +158,8 @@ const monthlyBillSchema = new mongoose.Schema(
     },
     gstTaxableOn: {
       type: String,
-      enum: ['RENT_ONLY', 'TOTAL'],
-      default: 'TOTAL'
+      enum: ['RENT_ONLY', 'TOTAL', 'BASE_AND_NIGHT'],
+      default: 'BASE_AND_NIGHT'
     },
     gstAmount: {
       type: Number,

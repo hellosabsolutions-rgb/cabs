@@ -1,16 +1,23 @@
-import React, { useMemo } from 'react';
-import { useLocation } from 'react-router-dom';
+import React from 'react';
 import { useFleet } from '../../../context/FleetContext';
 import { ContractsListView } from './ContractsListView';
 import { DailyDutyLogsView } from './DailyDutyLogsView';
 import { MonthlyBillingView } from './MonthlyBillingView';
 import { WeekendBillingView } from './WeekendBillingView';
 import { DepartmentPaymentsView } from './DepartmentPaymentsView';
+import { FileText, ClipboardList, ReceiptText, CreditCard, Briefcase } from 'lucide-react';
 import { SkeletonCard, SkeletonTable, SoftRefreshBar } from '../../common/Skeleton';
 
 export const DepartmentsView: React.FC = () => {
-  const { departmentSubTab } = useFleet();
-  const location = useLocation();
+  const {
+    departmentSubTab,
+    setDepartmentSubTab,
+    departmentContracts,
+    dailyDutyLogs,
+    monthlyBills,
+    departmentPayments,
+    isLoadingDepartments
+  } = useFleet();
 
   const totalMonthlyBilled = monthlyBills.reduce((acc, curr) => acc + curr.totalBill, 0);
   const weekendTripsCount = dailyDutyLogs.filter(l => l.dutyType === 'Weekend / Off-Duty Trip').length;

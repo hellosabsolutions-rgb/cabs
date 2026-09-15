@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useFleet } from '../../../context/FleetContext';
 import { TripFinancial } from '../../../types/fleet';
-import { CheckCircle2, Fuel, CreditCard, User } from 'lucide-react';
+import { X, CheckCircle2, Fuel, CreditCard, User } from 'lucide-react';
 
 interface CompleteTripModalProps {
   isOpen: boolean;
@@ -97,7 +97,7 @@ export const CompleteTripModal: React.FC<CompleteTripModalProps> = ({
             </span>
           </div>
           <button className="modal-close-btn" onClick={onClose} type="button">
-            ✕
+            <X size={15} />
           </button>
         </div>
 

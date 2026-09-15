@@ -8,7 +8,17 @@ const router = express.Router();
 
 router.use(protectUserOrDriver);
 router.use(resolveAgency);
-const fuelLogController = createCrudController(FuelLog, ['vehicle', 'driverName', 'stationName', 'fuelType', 'location', 'notes']);
+const fuelLogController = createCrudController(
+  FuelLog,
+  ['vehicle', 'driverName', 'stationName', 'fuelType', 'location', 'notes'],
+  {
+    socketPrefix: 'fuel-log',
+    mediaFields: [
+      { field: 'meterPhoto', folder: 'fleetos/fuel/meter' },
+      { field: 'receiptPhoto', folder: 'fleetos/fuel/receipts' }
+    ]
+  }
+);
 
 router
   .route('/')

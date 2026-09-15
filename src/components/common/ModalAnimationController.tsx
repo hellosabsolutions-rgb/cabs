@@ -38,7 +38,7 @@ export const ModalAnimationController: React.FC = () => {
       // 1. Did the user click directly on the backdrop (outside the dialog)?
       const isBackdropClick = target === overlay;
 
-      // 2. Did the user click an explicit modal close button (e.g. ✕ in header)?
+      // 2. Did the user click an explicit modal close button (e.g. X in header)?
       const isCloseBtn = Boolean(target.closest('.modal-close-btn, .btn-close, [aria-label="Close modal"], [data-modal-close]'));
 
       // 3. Did the user click a Cancel or Close secondary button in modal footer or action bar?

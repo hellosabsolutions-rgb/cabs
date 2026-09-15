@@ -77,40 +77,8 @@ export const EditAdvanceModal: React.FC<EditAdvanceModalProps> = ({
   };
 
   return (
-    <div
-      className="modal-backdrop"
-      onClick={onClose}
-      style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.65)',
-        backdropFilter: 'blur(6px)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 9999,
-        padding: '20px'
-      }}
-    >
-      <div
-        className="modal-content"
-        onClick={e => e.stopPropagation()}
-        style={{
-          background: 'var(--surface)',
-          color: 'var(--text)',
-          borderRadius: '16px',
-          width: '100%',
-          maxWidth: '480px',
-          margin: 'auto',
-          border: '1px solid var(--border)',
-          boxShadow: '0 20px 50px rgba(0, 0, 0, 0.4), 0 0 0 1px var(--border)',
-          overflow: 'hidden',
-          fontFamily: "'Poppins', sans-serif"
-        }}
-      >
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-dialog" onClick={e => e.stopPropagation()}>
         <div
           style={{
             padding: '22px 24px 16px 24px',

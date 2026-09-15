@@ -3,7 +3,23 @@ import { Vehicle } from '../models/Vehicle.js';
 import { Expense } from '../models/Expense.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import { emitFastagRecharged, emitLowFastagBalance } from '../services/notificationEmitter.js';
-import { uploadToCloudinary } from '../services/cloudinaryService.js';
+import { uploadMediaValue } from '../utils/mediaUploadHelper.js';
+import { broadcastAll } from '../services/socketService.js';
+
+function emitFastagBalanceUpdated(vehicle) {
+  if (!vehicle?.registrationNumber) return;
+  try {
+    broadcastAll('fastag:balance_updated', {
+      vehicle: vehicle.registrationNumber,
+      vehicleId: vehicle._id?.toString(),
+      fastagBalance: Number(vehicle.fastagBalance) || 0,
+      fastagTagId: vehicle.fastagTagId || null,
+      fastagBank: vehicle.fastagBank || null
+    });
+  } catch (err) {
+    console.warn('fastag:balance_updated socket emit failed:', err.message);
+  }
+}
 
 /**
  * @desc    Get all FASTag transactions with search & filtering
@@ -195,20 +211,9 @@ export const rechargeWallet = asyncHandler(async (req, res) => {
     hour12: true
   });
 
-  // 2. Upload proof slip to Cloudinary if provided as base64
-  let finalProofSlip = proofSlip || null;
-  if (proofSlip && typeof proofSlip === 'string' && proofSlip.startsWith('data:')) {
-    try {
-      const isPdf = proofSlip.startsWith('data:application/pdf');
-      const uploaded = await uploadToCloudinary(proofSlip, {
-        folder: 'fleetos/receipts',
-        resource_type: isPdf ? 'raw' : 'auto'
-      });
-      finalProofSlip = uploaded.secure_url;
-    } catch (err) {
-      console.warn('Cloudinary fastag proof upload failed, saving raw:', err.message);
-    }
-  }
+  const finalProofSlip = proofSlip
+    ? await uploadMediaValue(proofSlip, 'fleetos/fastag/proofs')
+    : null;
 
   // 3. Create FASTag Transaction
   const transaction = await FastagTransaction.create({
@@ -233,6 +238,10 @@ export const rechargeWallet = asyncHandler(async (req, res) => {
     vehicleReg: targetReg,
     amount: rechargeNum
   });
+
+  if (vehicle) {
+    emitFastagBalanceUpdated(vehicle);
+  }
 
   res.status(201).json({
     success: true,
@@ -305,6 +314,9 @@ export const deductToll = asyncHandler(async (req, res) => {
     });
   const txRef = transactionRef || `TOLL-${Date.now().toString().slice(-8)}`;
   const plazaName = (tollPlaza || 'Highway Toll Plaza').trim();
+  const finalProofSlip = proofSlip
+    ? await uploadMediaValue(proofSlip, 'fleetos/fastag/proofs')
+    : null;
 
   // 2. Create FASTag Transaction
   const transaction = await FastagTransaction.create({
@@ -319,7 +331,7 @@ export const deductToll = asyncHandler(async (req, res) => {
     balanceAfter: newBalance,
     transactionRef: txRef,
     linkedDutyOrTrip: linkedDutyOrTrip || 'Toll Plaza Debit',
-    proofSlip: proofSlip || null,
+    proofSlip: finalProofSlip,
     status: 'Successful'
   });
 
@@ -334,6 +346,10 @@ export const deductToll = asyncHandler(async (req, res) => {
     });
   } catch (expErr) {
     console.warn('Could not auto-create Expense entry for toll deduction:', expErr);
+  }
+
+  if (vehicle) {
+    emitFastagBalanceUpdated(vehicle);
   }
 
   if (newBalance < 500) {
@@ -396,6 +412,7 @@ export const updateVehicleFastagDetails = asyncHandler(async (req, res) => {
   }
 
   await vehicle.save();
+  emitFastagBalanceUpdated(vehicle);
 
   res.status(200).json({
     success: true,

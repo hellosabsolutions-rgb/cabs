@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useFleet } from '../../../context/FleetContext';
 import { TripFinancial, PaymentMode } from '../../../types/fleet';
-import { CheckCircle2, AlertTriangle, Fuel, CreditCard, User, IndianRupee, HelpCircle } from 'lucide-react';
+import { CheckCircle2, AlertTriangle, Fuel, CreditCard, User, IndianRupee, HelpCircle, X } from 'lucide-react';
 
 interface CompleteBookingModalProps {
   isOpen: boolean;
@@ -119,77 +119,25 @@ export const CompleteBookingModal: React.FC<CompleteBookingModalProps> = ({
   };
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
+    <div className="modal-overlay" onClick={onClose}>
       <div
-        className="modal-content"
-        style={{
-          maxWidth: '660px',
-          width: '95%',
-          maxHeight: '92vh',
-          display: 'flex',
-          flexDirection: 'column',
-          background: 'var(--surface-1)',
-          border: '1px solid var(--border)',
-          borderRadius: '16px',
-          boxShadow: '0 24px 60px rgba(0, 0, 0, 0.5), 0 0 0 1px var(--border)',
-          overflow: 'hidden'
-        }}
+        className="modal-dialog"
         onClick={e => e.stopPropagation()}
       >
-        {/* Modal Header */}
-        <div
-          style={{
-            padding: '16px 22px',
-            borderBottom: '1px solid var(--border)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            background: 'var(--surface-2)'
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div
-              style={{
-                width: '36px',
-                height: '36px',
-                borderRadius: '10px',
-                background: 'rgba(56, 189, 248, 0.12)',
-                color: 'var(--accent)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}
-            >
-              <CheckCircle2 size={20} />
-            </div>
-            <div>
-              <h2 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: 'var(--text)' }}>
-                Complete Booking & Settle Payment
-              </h2>
-              <p style={{ margin: '2px 0 0 0', fontSize: '11.5px', color: 'var(--text-faint)' }}>
-                {trip.bookingNumber || trip.tripNumber} — {trip.route} ({trip.vehicle})
-              </p>
-            </div>
+        <div className="modal-header">
+          <div className="modal-title-group">
+            <h3 className="modal-title">
+              <span className="modal-title-icon">
+                <CheckCircle2 size={16} />
+              </span>
+              Complete booking & settle payment
+            </h3>
+            <span className="modal-subtitle">
+              {trip.bookingNumber || trip.tripNumber} — {trip.route} ({trip.vehicle})
+            </span>
           </div>
-          <button
-            type="button"
-            className="btn-close"
-            onClick={onClose}
-            style={{
-              width: '30px',
-              height: '30px',
-              borderRadius: '8px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              background: 'transparent',
-              border: 'none',
-              color: 'var(--text-faint)',
-              cursor: 'pointer',
-              fontSize: '16px'
-            }}
-          >
-            ✕
+          <button type="button" className="modal-close-btn" onClick={onClose} aria-label="Close">
+            <X size={15} />
           </button>
         </div>
 

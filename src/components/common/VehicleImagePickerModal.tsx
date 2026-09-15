@@ -9,7 +9,8 @@ import {
   Sparkles,
   Users,
   Fuel,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Zap
 } from 'lucide-react';
 import { VEHICLE_PRESETS, VEHICLE_CATEGORIES, VehiclePreset } from '../../constants/vehiclePresets';
 import { processAndCompressFile } from '../../utils/imageCompressor';
@@ -95,7 +96,7 @@ export const VehicleImagePickerModal: React.FC<VehicleImagePickerModalProps> = (
 
   return (
     <div
-      className="modal-overlay"
+      className="modal-overlay modal-center"
       style={{ zIndex: 100000 }}
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
@@ -428,7 +429,7 @@ export const VehicleImagePickerModal: React.FC<VehicleImagePickerModalProps> = (
                             transition: 'background 0.12s',
                           }}
                         >
-                          {isSelected ? '✓ Apply Model' : 'Select Photo'}
+                          {isSelected ? <><Check size={12} /> Apply model</> : 'Select photo'}
                         </button>
                       </div>
                     </div>
@@ -493,7 +494,7 @@ export const VehicleImagePickerModal: React.FC<VehicleImagePickerModalProps> = (
                           fontWeight: 600,
                         }}
                       >
-                        ⚡ Optimized ({compressedSizeKb} KB) — Instant upload safe
+                        <Zap size={11} /> Optimized ({compressedSizeKb} KB) — Instant upload safe
                       </span>
                     )}
                     <span style={{ fontSize: '11px', color: 'var(--accent, #38bdf8)', marginTop: '4px' }}>
@@ -534,7 +535,7 @@ export const VehicleImagePickerModal: React.FC<VehicleImagePickerModalProps> = (
                   className="btn-primary"
                   style={{ minWidth: '200px', height: '40px', fontSize: '13px', fontWeight: 600 }}
                 >
-                  ✓ Use This Vehicle Photo
+                  <Check size={14} /> Use this vehicle photo
                 </button>
               )}
             </div>
@@ -592,7 +593,7 @@ export const VehicleImagePickerModal: React.FC<VehicleImagePickerModalProps> = (
                   className="btn-primary"
                   style={{ height: '40px', fontSize: '13px', fontWeight: 600 }}
                 >
-                  ✓ Apply Vehicle Image URL
+                  <Check size={14} /> Apply vehicle image URL
                 </button>
               )}
             </div>

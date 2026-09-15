@@ -12,6 +12,7 @@ import {
   serializeDriverAuth
 } from '../services/driverSession.js';
 import { hoursBetween, upsertAttendanceFromDutyLog } from '../utils/dutyAttendanceSync.js';
+import { uploadMediaValue } from '../utils/mediaUploadHelper.js';
 
 function nextDriverCode() {
   return `DRV-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
@@ -91,6 +92,7 @@ async function upsertOpenDutyLog({ driver, vehicle, odoNumber, istTime, todayDat
     journeyFrom: locationAddress || '',
     notes: 'Driver check-in from mobile app',
     status: 'Pending',
+    entrySource: 'App',
     officerSignatureStatus: 'Pending',
     driverSignatureStatus: 'Pending'
   });
@@ -213,6 +215,9 @@ export const startDriverDuty = asyncHandler(async (req, res) => {
   }
 
   const { startOdometer, photoUrl, location } = req.body;
+  const uploadedPhotoUrl = photoUrl
+    ? await uploadMediaValue(photoUrl, 'fleetos/duty/odometer')
+    : null;
   const odoNumber = Number(startOdometer) || vehicle.odometer || 0;
 
   // Check last known odo
@@ -298,41 +303,6 @@ export const startDriverDuty = asyncHandler(async (req, res) => {
   }
   await Vehicle.findByIdAndUpdate(vehicle._id, vehicleUpdateFields);
 
-  // Auto-record / update attendance for today as Present with check-in location
-  let attendanceDoc = null;
-  try {
-    const attendanceSetFields = {
-      status: 'Present',
-      checkIn: istTime,
-      checkOut: '—',
-      workingHours: 0,
-      assignedVehicle: vehicle.registrationNumber
-    };
-    if (locationAddress) {
-      attendanceSetFields.location = locationAddress;
-    }
-    if (latitude && longitude) {
-      attendanceSetFields.coordinates = { latitude, longitude };
-    }
-
-    attendanceDoc = await DriverAttendance.findOneAndUpdate(
-      { driverId: driver._id.toString(), date: todayDate },
-      {
-        $setOnInsert: {
-          driverId: driver._id.toString(),
-          driverName: driver.name,
-          date: todayDate,
-          dutyType: 'Department Duty',
-          ...(driver.agencyId ? { agencyId: driver.agencyId } : {})
-        },
-        $set: attendanceSetFields
-      },
-      { upsert: true, new: true }
-    );
-  } catch (attErr) {
-    console.warn('Could not auto-log attendance on start duty:', attErr.message);
-  }
-
   let dutyLogDoc = null;
   let dutyLogCreated = false;
   try {
@@ -342,7 +312,7 @@ export const startDriverDuty = asyncHandler(async (req, res) => {
       odoNumber,
       istTime,
       todayDate,
-      photoUrl,
+      photoUrl: uploadedPhotoUrl,
       locationAddress
     });
     dutyLogDoc = result.log;
@@ -435,7 +405,10 @@ export const endDriverDuty = asyncHandler(async (req, res) => {
     vehicle = await Vehicle.findOne({ registrationNumber: driver.assignedVehicle });
   }
 
-  const { endOdometer, remarks, photoUrl, location } = req.body;
+  const { endOdometer, remarks, photoUrl, location, isNightShift, tollParkingAmount } = req.body;
+  const uploadedPhotoUrl = photoUrl
+    ? await uploadMediaValue(photoUrl, 'fleetos/duty/odometer')
+    : null;
   const odoNumber = Number(endOdometer);
 
   if (isNaN(odoNumber) || odoNumber <= 0) {
@@ -525,13 +498,18 @@ export const endDriverDuty = asyncHandler(async (req, res) => {
       openLog.totalKm = Math.max(0, odoNumber - resolvedStartKm);
       openLog.endTime = istTime;
       openLog.totalHours = hoursBetween(openLog.startTime, istTime) || 10;
-      openLog.dutySlipPhoto = photoUrl || openLog.dutySlipPhoto || null;
+      openLog.dutySlipPhoto = uploadedPhotoUrl || openLog.dutySlipPhoto || null;
       openLog.driverId = driverId;
       if (agencyId && !openLog.agencyId) openLog.agencyId = agencyId;
       openLog.notes = remarks || openLog.notes || 'Driver check-out from mobile app';
       openLog.status = 'Approved';
       openLog.officerSignatureStatus = openLog.officerSignatureStatus === 'Pending' ? 'Pending' : openLog.officerSignatureStatus;
       openLog.driverSignatureStatus = 'Signed';
+      openLog.entrySource = openLog.entrySource || 'App';
+      if (isNightShift !== undefined) openLog.isNightShift = Boolean(isNightShift);
+      if (tollParkingAmount !== undefined) {
+        openLog.tollParkingAmount = Math.max(0, Number(tollParkingAmount) || 0);
+      }
       await openLog.save();
       dutyLogDoc = openLog;
     } else {
@@ -552,9 +530,12 @@ export const endDriverDuty = asyncHandler(async (req, res) => {
         startTime: priorCheckIn || '09:00 AM',
         endTime: istTime,
         totalHours: hoursBetween(priorCheckIn, istTime) || 10,
-        dutySlipPhoto: photoUrl || null,
+        dutySlipPhoto: uploadedPhotoUrl || null,
         notes: remarks || 'Driver check-out from mobile app',
-        status: 'Approved'
+        status: 'Approved',
+        entrySource: 'App',
+        isNightShift: Boolean(isNightShift),
+        tollParkingAmount: Math.max(0, Number(tollParkingAmount) || 0)
       });
       dutyLogCreated = true;
     }

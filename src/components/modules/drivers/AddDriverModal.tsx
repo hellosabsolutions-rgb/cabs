@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useFleet } from '../../../context/FleetContext';
 import { DriverType } from '../../../types/fleet';
-import { UserPlus, Camera, FileText, Copy, CheckCircle, Trash2, ExternalLink, AlertCircle } from 'lucide-react';
+import { UserPlus, Camera, FileText, Copy, CheckCircle, Trash2, ExternalLink, AlertCircle, X, Smartphone } from 'lucide-react';
 import { MinimalVoiceFiller } from '../../common/MinimalVoiceFiller';
 import { DatePicker } from '../../common/DatePicker';
 import { ACCEPT_DOC_TYPES, isPdfDocument } from '../../../utils/fileUtils';
@@ -193,24 +193,23 @@ export const AddDriverModal: React.FC<AddDriverModalProps> = ({ isOpen, onClose 
 
   return (
     <div className="modal-overlay" onClick={generatedCreds ? undefined : onClose}>
-      <div className="driver-modal" onClick={e => e.stopPropagation()}>
-        {/* Header */}
-        <div className="modal-head">
-          <div>
-            <div className="title-row">
-              <span className="icon">
+      <div className="modal-dialog app-form-sheet" onClick={e => e.stopPropagation()}>
+        <div className="modal-header">
+          <div className="modal-title-group">
+            <h3 className="modal-title">
+              <span className="modal-title-icon">
                 <UserPlus size={16} />
               </span>
-              <h1>{generatedCreds ? 'Driver Onboarded!' : 'Add new driver'}</h1>
-            </div>
-            <p>
+              {generatedCreds ? 'Driver onboarded' : 'Add new driver'}
+            </h3>
+            <span className="modal-subtitle">
               {generatedCreds
                 ? `${generatedCreds.driverName} has been added. Share login credentials below.`
                 : 'Fill in identity, license & employment details'}
-            </p>
+            </span>
           </div>
           <button
-            className="close"
+            className="modal-close-btn"
             onClick={() => {
               setGeneratedCreds(null);
               onClose();
@@ -218,7 +217,7 @@ export const AddDriverModal: React.FC<AddDriverModalProps> = ({ isOpen, onClose 
             type="button"
             aria-label="Close"
           >
-            ✕
+            <X size={15} />
           </button>
         </div>
 
@@ -236,18 +235,19 @@ export const AddDriverModal: React.FC<AddDriverModalProps> = ({ isOpen, onClose 
                 gap: '14px'
               }}
             >
-              <p style={{ margin: 0, fontSize: '13px', color: 'var(--ink, #0f172a)', lineHeight: 1.5 }}>
-                📱 Send these credentials to <strong>{generatedCreds.driverName}</strong> so they can log in to the Driver App.
+              <p style={{ margin: 0, fontSize: '13px', color: 'var(--text)', lineHeight: 1.5, display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+                <Smartphone size={15} style={{ flexShrink: 0, marginTop: 2 }} />
+                <span>Send these credentials to <strong>{generatedCreds.driverName}</strong> so they can log in to the Driver App.</span>
               </p>
 
               {/* Login ID row */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
-                <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--ink-soft, #475569)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                   Mobile / Login ID
                 </span>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'var(--panel, #ffffff)', borderRadius: '8px', padding: '9px 12px', border: '1px solid var(--line, #e2e8f0)' }}>
-                  <code style={{ flex: 1, fontSize: '14px', fontWeight: 700, color: 'var(--ink, #0f172a)', letterSpacing: '0.04em' }}>{generatedCreds.loginId}</code>
-                  <button type="button" onClick={() => copyToClipboard(generatedCreds.loginId, 'loginId')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: copiedField === 'loginId' ? '#16a34a' : 'var(--ink-faint, #64748b)', padding: '2px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'var(--bg)', borderRadius: '10px', padding: '9px 12px', border: '1px solid var(--border)' }}>
+                  <code style={{ flex: 1, fontSize: '14px', fontWeight: 700, color: 'var(--text)', letterSpacing: '0.04em' }}>{generatedCreds.loginId}</code>
+                  <button type="button" onClick={() => copyToClipboard(generatedCreds.loginId, 'loginId')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: copiedField === 'loginId' ? '#16a34a' : 'var(--text-faint)', padding: '2px' }}>
                     {copiedField === 'loginId' ? <CheckCircle size={16} /> : <Copy size={16} />}
                   </button>
                 </div>
@@ -255,12 +255,12 @@ export const AddDriverModal: React.FC<AddDriverModalProps> = ({ isOpen, onClose 
 
               {/* Password row */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
-                <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--ink-soft, #475569)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                   Password
                 </span>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'var(--panel, #ffffff)', borderRadius: '8px', padding: '9px 12px', border: '1px solid var(--line, #e2e8f0)' }}>
-                  <code style={{ flex: 1, fontSize: '14px', fontWeight: 700, color: 'var(--ink, #0f172a)', letterSpacing: '0.04em' }}>{generatedCreds.password}</code>
-                  <button type="button" onClick={() => copyToClipboard(generatedCreds.password, 'password')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: copiedField === 'password' ? '#16a34a' : 'var(--ink-faint, #64748b)', padding: '2px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'var(--bg)', borderRadius: '10px', padding: '9px 12px', border: '1px solid var(--border)' }}>
+                  <code style={{ flex: 1, fontSize: '14px', fontWeight: 700, color: 'var(--text)', letterSpacing: '0.04em' }}>{generatedCreds.password}</code>
+                  <button type="button" onClick={() => copyToClipboard(generatedCreds.password, 'password')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: copiedField === 'password' ? '#16a34a' : 'var(--text-faint)', padding: '2px' }}>
                     {copiedField === 'password' ? <CheckCircle size={16} /> : <Copy size={16} />}
                   </button>
                 </div>
@@ -272,8 +272,8 @@ export const AddDriverModal: React.FC<AddDriverModalProps> = ({ isOpen, onClose 
                   href={`https://wa.me/${generatedCreds.loginId.replace(/\D/g, '')}?text=${encodeURIComponent(`Hi ${generatedCreds.driverName},
 
 Your KABPRO Driver App login:
-📱 Mobile: ${generatedCreds.loginId}
-🔐 Password: ${generatedCreds.password}
+Mobile: ${generatedCreds.loginId}
+Password: ${generatedCreds.password}
 
 Download the app and log in to start your duty.
 
@@ -300,8 +300,8 @@ Download the app and log in to start your duty.
 
                 <button
                   type="button"
-                  onClick={() => copyToClipboard(`Hi ${generatedCreds.driverName},\n\nYour KABPRO Driver App login:\n📱 Mobile: ${generatedCreds.loginId}\n🔐 Password: ${generatedCreds.password}\n\nDownload the app and log in to start your duty.`, 'both')}
-                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '9px 16px', borderRadius: '8px', border: '1px dashed var(--line, #e2e8f0)', background: 'transparent', cursor: 'pointer', color: copiedField === 'both' ? '#16a34a' : 'var(--ink-soft, #475569)', fontSize: '12.5px', fontWeight: 560 }}
+                  onClick={() => copyToClipboard(`Hi ${generatedCreds.driverName},\n\nYour KABPRO Driver App login:\nMobile: ${generatedCreds.loginId}\nPassword: ${generatedCreds.password}\n\nDownload the app and log in to start your duty.`, 'both')}
+                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '9px 16px', borderRadius: '10px', border: '1px dashed var(--border)', background: 'transparent', cursor: 'pointer', color: copiedField === 'both' ? '#16a34a' : 'var(--text-dim)', fontSize: '12.5px', fontWeight: 560 }}
                 >
                   {copiedField === 'both' ? <><CheckCircle size={14} /> Login Message Copied!</> : <><Copy size={14} /> Copy Full Login Message</>}
                 </button>
@@ -310,20 +310,19 @@ Download the app and log in to start your duty.
 
             <button
               type="button"
-              className="btn primary"
+              className="btn-primary-action"
               onClick={() => { setGeneratedCreds(null); setCopiedField(null); onClose(); }}
-              style={{ width: '100%', padding: '10px 0', fontSize: '13.5px' }}
+              style={{ width: '100%' }}
             >
-              ✓ Done
+              Done
             </button>
           </div>
         )}
 
         {/* Form Body — hidden when displaying credentials */}
         {!generatedCreds && (
-          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
-            {/* Minimal Voice Filler Row */}
-            <div className="voice-row">
+          <form onSubmit={handleSubmit}>
+            <div className="modal-body">
               <MinimalVoiceFiller
                 formType="driver"
                 context={{ vehicles: vehicles.map(v => v.registrationNumber) }}
@@ -339,25 +338,9 @@ Download the app and log in to start your duty.
                   if (data.emergencyContact) setEmergencyContact(data.emergencyContact);
                 }}
               />
-            </div>
 
-            <div className="form-body">
               {errorMsg && (
-                <div
-                  style={{
-                    background: 'rgba(239, 68, 68, 0.08)',
-                    color: 'var(--danger)',
-                    padding: '9px 12px',
-                    borderRadius: '8px',
-                    fontSize: '12.5px',
-                    fontWeight: 500,
-                    border: '1px solid rgba(239, 68, 68, 0.25)',
-                    marginBottom: '16px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px'
-                  }}
-                >
+                <div className="form-error" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <AlertCircle size={15} />
                   <span>{errorMsg}</span>
                 </div>
@@ -484,7 +467,7 @@ Download the app and log in to start your duty.
                         {isPhoneInvalid
                           ? 'Must be exactly 10 digits'
                           : isPhoneValid
-                          ? '✓ Stored as +91' + phone + ' — used to log in'
+                          ? 'Stored as +91' + phone + ' — used to log in'
                           : 'Stored as +91XXXXXXXXXX — used to log in'}
                       </span>
                       <span className="hint" style={{ fontWeight: 600, color: isPhoneValid ? '#16a34a' : undefined }}>
@@ -680,21 +663,20 @@ Download the app and log in to start your duty.
               </div>
             </div>
 
-            {/* Modal Foot */}
-            <div className="modal-foot">
+            <div className="modal-footer">
               <span className="foot-note">
-                Fields marked <span style={{ color: 'var(--danger)', fontWeight: 700 }}>*</span> are required
+                Fields marked <span className="req">*</span> are required
               </span>
               <div className="btn-group">
-                <button type="button" className="btn" onClick={onClose} disabled={isSubmitting}>
+                <button type="button" className="btn-secondary" onClick={onClose} disabled={isSubmitting}>
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="btn primary"
+                  className="btn-primary-action"
                   disabled={isSubmitting || isPhoneInvalid}
                 >
-                  {isSubmitting ? 'Saving...' : '+ Save driver'}
+                  {isSubmitting ? 'Saving...' : 'Save driver'}
                 </button>
               </div>
             </div>

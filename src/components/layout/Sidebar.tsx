@@ -48,34 +48,30 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onCloseMobile }) => {
     if (exact) return currentPath === path;
     if (path === '/dashboard') return currentPath === '/' || currentPath.startsWith('/dashboard');
     if (path === '/booking' || path === '/bookings') return currentPath.startsWith('/booking') || currentPath.startsWith('/bookings') || currentPath.startsWith('/trips');
-    if (path === '/drivers/list') return currentPath === '/drivers' || currentPath === '/drivers/' || currentPath.startsWith('/drivers/list');
-    if (path === '/drivers/payroll') return currentPath.startsWith('/drivers/payroll');
+    if (path === '/drivers/list') return currentPath === '/drivers' || currentPath === '/drivers/' || currentPath === '/drivers/list' || currentPath.startsWith('/drivers/list/');
     if (path === '/departments/contracts') return currentPath === '/departments' || currentPath.startsWith('/departments/contracts');
     if (path === '/expenses/fastag') return currentPath === '/expenses' || currentPath.startsWith('/expenses/fastag');
     if (path === '/report' || path === '/reports') return currentPath.startsWith('/report') || currentPath.startsWith('/reports');
-    return currentPath.startsWith(path);
+    return currentPath === path || currentPath.startsWith(`${path}/`);
   };
 
-  const navClass = (path: string, exact = false) => {
-    return `nav-item ${isItemActive(path, exact) ? 'active' : ''}`;
-  };
+  const navClass = (path: string, exact = false) =>
+    ({ isActive }: { isActive: boolean }) =>
+      `nav-item ${isItemActive(path, exact) || isActive ? 'active' : ''}`;
 
   return (
     <aside className={`sidebar ${isOpen ? 'open' : ''}`}>
       <div className="brand">
         <div
           style={{
-            width: '44px',
-            height: '44px',
-            borderRadius: '12px',
+            width: '36px',
+            height: '36px',
+            borderRadius: '10px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             flexShrink: 0,
-            overflow: 'hidden',
-            boxShadow: theme === 'dark'
-              ? '0 2px 10px rgba(22, 135, 245, 0.28)'
-              : '0 2px 10px rgba(22, 135, 245, 0.22)'
+            overflow: 'hidden'
           }}
         >
           <img
@@ -90,10 +86,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onCloseMobile }) => {
           />
         </div>
         <div>
-          <div className="brand-name" style={{ fontSize: '17px', fontWeight: 800, letterSpacing: '0.5px' }}>
+          <div className="brand-name" style={{ fontSize: '16px', fontWeight: 700, letterSpacing: '-0.2px' }}>
             KABPRO
           </div>
-          <div className="brand-sub" style={{ fontSize: '10px', color: 'var(--text-faint)', letterSpacing: '0.4px' }}>
+          <div className="brand-sub" style={{ fontSize: '10px', color: 'var(--text-faint)', letterSpacing: '0.3px' }}>
             {t('brand.subtitle', 'Commercial Fleet')}
           </div>
         </div>
@@ -135,6 +131,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onCloseMobile }) => {
           <div className="nav-label">{t('nav.group.drivers', 'Drivers')}</div>
           <NavLink
             to="/drivers/list"
+            end
             className={navClass('/drivers/list')}
             onClick={onCloseMobile}
           >
@@ -143,6 +140,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onCloseMobile }) => {
           </NavLink>
           <NavLink
             to="/drivers/attendance"
+            end
             className={navClass('/drivers/attendance')}
             onClick={onCloseMobile}
           >
@@ -151,6 +149,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onCloseMobile }) => {
           </NavLink>
           <NavLink
             to="/drivers/expenses"
+            end
             className={navClass('/drivers/expenses')}
             onClick={onCloseMobile}
           >
@@ -159,6 +158,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onCloseMobile }) => {
           </NavLink>
           <NavLink
             to="/drivers/payroll"
+            end
             className={navClass('/drivers/payroll')}
             onClick={onCloseMobile}
           >

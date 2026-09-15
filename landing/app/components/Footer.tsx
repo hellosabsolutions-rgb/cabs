@@ -1,24 +1,27 @@
+import Link from 'next/link';
+import { Logo } from './Logo';
 import {
-  GithubLogo,
   TwitterLogo,
   LinkedinLogo,
   EnvelopeSimple,
 } from '@phosphor-icons/react/dist/ssr';
-import Link from 'next/link';
 
 const footerLinks = {
   Product: [
-    { label: 'Features', href: '#features' },
-    { label: 'Pricing', href: '#pricing' },
-    { label: 'FAQ', href: '#faq' },
+    { label: 'Platform', href: '/#platform' },
+    { label: 'Features', href: '/#features' },
+    { label: 'Pricing', href: '/#pricing' },
     { label: 'Sign in', href: 'https://kabpro.pro' },
+  ],
+  Resources: [
+    { label: 'FAQ', href: '/#faq' },
     { label: 'Documentation', href: '#' },
+    { label: 'API', href: '#' },
   ],
   Company: [
     { label: 'About', href: '#' },
-    { label: 'Blog', href: '#' },
+    { label: 'Contact', href: '/#inquiry' },
     { label: 'Careers', href: '#' },
-    { label: 'Contact', href: '#inquiry' },
   ],
   Legal: [
     { label: 'Privacy Policy', href: '/privacy' },
@@ -29,48 +32,56 @@ const footerLinks = {
 
 export function Footer() {
   return (
-    <footer className="border-t border-border bg-surface">
-      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 py-12 md:py-16">
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-8 md:gap-10">
-          <div className="col-span-2 md:col-span-4 lg:col-span-2">
-            <Link
-              href="/"
-              className="inline-flex items-center gap-2.5 font-bold text-lg text-foreground tracking-tight mb-4"
-            >
-              <span className="relative flex h-7 w-7 items-center justify-center rounded-lg bg-accent">
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="text-accent-text">
-                  <path d="M8 1L14.5 5v6L8 15 1.5 11V5L8 1z" fill="currentColor" />
-                </svg>
-              </span>
-              KABPRO
+    <footer className="bg-foreground text-white">
+      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 py-16 md:py-20">
+        <div className="grid grid-cols-2 md:grid-cols-6 gap-8 md:gap-10">
+          {/* Brand column */}
+          <div className="col-span-2">
+            <Link href="/" className="inline-block mb-5">
+              <div className="flex items-center gap-2.5">
+                <span className="relative flex h-9 w-9 items-center justify-center rounded-lg bg-accent">
+                  <svg width="18" height="18" viewBox="0 0 16 16" fill="none" className="text-white">
+                    <path d="M8 1L14.5 5v6L8 15 1.5 11V5L8 1z" fill="currentColor" />
+                  </svg>
+                </span>
+                <span className="font-bold text-lg tracking-tight text-white">
+                  KABPRO
+                </span>
+              </div>
             </Link>
-            <p className="text-sm text-muted leading-relaxed max-w-[320px] mb-6">
-              Commercial fleet and logistics management platform built for
-              Indian fleet operators. Department billing, trip tracking,
-              compliance, and more.
+            <p className="text-sm text-white/60 leading-relaxed max-w-[280px] mb-6">
+              Fleet management software built for Indian cab operators. 
+              Department billing, trip tracking, compliance, and more.
             </p>
             <div className="flex items-center gap-3">
-              {[
-                { Icon: TwitterLogo, label: 'Twitter' },
-                { Icon: LinkedinLogo, label: 'LinkedIn' },
-                { Icon: GithubLogo, label: 'GitHub' },
-                { Icon: EnvelopeSimple, label: 'Email' },
-              ].map(({ Icon, label }) => (
-                <a
-                  key={label}
-                  href="#"
-                  aria-label={label}
-                  className="flex h-9 w-9 items-center justify-center rounded-lg border border-border text-muted hover:text-foreground hover:border-accent/30 transition-colors duration-200"
-                >
-                  <Icon size={18} />
-                </a>
-              ))}
+              <a
+                href="#"
+                aria-label="Twitter"
+                className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white/70 hover:bg-accent hover:text-white transition-all duration-200"
+              >
+                <TwitterLogo size={18} />
+              </a>
+              <a
+                href="#"
+                aria-label="LinkedIn"
+                className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white/70 hover:bg-accent hover:text-white transition-all duration-200"
+              >
+                <LinkedinLogo size={18} />
+              </a>
+              <a
+                href="mailto:sales@kabpro.in"
+                aria-label="Email"
+                className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white/70 hover:bg-accent hover:text-white transition-all duration-200"
+              >
+                <EnvelopeSimple size={18} />
+              </a>
             </div>
           </div>
 
+          {/* Link columns */}
           {Object.entries(footerLinks).map(([title, links]) => (
             <div key={title}>
-              <h3 className="text-sm font-semibold text-foreground mb-4">
+              <h3 className="text-sm font-semibold text-white mb-4">
                 {title}
               </h3>
               <ul className="flex flex-col gap-3">
@@ -78,7 +89,7 @@ export function Footer() {
                   <li key={link.label}>
                     <Link
                       href={link.href}
-                      className="text-sm text-muted hover:text-foreground transition-colors duration-200"
+                      className="text-sm text-white/60 hover:text-white transition-colors duration-200"
                     >
                       {link.label}
                     </Link>
@@ -90,22 +101,15 @@ export function Footer() {
         </div>
       </div>
 
-      <div className="border-t border-border">
-        <div className="max-w-[1400px] mx-auto px-6 py-5 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <p className="text-xs text-faint">
-            2024-2026 KABPRO. All rights reserved.
+      {/* Bottom bar */}
+      <div className="border-t border-white/10">
+        <div className="max-w-[1400px] mx-auto px-4 sm:px-6 py-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <p className="text-sm text-white/50">
+            © 2026 KABPRO. All rights reserved.
           </p>
-          <div className="flex items-center gap-4">
-            <Link href="/privacy" className="text-xs text-faint hover:text-muted transition-colors">
-              Privacy
-            </Link>
-            <Link href="/cookies" className="text-xs text-faint hover:text-muted transition-colors">
-              Cookies
-            </Link>
-            <p className="text-xs text-faint">
-              Built for Indian fleet operators.
-            </p>
-          </div>
+          <p className="text-sm text-white/50">
+            Built with ❤️ for Indian fleet operators
+          </p>
         </div>
       </div>
     </footer>

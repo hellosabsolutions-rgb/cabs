@@ -1,7 +1,19 @@
+import mongoose from 'mongoose';
 import { DailyDutyLog } from '../models/DailyDutyLog.js';
 import { createCrudController } from './crudFactory.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
-import { withAgencyFilter } from '../utils/tenantQuery.js';
+import { withAgencyFilter, stampAgencyId } from '../utils/tenantQuery.js';
+import { processMediaFields } from '../utils/mediaUploadHelper.js';
+import {
+  assertOfficialDutyAllowed,
+  emitDutyLogEvent,
+  serializeDutyLog
+} from '../utils/dutyLogHelpers.js';
+
+const mediaFields = [
+  { field: 'dutySlipPhoto', folder: 'fleetos/duty/slips' },
+  { field: 'fuelBillPhoto', folder: 'fleetos/duty/fuel-bills' }
+];
 
 const crud = createCrudController(
   DailyDutyLog,
@@ -18,10 +30,12 @@ const crud = createCrudController(
     'journeyTo',
     'purposeOfJourney',
     'headOfAccount',
-    'motorOilUsed',
     'tripDestination'
   ],
-  { socketPrefix: 'duty-log' }
+  {
+    socketPrefix: null,
+    mediaFields
+  }
 );
 
 /**
@@ -128,10 +142,7 @@ export const getDutyLogs = asyncHandler(async (req, res) => {
     .limit(limitNum)
     .lean();
 
-  const data = docs.map((doc) => ({
-    ...doc,
-    id: doc._id.toString()
-  }));
+  const data = docs.map((doc) => serializeDutyLog(doc));
 
   res.status(200).json({
     success: true,
@@ -143,7 +154,102 @@ export const getDutyLogs = asyncHandler(async (req, res) => {
   });
 });
 
-export const createDutyLog = crud.create;
 export const getDutyLogById = crud.getById;
-export const updateDutyLog = crud.update;
-export const deleteDutyLog = crud.delete;
+
+export const createDutyLog = asyncHandler(async (req, res) => {
+  let contract = null;
+  try {
+    contract = await assertOfficialDutyAllowed(req.body);
+  } catch (err) {
+    return res.status(err.statusCode || 400).json({ success: false, error: err.message });
+  }
+
+  let payload = stampAgencyId(req, { ...req.body });
+  if (!payload.entrySource) payload.entrySource = 'Admin';
+  payload.isNightShift = Boolean(payload.isNightShift);
+  if (mediaFields.length) {
+    payload = await processMediaFields(payload, mediaFields);
+  }
+
+  const doc = await DailyDutyLog.create(payload);
+  emitDutyLogEvent('created', doc, { contract });
+
+  res.status(201).json({
+    success: true,
+    data: doc
+  });
+});
+
+export const updateDutyLog = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const query = mongoose.Types.ObjectId.isValid(id) ? { _id: id } : { _id: id };
+  const scoped = withAgencyFilter(req, query);
+
+  const existing = await DailyDutyLog.findOne(scoped);
+  if (!existing) {
+    return res.status(404).json({ success: false, error: `Resource not found with ID ${id}` });
+  }
+
+  if (existing.monthlyBillId) {
+    return res.status(403).json({
+      success: false,
+      error: 'This duty log is linked to a generated bill and cannot be edited.'
+    });
+  }
+
+  const mergedCheck = { ...existing.toObject(), ...req.body };
+  let contract = null;
+  try {
+    contract = await assertOfficialDutyAllowed(mergedCheck);
+  } catch (err) {
+    return res.status(err.statusCode || 400).json({ success: false, error: err.message });
+  }
+
+  const { agencyId: _drop, ...body } = req.body;
+  let payload = body;
+  if (mediaFields.length) {
+    payload = await processMediaFields(payload, mediaFields);
+  }
+  if (payload.isNightShift !== undefined) {
+    payload.isNightShift = Boolean(payload.isNightShift);
+  }
+
+  const doc = await DailyDutyLog.findOneAndUpdate(scoped, payload, {
+    new: true,
+    runValidators: true
+  });
+
+  emitDutyLogEvent('updated', doc, { contract });
+
+  res.status(200).json({
+    success: true,
+    data: doc
+  });
+});
+
+export const deleteDutyLog = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const query = mongoose.Types.ObjectId.isValid(id) ? { _id: id } : { _id: id };
+  const scoped = withAgencyFilter(req, query);
+
+  const doc = await DailyDutyLog.findOne(scoped);
+  if (!doc) {
+    return res.status(404).json({ success: false, error: `Resource not found with ID ${id}` });
+  }
+
+  if (doc.monthlyBillId) {
+    return res.status(403).json({
+      success: false,
+      error: 'Cannot delete a duty log that is included on a monthly bill.'
+    });
+  }
+
+  await DailyDutyLog.findOneAndDelete(scoped);
+  emitDutyLogEvent('deleted', doc);
+
+  res.status(200).json({
+    success: true,
+    message: 'Resource deleted successfully',
+    data: {}
+  });
+});

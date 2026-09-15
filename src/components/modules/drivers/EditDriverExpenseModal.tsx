@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useFleet } from '../../../context/FleetContext';
 import { DriverExpenseCategory, DriverExpenseItem, TripExpenseRecord } from '../../../types/fleet';
-import { Edit3, IndianRupee, FileText, Loader2, Car, Calendar, CheckCircle2 } from 'lucide-react';
+import { X, Edit3, IndianRupee, FileText, Loader2, Car, Calendar, CheckCircle2 } from 'lucide-react';
 import { DatePicker } from '../../common/DatePicker';
 import { ACCEPT_DOC_TYPES, isPdfDocument } from '../../../utils/fileUtils';
 
@@ -169,7 +169,7 @@ export const EditDriverExpenseModal: React.FC<EditDriverExpenseModalProps> = ({
             </span>
           </div>
           <button className="modal-close-btn" onClick={onClose} type="button" title="Close modal">
-            ✕
+            <X size={15} />
           </button>
         </div>
 
@@ -287,9 +287,9 @@ export const EditDriverExpenseModal: React.FC<EditDriverExpenseModalProps> = ({
                   value={status}
                   onChange={e => setStatus(e.target.value as 'Approved' | 'Pending' | 'Paid')}
                 >
-                  <option value="Paid">● Paid</option>
-                  <option value="Approved">● Approved</option>
-                  <option value="Pending">● Pending</option>
+                  <option value="Paid">Paid</option>
+                  <option value="Approved">Approved</option>
+                  <option value="Pending">Pending</option>
                 </select>
               </div>
             </div>
@@ -348,7 +348,7 @@ export const EditDriverExpenseModal: React.FC<EditDriverExpenseModalProps> = ({
                     }}
                     title="Remove receipt"
                   >
-                    ✕
+                    <X size={15} />
                   </button>
                 )}
               </div>

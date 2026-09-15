@@ -66,32 +66,36 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
   };
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
+    <div className="modal-overlay" onClick={onClose}>
       <div
-        className="modal-content"
-        style={{ maxWidth: '480px', width: '95%' }}
+        className="modal-dialog"
         onClick={e => e.stopPropagation()}
       >
         <div className="modal-header">
-          <div>
-            <h2 className="modal-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <IndianRupee size={18} color="var(--accent)" />
-              Record Pending Payment Received
-            </h2>
-            <p className="modal-subtitle">
+          <div className="modal-title-group">
+            <h3 className="modal-title">
+              <span className="modal-title-icon">
+                <IndianRupee size={16} />
+              </span>
+              Record pending payment
+            </h3>
+            <span className="modal-subtitle">
               {booking.bookingNumber || booking.tripNumber} — {booking.customerName}
-            </p>
+            </span>
           </div>
-          <button className="btn-close" onClick={onClose}>✕</button>
+          <button className="modal-close-btn" onClick={onClose} type="button" aria-label="Close">
+            <X size={15} />
+          </button>
         </div>
 
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginTop: '16px' }}>
-          {/* Summary Banner */}
+        <form onSubmit={handleSubmit}>
+          <div className="modal-body">
           <div
             style={{
               background: 'var(--surface-2)',
               padding: '12px 14px',
-              borderRadius: '8px',
+              borderRadius: '10px',
+              border: '1px solid var(--border-soft)',
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'center'
@@ -167,13 +171,14 @@ export const CollectPaymentModal: React.FC<CollectPaymentModalProps> = ({
               placeholder="e.g. UTR #12345678 or Cash handed to driver"
             />
           </div>
+          </div>
 
-          <div className="modal-footer" style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '6px' }}>
-            <button type="button" className="btn-secondary" onClick={onClose} style={{ padding: '8px 16px', fontSize: '13px' }}>
+          <div className="modal-footer">
+            <button type="button" className="btn-secondary" onClick={onClose}>
               Cancel
             </button>
-            <button type="submit" className="btn-primary" style={{ padding: '8px 20px', fontSize: '13px' }}>
-              Save Payment
+            <button type="submit" className="btn-primary-action">
+              Save payment
             </button>
           </div>
         </form>

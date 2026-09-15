@@ -5,6 +5,13 @@ import { asyncHandler } from '../middleware/asyncHandler.js';
 import { createCrudController } from './crudFactory.js';
 import { uploadToCloudinary } from '../services/cloudinaryService.js';
 import mongoose from 'mongoose';
+import {
+  contractTodayIst,
+  syncExpiredContracts,
+  resolveStatusForDates,
+  serializeContract,
+  emitContractEvent
+} from '../utils/contractHelpers.js';
 
 // Base CRUD controller for fallback
 const baseContractController = createCrudController(DepartmentContract, [
@@ -22,6 +29,8 @@ const baseContractController = createCrudController(DepartmentContract, [
  * @access  Public / Private
  */
 export const getContracts = asyncHandler(async (req, res) => {
+  await syncExpiredContracts();
+
   const { search, status, vehicle, department, sort = '-createdAt', page = 1, limit = 100 } = req.query;
 
   const filter = {};
@@ -63,10 +72,7 @@ export const getContracts = asyncHandler(async (req, res) => {
     .limit(limitNum)
     .lean();
 
-  const data = docs.map(doc => ({
-    ...doc,
-    id: doc._id.toString()
-  }));
+  const data = docs.map(doc => serializeContract(doc));
 
   res.status(200).json({
     success: true,
@@ -84,6 +90,7 @@ export const getContracts = asyncHandler(async (req, res) => {
  * @access  Public / Private
  */
 export const getContractStats = asyncHandler(async (req, res) => {
+  await syncExpiredContracts();
   const contracts = await DepartmentContract.find({}).lean();
 
   let active = 0;
@@ -140,12 +147,15 @@ export const getContractById = asyncHandler(async (req, res) => {
     });
   }
 
+  const today = contractTodayIst();
+  if (contract.status === 'Active' && contract.endDate && contract.endDate < today) {
+    await DepartmentContract.updateOne({ _id: contract._id }, { $set: { status: 'Expired' } });
+    contract.status = 'Expired';
+  }
+
   res.status(200).json({
     success: true,
-    data: {
-      ...contract,
-      id: contract._id.toString()
-    }
+    data: serializeContract(contract)
   });
 });
 
@@ -167,6 +177,7 @@ export const createContract = asyncHandler(async (req, res) => {
     includedHoursPerMonth,
     extraKmRate,
     extraHourRate,
+    nightChargePerDay,
     startDate,
     endDate,
     status,
@@ -248,9 +259,10 @@ export const createContract = asyncHandler(async (req, res) => {
     includedHoursPerMonth: Number(includedHoursPerMonth) || 250,
     extraKmRate: Number(extraKmRate) || 14,
     extraHourRate: Number(extraHourRate) || 120,
+    nightChargePerDay: Math.max(0, Number(nightChargePerDay) || 0),
     startDate: cleanStartDate,
     endDate: cleanEndDate,
-    status: status || 'Active',
+    status: resolveStatusForDates(cleanEndDate, status || 'Active'),
     documentFile: docUrl
   });
 
@@ -279,13 +291,12 @@ export const createContract = asyncHandler(async (req, res) => {
     console.warn('Vehicle/Driver cross sync notice on contract creation:', syncErr.message);
   }
 
-  const contractObj = newContract.toObject();
-  contractObj.id = contractObj._id.toString();
+  emitContractEvent('created', newContract);
 
   res.status(201).json({
     success: true,
     message: `Contract ${cleanContractNumber} registered successfully.`,
-    data: contractObj
+    data: serializeContract(newContract)
   });
 });
 
@@ -321,6 +332,7 @@ export const updateContract = asyncHandler(async (req, res) => {
     'includedHoursPerMonth',
     'extraKmRate',
     'extraHourRate',
+    'nightChargePerDay',
     'startDate',
     'endDate',
     'status',
@@ -346,9 +358,17 @@ export const updateContract = asyncHandler(async (req, res) => {
 
   allowedUpdates.forEach(field => {
     if (req.body[field] !== undefined) {
-      contract[field] = req.body[field];
+      if (field === 'nightChargePerDay') {
+        contract.nightChargePerDay = Math.max(0, Number(req.body[field]) || 0);
+      } else {
+        contract[field] = req.body[field];
+      }
     }
   });
+
+  if (contract.status === 'Active' && contract.endDate) {
+    contract.status = resolveStatusForDates(contract.endDate, contract.status);
+  }
 
   await contract.save();
 
@@ -370,13 +390,12 @@ export const updateContract = asyncHandler(async (req, res) => {
     }
   }
 
-  const result = contract.toObject();
-  result.id = result._id.toString();
+  emitContractEvent('updated', contract);
 
   res.status(200).json({
     success: true,
     message: `Contract ${contract.contractNumber} updated successfully.`,
-    data: result
+    data: serializeContract(contract)
   });
 });
 
@@ -412,13 +431,12 @@ export const updateContractStatus = asyncHandler(async (req, res) => {
   contract.status = status;
   await contract.save();
 
-  const result = contract.toObject();
-  result.id = result._id.toString();
+  emitContractEvent('updated', contract);
 
   res.status(200).json({
     success: true,
     message: `Contract status updated to ${status}.`,
-    data: result
+    data: serializeContract(contract)
   });
 });
 
@@ -443,7 +461,10 @@ export const deleteContract = asyncHandler(async (req, res) => {
   }
 
   const contractNumber = contract.contractNumber;
+  const deletedPayload = serializeContract(contract);
   await DepartmentContract.findByIdAndDelete(contract._id);
+
+  emitContractEvent('deleted', deletedPayload);
 
   res.status(200).json({
     success: true,

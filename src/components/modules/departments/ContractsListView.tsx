@@ -6,7 +6,7 @@ import { DepartmentContract } from '../../../types/fleet';
 import { StatusDropdown, StatusOption } from '../../common/StatusDropdown';
 import { Pagination } from '../../common/Pagination';
 import { usePagination } from '../../../hooks/usePagination';
-import { FileText, Folder, Trash2, ChevronDown } from 'lucide-react';
+import { X, FileText, Folder, Trash2, ChevronDown } from 'lucide-react';
 
 export const ContractsListView: React.FC = () => {
   const { departmentContracts, updateContractStatus, deleteDepartmentContract, searchQuery } = useFleet();
@@ -16,6 +16,11 @@ export const ContractsListView: React.FC = () => {
   const [viewDoc, setViewDoc] = useState<string | null>(null);
 
   const formatINR = (val: number) => '₹' + Math.round(val).toLocaleString('en-IN');
+
+  const todayIst = useMemo(
+    () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date()),
+    []
+  );
 
   const filteredContracts = useMemo(() => {
     return departmentContracts.filter(c => {
@@ -200,11 +205,28 @@ export const ContractsListView: React.FC = () => {
                       <div style={{ fontSize: '11px', color: 'var(--text-faint)' }}>
                         ₹{c.extraHourRate}/hr
                       </div>
+                      {(c.nightChargePerDay ?? 0) > 0 && (
+                        <div style={{ fontSize: '11px', color: 'var(--text-faint)' }}>
+                          ₹{c.nightChargePerDay}/night
+                        </div>
+                      )}
                     </td>
                     <td>
                       <div style={{ fontSize: '11.5px', color: 'var(--text-dim)' }}>
                         {c.startDate} → {c.endDate}
                       </div>
+                      {c.endDate < todayIst && c.status !== 'Expired' && (
+                        <div
+                          style={{
+                            fontSize: '10px',
+                            marginTop: '2px',
+                            color: 'var(--danger, #ff5c5c)',
+                            fontWeight: 600
+                          }}
+                        >
+                          Past end date
+                        </div>
+                      )}
                     </td>
                     <td>{renderStatusDropdown(c.status, c.id)}</td>
                     <td>
@@ -286,7 +308,7 @@ export const ContractsListView: React.FC = () => {
                 <FileText size={16} /> Contract Document
               </h3>
               <button className="modal-close-btn" onClick={() => setViewDoc(null)}>
-                ✕
+                <X size={15} />
               </button>
             </div>
             <div className="modal-body" style={{ textAlign: 'center', padding: '30px' }}>

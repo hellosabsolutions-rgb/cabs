@@ -47,7 +47,7 @@ export const ExpensesView: React.FC = () => {
   }, [expenses]);
 
   // First-time load: show full skeleton
-  if (isLoadingExpenses && fastagTransactions.length === 0) {
+  if (isLoadingExpenses && fastagTransactions.length === 0 && fuelLogs.length === 0) {
     return (
       <div className="section active module-page">
         <SkeletonCard count={4} />

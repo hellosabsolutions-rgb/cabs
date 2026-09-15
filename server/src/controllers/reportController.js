@@ -1,5 +1,6 @@
 import IssueReport from '../models/IssueReport.js';
 import { Notification } from '../models/Notification.js';
+import { processMediaFields } from '../utils/mediaUploadHelper.js';
 
 /**
  * @desc Create a new issue report or query
@@ -29,6 +30,11 @@ export const createReport = async (req, res, next) => {
       });
     }
 
+    const mediaProcessed = await processMediaFields(
+      { attachments: Array.isArray(attachments) ? attachments : [] },
+      [{ field: 'attachments', folder: 'fleetos/reports/attachments' }]
+    );
+
     const report = new IssueReport({
       title: title.trim(),
       description: description.trim(),
@@ -39,7 +45,7 @@ export const createReport = async (req, res, next) => {
       reporterName: reporterName.trim(),
       reporterEmail: reporterEmail ? reporterEmail.trim() : '',
       reporterPhone: reporterPhone ? reporterPhone.trim() : '',
-      attachments: Array.isArray(attachments) ? attachments : [],
+      attachments: mediaProcessed.attachments || [],
       agencyId: agencyId || null,
       agencyName: agencyName ? agencyName.trim() : '',
       userId: userId || null

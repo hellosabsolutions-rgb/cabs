@@ -1,4 +1,5 @@
 import { api } from './api';
+import { API_BASE_URL } from '../config/env';
 
 export interface UploadResult {
   success: boolean;
@@ -28,7 +29,7 @@ export const uploadFileToCloudinary = async (
 
     const token = localStorage.getItem('fleetos_auth_token') || localStorage.getItem('token');
 
-    const response = await fetch('/api/upload', {
+    const response = await fetch(`${API_BASE_URL}/upload`, {
       method: 'POST',
       headers: {
         ...(token ? { Authorization: `Bearer ${token}` } : {})
@@ -124,7 +125,7 @@ export const uploadMultipleFilesToCloudinary = async (
 
     const token = localStorage.getItem('fleetos_auth_token') || localStorage.getItem('token');
 
-    const response = await fetch('/api/upload/multiple', {
+    const response = await fetch(`${API_BASE_URL}/upload/multiple`, {
       method: 'POST',
       headers: {
         ...(token ? { Authorization: `Bearer ${token}` } : {})

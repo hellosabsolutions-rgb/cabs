@@ -8,6 +8,7 @@ interface StatCardProps {
   isDown?: boolean;
   customColor?: string;
   icon?: React.ReactNode;
+  variant?: 'default' | 'nexus';
 }
 
 export const StatCard: React.FC<StatCardProps> = ({
@@ -17,8 +18,30 @@ export const StatCard: React.FC<StatCardProps> = ({
   isUp,
   isDown,
   customColor,
-  icon
+  icon,
+  variant = 'default'
 }) => {
+  if (variant === 'nexus') {
+    return (
+      <div className="stat-card nx-kpi">
+        {icon && (
+          <div className="stat-top">
+            <div className="stat-icon">{icon}</div>
+          </div>
+        )}
+        <span className="stat-label">{label}</span>
+        <div className="stat-value" style={customColor ? { color: customColor } : undefined}>
+          {value}
+        </div>
+        {delta && (
+          <div className={`stat-delta ${isUp ? 'up' : isDown ? 'down' : ''}`}>
+            {delta}
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="stat-card">
       <div className="stat-top">
