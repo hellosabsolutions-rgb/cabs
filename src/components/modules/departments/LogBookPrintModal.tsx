@@ -52,7 +52,7 @@ export const LogBookPrintModal: React.FC<LogBookPrintModalProps> = ({
   };
 
   return (
-    <div className="modal-overlay" onClick={onClose} style={{ zIndex: 100000 }}>
+    <div className="modal-overlay modal-center" onClick={onClose} style={{ zIndex: 100000 }}>
       <div
         className="modal-dialog logbook-print-dialog"
         onClick={e => e.stopPropagation()}
@@ -235,7 +235,6 @@ export const LogBookPrintModal: React.FC<LogBookPrintModalProps> = ({
                   <th colSpan={2} style={{ ...thStyle, textAlign: 'center' }}>K.M. Reading</th>
                   <th rowSpan={2} style={thStyle}>K.M. Done</th>
                   <th rowSpan={2} style={thStyle}>Petrol / Diesel Litres</th>
-                  <th rowSpan={2} style={thStyle}>M. Oil Liters / other stores used</th>
                   <th rowSpan={2} style={thStyle}>Purpose of Journey</th>
                   <th rowSpan={2} style={thStyle}>Head of A/c</th>
                   <th rowSpan={2} style={thStyle}>Sig. Of Officer</th>
@@ -252,7 +251,7 @@ export const LogBookPrintModal: React.FC<LogBookPrintModalProps> = ({
               <tbody>
                 {targetLogs.length === 0 ? (
                   <tr>
-                    <td colSpan={13} style={{ textAlign: 'center', padding: '30px', color: '#64748b' }}>
+                    <td colSpan={12} style={{ textAlign: 'center', padding: '30px', color: '#64748b' }}>
                       No log entries recorded for this vehicle and month.
                     </td>
                   </tr>
@@ -293,9 +292,6 @@ export const LogBookPrintModal: React.FC<LogBookPrintModalProps> = ({
                       <td style={tdStyle}>
                         {log.fuelLitres && log.fuelLitres > 0 ? `${log.fuelLitres} L` : '—'}
                       </td>
-
-                      {/* M. Oil Liters / other stores */}
-                      <td style={tdStyle}>{log.mOilLitres || log.motorOilUsed || '—'}</td>
 
                       {/* Purpose of Journey */}
                       <td style={tdStyle}>

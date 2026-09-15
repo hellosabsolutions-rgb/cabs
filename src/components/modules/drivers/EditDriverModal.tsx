@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useFleet } from '../../../context/FleetContext';
 import { Driver, DriverType } from '../../../types/fleet';
-import { Edit2, Camera, IdCard, Loader2, FileText } from 'lucide-react';
+import { X, Edit2, Camera, IdCard, Loader2, FileText } from 'lucide-react';
 import { MinimalVoiceFiller } from '../../common/MinimalVoiceFiller';
 import { DatePicker } from '../../common/DatePicker';
 import { ACCEPT_DOC_TYPES, isPdfDocument } from '../../../utils/fileUtils';
@@ -163,7 +163,7 @@ export const EditDriverModal: React.FC<EditDriverModalProps> = ({ isOpen, onClos
             </span>
           </div>
           <button className="modal-close-btn" onClick={onClose} type="button" title="Close modal">
-            ✕
+            <X size={15} />
           </button>
         </div>
 
@@ -243,7 +243,7 @@ export const EditDriverModal: React.FC<EditDriverModalProps> = ({ isOpen, onClos
                     }}
                     title="Remove photo"
                   >
-                    ✕
+                    <X size={15} />
                   </button>
                 )}
               </div>
@@ -382,7 +382,7 @@ export const EditDriverModal: React.FC<EditDriverModalProps> = ({ isOpen, onClos
                     }}
                     title="Remove license photo"
                   >
-                    ✕
+                    <X size={15} />
                   </button>
                 )}
               </div>

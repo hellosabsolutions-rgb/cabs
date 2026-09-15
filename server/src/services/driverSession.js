@@ -185,7 +185,10 @@ export async function serializeDriverAuth(driver) {
           model: vehicle.model || vehicle.make || '—',
           departmentName: vehicle.departmentName || '',
           fuelType: vehicle.fuelType || 'Diesel',
-          odometer: vehicleOdometer
+          odometer: vehicleOdometer,
+          fastagBalance: Number(vehicle.fastagBalance) || 0,
+          fastagTagId: vehicle.fastagTagId || null,
+          fastagBank: vehicle.fastagBank || null
         }
       : null,
     trip,

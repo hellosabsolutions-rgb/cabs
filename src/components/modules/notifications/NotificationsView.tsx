@@ -1,8 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useFleet } from '../../../context/FleetContext';
-import { useNotifications, NotificationCategory, NotificationPriority } from '../../../context/NotificationContext';
-import { api } from '../../../services/api';
+import { useNotifications, NotificationPriority } from '../../../context/NotificationContext';
 import { Pagination } from '../../common/Pagination';
 import { usePagination } from '../../../hooks/usePagination';
 import {
@@ -11,23 +9,18 @@ import {
   ShieldAlert,
   Wrench,
   Truck,
-  Users,
   IndianRupee,
   CheckCircle2,
   AlertTriangle,
   AlertCircle,
   Info,
   Navigation,
-  Fuel,
   Clock,
   CheckCheck,
   Trash2,
   RefreshCw,
-  Zap,
-  Radio,
   ExternalLink
 } from 'lucide-react';
-import { sendDirectTestPush } from '../../../services/pushNotificationService';
 
 type NotifCategory = 'all' | 'compliance' | 'maintenance' | 'fleet' | 'financial' | 'bookings' | 'system';
 
@@ -60,6 +53,27 @@ const PRIORITY_CONFIG: Record<NotificationPriority, { color: string; bg: string;
   success: { color: 'var(--success)', bg: 'rgba(38,184,216,0.1)', label: 'Success' },
 };
 
+function isTestOrDummyNotification(n: {
+  title?: string;
+  message?: string;
+  metadata?: Record<string, any>;
+}): boolean {
+  if (n.metadata?.test === true) return true;
+  const title = String(n.title || '').toLowerCase();
+  const message = String(n.message || '').toLowerCase();
+  if (title.includes('live socket.io') || title.includes('test web push') || title.startsWith('test ')) {
+    return true;
+  }
+  if (
+    message.includes('socket.io queue successfully') ||
+    message.includes('firebase cloud messaging web push is working') ||
+    message.includes('scheduled for real-time delivery')
+  ) {
+    return true;
+  }
+  return false;
+}
+
 function formatRelativeTime(dateInput: string | Date | number): string {
   const date = typeof dateInput === 'number'
     ? new Date(Date.now() - dateInput * 60 * 1000)
@@ -78,17 +92,7 @@ function formatRelativeTime(dateInput: string | Date | number): string {
 export const NotificationsView: React.FC = () => {
   const navigate = useNavigate();
   const {
-    complianceStats,
-    vehicles,
-    drivers,
-    maintenanceRecords,
-    trips,
-    bookings,
-  } = useFleet();
-
-  const {
     notifications: backendNotifications,
-    unreadCount: backendUnreadCount,
     isConnected,
     isLoading: backendLoading,
     markRead: markBackendRead,
@@ -99,16 +103,13 @@ export const NotificationsView: React.FC = () => {
     isPushSupported,
     pushPermission,
     isPushEnabled,
-    enablePush,
-    disablePush
+    enablePush
   } = useNotifications();
 
   const [activeCategory, setActiveCategory] = useState<NotifCategory>('all');
   const [localReadIds, setLocalReadIds] = useState<Set<string>>(new Set());
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
-  const [isSendingTest, setIsSendingTest] = useState<boolean>(false);
   const [isEnablingPush, setIsEnablingPush] = useState<boolean>(false);
-  const [isSendingPushTest, setIsSendingPushTest] = useState<boolean>(false);
   const [pushStatusMessage, setPushStatusMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   const getCategoryDefaultRoute = (category: string): string => {
@@ -123,12 +124,13 @@ export const NotificationsView: React.FC = () => {
     }
   };
 
-  // Combine backend persistent notifications with fleet calculated alerts
+  // Real backend notifications only — no generated dummy alerts
   const combinedNotifications = useMemo<CombinedNotification[]>(() => {
     const list: CombinedNotification[] = [];
 
-    // 1. First add backend notifications (these are real-time & persistent)
-    backendNotifications.forEach((n) => {
+    backendNotifications
+      .filter((n) => !isTestOrDummyNotification(n))
+      .forEach((n) => {
       let icon = <Info size={16} />;
       if (n.category === 'compliance') icon = <ShieldAlert size={16} />;
       else if (n.category === 'maintenance') icon = <Wrench size={16} />;
@@ -150,83 +152,8 @@ export const NotificationsView: React.FC = () => {
       });
     });
 
-    // 2. Add fleet dynamic alerts as auxiliary items with direct deep links
-    complianceStats.alerts.slice(0, 6).forEach((alert, i) => {
-      const id = `compliance-${i}`;
-      list.push({
-        id,
-        category: 'compliance',
-        priority: alert.type === 'late' ? 'critical' : 'warning',
-        title: alert.type === 'late' ? 'Document Expired' : 'Document Expiring Soon',
-        message: `${alert.who} — ${alert.doc} ${alert.text}`,
-        time: formatRelativeTime(i * 45 + 20),
-        isRead: localReadIds.has(id),
-        isBackend: false,
-        link: '/compliance',
-        icon: <ShieldAlert size={16} />,
-      });
-    });
-
-    maintenanceRecords
-      .filter((m) => m.status === 'Scheduled' || m.status === 'In Progress')
-      .slice(0, 3)
-      .forEach((m, i) => {
-        const id = `maint-${i}`;
-        list.push({
-          id,
-          category: 'maintenance',
-          priority: m.status === 'Scheduled' ? 'warning' : 'info',
-          title: m.status === 'In Progress' ? 'Maintenance In Progress' : 'Maintenance Scheduled',
-          message: `${m.vehicle} — ${m.type}. Estimated cost ₹${(m.cost || 0).toLocaleString('en-IN')}`,
-          time: formatRelativeTime(i * 120 + 60),
-          isRead: localReadIds.has(id),
-          isBackend: false,
-          link: '/maintenance',
-          icon: <Wrench size={16} />,
-        });
-      });
-
-    vehicles
-      .filter((v) => v.status === 'Maintenance')
-      .slice(0, 2)
-      .forEach((v, i) => {
-        const id = `vehicle-maint-${i}`;
-        list.push({
-          id,
-          category: 'fleet',
-          priority: 'warning',
-          title: 'Vehicle in Workshop',
-          message: `${v.registrationNumber} (${v.model}) is currently under maintenance.`,
-          time: formatRelativeTime(i * 200 + 30),
-          isRead: localReadIds.has(id),
-          isBackend: false,
-          link: '/vehicles',
-          icon: <Truck size={16} />,
-        });
-      });
-
-    // Low FASTag balance
-    vehicles
-      .filter((v) => (v.fastagBalance || 0) < 500)
-      .slice(0, 2)
-      .forEach((v, i) => {
-        const id = `fastag-low-${i}`;
-        list.push({
-          id,
-          category: 'financial',
-          priority: (v.fastagBalance || 0) < 100 ? 'critical' : 'warning',
-          title: 'Low FASTag Balance',
-          message: `${v.registrationNumber} has a balance of ₹${(v.fastagBalance || 0).toLocaleString('en-IN')}.`,
-          time: formatRelativeTime(i * 60 + 15),
-          isRead: localReadIds.has(id),
-          isBackend: false,
-          link: '/fastag',
-          icon: <IndianRupee size={16} />,
-        });
-      });
-
     return list.filter((n) => !dismissed.has(n.id));
-  }, [backendNotifications, localReadIds, complianceStats, maintenanceRecords, vehicles, dismissed]);
+  }, [backendNotifications, localReadIds, dismissed]);
 
   // Filtered by active category
   const filtered = useMemo(() => {
@@ -284,23 +211,6 @@ export const NotificationsView: React.FC = () => {
     }
   };
 
-  // Trigger test notification through backend queue & socket
-  const handleSendTestNotification = async () => {
-    setIsSendingTest(true);
-    try {
-      await api.post('/notifications/test', {
-        category: 'bookings',
-        priority: 'success',
-        title: 'New VIP Booking Scheduled',
-        message: 'Socket.IO queue successfully broadcast real-time booking alert to all dashboard subscribers!'
-      });
-    } catch (err: any) {
-      console.error('Test notification failed:', err);
-    } finally {
-      setTimeout(() => setIsSendingTest(false), 600);
-    }
-  };
-
   // Enable Push Notifications
   const handleEnablePush = async () => {
     setIsEnablingPush(true);
@@ -326,44 +236,6 @@ export const NotificationsView: React.FC = () => {
     } finally {
       setIsEnablingPush(false);
       setTimeout(() => setPushStatusMessage(null), 7000);
-    }
-  };
-
-  // Disable Push Notifications
-  const handleDisablePush = async () => {
-    await disablePush();
-    setPushStatusMessage({
-      type: 'success',
-      text: 'Push notifications have been disabled for this device.'
-    });
-    setTimeout(() => setPushStatusMessage(null), 5000);
-  };
-
-  // Dispatch direct native OS Push Notification via Firebase Cloud Messaging
-  const handleSendDirectPushTest = async () => {
-    setIsSendingPushTest(true);
-    setPushStatusMessage(null);
-    try {
-      const res = await sendDirectTestPush();
-      if (res.success) {
-        setPushStatusMessage({
-          type: 'success',
-          text: 'FCM push notification sent! Check your desktop/OS notification tray.'
-        });
-      } else {
-        setPushStatusMessage({
-          type: 'error',
-          text: res.error || 'Failed to trigger test push.'
-        });
-      }
-    } catch (err: any) {
-      setPushStatusMessage({
-        type: 'error',
-        text: err.message || 'Error triggering test push.'
-      });
-    } finally {
-      setTimeout(() => setIsSendingPushTest(false), 600);
-      setTimeout(() => setPushStatusMessage(null), 6000);
     }
   };
 
@@ -442,30 +314,6 @@ export const NotificationsView: React.FC = () => {
         </div>
 
         <div className="notif-header-actions" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-          {/* Test Native OS Push Notification Button */}
-          {isPushEnabled && (
-            <button
-              className="notif-btn-push-test"
-              onClick={handleSendDirectPushTest}
-              disabled={isSendingPushTest}
-              title="Send a real Firebase Web Push notification to your desktop OS"
-            >
-              <BellRing size={14} className={isSendingPushTest ? 'spin-loader' : ''} />
-              {isSendingPushTest ? 'Dispatching Push...' : 'Test OS Push'}
-            </button>
-          )}
-
-          {/* Test Realtime Event Button */}
-          <button
-            className="notif-btn-realtime-test"
-            onClick={handleSendTestNotification}
-            disabled={isSendingTest}
-            title="Trigger a live Socket.IO event"
-          >
-            <Zap size={14} className={isSendingTest ? 'spin-loader' : ''} />
-            {isSendingTest ? 'Dispatching...' : 'Test Realtime Alert'}
-          </button>
-
           <button
             className="notif-action-btn"
             onClick={refreshNotifications}
@@ -493,12 +341,10 @@ export const NotificationsView: React.FC = () => {
         </div>
       </div>
 
-      {/* Push Notification Status Banner */}
-      {isPushSupported && (
+      {/* Shown only when the user has not allowed desktop/mobile push */}
+      {isPushSupported && !isPushEnabled && (
         <div
-          className={`notif-push-banner ${
-            isPushEnabled ? 'active' : pushPermission === 'denied' ? 'blocked' : 'inactive'
-          }`}
+          className={`notif-push-banner ${pushPermission === 'denied' ? 'blocked' : 'inactive'}`}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flex: '1 1 320px' }}>
             <div
@@ -509,36 +355,25 @@ export const NotificationsView: React.FC = () => {
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                background: isPushEnabled
-                  ? 'rgba(249, 115, 22, 0.15)'
-                  : pushPermission === 'denied'
+                background: pushPermission === 'denied'
                   ? 'rgba(239, 68, 68, 0.15)'
                   : 'rgba(22, 135, 245, 0.15)',
-                color: isPushEnabled ? '#f97316' : pushPermission === 'denied' ? '#ef4444' : 'var(--accent)',
+                color: pushPermission === 'denied' ? '#ef4444' : 'var(--accent)',
                 flexShrink: 0
               }}
             >
               <BellRing size={20} />
             </div>
             <div>
-              <div style={{ fontWeight: 600, fontSize: '13.5px', color: 'var(--text)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                {isPushEnabled
-                  ? 'Firebase Web Push Notifications are Live'
-                  : pushPermission === 'denied'
+              <div style={{ fontWeight: 600, fontSize: '13.5px', color: 'var(--text)' }}>
+                {pushPermission === 'denied'
                   ? 'Push Notifications Blocked in Browser'
                   : 'Enable Desktop & Mobile Push Notifications'}
-                {isPushEnabled && (
-                  <span style={{ fontSize: '11px', padding: '1px 7px', borderRadius: '10px', background: 'rgba(16, 185, 129, 0.15)', color: '#10b981', fontWeight: 600 }}>
-                    Connected
-                  </span>
-                )}
               </div>
               <p style={{ margin: '2px 0 0 0', fontSize: '12px', color: 'var(--text-dim)', lineHeight: 1.4 }}>
-                {isPushEnabled
-                  ? 'You will receive instant native notifications for bookings, compliance renewals, vehicle maintenance, and FASTag low balance even when the tab is backgrounded.'
-                  : pushPermission === 'denied'
-                  ? 'Notifications are blocked. Click the lock/tune icon beside the URL in your browser address bar and switch Notifications to "Allow".'
-                  : 'Get instant system alerts for VIP bookings, expiring vehicle documents, low FASTag wallet balance, and driver logs.'}
+                {pushPermission === 'denied'
+                  ? 'Notifications are blocked. Click the lock icon beside the URL in your browser address bar, set Notifications to Allow, then tap Enable Web Push.'
+                  : 'Allow notifications to get instant alerts for bookings, expiring documents, low FASTag balance, and driver logs.'}
               </p>
               {pushStatusMessage && (
                 <div
@@ -556,44 +391,22 @@ export const NotificationsView: React.FC = () => {
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
-            {isPushEnabled ? (
-              <>
-                <button
-                  className="notif-btn-push-test"
-                  onClick={handleSendDirectPushTest}
-                  disabled={isSendingPushTest}
-                  style={{ fontWeight: 600 }}
-                >
-                  <BellRing size={14} className={isSendingPushTest ? 'spin-loader' : ''} />
-                  {isSendingPushTest ? 'Sending Push...' : 'Send Test Push'}
-                </button>
-                <button
-                  className="notif-action-btn"
-                  onClick={handleDisablePush}
-                  style={{ color: 'var(--text-dim)', padding: '7px 12px' }}
-                  title="Unregister push token on this device"
-                >
-                  Turn Off
-                </button>
-              </>
-            ) : pushPermission !== 'denied' ? (
-              <button
-                className="notif-action-btn"
-                onClick={handleEnablePush}
-                disabled={isEnablingPush}
-                style={{
-                  background: 'linear-gradient(135deg, #1687f5 0%, #9061f9 100%)',
-                  color: '#fff',
-                  border: 'none',
-                  fontWeight: 600,
-                  padding: '8px 16px',
-                  boxShadow: '0 2px 8px rgba(22, 135, 245, 0.25)'
-                }}
-              >
-                <BellRing size={14} className={isEnablingPush ? 'spin-loader' : ''} />
-                {isEnablingPush ? 'Requesting Permission...' : 'Enable Web Push'}
-              </button>
-            ) : null}
+            <button
+              className="notif-action-btn"
+              onClick={handleEnablePush}
+              disabled={isEnablingPush}
+              style={{
+                background: 'linear-gradient(135deg, #1687f5 0%, #9061f9 100%)',
+                color: '#fff',
+                border: 'none',
+                fontWeight: 600,
+                padding: '8px 16px',
+                boxShadow: '0 2px 8px rgba(22, 135, 245, 0.25)'
+              }}
+            >
+              <BellRing size={14} className={isEnablingPush ? 'spin-loader' : ''} />
+              {isEnablingPush ? 'Requesting Permission...' : 'Enable Web Push'}
+            </button>
           </div>
         </div>
       )}
@@ -653,23 +466,6 @@ export const NotificationsView: React.FC = () => {
                     <div className="notif-item-title">
                       {notif.title}
                       {!isRead && <span className="notif-dot" />}
-                      {notif.isBackend && (
-                        <span
-                          style={{
-                            marginLeft: '6px',
-                            fontSize: '9px',
-                            padding: '1px 5px',
-                            borderRadius: '4px',
-                            background: 'rgba(22, 135, 245, 0.1)',
-                            color: 'var(--accent)',
-                            fontWeight: 600,
-                            letterSpacing: '0.3px',
-                            textTransform: 'uppercase'
-                          }}
-                        >
-                          Live Event
-                        </span>
-                      )}
                     </div>
                     <div className="notif-item-meta">
                       <PriorityIcon priority={notif.priority} />

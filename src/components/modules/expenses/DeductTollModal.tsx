@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useFleet } from '../../../context/FleetContext';
-import { MinusCircle, ShieldCheck, ArrowRight } from 'lucide-react';
+import { X, MinusCircle, ShieldCheck, ArrowRight } from 'lucide-react';
 import { MinimalVoiceFiller } from '../../common/MinimalVoiceFiller';
 import { DatePicker } from '../../common/DatePicker';
 
@@ -107,7 +107,7 @@ export const DeductTollModal: React.FC<DeductTollModalProps> = ({
             </span>
           </div>
           <button className="modal-close-btn" onClick={onClose} type="button">
-            ✕
+            <X size={15} />
           </button>
         </div>
 

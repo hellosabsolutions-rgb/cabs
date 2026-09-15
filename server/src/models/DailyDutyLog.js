@@ -53,6 +53,22 @@ const dailyDutyLogSchema = new mongoose.Schema(
       trim: true,
       index: true
     },
+    entrySource: {
+      type: String,
+      enum: ['Admin', 'App'],
+      default: 'Admin',
+      index: true
+    },
+    isNightShift: {
+      type: Boolean,
+      default: false,
+      index: true
+    },
+    monthlyBillId: {
+      type: String,
+      default: null,
+      index: true
+    },
     dutyType: {
       type: String,
       enum: ['Official Department Duty', 'Weekend / Off-Duty Trip'],
@@ -206,16 +222,6 @@ const dailyDutyLogSchema = new mongoose.Schema(
       default: 'Official Office Duty'
     },
     headOfAccount: {
-      type: String,
-      trim: true,
-      default: ''
-    },
-    motorOilUsed: {
-      type: String,
-      trim: true,
-      default: 'None'
-    },
-    mOilLitres: {
       type: String,
       trim: true,
       default: ''

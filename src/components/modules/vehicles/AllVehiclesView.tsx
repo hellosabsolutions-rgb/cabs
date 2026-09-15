@@ -5,7 +5,7 @@ import { StatusChip } from '../../common/StatusChip';
 import { AddVehicleModal } from './AddVehicleModal';
 import { EditVehicleModal } from './EditVehicleModal';
 import { Vehicle, VehicleStatus } from '../../../types/fleet';
-import { Building2, Briefcase, Fuel, FileText, Shield, Wind, FileCheck, Award, Eye, ChevronDown, CheckCircle2, Clock, Wrench, Edit2, Trash2, Truck } from 'lucide-react';
+import { X, Building2, Briefcase, Fuel, FileText, Shield, Wind, FileCheck, Award, Eye, ChevronDown, CheckCircle2, Clock, Wrench, Edit2, Trash2, Truck } from 'lucide-react';
 import { Pagination } from '../../common/Pagination';
 import { usePagination } from '../../../hooks/usePagination';
 import { CustomDropdown } from '../../common/CustomDropdown';
@@ -421,7 +421,7 @@ export const AllVehiclesView: React.FC = () => {
                 </span>
               </div>
               <button className="modal-close-btn" onClick={() => setSelectedVehicleDocs(null)}>
-                ✕
+                <X size={15} />
               </button>
             </div>
 
@@ -547,7 +547,7 @@ export const AllVehiclesView: React.FC = () => {
                 <FileText size={16} color="var(--accent)" /> Verified Document Scan Copy
               </h3>
               <button className="modal-close-btn" onClick={() => setViewRc(null)}>
-                ✕
+                <X size={15} />
               </button>
             </div>
             <div className="modal-body" style={{ textAlign: 'center', padding: '16px' }}>

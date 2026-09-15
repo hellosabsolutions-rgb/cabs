@@ -304,7 +304,8 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setDepartmentContracts(
           res.data.map((item: any) => ({
             ...item,
-            id: item.id || item._id
+            id: item.id || item._id,
+            nightChargePerDay: Number(item.nightChargePerDay) || 0
           }))
         );
       }
@@ -447,7 +448,9 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (res && res.success && Array.isArray(res.data)) {
         setDailyDutyLogs(res.data.map((item: any) => ({
           ...item,
-          id: item.id || item._id
+          id: item.id || item._id,
+          entrySource: item.entrySource || 'Admin',
+          isNightShift: Boolean(item.isNightShift)
         })));
       }
     } catch (err) {
@@ -600,6 +603,96 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
+  const normalizeFuelLog = (item: any): FuelLogEntry | null => {
+    if (!item) return null;
+    const id = item.id || item._id;
+    if (!id) return null;
+    return {
+      id,
+      vehicle: item.vehicle,
+      driverName: item.driverName || 'Driver',
+      date: item.date,
+      time: item.time || '09:00 AM',
+      odometer: Number(item.odometer || 0),
+      fuelType: item.fuelType || 'Diesel',
+      litres: Number(item.litres || 0),
+      ratePerLitre: Number(item.ratePerLitre || 0),
+      totalCost: Number(item.totalCost || 0),
+      stationName: item.stationName || 'Fuel Station',
+      paymentMode: item.paymentMode || 'Fleet Card',
+      meterPhoto: item.meterPhoto || null,
+      receiptPhoto: item.receiptPhoto || null,
+      location: item.location || null,
+      coordinates: item.coordinates || null,
+      notes: item.notes
+    };
+  };
+
+  const syncFuelExpenseRecord = (log: FuelLogEntry) => {
+    const expenseId = `e_fuel_${log.id}`;
+    const expEntry: ExpenseRecord = {
+      id: expenseId,
+      date: log.date,
+      vehicle: log.vehicle,
+      category: 'Fuel',
+      linkedTo: `${log.stationName} (${log.litres}L @ ₹${log.ratePerLitre}/L)`,
+      amount: log.totalCost
+    };
+    setExpenses(prev => {
+      if (prev.some(e => e.id === expenseId)) return prev;
+      return [expEntry, ...prev];
+    });
+  };
+
+  const syncVehicleOdometerFromFuel = (vehicleReg: string, odometer: number) => {
+    if (!vehicleReg || !odometer) return;
+    setVehicles(prev =>
+      prev.map(v =>
+        v.registrationNumber === vehicleReg
+          ? { ...v, odometer: Math.max(v.odometer || 0, odometer) }
+          : v
+      )
+    );
+  };
+
+  const upsertFuelLog = (incoming: any) => {
+    const normalized = normalizeFuelLog(incoming?.log || incoming?.data || incoming);
+    if (!normalized) return null;
+    setFuelLogs(prev => {
+      const idx = prev.findIndex(item => item.id === normalized.id);
+      if (idx === -1) return [normalized, ...prev];
+      const next = [...prev];
+      next[idx] = { ...next[idx], ...normalized, id: next[idx].id };
+      return next;
+    });
+    syncFuelExpenseRecord(normalized);
+    syncVehicleOdometerFromFuel(normalized.vehicle, normalized.odometer);
+    return normalized;
+  };
+
+  const fetchLiveFuelLogs = async (queryParam?: { vehicle?: string; search?: string }) => {
+    try {
+      let endpoint = '/fuel-logs?limit=500';
+      if (queryParam) {
+        const params = new URLSearchParams();
+        if (queryParam.vehicle && queryParam.vehicle !== 'All') params.append('vehicle', queryParam.vehicle);
+        if (queryParam.search) params.append('search', queryParam.search);
+        const qStr = params.toString();
+        if (qStr) endpoint += `&${qStr}`;
+      }
+      const res = await api.get(endpoint);
+      if (res?.success && Array.isArray(res.data)) {
+        setFuelLogs(
+          res.data
+            .map((item: any) => normalizeFuelLog(item))
+            .filter((item: FuelLogEntry | null): item is FuelLogEntry => !!item)
+        );
+      }
+    } catch (err) {
+      console.warn('Backend fuel logs API not reachable:', err);
+    }
+  };
+
   // Fetch live aggregated dashboard statistics
   const fetchLiveDashboardStats = async (): Promise<DashboardStatsData | null> => {
     setIsLoadingDashboard(true);
@@ -632,6 +725,7 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     fetchPayrollSummary();
     fetchLiveMaintenance();
     fetchLiveExpenses();
+    fetchLiveFuelLogs();
     fetchLiveDashboardStats();
   }, []);
 
@@ -726,7 +820,12 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (!log) return;
       const id = log.id || log._id;
       if (!id) return;
-      const normalized: DailyDutyLog = { ...log, id };
+      const normalized: DailyDutyLog = {
+        ...log,
+        id,
+        entrySource: log.entrySource || 'Admin',
+        isNightShift: Boolean(log.isNightShift)
+      };
       setDailyDutyLogs(prev => {
         const idx = prev.findIndex(item => item.id === id || (item as any)._id === id);
         if (idx === -1) return [normalized, ...prev];
@@ -910,6 +1009,195 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setDriverExpenses(prev => prev.filter(e => e.id !== id));
     };
 
+    const normalizeFuelLogEvent = (item: any): FuelLogEntry | null => {
+      if (!item) return null;
+      const id = item.id || item._id;
+      if (!id) return null;
+      return {
+        id,
+        vehicle: item.vehicle,
+        driverName: item.driverName || 'Driver',
+        date: item.date,
+        time: item.time || '09:00 AM',
+        odometer: Number(item.odometer || 0),
+        fuelType: item.fuelType || 'Diesel',
+        litres: Number(item.litres || 0),
+        ratePerLitre: Number(item.ratePerLitre || 0),
+        totalCost: Number(item.totalCost || 0),
+        stationName: item.stationName || 'Fuel Station',
+        paymentMode: item.paymentMode || 'Fleet Card',
+        meterPhoto: item.meterPhoto || null,
+        receiptPhoto: item.receiptPhoto || null,
+        location: item.location || null,
+        coordinates: item.coordinates || null,
+        notes: item.notes
+      };
+    };
+
+    const applyFuelLogSideEffects = (log: FuelLogEntry) => {
+      const expenseId = `e_fuel_${log.id}`;
+      setExpenses(prev => {
+        if (prev.some(e => e.id === expenseId)) return prev;
+        return [
+          {
+            id: expenseId,
+            date: log.date,
+            vehicle: log.vehicle,
+            category: 'Fuel',
+            linkedTo: `${log.stationName} (${log.litres}L @ ₹${log.ratePerLitre}/L)`,
+            amount: log.totalCost
+          },
+          ...prev
+        ];
+      });
+      if (log.odometer > 0) {
+        setVehicles(prev =>
+          prev.map(v =>
+            v.registrationNumber === log.vehicle
+              ? { ...v, odometer: Math.max(v.odometer || 0, log.odometer) }
+              : v
+          )
+        );
+      }
+    };
+
+    const handleFastagBalanceUpdated = (data: any) => {
+      const vehicleReg = data?.vehicle;
+      if (!vehicleReg) return;
+      setVehicles(prev =>
+        prev.map(v =>
+          v.registrationNumber.toLowerCase() === String(vehicleReg).toLowerCase()
+            ? {
+                ...v,
+                fastagBalance: Number(data.fastagBalance ?? v.fastagBalance ?? 0),
+                fastagTagId: data.fastagTagId ?? v.fastagTagId,
+                fastagBank: data.fastagBank ?? v.fastagBank
+              }
+            : v
+        )
+      );
+    };
+
+    const normalizeContractEvent = (raw: any) => {
+      if (!raw || typeof raw !== 'object') return null;
+      const c = raw.contract || raw;
+      const id = c.id || c._id;
+      if (!id) return null;
+      return {
+        ...c,
+        id: String(id),
+        nightChargePerDay: Number(c.nightChargePerDay) || 0
+      };
+    };
+
+    const handleContractCreated = (data: any) => {
+      const c = normalizeContractEvent(data);
+      if (!c) return;
+      setDepartmentContracts(prev => {
+        if (prev.some(x => x.id === c.id)) {
+          return prev.map(x => (x.id === c.id ? { ...x, ...c } : x));
+        }
+        showToast('info', `Contract ${c.contractNumber} synced.`, 'Contract');
+        return [c, ...prev];
+      });
+    };
+
+    const handleContractUpdated = (data: any) => {
+      const c = normalizeContractEvent(data);
+      if (!c) return;
+      setDepartmentContracts(prev => {
+        const exists = prev.some(x => x.id === c.id);
+        if (!exists) return [c, ...prev];
+        return prev.map(x => (x.id === c.id ? { ...x, ...c } : x));
+      });
+    };
+
+    const normalizeBillEvent = (raw: any) => {
+      const b = raw?.bill || raw?.data || raw;
+      if (!b) return null;
+      const id = b.id || b._id;
+      if (!id) return null;
+      return { ...b, id: String(id) };
+    };
+
+    const handleBillCreated = (data: any) => {
+      const b = normalizeBillEvent(data);
+      if (!b) return;
+      setMonthlyBills(prev => {
+        if (prev.some(x => x.id === b.id)) {
+          return prev.map(x => (x.id === b.id ? { ...x, ...b } : x));
+        }
+        showToast('info', `Invoice ${b.billNumber} synced.`, 'Billing');
+        return [b, ...prev];
+      });
+      fetchLiveDailyDutyLogs();
+    };
+
+    const handleBillUpdated = (data: any) => {
+      const b = normalizeBillEvent(data);
+      if (!b) return;
+      setMonthlyBills(prev => {
+        const exists = prev.some(x => x.id === b.id);
+        if (!exists) return [b, ...prev];
+        return prev.map(x => (x.id === b.id ? { ...x, ...b } : x));
+      });
+    };
+
+    const handleBillDeleted = (data: any) => {
+      const b = normalizeBillEvent(data);
+      if (!b?.id) return;
+      setMonthlyBills(prev => prev.filter(x => x.id !== b.id));
+      fetchLiveDailyDutyLogs();
+    };
+
+    const handleContractDeleted = (data: any) => {
+      const c = normalizeContractEvent(data);
+      if (!c?.id) return;
+      setDepartmentContracts(prev => {
+        if (!prev.some(x => x.id === c.id)) return prev;
+        showToast('info', `Contract ${c.contractNumber || ''} removed.`, 'Contract');
+        return prev.filter(x => x.id !== c.id);
+      });
+    };
+
+    const handleFuelLogCreated = (data: any) => {
+      const normalized = normalizeFuelLogEvent(data?.log || data?.data || data);
+      if (!normalized) return;
+      setFuelLogs(prev => {
+        if (prev.some(item => item.id === normalized.id)) {
+          return prev.map(item => (item.id === normalized.id ? { ...item, ...normalized } : item));
+        }
+        return [normalized, ...prev];
+      });
+      applyFuelLogSideEffects(normalized);
+      showToast(
+        'info',
+        `${normalized.litres}L · ₹${Number(normalized.totalCost).toLocaleString('en-IN')} · ${normalized.vehicle} (${normalized.driverName})`,
+        'Fuel refill logged'
+      );
+      fetchLiveDashboardStats();
+    };
+
+    const handleFuelLogUpdated = (data: any) => {
+      const normalized = normalizeFuelLogEvent(data?.log || data?.data || data);
+      if (!normalized) return;
+      setFuelLogs(prev => {
+        const exists = prev.some(item => item.id === normalized.id);
+        if (!exists) return [normalized, ...prev];
+        return prev.map(item => (item.id === normalized.id ? { ...item, ...normalized } : item));
+      });
+      applyFuelLogSideEffects(normalized);
+      fetchLiveDashboardStats();
+    };
+
+    const handleFuelLogDeleted = (data: any) => {
+      const id = data?.id || data?._id || data?.log?.id || data?.log?._id;
+      if (!id) return;
+      setFuelLogs(prev => prev.filter(item => item.id !== id));
+      setExpenses(prev => prev.filter(item => item.id !== `e_fuel_${id}`));
+      fetchLiveDashboardStats();
+    };
+
     socket.on('booking:created', handleBookingCreated);
     socket.on('booking:updated', handleBookingUpdated);
     socket.on('booking:completed', handleBookingCompleted);
@@ -930,6 +1218,16 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     socket.on('driver-expense:created', handleDriverExpenseCreated);
     socket.on('driver-expense:updated', handleDriverExpenseUpdated);
     socket.on('driver-expense:deleted', handleDriverExpenseDeleted);
+    socket.on('fastag:balance_updated', handleFastagBalanceUpdated);
+    socket.on('bill:created', handleBillCreated);
+    socket.on('bill:updated', handleBillUpdated);
+    socket.on('bill:deleted', handleBillDeleted);
+    socket.on('contract:created', handleContractCreated);
+    socket.on('contract:updated', handleContractUpdated);
+    socket.on('contract:deleted', handleContractDeleted);
+    socket.on('fuel-log:created', handleFuelLogCreated);
+    socket.on('fuel-log:updated', handleFuelLogUpdated);
+    socket.on('fuel-log:deleted', handleFuelLogDeleted);
 
     return () => {
       socket.off('booking:created', handleBookingCreated);
@@ -952,6 +1250,16 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       socket.off('driver-expense:created', handleDriverExpenseCreated);
       socket.off('driver-expense:updated', handleDriverExpenseUpdated);
       socket.off('driver-expense:deleted', handleDriverExpenseDeleted);
+      socket.off('fastag:balance_updated', handleFastagBalanceUpdated);
+      socket.off('bill:created', handleBillCreated);
+      socket.off('bill:updated', handleBillUpdated);
+      socket.off('bill:deleted', handleBillDeleted);
+      socket.off('contract:created', handleContractCreated);
+      socket.off('contract:updated', handleContractUpdated);
+      socket.off('contract:deleted', handleContractDeleted);
+      socket.off('fuel-log:created', handleFuelLogCreated);
+      socket.off('fuel-log:updated', handleFuelLogUpdated);
+      socket.off('fuel-log:deleted', handleFuelLogDeleted);
     };
   }, []);
 
@@ -985,6 +1293,7 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       case 'expenses':
         fetchLiveFastagTransactions();
         fetchLiveTripExpenses();
+        fetchLiveFuelLogs();
         break;
       case 'compliance':
         fetchLiveCompliance();
@@ -1044,6 +1353,7 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         fetchPayrollSummary(),
         fetchLiveMaintenance(),
         fetchLiveExpenses(),
+        fetchLiveFuelLogs(),
         fetchLiveDashboardStats()
       ]);
       showToast('info', 'Fleet, Drivers, FASTag, Daily Duty Logs, Invoices, Expenses & Dashboard synchronized with live server.', 'Refreshed');
@@ -1076,6 +1386,7 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           fetchPayrollSummary(),
           fetchLiveMaintenance(),
           fetchLiveExpenses(),
+          fetchLiveFuelLogs(),
           fetchLiveDashboardStats()
         ]);
         showToast('info', 'Switched agency — fleet data reloaded.', 'Agency');
@@ -1488,36 +1799,32 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
-  const addFuelLog = (entryData: Omit<FuelLogEntry, 'id'>) => {
+  const addFuelLog = async (entryData: Omit<FuelLogEntry, 'id'>) => {
     try {
-      if (!entryData.vehicle || !entryData.litres || !entryData.totalCost) {
+      const payload = {
+        ...entryData,
+        driverName: entryData.driverName || (entryData as any).driver || 'Driver',
+        odometer: entryData.odometer ?? (entryData as any).odometerReading ?? 0,
+        receiptPhoto: entryData.receiptPhoto ?? (entryData as any).billPhoto ?? null,
+        time: entryData.time || '09:00 AM'
+      };
+
+      if (!payload.vehicle || !payload.litres || !payload.totalCost) {
         showToast('error', 'Please fill vehicle, litres and total amount.', 'Missing Fields');
         return;
       }
-      const newFuel: FuelLogEntry = {
-        ...entryData,
-        id: 'fuel_' + Date.now()
-      };
-      setFuelLogs(prev => [newFuel, ...prev]);
 
-      // Automatically sync with fleet expenses
-      const expEntry: ExpenseRecord = {
-        id: 'e_' + Date.now(),
-        date: newFuel.date,
-        vehicle: newFuel.vehicle,
-        category: 'Fuel',
-        linkedTo: `${newFuel.stationName} (${newFuel.litres}L @ ₹${newFuel.ratePerLitre}/L)`,
-        amount: newFuel.totalCost
-      };
-      setExpenses(prev => [expEntry, ...prev]);
-      showToast(
-        'success',
-        `Logged ₹${newFuel.totalCost.toLocaleString('en-IN')} (${newFuel.litres}L) for ${newFuel.vehicle}.`,
-        'Fuel Refill Recorded'
-      );
-    } catch (err) {
+      const res = await api.post('/fuel-logs', payload);
+      if (res?.success && res.data) {
+        upsertFuelLog(res.data);
+        fetchLiveDashboardStats();
+        return;
+      }
+
+      showToast('error', res?.error || 'Could not record fuel refill.', 'Error');
+    } catch (err: any) {
       console.error('Failed to add fuel log', err);
-      showToast('error', 'Could not record fuel refill.', 'Error');
+      showToast('error', err.message || 'Could not record fuel refill.', 'Error');
     }
   };
 
@@ -3106,8 +3413,11 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           };
           setDailyDutyLogs(prev => [newLog, ...prev]);
 
-          // Auto record fuel expense if entered in duty slip
-          if (newLog.fuelAmount && newLog.fuelAmount > 0) {
+          if (
+            newLog.dutyType !== 'Official Department Duty' &&
+            newLog.fuelAmount &&
+            newLog.fuelAmount > 0
+          ) {
             const fuelExp: ExpenseRecord = {
               id: 'e_' + Date.now(),
               date: newLog.date,
@@ -3132,7 +3442,11 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       };
       setDailyDutyLogs(prev => [newLog, ...prev]);
 
-      if (newLog.fuelAmount && newLog.fuelAmount > 0) {
+      if (
+        newLog.dutyType !== 'Official Department Duty' &&
+        newLog.fuelAmount &&
+        newLog.fuelAmount > 0
+      ) {
         const fuelExp: ExpenseRecord = {
           id: 'e_' + Date.now(),
           date: newLog.date,
@@ -3180,6 +3494,68 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       } catch (apiErr: any) {
         return { success: false, error: apiErr.message };
       }
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  };
+
+  const previewMonthlyBillFromLogs = async (payload: {
+    contractId: string;
+    billingMonth: string;
+    gstRate?: number;
+    gstType?: 'CGST_SGST' | 'IGST';
+    gstTaxableOn?: 'RENT_ONLY' | 'TOTAL' | 'BASE_AND_NIGHT';
+  }) => {
+    try {
+      const res = await api.post('/bills/preview-monthly', payload);
+      if (res.success) return { success: true, data: res.data };
+      return { success: false, error: res.error || 'Preview failed' };
+    } catch (err: any) {
+      return { success: false, error: err.message || 'Preview failed' };
+    }
+  };
+
+  const generateMonthlyBillFromLogs = async (payload: {
+    contractId: string;
+    billingMonth: string;
+    gstRate?: number;
+    gstType?: 'CGST_SGST' | 'IGST';
+    gstTaxableOn?: 'RENT_ONLY' | 'TOTAL' | 'BASE_AND_NIGHT';
+    status?: MonthlyDepartmentBill['status'];
+    dueDate?: string;
+    partyGstin?: string;
+    extraDriverAllowance?: number;
+  }) => {
+    try {
+      const res = await api.post('/bills/generate-monthly', payload);
+      if (res.success && res.data) {
+        const savedBill: MonthlyDepartmentBill = { ...res.data, id: res.data.id || res.data._id };
+        setMonthlyBills(prev => [savedBill, ...prev.filter(b => b.id !== savedBill.id)]);
+        await fetchLiveDailyDutyLogs();
+        showToast(
+          'success',
+          `Invoice ${savedBill.billNumber} · ₹${savedBill.totalBill.toLocaleString('en-IN')} from duty logs.`,
+          'Invoice Generated'
+        );
+        return { success: true, bill: savedBill };
+      }
+      return { success: false, error: res.error || 'Generation failed' };
+    } catch (err: any) {
+      showToast('error', err.message || 'Could not generate invoice.', 'Billing');
+      return { success: false, error: err.message };
+    }
+  };
+
+  const unlockMonthlyBill = async (id: string, reason?: string) => {
+    try {
+      const res = await api.post(`/bills/${id}/unlock`, { reason });
+      if (res.success && res.data) {
+        const updated = { ...res.data, id: res.data.id || res.data._id };
+        setMonthlyBills(prev => prev.map(b => (b.id === id ? { ...b, ...updated } : b)));
+        showToast('info', 'Invoice unlocked for editing.', 'Billing');
+        return { success: true };
+      }
+      return { success: false, error: res.error };
     } catch (err: any) {
       return { success: false, error: err.message };
     }
@@ -3807,6 +4183,9 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         fetchLiveMonthlyBills,
         addMonthlyBill,
         generateWeekendMemoBill,
+        previewMonthlyBillFromLogs,
+        generateMonthlyBillFromLogs,
+        unlockMonthlyBill,
         updateBillStatus,
         applyGstRate,
         deleteMonthlyBill,
@@ -3887,6 +4266,7 @@ export const FleetProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         expenseSubTab,
         setExpenseSubTab: handleSetExpenseSubTab,
         fuelLogs,
+        fetchLiveFuelLogs,
         addFuelLog,
         fastagTransactions,
         addFastagTransaction,

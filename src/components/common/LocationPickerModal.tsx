@@ -286,7 +286,7 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
   };
 
   return (
-    <div className="modal-overlay" onClick={onClose} style={{ zIndex: 9999 }}>
+    <div className="modal-overlay modal-center" onClick={onClose} style={{ zIndex: 9999 }}>
       <div
         className="modal-dialog"
         onClick={e => e.stopPropagation()}

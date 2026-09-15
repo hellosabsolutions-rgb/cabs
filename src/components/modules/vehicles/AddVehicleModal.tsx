@@ -273,30 +273,26 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div
-        className="modal-dialog"
-        onClick={e => e.stopPropagation()}
-        style={{ maxWidth: 580, maxHeight: '92vh', display: 'flex', flexDirection: 'column' }}
-      >
+      <div className="modal-dialog" onClick={e => e.stopPropagation()}>
         <div className="modal-header">
           <div className="modal-title-group">
-            <h3 className="modal-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Truck size={18} color="var(--accent)" /> Add New Vehicle to Fleet
+            <h3 className="modal-title">
+              <span className="modal-title-icon">
+                <Truck size={16} />
+              </span>
+              Add vehicle
             </h3>
             <span className="modal-subtitle">
-              Register commercial or department vehicle with specs, driver, FASTag & RC proof
+              Specs, assignment, FASTag, and RC documents
             </span>
           </div>
-          <button className="modal-close-btn" onClick={onClose} type="button">
-            ✕
+          <button className="modal-close-btn" onClick={onClose} type="button" aria-label="Close">
+            <X size={15} />
           </button>
         </div>
 
-        <form
-          onSubmit={handleSubmit}
-          style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, overflow: 'hidden' }}
-        >
-          <div className="modal-body" style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
+        <form onSubmit={handleSubmit}>
+          <div className="modal-body">
             {/* Minimal Voice Form Filler */}
             <MinimalVoiceFiller
               formType="vehicle"
@@ -308,42 +304,27 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
               onApplyParsedData={(data) => handleApplyVoiceData(data as any)}
             />
 
-            {errorMsg && (
-              <div
-                style={{
-                  background: 'var(--danger-bg)',
-                  color: 'var(--danger)',
-                  padding: '10px 14px',
-                  borderRadius: '8px',
-                  fontSize: '12.5px',
-                  border: '1px solid rgba(255, 92, 92, 0.3)',
-                  marginBottom: '12px'
-                }}
-              >
-                {errorMsg}
-              </div>
-            )}
+            {errorMsg && <div className="form-error">{errorMsg}</div>}
 
-            {/* 1. Fleet Category / Operation Type */}
-            <div className="form-group" style={{ marginBottom: 0 }}>
-              <label className="form-label">Fleet Category / Operation Type *</label>
+            <div className="form-group">
+              <label className="form-label">
+                Fleet category <span className="req">*</span>
+              </label>
               <div className="driver-type-grid" style={{ gridTemplateColumns: '1fr 1fr' }}>
                 {vehicleTypes.map(t => (
                   <div
                     key={t}
                     className={`driver-type-option ${type === t ? 'active' : ''}`}
-                    onClick={() => {
-                      setType(t);
-                    }}
+                    onClick={() => setType(t)}
                     style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
                   >
                     {t === 'Department' ? (
                       <>
-                        <Building2 size={14} /> Department Contract
+                        <Building2 size={14} /> Department contract
                       </>
                     ) : (
                       <>
-                        <Briefcase size={14} /> Booking / Rental Fleet
+                        <Briefcase size={14} /> Booking / rental
                       </>
                     )}
                   </div>
@@ -351,14 +332,15 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
               </div>
             </div>
 
-            {/* 2. Registration Number & Make / Model */}
-            <div className="form-row-2" style={{ gap: '14px', marginBottom: '14px' }}>
-              <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label" style={{ marginBottom: '6px', fontSize: '12px', fontWeight: 600 }}>Registration Number *</label>
+            <div className="form-row-2">
+              <div className="form-group">
+                <label className="form-label">
+                  Registration number <span className="req">*</span>
+                </label>
                 <input
                   type="text"
                   className="form-input"
-                  style={{ textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 700, height: '38px' }}
+                  style={{ textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700 }}
                   placeholder="DL01AB1234"
                   value={registrationNumber}
                   onChange={e => setRegistrationNumber(e.target.value)}
@@ -366,13 +348,14 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
                 />
               </div>
 
-              <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label" style={{ marginBottom: '6px', fontSize: '12px', fontWeight: 600 }}>Vehicle Make & Model *</label>
+              <div className="form-group">
+                <label className="form-label">
+                  Make and model <span className="req">*</span>
+                </label>
                 <input
                   type="text"
                   className="form-input"
-                  style={{ height: '38px' }}
-                  placeholder="e.g. Toyota Innova Crysta 2.4 VX"
+                  placeholder="Toyota Innova Crysta 2.4 VX"
                   value={model}
                   onChange={e => setModel(e.target.value)}
                   required
@@ -382,44 +365,30 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
 
             {/* Department Name (Only if Department Contract) */}
             {type === 'Department' && (
-              <div
-                style={{
-                  background: 'var(--surface-3)',
-                  padding: '12px 14px',
-                  borderRadius: '10px',
-                  border: '1px solid var(--border)',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '8px',
-                  marginBottom: '14px'
-                }}
-              >
-                <label
-                  className="form-label"
-                  style={{ display: 'flex', alignItems: 'center', gap: '6px', margin: 0, color: 'var(--accent)', fontWeight: 600 }}
-                >
-                  <Building2 size={15} /> Department Name *
+              <div className="form-group">
+                <label className="form-label">
+                  Department name <span className="req">*</span>
                 </label>
                 <input
                   type="text"
                   className="form-input"
-                  style={{ fontWeight: 600, fontSize: '13.5px', height: '38px' }}
-                  placeholder="e.g. Public Works Department (PWD), Delhi Jal Nigam..."
+                  placeholder="Public Works Department (PWD)"
                   value={departmentName}
                   onChange={e => setDepartmentName(e.target.value)}
                   required
                 />
                 {departmentContracts.length > 0 && (
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: 8 }}>
                     {Array.from(new Set(departmentContracts.map(c => c.departmentName).filter(Boolean))).map(dept => (
                       <button
                         key={dept}
                         type="button"
                         className="btn-secondary"
                         style={{
-                          fontSize: '11px',
-                          padding: '3px 8px',
-                          background: departmentName === dept ? 'var(--surface-2)' : undefined,
+                          height: 28,
+                          fontSize: 11,
+                          padding: '0 10px',
+                          background: departmentName === dept ? 'var(--accent-dim)' : undefined,
                           borderColor: departmentName === dept ? 'var(--accent)' : undefined,
                           color: departmentName === dept ? 'var(--accent)' : undefined
                         }}
@@ -433,13 +402,12 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
               </div>
             )}
 
-            {/* 3. Designated Driver & Fuel Type */}
-            <div className="form-row-2" style={{ gap: '14px', marginBottom: '14px' }}>
-              <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label" style={{ marginBottom: '6px', fontSize: '12px', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <span>Designated Driver</span>
+            <div className="form-row-2">
+              <div className="form-group">
+                <label className="form-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span>Designated driver</span>
                   {isLoadingDrivers && (
-                    <span style={{ fontSize: '10px', color: 'var(--accent, #38bdf8)' }}>Syncing...</span>
+                    <span style={{ fontSize: 10, color: 'var(--accent)', fontWeight: 600 }}>Syncing</span>
                   )}
                 </label>
                 <CustomDropdown
@@ -466,8 +434,8 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
                 />
               </div>
 
-              <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label" style={{ marginBottom: '6px', fontSize: '12px', fontWeight: 600 }}>Fuel Type</label>
+              <div className="form-group">
+                <label className="form-label">Fuel type</label>
                 <CustomDropdown
                   value={fuelType}
                   onChange={val => setFuelType(val as NonNullable<Vehicle['fuelType']>)}
@@ -482,9 +450,9 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
             </div>
 
             {/* 4. Seating Capacity & Odometer */}
-            <div className="form-row-2" style={{ gap: '14px', marginBottom: '14px' }}>
-              <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label" style={{ marginBottom: '6px', fontSize: '12px', fontWeight: 600 }}>Seating Capacity</label>
+            <div className="form-row-2">
+              <div className="form-group">
+                <label className="form-label">Seating capacity</label>
                 <CustomDropdown
                   value={seatingCapacity}
                   onChange={val => setSeatingCapacity(val)}
@@ -498,24 +466,22 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
                 />
               </div>
 
-              <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label" style={{ marginBottom: '6px', fontSize: '12px', fontWeight: 600 }}>Current Odometer (KM)</label>
+              <div className="form-group">
+                <label className="form-label">Current odometer (km)</label>
                 <input
                   type="number"
                   min="0"
                   className="form-input"
-                  style={{ height: '38px' }}
-                  placeholder="e.g. 35000"
+                  placeholder="35000"
                   value={odometer}
                   onChange={e => setOdometer(e.target.value)}
                 />
               </div>
             </div>
 
-            {/* 5. Status & FASTag Balance */}
-            <div className="form-row-2" style={{ gap: '14px', marginBottom: '14px' }}>
-              <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label" style={{ marginBottom: '6px', fontSize: '12px', fontWeight: 600 }}>Current Vehicle Status</label>
+            <div className="form-row-2">
+              <div className="form-group">
+                <label className="form-label">Vehicle status</label>
                 <CustomDropdown
                   value={status}
                   onChange={val => setStatus(val as VehicleStatus)}
@@ -528,37 +494,34 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
                 />
               </div>
 
-              <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label" style={{ marginBottom: '6px', fontSize: '12px', fontWeight: 600 }}>FASTag Starting Balance (₹)</label>
+              <div className="form-group">
+                <label className="form-label">FASTag starting balance (₹)</label>
                 <input
                   type="number"
                   min="0"
                   className="form-input"
-                  style={{ height: '38px' }}
-                  placeholder="e.g. 2500"
+                  placeholder="2500"
                   value={fastagBalance}
                   onChange={e => setFastagBalance(e.target.value)}
                 />
               </div>
             </div>
 
-            {/* 6. GPS IMEI & Vehicle Photo */}
-            <div className="form-row-2" style={{ gap: '14px', marginBottom: '14px' }}>
-              <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label" style={{ marginBottom: '6px', fontSize: '12px', fontWeight: 600 }}>GPS Device IMEI / Telematics ID</label>
+            <div className="form-row-2">
+              <div className="form-group">
+                <label className="form-label">GPS IMEI</label>
                 <input
                   type="text"
                   className="form-input"
-                  style={{ height: '38px' }}
-                  placeholder="e.g. IMEI-86776347168"
+                  placeholder="IMEI-86776347168"
                   value={gpsImei}
                   onChange={e => setGpsImei(e.target.value)}
                 />
               </div>
 
-              <div className="form-group" style={{ marginBottom: 0 }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
-                  <label className="form-label" style={{ margin: 0, fontSize: '12px', fontWeight: 600 }}>Vehicle Photo</label>
+              <div className="form-group">
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 7 }}>
+                  <label className="form-label" style={{ margin: 0 }}>Vehicle photo</label>
                   <button
                     type="button"
                     data-no-modal-close="true"
@@ -566,17 +529,17 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
                     style={{
                       background: 'none',
                       border: 'none',
-                      color: 'var(--accent, #38bdf8)',
-                      fontSize: '11px',
+                      color: 'var(--accent)',
+                      fontSize: 11,
                       fontWeight: 600,
                       cursor: 'pointer',
                       display: 'flex',
                       alignItems: 'center',
-                      gap: '4px',
+                      gap: 4,
                       padding: 0
                     }}
                   >
-                    <Sparkles size={12} /> Image Picker
+                    <Sparkles size={12} /> Library
                   </button>
                 </div>
                 <input
@@ -590,15 +553,7 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
                 <div
                   className="upload-box"
                   onClick={() => setIsImagePickerOpen(true)}
-                  style={{
-                    padding: '4px 10px',
-                    height: '38px',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    borderColor: vehiclePhotoPreview ? 'var(--accent)' : undefined
-                  }}
+                  style={{ borderColor: vehiclePhotoPreview ? 'var(--accent)' : undefined }}
                 >
                   {vehiclePhotoPreview ? (
                     isPdfDocument(vehiclePhotoName, vehiclePhotoPreview) ? (
@@ -1302,16 +1257,13 @@ export const AddVehicleModal: React.FC<AddVehicleModalProps> = ({
               type="submit"
               className="btn-primary-action"
               disabled={isSubmitting}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
             >
               {isSubmitting ? (
                 <>
-                  <Loader2 size={14} className="spin-loader" /> Registering...
+                  <Loader2 size={14} className="spin-loader" /> Saving
                 </>
               ) : (
-                <>
-                  <span>+</span> Register Vehicle
-                </>
+                'Register vehicle'
               )}
             </button>
           </div>

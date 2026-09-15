@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useFleet } from '../../../context/FleetContext';
 import { DatePicker } from '../../common/DatePicker';
-import { ShieldAlert, X, AlertCircle } from 'lucide-react';
+import { ShieldAlert, X, AlertCircle, AlertTriangle } from 'lucide-react';
 
 interface AddChallanPenaltyModalProps {
   isOpen: boolean;
@@ -113,43 +113,8 @@ export const AddChallanPenaltyModal: React.FC<AddChallanPenaltyModalProps> = ({
   };
 
   return (
-    <div
-      className="modal-backdrop"
-      onClick={onClose}
-      style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.65)',
-        backdropFilter: 'blur(6px)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 9999,
-        padding: '20px'
-      }}
-    >
-      <div
-        className="modal-content"
-        onClick={e => e.stopPropagation()}
-        style={{
-          background: 'var(--surface)',
-          color: 'var(--text)',
-          borderRadius: '16px',
-          width: '100%',
-          maxWidth: '500px',
-          margin: 'auto',
-          border: '1px solid var(--border)',
-          boxShadow: '0 20px 50px rgba(0, 0, 0, 0.4), 0 0 0 1px var(--border)',
-          maxHeight: '90vh',
-          display: 'flex',
-          flexDirection: 'column',
-          overflow: 'hidden',
-          fontFamily: "'Poppins', sans-serif"
-        }}
-      >
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-dialog" onClick={e => e.stopPropagation()}>
         {/* Modal Header */}
         <div
           style={{
@@ -497,7 +462,7 @@ export const AddChallanPenaltyModal: React.FC<AddChallanPenaltyModalProps> = ({
                 alignItems: 'flex-start'
               }}
             >
-              <span style={{ color: '#ef4444', fontSize: '13px', lineHeight: '18px' }}>⚠️</span>
+              <AlertTriangle size={15} color="#ef4444" style={{ flexShrink: 0, marginTop: 1 }} />
               <div>
                 This penalty will be tracked under the driver's challan balance and automatically deducted from their monthly salary payment when settled.
               </div>

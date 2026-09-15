@@ -6,7 +6,9 @@ import {
   MicOff,
   Sparkles,
   Check,
-  AlertCircle
+  AlertCircle,
+  Lightbulb,
+  Languages
 } from 'lucide-react';
 
 interface VoiceFormFillerProps {
@@ -172,7 +174,15 @@ export const VoiceFormFiller: React.FC<VoiceFormFillerProps> = ({
             }}
             title="Toggle speech language"
           >
-            {activeLang === 'en-IN' ? '🇮🇳 Hinglish' : '🇮🇳 Hindi'}
+            {activeLang === 'en-IN' ? (
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                <Languages size={12} /> EN
+              </span>
+            ) : (
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                <Languages size={12} /> HI
+              </span>
+            )}
           </button>
 
           {/* Main Mic Button */}
@@ -264,47 +274,47 @@ export const VoiceFormFiller: React.FC<VoiceFormFillerProps> = ({
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
                 {detectedData.registrationNumber && (
                   <span style={pillStyle}>
-                    ✓ Reg: <strong>{detectedData.registrationNumber}</strong>
+                    <Check size={11} />  Reg: <strong>{detectedData.registrationNumber}</strong>
                   </span>
                 )}
                 {detectedData.model && (
                   <span style={pillStyle}>
-                    ✓ Model: <strong>{detectedData.model}</strong>
+                    <Check size={11} />  Model: <strong>{detectedData.model}</strong>
                   </span>
                 )}
                 {detectedData.type && (
                   <span style={pillStyle}>
-                    ✓ Type: <strong>{detectedData.type}</strong>
+                    <Check size={11} />  Type: <strong>{detectedData.type}</strong>
                   </span>
                 )}
                 {detectedData.departmentName && (
                   <span style={pillStyle}>
-                    ✓ Dept: <strong>{detectedData.departmentName}</strong>
+                    <Check size={11} />  Dept: <strong>{detectedData.departmentName}</strong>
                   </span>
                 )}
                 {detectedData.assignedDriver && (
                   <span style={pillStyle}>
-                    ✓ Driver: <strong>{detectedData.assignedDriver}</strong>
+                    <Check size={11} />  Driver: <strong>{detectedData.assignedDriver}</strong>
                   </span>
                 )}
                 {detectedData.fuelType && (
                   <span style={pillStyle}>
-                    ✓ Fuel: <strong>{detectedData.fuelType}</strong>
+                    <Check size={11} />  Fuel: <strong>{detectedData.fuelType}</strong>
                   </span>
                 )}
                 {detectedData.seatingCapacity && (
                   <span style={pillStyle}>
-                    ✓ Seats: <strong>{detectedData.seatingCapacity}</strong>
+                    <Check size={11} />  Seats: <strong>{detectedData.seatingCapacity}</strong>
                   </span>
                 )}
                 {detectedData.odometer && (
                   <span style={pillStyle}>
-                    ✓ Odo: <strong>{detectedData.odometer} KM</strong>
+                    <Check size={11} />  Odo: <strong>{detectedData.odometer} KM</strong>
                   </span>
                 )}
                 {detectedData.fastagBalance && (
                   <span style={pillStyle}>
-                    ✓ FASTag: <strong>₹{detectedData.fastagBalance}</strong>
+                    <Check size={11} />  FASTag: <strong>₹{detectedData.fastagBalance}</strong>
                   </span>
                 )}
               </div>
@@ -358,8 +368,9 @@ export const VoiceFormFiller: React.FC<VoiceFormFillerProps> = ({
 
       {/* Helpful Hint when idle */}
       {!isListening && !transcript && (
-        <div style={{ fontSize: '11px', color: 'var(--text-faint)', lineHeight: 1.35 }}>
-          💡 <em>Example: "Vehicle number DL 01 AB 1234, Model Innova Crysta, Fuel Diesel, 7 seater"</em>
+        <div style={{ fontSize: '11px', color: 'var(--text-faint)', lineHeight: 1.35, display: 'flex', alignItems: 'flex-start', gap: '6px' }}>
+          <Lightbulb size={13} style={{ flexShrink: 0, marginTop: 1 }} />
+          <em>Example: "Vehicle number DL 01 AB 1234, Model Innova Crysta, Fuel Diesel, 7 seater"</em>
         </div>
       )}
     </div>
@@ -370,6 +381,9 @@ const pillStyle: React.CSSProperties = {
   background: 'var(--accent-dim)',
   border: '1px solid rgba(57, 255, 110, 0.3)',
   color: 'var(--accent)',
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: '4px',
   borderRadius: '5px',
   padding: '3px 8px',
   fontSize: '11px',

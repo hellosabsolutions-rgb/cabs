@@ -7,7 +7,7 @@ import { ComplianceDetailModal } from './ComplianceDetailModal';
 import { DocumentCompliance } from '../../../types/fleet';
 import { Pagination } from '../../common/Pagination';
 import { usePagination } from '../../../hooks/usePagination';
-import {
+import { X,
   AlertTriangle,
   Clock,
   Plus,
@@ -454,7 +454,7 @@ export const ComplianceView: React.FC = () => {
                 <FileText size={16} /> {viewDoc.title}
               </h3>
               <button className="modal-close-btn" onClick={() => setViewDoc(null)}>
-                ✕
+                <X size={15} />
               </button>
             </div>
             <div className="modal-body" style={{ textAlign: 'center', padding: '20px' }}>

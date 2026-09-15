@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import { broadcastAll } from '../services/socketService.js';
 import { getAgencyId, stampAgencyId, withAgencyFilter } from '../utils/tenantQuery.js';
+import { processMediaFields } from '../utils/mediaUploadHelper.js';
 
 function serializeCrudDoc(doc) {
   if (!doc) return null;
@@ -36,6 +37,7 @@ function tenantIdQuery(req, id, options) {
 export const createCrudController = (Model, searchFields = [], options = {}) => {
   const socketPrefix = options.socketPrefix || null;
   const tenantScoped = options.tenantScoped !== false;
+  const mediaFields = options.mediaFields || [];
 
   return {
     getAll: asyncHandler(async (req, res) => {
@@ -113,7 +115,10 @@ export const createCrudController = (Model, searchFields = [], options = {}) => 
     }),
 
     create: asyncHandler(async (req, res) => {
-      const payload = tenantScoped ? stampAgencyId(req, req.body) : req.body;
+      let payload = tenantScoped ? stampAgencyId(req, req.body) : { ...req.body };
+      if (mediaFields.length) {
+        payload = await processMediaFields(payload, mediaFields);
+      }
       const doc = await Model.create(payload);
       const serialized = serializeCrudDoc(doc);
       emitCrudSocket(socketPrefix, 'created', { action: 'created', log: serialized, data: serialized });
@@ -127,8 +132,9 @@ export const createCrudController = (Model, searchFields = [], options = {}) => 
       const { id } = req.params;
       const query = tenantIdQuery(req, id, { tenantScoped });
       const { agencyId: _drop, ...body } = req.body;
+      const payload = mediaFields.length ? await processMediaFields(body, mediaFields) : body;
 
-      const doc = await Model.findOneAndUpdate(query, body, {
+      const doc = await Model.findOneAndUpdate(query, payload, {
         new: true,
         runValidators: true
       });

@@ -6,7 +6,7 @@ import { CompleteTripModal } from './CompleteTripModal';
 import { TripFinancial, TripStatus } from '../../../types/fleet';
 import { Pagination } from '../../common/Pagination';
 import { usePagination } from '../../../hooks/usePagination';
-import { Navigation, Plus, CheckCircle2, Clock, MapPin, Gauge, Fuel, CreditCard, User, TrendingUp, RotateCcw, ArrowRight, Building2, ChevronDown } from 'lucide-react';
+import { Navigation, Plus, CheckCircle2, Clock, MapPin, Gauge, Fuel, CreditCard, User, TrendingUp, RotateCcw, ArrowRight, Building2, ChevronDown, Radio } from 'lucide-react';
 import { SkeletonCard, SkeletonTable } from '../../common/Skeleton';
 import { StatusDropdown, StatusOption } from '../../common/StatusDropdown';
 
@@ -185,7 +185,7 @@ export const TripsView: React.FC = () => {
                 color: ongoingCount > 0 ? 'var(--success)' : undefined
               }}
             >
-              ● Ongoing ({ongoingCount})
+              <Radio size={10} /> Ongoing ({ongoingCount})
             </button>
 
             <button

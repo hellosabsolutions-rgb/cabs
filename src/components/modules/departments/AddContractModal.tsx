@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Camera, Upload, Trash2, Sparkles, FileText, Check, AlertCircle } from 'lucide-react';
+import { Camera, Upload, Trash2, Sparkles, FileText, AlertCircle, X, Check } from 'lucide-react';
 import { useFleet } from '../../../context/FleetContext';
 import { MinimalVoiceFiller } from '../../common/MinimalVoiceFiller';
 import { DatePicker } from '../../common/DatePicker';
@@ -23,6 +23,7 @@ export const AddContractModal: React.FC<AddContractModalProps> = ({ isOpen, onCl
   const [includedKmPerMonth, setIncludedKmPerMonth] = useState('');
   const [extraKmRate, setExtraKmRate] = useState('');
   const [extraHourRate, setExtraHourRate] = useState('');
+  const [nightChargePerDay, setNightChargePerDay] = useState('');
   const [startDate, setStartDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [endDate, setEndDate] = useState(() => {
     const d = new Date();
@@ -119,6 +120,7 @@ export const AddContractModal: React.FC<AddContractModalProps> = ({ isOpen, onCl
         includedHoursPerMonth: 300,
         extraKmRate: Number(extraKmRate) || 14,
         extraHourRate: Number(extraHourRate) || 120,
+        nightChargePerDay: Math.max(0, Number(nightChargePerDay) || 0),
         startDate,
         endDate,
         status: 'Active',
@@ -139,6 +141,7 @@ export const AddContractModal: React.FC<AddContractModalProps> = ({ isOpen, onCl
       setIncludedKmPerMonth('');
       setExtraKmRate('');
       setExtraHourRate('');
+      setNightChargePerDay('');
       setDocName('');
       setDocPreview(null);
       setErrorMsg('');
@@ -155,54 +158,43 @@ export const AddContractModal: React.FC<AddContractModalProps> = ({ isOpen, onCl
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="dept-contract-modal" onClick={e => e.stopPropagation()}>
-        {/* Modal Head */}
-        <div className="modal-head">
-          <div>
-            <h1>Add department contract</h1>
-            <p>Register a new government or corporate fleet contract</p>
+      <div className="modal-dialog app-form-sheet" onClick={e => e.stopPropagation()}>
+        <div className="modal-header">
+          <div className="modal-title-group">
+            <h3 className="modal-title">
+              <span className="modal-title-icon">
+                <FileText size={16} />
+              </span>
+              Add department contract
+            </h3>
+            <span className="modal-subtitle">
+              Register a new government or corporate fleet contract
+            </span>
           </div>
-          <button className="close" onClick={onClose} type="button" aria-label="Close">
-            ✕
+          <button className="modal-close-btn" onClick={onClose} type="button" aria-label="Close">
+            <X size={15} />
           </button>
         </div>
 
-        {/* Voice Assistant / Quick Speak Row */}
-        <div className="voice-row">
-          <MinimalVoiceFiller
-            formType="general"
-            context={{
-              vehicles: vehicles.map(v => v.registrationNumber),
-              drivers: drivers.map(d => d.name)
-            }}
-            placeholder="Fill by speaking — try 'Public Works Department, monthly rate 85000'"
-            onApplyParsedData={(data) => {
-              if (data.departmentName) setDepartmentName(data.departmentName);
-              if (data.vehicle) setVehicle(data.vehicle);
-              if (data.driverName) setDriverName(data.driverName);
-              if (data.amount) setMonthlyBaseAmount(data.amount);
-            }}
-          />
-        </div>
+        <form onSubmit={handleSubmit}>
+          <div className="modal-body">
+            <MinimalVoiceFiller
+              formType="general"
+              context={{
+                vehicles: vehicles.map(v => v.registrationNumber),
+                drivers: drivers.map(d => d.name)
+              }}
+              placeholder="Fill by speaking — try 'Public Works Department, monthly rate 85000'"
+              onApplyParsedData={(data) => {
+                if (data.departmentName) setDepartmentName(data.departmentName);
+                if (data.vehicle) setVehicle(data.vehicle);
+                if (data.driverName) setDriverName(data.driverName);
+                if (data.amount) setMonthlyBaseAmount(data.amount);
+              }}
+            />
 
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
-          <div className="form-body">
             {errorMsg && (
-              <div
-                style={{
-                  background: 'rgba(181, 80, 46, 0.08)',
-                  color: 'var(--danger)',
-                  padding: '9px 12px',
-                  borderRadius: '8px',
-                  fontSize: '12.5px',
-                  fontWeight: 500,
-                  border: '1px solid rgba(181, 80, 46, 0.25)',
-                  marginBottom: '16px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px'
-                }}
-              >
+              <div className="form-error" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <AlertCircle size={15} />
                 <span>{errorMsg}</span>
               </div>
@@ -285,8 +277,8 @@ export const AddContractModal: React.FC<AddContractModalProps> = ({ isOpen, onCl
                         <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                           {docName || 'Contract Photo / Copy'}
                         </span>
-                        <span style={{ fontSize: '10.5px', fontWeight: 700, color: '#16a34a', background: 'rgba(34, 197, 94, 0.12)', padding: '1px 6px', borderRadius: '4px' }}>
-                          ✓ Attached
+                        <span style={{ fontSize: '10.5px', fontWeight: 700, color: '#16a34a', background: 'rgba(34, 197, 94, 0.12)', padding: '1px 6px', borderRadius: '4px', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                          <Check size={11} /> Attached
                         </span>
                       </div>
                       <div style={{ fontSize: '11px', color: 'var(--ink-soft)', marginTop: '2px' }}>
@@ -490,7 +482,7 @@ export const AddContractModal: React.FC<AddContractModalProps> = ({ isOpen, onCl
                       {isPhoneInvalid
                         ? 'Must be exactly 10 digits'
                         : isPhoneValid
-                        ? '✓ Valid 10-digit number'
+                        ? 'Valid 10-digit number'
                         : 'Used for billing alerts and payment reminders'}
                     </span>
                     <span className="hint" style={{ fontWeight: 600, color: isPhoneValid ? '#16a34a' : undefined }}>
@@ -623,6 +615,26 @@ export const AddContractModal: React.FC<AddContractModalProps> = ({ isOpen, onCl
                     <span className="suffix-label">/hr</span>
                   </div>
                 </div>
+
+                <div className="field">
+                  <label>
+                    Night / late shift charge <span className="opt">optional</span>
+                  </label>
+                  <div className="unit-input suffix">
+                    <span className="prefix">₹</span>
+                    <input
+                      type="number"
+                      min="0"
+                      step="1"
+                      placeholder="500"
+                      style={{ paddingLeft: '26px', paddingRight: '52px' }}
+                      value={nightChargePerDay}
+                      onChange={e => setNightChargePerDay(e.target.value)}
+                    />
+                    <span className="suffix-label">/day</span>
+                  </div>
+                  <span className="hint">Counted on monthly bill for each night-shift duty day</span>
+                </div>
               </div>
             </div>
 
@@ -649,21 +661,20 @@ export const AddContractModal: React.FC<AddContractModalProps> = ({ isOpen, onCl
             </div>
           </div>
 
-          {/* Modal Footer */}
-          <div className="modal-foot">
+          <div className="modal-footer">
             <span className="foot-note">
-              Fields marked <span style={{ color: 'var(--danger)', fontWeight: 700 }}>*</span> are required
+              Fields marked <span className="req">*</span> are required
             </span>
             <div className="btn-group">
-              <button type="button" className="btn" onClick={onClose}>
+              <button type="button" className="btn-secondary" onClick={onClose}>
                 Cancel
               </button>
               <button
                 type="submit"
-                className="btn primary"
+                className="btn-primary-action"
                 disabled={isSubmitting || isPhoneInvalid}
               >
-                {isSubmitting ? 'Saving...' : '+ Save contract'}
+                {isSubmitting ? 'Saving...' : 'Save contract'}
               </button>
             </div>
           </div>

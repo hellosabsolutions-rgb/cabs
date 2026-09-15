@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useFleet } from '../../../context/FleetContext';
-import { Zap, FileText } from 'lucide-react';
+import { X, Zap, FileText } from 'lucide-react';
 import { MinimalVoiceFiller } from '../../common/MinimalVoiceFiller';
 import { ACCEPT_DOC_TYPES, isPdfDocument } from '../../../utils/fileUtils';
 
@@ -92,7 +92,7 @@ export const RechargeFastagModal: React.FC<RechargeFastagModalProps> = ({
             <span className="modal-subtitle">Top up electronic toll wallet for {vehicleReg}</span>
           </div>
           <button className="modal-close-btn" onClick={onClose} type="button">
-            ✕
+            <X size={15} />
           </button>
         </div>
 
@@ -290,7 +290,7 @@ export const RechargeFastagModal: React.FC<RechargeFastagModalProps> = ({
                       setProofPreview(null);
                     }}
                   >
-                    ✕
+                    <X size={15} />
                   </button>
                 )}
               </div>

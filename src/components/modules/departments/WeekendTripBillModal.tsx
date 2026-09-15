@@ -147,7 +147,7 @@ export const WeekendTripBillModal: React.FC<WeekendTripBillModalProps> = ({
   };
 
   return (
-    <div className="modal-overlay" onClick={onClose} style={{ zIndex: 1000 }}>
+    <div className="modal-overlay modal-center" onClick={onClose} style={{ zIndex: 1000 }}>
       <div
         className="modal-dialog"
         style={{ maxWidth: 840, maxHeight: '94vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}

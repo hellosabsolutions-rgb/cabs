@@ -248,19 +248,17 @@ export const EditVehicleModal: React.FC<EditVehicleModalProps> = ({
 
   return (
     <div className="modal-overlay" onClick={() => !isSubmitting && onClose()}>
-      <div
-        className="modal-dialog"
-        style={{ maxWidth: 680, maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}
-        onClick={e => e.stopPropagation()}
-      >
-        {/* Header */}
+      <div className="modal-dialog" onClick={e => e.stopPropagation()}>
         <div className="modal-header">
           <div className="modal-title-group">
-            <h3 className="modal-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Edit2 size={18} color="var(--accent)" /> Edit Vehicle Details
+            <h3 className="modal-title">
+              <span className="modal-title-icon">
+                <Edit2 size={16} />
+              </span>
+              Edit vehicle
             </h3>
             <span className="modal-subtitle">
-              Modify specifications, driver allocation, and compliance documents for {vehicle.registrationNumber}
+              {vehicle.registrationNumber} · specs, assignment, and documents
             </span>
           </div>
           <button
@@ -268,28 +266,16 @@ export const EditVehicleModal: React.FC<EditVehicleModalProps> = ({
             className="modal-close-btn"
             onClick={() => !isSubmitting && onClose()}
             disabled={isSubmitting}
+            aria-label="Close"
           >
-            ✕
+            <X size={15} />
           </button>
         </div>
 
         {/* Scrollable Form Body */}
-        <div className="modal-body" style={{ overflowY: 'auto', flex: 1, paddingRight: '16px' }}>
+        <div className="modal-body">
           {errorMsg && (
-            <div
-              style={{
-                background: 'rgba(255, 92, 92, 0.1)',
-                border: '1px solid rgba(255, 92, 92, 0.3)',
-                color: 'var(--danger)',
-                padding: '10px 14px',
-                borderRadius: '8px',
-                fontSize: '12.5px',
-                marginBottom: '16px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px'
-              }}
-            >
+            <div className="form-error" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <AlertCircle size={16} />
               <span>{errorMsg}</span>
             </div>
@@ -755,7 +741,7 @@ export const EditVehicleModal: React.FC<EditVehicleModalProps> = ({
                       </label>
                       <input type="file" ref={rcInputRef} onChange={e => handleFileUpload(e, setRcPhotoName, setRcPhotoPreview)} accept={ACCEPT_DOC_TYPES} style={{ display: 'none' }} />
                       <button type="button" className="btn-secondary" style={{ width: '100%', height: '36px', fontSize: '11.5px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }} onClick={() => rcInputRef.current?.click()}>
-                        {rcPhotoPreview ? '✓ RC Attached (Click to change)' : 'Upload RC'}
+                        {rcPhotoPreview ? <><Check size={13} /> RC attached</> : 'Upload RC'}
                       </button>
                     </div>
                   </div>
@@ -774,7 +760,7 @@ export const EditVehicleModal: React.FC<EditVehicleModalProps> = ({
                       </label>
                       <input type="file" ref={insuranceInputRef} onChange={e => handleFileUpload(e, setInsurancePhotoName, setInsurancePhotoPreview)} accept={ACCEPT_DOC_TYPES} style={{ display: 'none' }} />
                       <button type="button" className="btn-secondary" style={{ width: '100%', height: '36px', fontSize: '11.5px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }} onClick={() => insuranceInputRef.current?.click()}>
-                        {insurancePhotoPreview ? '✓ Policy Attached (Click to change)' : 'Upload Policy'}
+                        {insurancePhotoPreview ? <><Check size={13} /> Policy attached</> : 'Upload Policy'}
                       </button>
                     </div>
                   </div>
@@ -793,7 +779,7 @@ export const EditVehicleModal: React.FC<EditVehicleModalProps> = ({
                       </label>
                       <input type="file" ref={pollutionInputRef} onChange={e => handleFileUpload(e, setPollutionPhotoName, setPollutionPhotoPreview)} accept={ACCEPT_DOC_TYPES} style={{ display: 'none' }} />
                       <button type="button" className="btn-secondary" style={{ width: '100%', height: '36px', fontSize: '11.5px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }} onClick={() => pollutionInputRef.current?.click()}>
-                        {pollutionPhotoPreview ? '✓ PUC Attached (Click to change)' : 'Upload PUC'}
+                        {pollutionPhotoPreview ? <><Check size={13} /> PUC attached</> : 'Upload PUC'}
                       </button>
                     </div>
                   </div>
@@ -812,7 +798,7 @@ export const EditVehicleModal: React.FC<EditVehicleModalProps> = ({
                       </label>
                       <input type="file" ref={permitInputRef} onChange={e => handleFileUpload(e, setPermitPhotoName, setPermitPhotoPreview)} accept={ACCEPT_DOC_TYPES} style={{ display: 'none' }} />
                       <button type="button" className="btn-secondary" style={{ width: '100%', height: '36px', fontSize: '11.5px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }} onClick={() => permitInputRef.current?.click()}>
-                        {permitPhotoPreview ? '✓ Permit Attached (Click to change)' : 'Upload Permit'}
+                        {permitPhotoPreview ? <><Check size={13} /> Permit attached</> : 'Upload Permit'}
                       </button>
                     </div>
                   </div>
@@ -831,7 +817,7 @@ export const EditVehicleModal: React.FC<EditVehicleModalProps> = ({
                       </label>
                       <input type="file" ref={authInputRef} onChange={e => handleFileUpload(e, setAuthPhotoName, setAuthPhotoPreview)} accept={ACCEPT_DOC_TYPES} style={{ display: 'none' }} />
                       <button type="button" className="btn-secondary" style={{ width: '100%', height: '36px', fontSize: '11.5px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }} onClick={() => authInputRef.current?.click()}>
-                        {authPhotoPreview ? '✓ Auth Attached (Click to change)' : 'Upload Auth'}
+                        {authPhotoPreview ? <><Check size={13} /> Auth attached</> : 'Upload Auth'}
                       </button>
                     </div>
                   </div>

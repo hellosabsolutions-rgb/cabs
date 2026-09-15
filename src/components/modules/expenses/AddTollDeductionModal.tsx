@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useFleet } from '../../../context/FleetContext';
-import { CreditCard, FileText } from 'lucide-react';
+import { X, CreditCard, FileText } from 'lucide-react';
 import { DatePicker } from '../../common/DatePicker';
 import { ACCEPT_DOC_TYPES, isPdfDocument } from '../../../utils/fileUtils';
 
@@ -116,7 +116,7 @@ export const AddTollDeductionModal: React.FC<AddTollDeductionModalProps> = ({
             <span className="modal-subtitle">Record FASTag plaza deduction for {vehicleReg}</span>
           </div>
           <button className="modal-close-btn" onClick={onClose} type="button">
-            ✕
+            <X size={15} />
           </button>
         </div>
 
@@ -306,7 +306,7 @@ export const AddTollDeductionModal: React.FC<AddTollDeductionModalProps> = ({
                       setProofPreview(null);
                     }}
                   >
-                    ✕
+                    <X size={15} />
                   </button>
                 )}
               </div>

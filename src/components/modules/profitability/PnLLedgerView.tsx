@@ -6,7 +6,7 @@ import { StatCard } from '../../common/StatCard';
 import { Pagination } from '../../common/Pagination';
 import { usePagination } from '../../../hooks/usePagination';
 import { RevenueDetailModal } from '../revenue/RevenueDetailModal';
-import {
+import { X,
   ArrowLeft,
   ArrowUpRight,
   Search,
@@ -683,7 +683,7 @@ export const PnLLedgerView: React.FC<PnLLedgerViewProps> = ({
                   fontSize: '12px'
                 }}
               >
-                ✕
+                <X size={15} />
               </button>
             )}
           </div>

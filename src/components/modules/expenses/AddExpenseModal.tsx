@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useFleet } from '../../../context/FleetContext';
 import { ExpenseRecord } from '../../../types/fleet';
-import { IndianRupee, Fuel, CreditCard, User, Wrench, FileText } from 'lucide-react';
+import { X, IndianRupee, Fuel, CreditCard, User, Wrench, FileText } from 'lucide-react';
 import { MinimalVoiceFiller } from '../../common/MinimalVoiceFiller';
 
 interface AddExpenseModalProps {
@@ -86,7 +86,7 @@ export const AddExpenseModal: React.FC<AddExpenseModalProps> = ({
             <span className="modal-subtitle">Log fuel refills, toll, driver allowance, or repairs</span>
           </div>
           <button className="modal-close-btn" onClick={onClose} type="button">
-            ✕
+            <X size={15} />
           </button>
         </div>
 

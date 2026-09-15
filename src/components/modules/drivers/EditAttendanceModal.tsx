@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useFleet } from '../../../context/FleetContext';
-import { AttendanceStatus, DriverAttendance } from '../../../types/fleet';
-import { Edit3, Clock, Calendar, Car, Briefcase, FileText, Loader2 } from 'lucide-react';
+import { ATTENDANCE_STATUS_OPTIONS, AttendanceStatus, DriverAttendance, normalizeAttendanceStatus } from '../../../types/fleet';
+import { X, Edit3, Clock, Calendar, Car, Briefcase, FileText, Loader2 } from 'lucide-react';
 import { DatePicker } from '../../common/DatePicker';
 
 interface EditAttendanceModalProps {
@@ -10,7 +10,7 @@ interface EditAttendanceModalProps {
   record: DriverAttendance | null;
 }
 
-const statusOptions: AttendanceStatus[] = ['Present', 'On Trip', 'Late', 'Absent', 'On Leave'];
+const statusOptions = ATTENDANCE_STATUS_OPTIONS;
 const dutyTypes = ['Department Duty', 'Trip Duty', 'Standby', 'Yard Duty'] as const;
 
 export const EditAttendanceModal: React.FC<EditAttendanceModalProps> = ({
@@ -34,7 +34,7 @@ export const EditAttendanceModal: React.FC<EditAttendanceModalProps> = ({
   useEffect(() => {
     if (record) {
       setDate(record.date || '');
-      setStatus(record.status || 'Present');
+      setStatus(normalizeAttendanceStatus(record.status));
       setCheckIn(record.checkIn && record.checkIn !== '—' ? record.checkIn : '08:30 AM');
       setCheckOut(record.checkOut && record.checkOut !== '—' ? record.checkOut : '06:30 PM');
       setVehicle(record.assignedVehicle || '—');
@@ -48,7 +48,7 @@ export const EditAttendanceModal: React.FC<EditAttendanceModalProps> = ({
   // Adjust default times/hours when status changes
   const handleStatusChange = (newStatus: AttendanceStatus) => {
     setStatus(newStatus);
-    if (newStatus === 'Absent' || newStatus === 'On Leave') {
+    if (newStatus === 'Absent') {
       setWorkingHours('0');
     } else if (workingHours === '0') {
       setWorkingHours('10.0');
@@ -78,7 +78,7 @@ export const EditAttendanceModal: React.FC<EditAttendanceModalProps> = ({
     setErrorMsg('');
 
     try {
-      const isOff = status === 'Absent' || status === 'On Leave';
+      const isOff = status === 'Absent';
       const payload: Partial<DriverAttendance> = {
         driverId: record.driverId,
         driverName: record.driverName,
@@ -120,7 +120,7 @@ export const EditAttendanceModal: React.FC<EditAttendanceModalProps> = ({
             </span>
           </div>
           <button className="modal-close-btn" onClick={onClose} type="button" title="Close modal">
-            ✕
+            <X size={15} />
           </button>
         </div>
 
@@ -232,7 +232,7 @@ export const EditAttendanceModal: React.FC<EditAttendanceModalProps> = ({
             </div>
 
             {/* Check In, Check Out, Working Hours */}
-            {status !== 'Absent' && status !== 'On Leave' && (
+            {status !== 'Absent' && (
               <div className="form-row-2">
                 <div className="form-group" style={{ marginBottom: 0 }}>
                   <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
@@ -273,9 +273,9 @@ export const EditAttendanceModal: React.FC<EditAttendanceModalProps> = ({
                 className="form-input"
                 value={workingHours}
                 onChange={e => setWorkingHours(e.target.value)}
-                disabled={status === 'Absent' || status === 'On Leave'}
+                disabled={status === 'Absent'}
               />
-              {(status === 'Absent' || status === 'On Leave') && (
+              {status === 'Absent' && (
                 <div style={{ fontSize: '11px', color: 'var(--text-faint)', marginTop: '3px' }}>
                   Hours automatically zeroed for {status} status.
                 </div>

@@ -6,7 +6,7 @@ import { DepartmentPayment } from '../../../types/fleet';
 import { StatusDropdown, StatusOption } from '../../common/StatusDropdown';
 import { Pagination } from '../../common/Pagination';
 import { usePagination } from '../../../hooks/usePagination';
-import { FileText, Building2, Receipt, ChevronDown } from 'lucide-react';
+import { X, FileText, Building2, Receipt, ChevronDown } from 'lucide-react';
 
 export const DepartmentPaymentsView: React.FC = () => {
   const { departmentPayments, updateDepartmentPaymentStatus, searchQuery } = useFleet();
@@ -253,7 +253,7 @@ export const DepartmentPaymentsView: React.FC = () => {
                 <Receipt size={16} /> Payment Advice / Challan
               </h3>
               <button className="modal-close-btn" onClick={() => setViewProof(null)}>
-                ✕
+                <X size={15} />
               </button>
             </div>
             <div className="modal-body" style={{ textAlign: 'center', padding: '20px' }}>

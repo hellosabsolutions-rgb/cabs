@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useFleet } from '../../../context/FleetContext';
-import { AttendanceStatus } from '../../../types/fleet';
-import { Calendar, CheckCircle2, Loader2 } from 'lucide-react';
+import { ATTENDANCE_STATUS_OPTIONS, AttendanceStatus } from '../../../types/fleet';
+import { X, Calendar, CheckCircle2, Loader2 } from 'lucide-react';
 import { MinimalVoiceFiller } from '../../common/MinimalVoiceFiller';
 import { DatePicker } from '../../common/DatePicker';
 
@@ -11,7 +11,7 @@ interface LogAttendanceModalProps {
   defaultDate?: string;
 }
 
-const statusOptions: AttendanceStatus[] = ['Present', 'On Trip', 'Late', 'Absent', 'On Leave'];
+const statusOptions = ATTENDANCE_STATUS_OPTIONS;
 const dutyTypes = ['Department Duty', 'Trip Duty', 'Standby', 'Yard Duty'] as const;
 
 export const LogAttendanceModal: React.FC<LogAttendanceModalProps> = ({
@@ -83,11 +83,11 @@ export const LogAttendanceModal: React.FC<LogAttendanceModalProps> = ({
         driverName: d.name,
         date,
         status,
-        checkIn: status === 'Absent' || status === 'On Leave' ? '—' : checkIn,
-        checkOut: status === 'Absent' || status === 'On Leave' ? '—' : checkOut,
+        checkIn: status === 'Absent' ? '—' : checkIn,
+        checkOut: status === 'Absent' ? '—' : checkOut,
         assignedVehicle: vehicle,
         dutyType,
-        workingHours: status === 'Absent' || status === 'On Leave' ? 0 : Number(workingHours) || 0,
+        workingHours: status === 'Absent' ? 0 : Number(workingHours) || 0,
         notes: notes.trim() || undefined
       });
 
@@ -118,7 +118,7 @@ export const LogAttendanceModal: React.FC<LogAttendanceModalProps> = ({
             <span className="modal-subtitle">Record duty check-in, timings, route & hours</span>
           </div>
           <button className="modal-close-btn" onClick={onClose} type="button" title="Close">
-            ✕
+            <X size={15} />
           </button>
         </div>
 
@@ -239,7 +239,7 @@ export const LogAttendanceModal: React.FC<LogAttendanceModalProps> = ({
             </div>
 
             {/* Timings (if present) */}
-            {status !== 'Absent' && status !== 'On Leave' && (
+            {status !== 'Absent' && (
               <div className="form-row-2">
                 <div className="form-group" style={{ marginBottom: 0 }}>
                   <label className="form-label">Check-in Time</label>

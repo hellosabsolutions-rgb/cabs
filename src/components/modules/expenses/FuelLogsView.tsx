@@ -5,7 +5,7 @@ import { AddFuelLogModal } from './AddFuelLogModal';
 import { FuelLogEntry } from '../../../types/fleet';
 import { Pagination } from '../../common/Pagination';
 import { usePagination } from '../../../hooks/usePagination';
-import { Fuel, Camera, FileText, Plus, CheckCircle2, Building2, User, Gauge, Truck, Briefcase } from 'lucide-react';
+import { X, Fuel, Camera, FileText, Plus, CheckCircle2, Building2, User, Gauge, Truck, Briefcase } from 'lucide-react';
 
 export const FuelLogsView: React.FC = () => {
   const { fuelLogs, vehicles, searchQuery } = useFleet();
@@ -436,6 +436,11 @@ export const FuelLogsView: React.FC = () => {
                               <div style={{ fontWeight: 500, fontSize: '12px' }}>
                                 {log.stationName}
                               </div>
+                              {log.location ? (
+                                <div style={{ fontSize: '10px', color: 'var(--text-faint)', marginTop: '2px', maxWidth: '180px' }}>
+                                  {log.location}
+                                </div>
+                              ) : null}
                               <div style={{ fontSize: '10.5px', color: 'var(--text-dim)', marginTop: '2px' }}>
                                 Mode: <b>{log.paymentMode}</b>
                               </div>
@@ -582,6 +587,11 @@ export const FuelLogsView: React.FC = () => {
                       </td>
                       <td>
                         <div>{log.stationName}</div>
+                        {log.location ? (
+                          <div style={{ fontSize: '10px', color: 'var(--text-faint)', marginTop: '2px', maxWidth: '200px' }}>
+                            {log.location}
+                          </div>
+                        ) : null}
                         <div style={{ fontSize: '10.5px', color: 'var(--text-dim)' }}>{log.paymentMode}</div>
                       </td>
                       <td>
@@ -673,7 +683,7 @@ export const FuelLogsView: React.FC = () => {
                 </span>
               </div>
               <button className="modal-close-btn" onClick={() => setSelectedProof(null)}>
-                ✕
+                <X size={15} />
               </button>
             </div>
 

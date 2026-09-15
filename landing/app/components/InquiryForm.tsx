@@ -1,14 +1,19 @@
 'use client';
 
 import { useState, type FormEvent } from 'react';
-import { PaperPlaneTilt, CheckCircle, SpinnerGap } from '@phosphor-icons/react';
-import { GSAPReveal } from './GSAPReveal';
-import { TextReveal } from './TextReveal';
+import { motion, useReducedMotion } from 'motion/react';
+import { CheckCircle, SpinnerGap, PaperPlaneTilt, Phone, EnvelopeSimple, MapPin } from '@phosphor-icons/react';
 
-const fleetSizes = ['1 - 10 vehicles', '11 - 50 vehicles', '51 - 200 vehicles', '200+ vehicles'];
+const fleetSizes = [
+  '1 - 10 vehicles',
+  '11 - 50 vehicles',
+  '51 - 200 vehicles',
+  '200+ vehicles',
+];
 
 export function InquiryForm() {
-  const [status, setStatus] = useState<'idle' | 'sending' | 'sent'>('idle');
+  const reduce = useReducedMotion();
+  const [status, setStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
   const [form, setForm] = useState({
     name: '',
     email: '',
@@ -19,9 +24,7 @@ export function InquiryForm() {
   });
 
   function handleChange(
-    e: React.ChangeEvent<
-      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
-    >
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   }
@@ -29,147 +32,190 @@ export function InquiryForm() {
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setStatus('sending');
-    setTimeout(() => setStatus('sent'), 1500);
+
+    const lines = [
+      `Name: ${form.name}`,
+      `Email: ${form.email}`,
+      form.phone ? `Phone: ${form.phone}` : '',
+      form.company ? `Company: ${form.company}` : '',
+      form.fleetSize ? `Fleet size: ${form.fleetSize}` : '',
+      form.message ? `Message: ${form.message}` : '',
+    ]
+      .filter(Boolean)
+      .join('\n');
+
+    try {
+      window.location.href = `mailto:sales@kabpro.in?subject=${encodeURIComponent(
+        'KABPRO Demo Request'
+      )}&body=${encodeURIComponent(lines)}`;
+      setTimeout(() => setStatus('sent'), 600);
+    } catch {
+      setStatus('error');
+    }
   }
 
   if (status === 'sent') {
     return (
       <section id="inquiry" className="py-24 bg-surface scroll-mt-20">
-        <div className="max-w-[600px] mx-auto px-6 text-center">
-          <CheckCircle size={56} weight="duotone" className="text-accent mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-foreground mb-2">
-            Thank you for reaching out
+        <motion.div
+          initial={reduce ? false : { opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="max-w-[500px] mx-auto px-6 text-center"
+        >
+          <div className="w-16 h-16 rounded-full bg-accent/10 flex items-center justify-center mx-auto mb-6">
+            <CheckCircle size={32} weight="duotone" className="text-accent" />
+          </div>
+          <h2 className="text-2xl font-bold text-foreground mb-3">
+            Thanks for reaching out!
           </h2>
-          <p className="text-muted">
-            We received your inquiry and will get back to you within 24 hours.
+          <p className="text-muted leading-relaxed">
+            If your mail client opened, send the message and we&apos;ll reply within one working day. 
+            You can also email us directly at <span className="text-accent">sales@kabpro.in</span>
           </p>
-        </div>
+        </motion.div>
       </section>
     );
   }
 
   return (
-    <section id="inquiry" className="py-16 md:py-24 bg-surface scroll-mt-20">
+    <section id="inquiry" className="py-14 md:py-16 bg-surface relative scroll-mt-20 overflow-hidden">
       <div className="max-w-[1400px] mx-auto px-4 sm:px-6">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-start">
-          <GSAPReveal>
-            <TextReveal
-              as="h2"
-              className="text-3xl md:text-4xl lg:text-5xl font-bold tracking-tighter text-foreground mb-4"
-            >
-              Get in touch
-            </TextReveal>
-            <p className="text-muted text-base leading-relaxed mb-8 max-w-[440px]">
-              Have questions about KABPRO? Need a custom plan for your fleet?
-              Fill out the form and our team will reach out within 24 hours.
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-20">
+          {/* Left column - Info */}
+          <motion.div
+            initial={reduce ? false : { opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6 }}
+          >
+            <p className="text-xs font-semibold text-accent uppercase tracking-[0.2em] mb-4">
+              Get Started
+            </p>
+            <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight text-foreground mb-4">
+              Ready to streamline your fleet?
+            </h2>
+            <p className="text-muted text-lg leading-relaxed mb-10">
+              Tell us about your fleet and we&apos;ll show you how KABPRO can help. 
+              Our team will walk you through billing, tracking, and compliance on your data.
             </p>
 
-            <div className="flex flex-col gap-5">
-              {[
-                { label: 'Email', value: 'sales@kabpro.in' },
-                { label: 'Phone', value: '+91 11 4567 8900' },
-                { label: 'Office', value: 'Connaught Place, New Delhi 110001' },
-              ].map((item) => (
-                <div key={item.label}>
-                  <p className="text-xs text-faint uppercase tracking-wider mb-1">
-                    {item.label}
-                  </p>
-                  <p className="text-sm font-medium text-foreground">
-                    {item.value}
+            <div className="space-y-6">
+              <div className="flex items-start gap-4">
+                <div className="w-12 h-12 rounded-xl bg-accent/10 flex items-center justify-center shrink-0">
+                  <EnvelopeSimple size={24} className="text-accent" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted mb-1">Email us</p>
+                  <a href="mailto:sales@kabpro.in" className="text-foreground font-medium hover:text-accent transition-colors">
+                    sales@kabpro.in
+                  </a>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-4">
+                <div className="w-12 h-12 rounded-xl bg-accent/10 flex items-center justify-center shrink-0">
+                  <Phone size={24} className="text-accent" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted mb-1">Call us</p>
+                  <a href="tel:+911145678900" className="text-foreground font-medium hover:text-accent transition-colors">
+                    +91 11 4567 8900
+                  </a>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-4">
+                <div className="w-12 h-12 rounded-xl bg-accent/10 flex items-center justify-center shrink-0">
+                  <MapPin size={24} className="text-accent" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted mb-1">Office</p>
+                  <p className="text-foreground font-medium">
+                    New Delhi, India
                   </p>
                 </div>
-              ))}
+              </div>
             </div>
-          </GSAPReveal>
+          </motion.div>
 
-          <GSAPReveal delay={0.1}>
+          {/* Right column - Form */}
+          <motion.div
+            initial={reduce ? false : { opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6, delay: 0.1 }}
+          >
             <form
               onSubmit={handleSubmit}
-              className="rounded-2xl border border-border bg-bg p-5 sm:p-8 shadow-card"
-              suppressHydrationWarning
+              className="bg-white rounded-2xl border border-border p-6 md:p-8 shadow-xl"
             >
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-5">
                 <div>
-                  <label
-                    htmlFor="name"
-                    className="block text-sm font-medium text-foreground mb-1.5"
-                  >
-                    Full name
+                  <label htmlFor="name" className="block text-sm font-medium text-foreground mb-2">
+                    Full name *
                   </label>
                   <input
                     id="name"
                     name="name"
                     type="text"
                     required
+                    autoComplete="name"
                     value={form.name}
                     onChange={handleChange}
-                    className="w-full px-4 py-2.5 rounded-xl border border-border bg-surface text-foreground text-sm placeholder:text-faint focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-all"
+                    className="input-field"
                     placeholder="Rajesh Sharma"
-                    suppressHydrationWarning
                   />
                 </div>
                 <div>
-                  <label
-                    htmlFor="email"
-                    className="block text-sm font-medium text-foreground mb-1.5"
-                  >
-                    Email
+                  <label htmlFor="email" className="block text-sm font-medium text-foreground mb-2">
+                    Work email *
                   </label>
                   <input
                     id="email"
                     name="email"
                     type="email"
                     required
+                    autoComplete="email"
                     value={form.email}
                     onChange={handleChange}
-                    className="w-full px-4 py-2.5 rounded-xl border border-border bg-surface text-foreground text-sm placeholder:text-faint focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-all"
-                    placeholder="rajesh@example.com"
-                    suppressHydrationWarning
+                    className="input-field"
+                    placeholder="rajesh@company.com"
                   />
                 </div>
                 <div>
-                  <label
-                    htmlFor="phone"
-                    className="block text-sm font-medium text-foreground mb-1.5"
-                  >
+                  <label htmlFor="phone" className="block text-sm font-medium text-foreground mb-2">
                     Phone
                   </label>
                   <input
                     id="phone"
                     name="phone"
                     type="tel"
+                    autoComplete="tel"
                     value={form.phone}
                     onChange={handleChange}
-                    className="w-full px-4 py-2.5 rounded-xl border border-border bg-surface text-foreground text-sm placeholder:text-faint focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-all"
+                    className="input-field"
                     placeholder="+91 98765 43210"
-                    suppressHydrationWarning
                   />
                 </div>
                 <div>
-                  <label
-                    htmlFor="company"
-                    className="block text-sm font-medium text-foreground mb-1.5"
-                  >
+                  <label htmlFor="company" className="block text-sm font-medium text-foreground mb-2">
                     Company
                   </label>
                   <input
                     id="company"
                     name="company"
                     type="text"
+                    autoComplete="organization"
                     value={form.company}
                     onChange={handleChange}
-                    className="w-full px-4 py-2.5 rounded-xl border border-border bg-surface text-foreground text-sm placeholder:text-faint focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-all"
-                    placeholder="Delhi Transport Services"
-                    suppressHydrationWarning
+                    className="input-field"
+                    placeholder="Fleet Services Pvt Ltd"
                   />
                 </div>
               </div>
 
               <div className="mb-5">
-                <label
-                  htmlFor="fleetSize"
-                  className="block text-sm font-medium text-foreground mb-1.5"
-                >
+                <label htmlFor="fleetSize" className="block text-sm font-medium text-foreground mb-2">
                   Fleet size
                 </label>
                 <select
@@ -177,24 +223,18 @@ export function InquiryForm() {
                   name="fleetSize"
                   value={form.fleetSize}
                   onChange={handleChange}
-                  className="w-full px-4 py-2.5 rounded-xl border border-border bg-surface text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-all appearance-none"
-                  suppressHydrationWarning
+                  className="input-field appearance-none"
                 >
                   <option value="">Select fleet size</option>
                   {fleetSizes.map((s) => (
-                    <option key={s} value={s}>
-                      {s}
-                    </option>
+                    <option key={s} value={s}>{s}</option>
                   ))}
                 </select>
               </div>
 
               <div className="mb-6">
-                <label
-                  htmlFor="message"
-                  className="block text-sm font-medium text-foreground mb-1.5"
-                >
-                  Message
+                <label htmlFor="message" className="block text-sm font-medium text-foreground mb-2">
+                  What would you like to know?
                 </label>
                 <textarea
                   id="message"
@@ -202,31 +242,36 @@ export function InquiryForm() {
                   rows={4}
                   value={form.message}
                   onChange={handleChange}
-                  className="w-full px-4 py-2.5 rounded-xl border border-border bg-surface text-foreground text-sm placeholder:text-faint focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-all resize-none"
-                  placeholder="Tell us about your fleet and requirements..."
-                  suppressHydrationWarning
+                  className="input-field resize-none"
+                  placeholder="Tell us about your fleet and what you'd like to see in the demo..."
                 />
               </div>
+
+              {status === 'error' && (
+                <p className="text-sm text-red-600 mb-4" role="alert">
+                  Could not open mail client. Please email us directly at sales@kabpro.in
+                </p>
+              )}
 
               <button
                 type="submit"
                 disabled={status === 'sending'}
-                className="w-full inline-flex items-center justify-center gap-2 py-3 rounded-full bg-accent text-accent-text text-sm font-semibold hover:bg-accent-hover transition-all duration-200 active:scale-[0.98] disabled:opacity-70"
+                className="w-full inline-flex items-center justify-center gap-2 py-4 rounded-full bg-accent text-white font-semibold hover:bg-accent-hover transition-all duration-200 active:scale-[0.98] disabled:opacity-70 shadow-lg shadow-accent/25"
               >
                 {status === 'sending' ? (
                   <>
-                    <SpinnerGap size={16} className="animate-spin" />
-                    Sending...
+                    <SpinnerGap size={20} className="animate-spin" />
+                    Opening mail...
                   </>
                 ) : (
                   <>
-                    Send Inquiry
-                    <PaperPlaneTilt size={16} weight="bold" />
+                    Request demo
+                    <PaperPlaneTilt size={20} weight="bold" />
                   </>
                 )}
               </button>
             </form>
-          </GSAPReveal>
+          </motion.div>
         </div>
       </div>
     </section>

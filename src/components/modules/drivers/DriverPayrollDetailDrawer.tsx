@@ -206,7 +206,7 @@ export const DriverPayrollDetailDrawer: React.FC<DriverPayrollDetailDrawerProps>
                       border: '1px solid rgba(22, 163, 74, 0.3)'
                     }}
                   >
-                    ✓ PAID
+                    <CheckCircle2 size={12} /> Paid
                   </span>
                 )}
                 {payrollItem.status === 'ADVANCE RUNNING' && (

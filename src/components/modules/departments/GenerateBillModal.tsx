@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useFleet } from '../../../context/FleetContext';
-import { FileText, CheckCircle2, Fuel, Moon, Calculator } from 'lucide-react';
+import { X, FileText, CheckCircle2, Moon, Calculator, IndianRupee } from 'lucide-react';
 import { MinimalVoiceFiller } from '../../common/MinimalVoiceFiller';
 import { DatePicker } from '../../common/DatePicker';
 
@@ -17,7 +17,7 @@ export const GenerateBillModal: React.FC<GenerateBillModalProps> = ({
   defaultGstRate = 5,
   defaultGstType = 'CGST_SGST'
 }) => {
-  const { departmentContracts, addMonthlyBill } = useFleet();
+  const { departmentContracts, previewMonthlyBillFromLogs, generateMonthlyBillFromLogs } = useFleet();
 
   const [selectedContractId, setSelectedContractId] = useState(departmentContracts[0]?.id || '');
   const [billingMonth, setBillingMonth] = useState(() => {
@@ -52,7 +52,10 @@ export const GenerateBillModal: React.FC<GenerateBillModalProps> = ({
   // GST Configuration
   const [gstRate, setGstRate] = useState(String(defaultGstRate));
   const [gstType, setGstType] = useState<'CGST_SGST' | 'IGST'>(defaultGstType);
-  const [gstTaxableOn, setGstTaxableOn] = useState<'RENT_ONLY' | 'TOTAL'>('TOTAL');
+  const [gstTaxableOn, setGstTaxableOn] = useState<'RENT_ONLY' | 'TOTAL' | 'BASE_AND_NIGHT'>('BASE_AND_NIGHT');
+  const [preview, setPreview] = useState<any | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [partyGstin, setPartyGstin] = useState('');
 
   // Status & Due Date
@@ -69,8 +72,42 @@ export const GenerateBillModal: React.FC<GenerateBillModalProps> = ({
   useEffect(() => {
     if (selectedContract) {
       setBaseAmount(String(selectedContract.monthlyBaseAmount));
+      setNightRate(String(selectedContract.nightChargePerDay || 0));
     }
   }, [selectedContractId, selectedContract]);
+
+  useEffect(() => {
+    if (!isOpen || !selectedContractId || !billingMonth) return;
+    let cancelled = false;
+    const run = async () => {
+      setPreviewLoading(true);
+      const res = await previewMonthlyBillFromLogs({
+        contractId: selectedContractId,
+        billingMonth,
+        gstRate: Number(gstRate) || 0,
+        gstType,
+        gstTaxableOn
+      });
+      if (!cancelled) {
+        setPreview(res.success ? res.data : null);
+        if (res.data) {
+          setBaseAmount(String(res.data.baseContractAmount ?? ''));
+          setTotalKmRun(String(res.data.totalKmRun ?? ''));
+          setExtraKmCost(String(res.data.extraKmCost ?? 0));
+          setNightCount(String(res.data.nightCount ?? 0));
+          setNightRate(String(res.data.nightRate ?? 0));
+          setTollParkingCost(String(res.data.tollParkingCost ?? 0));
+          if (res.data.dutyStartDate) setDutyStartDate(res.data.dutyStartDate);
+          if (res.data.dutyEndDate) setDutyEndDate(res.data.dutyEndDate);
+        }
+        setPreviewLoading(false);
+      }
+    };
+    void run();
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, selectedContractId, billingMonth, gstRate, gstType, gstTaxableOn, previewMonthlyBillFromLogs]);
 
   useEffect(() => {
     if (isOpen) {
@@ -108,22 +145,23 @@ export const GenerateBillModal: React.FC<GenerateBillModalProps> = ({
   const tollNum = Number(tollParkingCost) || 0;
 
   // Fuel cost auto-calculation
-  const fuelLitresCalc = kmplNum > 0 ? Math.round((kmRunNum / kmplNum) * 100) / 100 : 0;
-  const fuelCostCalc = Math.round(fuelLitresCalc * fuelRateNum);
+  const fuelLitresCalc = 0;
+  const fuelCostCalc = 0;
 
-  // Night cost
-  const nightCostCalc = nightCountNum * nightRateNum;
+  const nightCostCalc = preview?.nightCost ?? nightCountNum * nightRateNum;
 
-  // Subtotal (before GST)
-  const subtotalCalc = baseNum + extraKmNum + extraHrsNum + driverAllowanceNum + fuelCostCalc + nightCostCalc + tollNum;
+  const subtotalCalc =
+    preview?.subtotal ??
+    baseNum + extraKmNum + extraHrsNum + driverAllowanceNum + nightCostCalc + tollNum;
 
-  // GST taxable base
   const gstPercentNum = Math.max(0, Number(gstRate) || 0);
-  const taxableBase = gstTaxableOn === 'RENT_ONLY'
-    ? (baseNum + extraKmNum + extraHrsNum + driverAllowanceNum)
-    : subtotalCalc;
+  const taxableBase =
+    preview?.gstTaxableAmount ??
+    (gstTaxableOn === 'BASE_AND_NIGHT' || gstTaxableOn === 'RENT_ONLY'
+      ? baseNum + nightCostCalc
+      : subtotalCalc);
 
-  const gstAmountCalc = Math.round((taxableBase * gstPercentNum) / 100);
+  const gstAmountCalc = preview?.gstAmount ?? Math.round((taxableBase * gstPercentNum) / 100);
 
   // CGST / SGST / IGST split
   let cgstCalc = 0, sgstCalc = 0, igstCalc = 0;
@@ -134,53 +172,37 @@ export const GenerateBillModal: React.FC<GenerateBillModalProps> = ({
     igstCalc = gstAmountCalc;
   }
 
-  const totalBillCalc = subtotalCalc + gstAmountCalc;
+  const totalBillCalc = preview?.totalBill ?? subtotalCalc + gstAmountCalc;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedContract) {
       setErrorMsg('Please select a department contract.');
       return;
     }
+    if (!preview || preview.logsUsed === 0) {
+      setErrorMsg('No unbilled official duty logs for this contract and month.');
+      return;
+    }
 
-    const billNumber = `INV-${billingMonth}-${selectedContract.departmentName.substring(0, 3).toUpperCase()}`;
-
-    addMonthlyBill({
-      billNumber,
-      departmentName: selectedContract.departmentName,
-      vehicle: selectedContract.vehicle,
+    setIsSubmitting(true);
+    const res = await generateMonthlyBillFromLogs({
+      contractId: selectedContractId,
       billingMonth,
-      baseContractAmount: baseNum,
-      dutyStartDate,
-      dutyEndDate,
-      totalKmRun: kmRunNum,
-      extraKmCost: extraKmNum,
-      extraHoursCost: extraHrsNum,
-      extraDriverAllowance: driverAllowanceNum,
-      fuelAvgKmpl: kmplNum,
-      fuelLitresUsed: fuelLitresCalc,
-      fuelRatePerLitre: fuelRateNum,
-      fuelCost: fuelCostCalc,
-      nightCount: nightCountNum,
-      nightRate: nightRateNum,
-      nightCost: nightCostCalc,
-      tollParkingCost: tollNum,
-      subtotal: subtotalCalc,
       gstRate: gstPercentNum,
       gstType,
       gstTaxableOn,
-      gstAmount: gstAmountCalc,
-      cgstAmount: cgstCalc,
-      sgstAmount: sgstCalc,
-      igstAmount: igstCalc,
-      partyGstin: partyGstin.trim(),
-      totalBill: totalBillCalc,
-      paidAmount: status === 'Paid' ? totalBillCalc : 0,
-      balanceDue: status === 'Paid' ? 0 : totalBillCalc,
       status,
       dueDate,
-      invoicePdf: `invoice_${selectedContract.departmentName.substring(0, 3).toLowerCase()}_${billingMonth}.pdf`
+      partyGstin: partyGstin.trim(),
+      extraDriverAllowance: driverAllowanceNum
     });
+    setIsSubmitting(false);
+
+    if (!res.success) {
+      setErrorMsg(res.error || 'Could not generate invoice.');
+      return;
+    }
 
     setErrorMsg('');
     onClose();
@@ -236,10 +258,13 @@ export const GenerateBillModal: React.FC<GenerateBillModalProps> = ({
             <h3 className="modal-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <FileText size={18} color="var(--accent)" /> Generate Monthly Department Bill
             </h3>
-            <span className="modal-subtitle">Contract rent, fuel, night charges & GST billing</span>
+            <span className="modal-subtitle">
+              Aggregates official duty logs · GST on base + night only (per contract flow)
+              {previewLoading ? ' · Loading preview…' : preview ? ` · ${preview.logsUsed} log(s)` : ''}
+            </span>
           </div>
           <button className="modal-close-btn" onClick={onClose} type="button">
-            ✕
+            <X size={15} />
           </button>
         </div>
 
@@ -368,49 +393,14 @@ export const GenerateBillModal: React.FC<GenerateBillModalProps> = ({
               </div>
             </div>
 
-            {/* ── FUEL CALCULATOR ── */}
-            <div style={sectionHeaderStyle}>
-              <Fuel size={13} /> Fuel Expense Calculator
-            </div>
-
-            <div style={{
-              background: 'var(--surface-3)',
-              padding: '12px 14px',
-              borderRadius: '10px',
-              border: '1px solid var(--border)',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '10px'
-            }}>
-              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                <div style={{ flex: 1, minWidth: '120px' }}>
-                  <label className="form-label" style={{ fontSize: '11px' }}>Total KM Run</label>
-                  <input type="number" className="form-input" value={totalKmRun} onChange={e => setTotalKmRun(e.target.value)} />
-                </div>
-                <div style={{ flex: 1, minWidth: '120px' }}>
-                  <label className="form-label" style={{ fontSize: '11px' }}>Average (KM/L)</label>
-                  <input type="number" className="form-input" step="0.1" value={fuelAvgKmpl} onChange={e => setFuelAvgKmpl(e.target.value)} />
-                </div>
-                <div style={{ flex: 1, minWidth: '120px' }}>
-                  <label className="form-label" style={{ fontSize: '11px' }}>Rate per Litre (₹)</label>
-                  <input type="number" className="form-input" step="0.01" value={fuelRatePerLitre} onChange={e => setFuelRatePerLitre(e.target.value)} />
-                </div>
+            <div className="form-row-2">
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label">Total KM run (from duty logs)</label>
+                <input type="number" className="form-input" value={totalKmRun} readOnly />
               </div>
-              <div style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                background: 'var(--surface-2)',
-                padding: '8px 12px',
-                borderRadius: '8px',
-                border: '1px dashed var(--border)'
-              }}>
-                <span style={{ fontSize: '12px', color: 'var(--text-dim)' }}>
-                  {fuelLitresCalc.toFixed(1)} Litres × ₹{fuelRateNum.toFixed(2)}/L
-                </span>
-                <span style={{ fontSize: '14px', fontWeight: 700, color: '#f97316' }}>
-                  = ₹{fuelCostCalc.toLocaleString('en-IN')}
-                </span>
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label">Extra KM cost (contract rate)</label>
+                <input type="number" className="form-input" value={extraKmCost} readOnly />
               </div>
             </div>
 
@@ -466,7 +456,9 @@ export const GenerateBillModal: React.FC<GenerateBillModalProps> = ({
 
             {/* ── GST CONFIGURATOR ── */}
             <div style={sectionHeaderStyle}>
-              💰 GST Configuration
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                <IndianRupee size={14} /> GST configuration
+              </span>
             </div>
 
             <div style={{
@@ -545,10 +537,10 @@ export const GenerateBillModal: React.FC<GenerateBillModalProps> = ({
                   </button>
                   <button
                     type="button"
-                    onClick={() => setGstTaxableOn('RENT_ONLY')}
-                    style={toggleBtnStyle(gstTaxableOn === 'RENT_ONLY')}
+                    onClick={() => setGstTaxableOn('BASE_AND_NIGHT')}
+                    style={toggleBtnStyle(gstTaxableOn === 'BASE_AND_NIGHT')}
                   >
-                    Rent & Extras Only (₹{(baseNum + extraKmNum + extraHrsNum + driverAllowanceNum).toLocaleString('en-IN')})
+                    Base + night only (₹{(baseNum + nightCostCalc).toLocaleString('en-IN')})
                   </button>
                 </div>
               </div>
@@ -650,10 +642,6 @@ export const GenerateBillModal: React.FC<GenerateBillModalProps> = ({
                   <span style={{ fontWeight: 600 }}>₹{driverAllowanceNum.toLocaleString('en-IN')}</span>
                 </div>
               )}
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
-                <span style={{ color: '#f97316' }}>+ Fuel ({fuelLitresCalc.toFixed(1)}L):</span>
-                <span style={{ fontWeight: 600, color: '#f97316' }}>₹{fuelCostCalc.toLocaleString('en-IN')}</span>
-              </div>
               {nightCostCalc > 0 && (
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
                   <span style={{ color: '#a78bfa' }}>+ Night Charges ({nightCountNum}N):</span>
@@ -707,8 +695,8 @@ export const GenerateBillModal: React.FC<GenerateBillModalProps> = ({
             <button type="button" className="btn-secondary" onClick={onClose}>
               Cancel
             </button>
-            <button type="submit" className="btn-primary-action" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <CheckCircle2 size={14} /> Generate Invoice
+            <button type="submit" className="btn-primary-action" style={{ display: 'flex', alignItems: 'center', gap: '6px' }} disabled={isSubmitting || previewLoading}>
+              <CheckCircle2 size={14} /> {isSubmitting ? 'Generating…' : 'Generate & lock invoice'}
             </button>
           </div>
         </form>

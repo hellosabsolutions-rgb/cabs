@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useFleet } from '../../../context/FleetContext';
-import { CreditCard, FileText } from 'lucide-react';
+import { X, CreditCard, FileText } from 'lucide-react';
 import { MinimalVoiceFiller } from '../../common/MinimalVoiceFiller';
 import { DatePicker } from '../../common/DatePicker';
 
@@ -115,7 +115,7 @@ export const RecordPaymentModal: React.FC<RecordPaymentModalProps> = ({ isOpen, 
             <span className="modal-subtitle">Log electronic transfer, RTGS, challan or cheque clearance</span>
           </div>
           <button className="modal-close-btn" onClick={onClose} type="button">
-            ✕
+            <X size={15} />
           </button>
         </div>
 
@@ -301,7 +301,7 @@ export const RecordPaymentModal: React.FC<RecordPaymentModalProps> = ({ isOpen, 
                       setProofPreview(null);
                     }}
                   >
-                    ✕
+                    <X size={15} />
                   </button>
                 )}
               </div>

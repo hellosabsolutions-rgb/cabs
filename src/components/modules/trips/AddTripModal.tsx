@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useFleet } from '../../../context/FleetContext';
 import { TripType } from '../../../types/fleet';
-import { Navigation, ArrowRight, RotateCcw, Building2 } from 'lucide-react';
+import { X, Navigation, ArrowRight, RotateCcw, Building2 } from 'lucide-react';
 import { MinimalVoiceFiller } from '../../common/MinimalVoiceFiller';
 import { DatePicker } from '../../common/DatePicker';
 
@@ -136,7 +136,7 @@ export const AddTripModal: React.FC<AddTripModalProps> = ({ isOpen, onClose }) =
             </span>
           </div>
           <button className="modal-close-btn" onClick={onClose} type="button">
-            ✕
+            <X size={15} />
           </button>
         </div>
 

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useFleet } from '../../../context/FleetContext';
 import { TripType, PaymentMode, VehicleAvailabilityResult } from '../../../types/fleet';
-import { Navigation, ArrowRight, RotateCcw, Calendar, AlertTriangle, CheckCircle2, User, Phone, IndianRupee, Car, Clock } from 'lucide-react';
+import { Navigation, ArrowRight, RotateCcw, Calendar, AlertTriangle, CheckCircle2, User, Phone, IndianRupee, Car, Clock, X, RefreshCw } from 'lucide-react';
 import { MinimalVoiceFiller } from '../../common/MinimalVoiceFiller';
 import { DatePicker } from '../../common/DatePicker';
 import { LocationAutocompleteInput, LocationSuggestion } from '../../common/LocationAutocompleteInput';
@@ -302,40 +302,27 @@ export const AddBookingModal: React.FC<AddBookingModalProps> = ({
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div
-        className="modal-dialog"
-        style={{ maxWidth: 660, maxHeight: '92vh' }}
-        onClick={e => e.stopPropagation()}
-      >
+      <div className="modal-dialog" onClick={e => e.stopPropagation()}>
         <div className="modal-header">
           <div className="modal-title-group">
-            <h3 className="modal-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Navigation size={18} color="var(--accent)" />
-              {isAdvanceDate ? 'Create Advance Booking (Future Date)' : 'Create New Cab Booking'}
+            <h3 className="modal-title">
+              <span className="modal-title-icon">
+                <Navigation size={16} />
+              </span>
+              {isAdvanceDate ? 'Advance booking' : 'New booking'}
             </h3>
             <span className="modal-subtitle">
-              Select booking date first, then choose an available vehicle to create booking
+              Choose a date, then assign an available vehicle
             </span>
           </div>
-          <button className="modal-close-btn" onClick={onClose} type="button">✕</button>
+          <button className="modal-close-btn" onClick={onClose} type="button" aria-label="Close">
+            <X size={15} />
+          </button>
         </div>
 
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, overflow: 'hidden' }}>
-          <div className="modal-body" style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '14px', padding: '18px 22px' }}>
-            {errorMsg && (
-              <div
-                style={{
-                  padding: '10px 14px',
-                  borderRadius: '8px',
-                  background: 'rgba(255, 92, 92, 0.15)',
-                  border: '1px solid rgba(255, 92, 92, 0.3)',
-                  color: 'var(--danger)',
-                  fontSize: '12.5px'
-                }}
-              >
-                {errorMsg}
-              </div>
-            )}
+        <form onSubmit={handleSubmit}>
+          <div className="modal-body">
+            {errorMsg && <div className="form-error">{errorMsg}</div>}
 
             {/* ========================================================================= */}
             {/* STEP 1: DATE SELECTION FIRST                                              */}
@@ -451,7 +438,7 @@ export const AddBookingModal: React.FC<AddBookingModalProps> = ({
               >
                 {isCheckingAvail ? (
                   <span style={{ color: 'var(--text-dim)', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                    🔄 Checking available fleet for {formatDateDisplay(startDate)}...
+                    <RefreshCw size={14} /> Checking available fleet for {formatDateDisplay(startDate)}...
                   </span>
                 ) : availability?.availableCount === 0 ? (
                   <span style={{ color: 'var(--danger)', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
@@ -473,7 +460,7 @@ export const AddBookingModal: React.FC<AddBookingModalProps> = ({
 
                 {isAdvanceDate && (
                   <span className="driver-type-badge" style={{ background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', fontSize: '11px' }}>
-                    📅 Advance Booking ({startDate})
+                    <Calendar size={12} /> Advance booking ({startDate})
                   </span>
                 )}
               </div>
@@ -527,27 +514,27 @@ export const AddBookingModal: React.FC<AddBookingModalProps> = ({
                   >
                     {!availability || availability.availableVehicles.length === 0 ? (
                       <option value="" disabled>
-                        {isCheckingAvail ? 'Checking fleet...' : `⚠️ No free vehicles available on ${startDate}`}
+                        {isCheckingAvail ? 'Checking fleet...' : `No free vehicles available on ${startDate}`}
                       </option>
                     ) : (
                       <option value="">-- Select Available Vehicle ({availability.availableVehicles.length} Free) --</option>
                     )}
 
                     {availability && availability.availableVehicles.length > 0 && (
-                      <optgroup label={`🟢 Available to Book on ${startDate} (${availability.availableVehicles.length} Free)`}>
+                      <optgroup label={`Available to book on ${startDate} (${availability.availableVehicles.length} free)`}>
                         {availability.availableVehicles.map(v => (
                           <option key={v.vehicle} value={v.vehicle}>
-                            🟢 {v.vehicle} — {v.model} ({v.type === 'Department' ? 'Dept Vehicle' : 'Commercial'}) [Ready]
+                            {v.vehicle} — {v.model} ({v.type === 'Department' ? 'Dept Vehicle' : 'Commercial'}) [Ready]
                           </option>
                         ))}
                       </optgroup>
                     )}
 
                     {availability && availability.bookedVehicles.length > 0 && (
-                      <optgroup label={`❌ Already Booked on ${startDate} (${availability.bookedVehicles.length} Busy)`}>
+                      <optgroup label={`Already booked on ${startDate} (${availability.bookedVehicles.length} busy)`}>
                         {availability.bookedVehicles.map(b => (
                           <option key={b.vehicle} value={b.vehicle} disabled>
-                            🔴 {b.vehicle} — Booked ({b.customerName || 'Busy'} · {b.bookingNumber})
+                            {b.vehicle} — Booked ({b.customerName || 'Busy'} · {b.bookingNumber})
                           </option>
                         ))}
                       </optgroup>
@@ -786,10 +773,16 @@ export const AddBookingModal: React.FC<AddBookingModalProps> = ({
                 <span>
                   Advance Received: <b style={{ color: '#38bdf8' }}>₹{advanceNum.toLocaleString('en-IN')}</b>
                 </span>
-                <span style={{ fontWeight: 700, color: pendingNum > 0 ? 'var(--warning)' : 'var(--accent)' }}>
-                  {pendingNum > 0
-                    ? `⚠️ Pending Due: ₹${pendingNum.toLocaleString('en-IN')}`
-                    : '✓ Full Payment Received (Paid)'}
+                <span style={{ fontWeight: 700, color: pendingNum > 0 ? 'var(--warning)' : 'var(--accent)', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                  {pendingNum > 0 ? (
+                    <>
+                      <AlertTriangle size={14} /> Pending due: ₹{pendingNum.toLocaleString('en-IN')}
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 size={14} /> Full payment received
+                    </>
+                  )}
                 </span>
               </div>
             </div>

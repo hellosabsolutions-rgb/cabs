@@ -19,7 +19,8 @@ import {
   ArrowRight,
   TrendingUp,
   TrendingDown,
-  Save
+  Save,
+  Lightbulb
 } from 'lucide-react';
 
 interface EditBookingModalProps {
@@ -284,7 +285,7 @@ export const EditBookingModal: React.FC<EditBookingModalProps> = ({
                 fontSize: '18px'
               }}
             >
-              ✏️
+              <Edit2 size={18} />
             </div>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
@@ -325,7 +326,7 @@ export const EditBookingModal: React.FC<EditBookingModalProps> = ({
               borderRadius: '6px'
             }}
           >
-            ✕
+            <X size={15} />
           </button>
         </div>
 
@@ -373,7 +374,11 @@ export const EditBookingModal: React.FC<EditBookingModalProps> = ({
               Pending Balance
             </div>
             <div style={{ fontSize: '15px', fontWeight: 800, color: pendingDue > 0 ? '#f59e0b' : '#22c55e' }}>
-              {pendingDue > 0 ? formatINR(pendingDue) : '✓ Fully Paid'}
+              {pendingDue > 0 ? formatINR(pendingDue) : (
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                  <CheckCircle2 size={14} /> Fully paid
+                </span>
+              )}
             </div>
           </div>
         </div>
@@ -521,7 +526,12 @@ export const EditBookingModal: React.FC<EditBookingModalProps> = ({
                   lineHeight: '1.5'
                 }}
               >
-                💡 <strong>Trip Actual Expenses:</strong> Enter trip expenses incurred (Fuel, Toll/FASTag, Driver payment, and any other incidental costs). These expenses automatically update profitability and sync with the Revenue and P&L modules.
+                <span style={{ display: 'inline-flex', alignItems: 'flex-start', gap: '8px' }}>
+                  <Lightbulb size={15} style={{ flexShrink: 0, marginTop: 2 }} />
+                  <span>
+                    <strong>Trip actual expenses:</strong> Enter trip expenses incurred (Fuel, Toll/FASTag, Driver payment, and any other incidental costs). These expenses automatically update profitability and sync with the Revenue and P&L modules.
+                  </span>
+                </span>
               </div>
 
               <div
@@ -910,7 +920,11 @@ export const EditBookingModal: React.FC<EditBookingModalProps> = ({
                         color: pendingDue > 0 ? '#f59e0b' : '#22c55e'
                       }}
                     >
-                      {pendingDue > 0 ? formatINR(pendingDue) : '✓ Full Paid'}
+                      {pendingDue > 0 ? formatINR(pendingDue) : (
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                          <CheckCircle2 size={12} /> Fully paid
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>

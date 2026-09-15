@@ -1,135 +1,163 @@
 'use client';
 
-import Image from 'next/image';
+import { useRef, useEffect } from 'react';
+import { motion, useReducedMotion } from 'motion/react';
+import { gsap } from 'gsap';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import {
-  Truck,
   Receipt,
+  MapPin,
   CurrencyInr,
   GasPump,
   ShieldCheck,
   Microphone,
-  MapPin,
   ChartLineUp,
+  Bell,
 } from '@phosphor-icons/react';
-import { GSAPReveal } from './GSAPReveal';
-import { TextReveal } from './TextReveal';
+
+gsap.registerPlugin(ScrollTrigger);
 
 const features = [
   {
-    title: 'Dual Fleet Management',
-    desc: 'Run department vehicles and trip cabs from one system. Switch modes, track separately, report together.',
-    icon: Truck,
-    span: 'md:col-span-2',
-    accent: true,
-    vehicle: '/innova-fleet.png',
-  },
-  {
-    title: 'Smart Billing',
-    desc: 'Generate GST invoices, track duty logs, and manage department contracts on autopilot.',
     icon: Receipt,
-    span: '',
-    gradient: true,
+    title: 'GST Billing',
+    description: 'Auto-generate monthly invoices with duty logs, extra km, and extra hours calculated.',
+    color: '#1687F5',
+    span: 'md:col-span-2',
   },
   {
-    title: 'Live Driver Location',
-    desc: 'See every driver on a live map — GPS position, speed, ignition, and last ping. Know who is on a trip and who is idle.',
     icon: MapPin,
-    span: 'md:col-span-2',
-    accent: true,
-    vehicle: '/hero-car.png',
+    title: 'Live Tracking',
+    description: 'Real-time GPS location, speed, and ignition status for every vehicle.',
+    color: '#10B981',
   },
   {
-    title: 'Realtime Revenue',
-    desc: 'Watch today’s collections update as trips close. Department billing and trip earnings in one live view.',
-    icon: ChartLineUp,
-    span: '',
-    gradient: true,
-  },
-  {
-    title: 'Compliance Alerts',
-    desc: 'Never miss an RC, insurance, PUC, or permit renewal. Get alerts before expiry.',
-    icon: ShieldCheck,
-    span: '',
-  },
-  {
-    title: 'Trip Profitability',
-    desc: 'See exact profit on every trip. Fuel, FASTag, driver bata, and revenue calculated in real time.',
     icon: CurrencyInr,
-    span: 'md:col-span-2',
-    gradient: true,
-    vehicle: '/dzire-cab.png',
+    title: 'Trip Profit',
+    description: 'See exact margins after fuel, FASTag, and driver bata on every trip.',
+    color: '#F59E0B',
   },
   {
-    title: 'FASTag & Fuel Tracking',
-    desc: 'Per-vehicle toll deductions, fuel log management, and expense categorization.',
     icon: GasPump,
+    title: 'FASTag & Fuel',
+    description: 'Track toll deductions and fuel consumption per vehicle, per trip.',
+    color: '#8B5CF6',
     span: 'md:col-span-2',
-    accent: true,
-    vehicle: '/ambassador-taxi.png',
   },
   {
-    title: 'Voice Onboarding',
-    desc: 'Add vehicles by speaking. English and Hindi voice input for faster fleet onboarding.',
+    icon: ShieldCheck,
+    title: 'Compliance Alerts',
+    description: 'Never miss RC, insurance, PUC, or permit renewals again.',
+    color: '#EF4444',
+  },
+  {
     icon: Microphone,
-    span: '',
+    title: 'Voice Input',
+    description: 'Add vehicles and log data by speaking in English or Hindi.',
+    color: '#EC4899',
+  },
+  {
+    icon: ChartLineUp,
+    title: 'Analytics',
+    description: 'Revenue trends, expense breakdowns, and profitability reports.',
+    color: '#06B6D4',
+    span: 'md:col-span-2',
+  },
+  {
+    icon: Bell,
+    title: 'Smart Alerts',
+    description: 'Get notified about maintenance, payments, and compliance deadlines.',
+    color: '#F97316',
   },
 ];
 
 export function FeaturesBento() {
+  const reduce = useReducedMotion();
+  const sectionRef = useRef<HTMLElement>(null);
+  const cardsRef = useRef<(HTMLDivElement | null)[]>([]);
+
+  useEffect(() => {
+    if (reduce || !sectionRef.current) return;
+
+    const ctx = gsap.context(() => {
+      cardsRef.current.forEach((card, i) => {
+        if (!card) return;
+        gsap.fromTo(
+          card,
+          { opacity: 0, y: 40, scale: 0.95 },
+          {
+            opacity: 1,
+            y: 0,
+            scale: 1,
+            duration: 0.6,
+            delay: i * 0.08,
+            ease: 'power3.out',
+            scrollTrigger: {
+              trigger: card,
+              start: 'top 85%',
+              toggleActions: 'play none none none',
+            },
+          }
+        );
+      });
+    }, sectionRef);
+
+    return () => ctx.revert();
+  }, [reduce]);
+
   return (
-    <section id="features" className="py-16 md:py-24 scroll-mt-20">
+    <section ref={sectionRef} id="features" className="py-12 md:py-16 bg-surface relative scroll-mt-20 overflow-hidden">
       <div className="max-w-[1400px] mx-auto px-4 sm:px-6">
-        <GSAPReveal className="mb-16">
-          <p className="text-xs font-medium text-accent uppercase tracking-[0.2em] mb-4">
+        <motion.div
+          initial={reduce ? false : { opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.6 }}
+          className="text-center mb-16"
+        >
+          <p className="text-xs font-semibold text-accent uppercase tracking-[0.2em] mb-4">
             Features
           </p>
-          <TextReveal
-            as="h2"
-            className="text-3xl md:text-4xl lg:text-5xl font-bold tracking-tighter text-foreground max-w-[600px]"
-          >
-            Everything your fleet needs
-          </TextReveal>
-        </GSAPReveal>
+          <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight text-foreground mb-4">
+            Everything you need to run your fleet
+          </h2>
+          <p className="text-muted text-lg max-w-[600px] mx-auto">
+            From billing to compliance, KABPRO handles the operations so you can focus on growth.
+          </p>
+        </motion.div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {features.map((f, i) => (
-            <GSAPReveal
-              key={f.title}
-              delay={i * 0.06}
-              className={`group relative rounded-2xl border border-border bg-surface overflow-hidden ${f.span} min-h-[220px] hover:border-accent/30 transition-all duration-500 shadow-card hover:shadow-lg`}
+          {features.map((feature, i) => (
+            <div
+              key={feature.title}
+              ref={(el) => { cardsRef.current[i] = el; }}
+              className={`group relative bg-white rounded-2xl border border-border p-6 hover:border-accent/30 hover:shadow-xl transition-all duration-300 ${
+                feature.span ?? ''
+              }`}
             >
-              {f.accent && (
-                <div className="absolute top-0 right-0 w-32 h-32 bg-accent/[0.06] rounded-full blur-[40px] -translate-y-1/2 translate-x-1/2 pointer-events-none" />
-              )}
-              {f.gradient && (
-                <div className="absolute inset-0 bg-gradient-to-br from-accent/[0.04] via-transparent to-transparent pointer-events-none" />
-              )}
-
-              <div className="relative z-10 flex flex-col h-full p-7">
-                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-accent-muted border border-accent/10 mb-5">
-                  <f.icon size={22} weight="duotone" className="text-accent" />
-                </div>
-                <h3 className="text-lg font-semibold text-foreground mb-2">
-                  {f.title}
-                </h3>
-                <p className="text-sm text-muted leading-relaxed">{f.desc}</p>
+              <div
+                className="w-12 h-12 rounded-xl flex items-center justify-center mb-4 transition-transform duration-300 group-hover:scale-110"
+                style={{ backgroundColor: `${feature.color}12` }}
+              >
+                <feature.icon size={24} weight="duotone" style={{ color: feature.color }} />
               </div>
+              
+              <h3 className="text-lg font-semibold text-foreground mb-2 group-hover:text-accent transition-colors duration-200">
+                {feature.title}
+              </h3>
+              
+              <p className="text-sm text-muted leading-relaxed">
+                {feature.description}
+              </p>
 
-              {/* Vehicle image accent for wide cards */}
-              {f.vehicle && (
-                <div className="absolute bottom-2 right-4 w-[120px] sm:w-[180px] h-[70px] sm:h-[100px] opacity-[0.12] group-hover:opacity-[0.2] transition-opacity duration-500 pointer-events-none">
-                  <Image
-                    src={f.vehicle}
-                    alt=""
-                    width={180}
-                    height={100}
-                    className="w-full h-full object-contain"
-                  />
-                </div>
-              )}
-
-              <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-accent/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-            </GSAPReveal>
+              {/* Hover gradient */}
+              <div
+                className="absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"
+                style={{
+                  background: `radial-gradient(circle at top right, ${feature.color}08, transparent 70%)`,
+                }}
+              />
+            </div>
           ))}
         </div>
       </div>

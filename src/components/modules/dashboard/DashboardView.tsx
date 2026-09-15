@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { useFleet } from '../../../context/FleetContext';
 import { StatCard } from '../../common/StatCard';
 import { StatusChip } from '../../common/StatusChip';
-import { IndianRupee, CreditCard, TrendingUp, Truck, Fuel, Radio, RefreshCw } from 'lucide-react';
+import { IndianRupee, CreditCard, TrendingUp, Truck, RefreshCw } from 'lucide-react';
 import { SkeletonDashboard, SoftRefreshBar } from '../../common/Skeleton';
 
 const inr = (n: number) => `₹${Math.round(n || 0).toLocaleString('en-IN')}`;
@@ -13,6 +13,14 @@ const inrLakh = (n: number) => {
   return inr(val);
 };
 
+const NX_SLICE: Record<string, string> = {
+  Fuel: '#6366F1',
+  Driver: '#8B5CF6',
+  Maintenance: '#38BDF8',
+  FASTag: '#2DD4BF',
+  Other: '#C4B5FD'
+};
+
 export const DashboardView: React.FC = () => {
   const {
     dashboardStats,
@@ -21,25 +29,20 @@ export const DashboardView: React.FC = () => {
     vehicles,
     searchQuery,
     setActivePage,
-    isLoading,
   } = useFleet();
 
   useEffect(() => {
     fetchLiveDashboardStats();
-    // Tab change auto-fetch is handled in FleetContext via activePage useEffect
-    // This ensures fresh data on initial component mount as well
   }, []);
 
-  // First-time load: show full dashboard skeleton
   if (isLoadingDashboard && !dashboardStats) {
     return (
-      <div className="section active module-page">
+      <div className="section active module-page dash-nexus">
         <SkeletonDashboard />
       </div>
     );
   }
 
-  // Live Aggregated Data from MongoDB
   const summary = dashboardStats?.summary || {
     totalRevenue: vehicles.reduce((s, v) => s + (v.revenue || 0), 0),
     deptRevenue: vehicles.filter(v => v.type === 'Department').reduce((s, v) => s + (v.revenue || 0), 0),
@@ -66,7 +69,9 @@ export const DashboardView: React.FC = () => {
   const monthly = dashboardStats?.monthly || [];
   const maxBar = Math.max(...monthly.flatMap(m => [m.revenue, m.expense]), 1);
 
-  const expenseSlices = (dashboardStats?.expenseMix || []).filter(s => s.value > 0);
+  const expenseSlices = (dashboardStats?.expenseMix || [])
+    .filter(s => s.value > 0)
+    .map(s => ({ ...s, color: NX_SLICE[s.label] || s.color }));
   const expenseTotal = dashboardStats?.expenseTotal ?? expenseSlices.reduce((s, x) => s + x.value, 0);
 
   const opsSnapshot = dashboardStats?.operationsSnapshot || {
@@ -91,13 +96,19 @@ export const DashboardView: React.FC = () => {
     (v.assignedDriver && v.assignedDriver.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
+  const lastMonth = monthly[monthly.length - 1];
+  const prevMonth = monthly[monthly.length - 2];
+  const revenueDelta = lastMonth && prevMonth && prevMonth.revenue
+    ? ((lastMonth.revenue - prevMonth.revenue) / prevMonth.revenue) * 100
+    : null;
+
   return (
-    <div className="section active module-page">
-      {/* Background sync indicator — shows when data exists but is being refreshed */}
+    <div className="section active module-page dash-nexus">
       <SoftRefreshBar visible={isLoadingDashboard && !!dashboardStats} label="Syncing dashboard metrics…" />
-      {/* 4 Primary KPI Cards Powered by MongoDB Aggregations */}
+
       <div className="stats-grid">
         <StatCard
+          variant="nexus"
           label="Total revenue"
           value={inr(summary.totalRevenue)}
           delta={`Dept ${inrLakh(summary.deptRevenue)} · Trip ${inrLakh(summary.tripRevenue)}`}
@@ -105,6 +116,7 @@ export const DashboardView: React.FC = () => {
           icon={<IndianRupee size={16} />}
         />
         <StatCard
+          variant="nexus"
           label="Total expense"
           value={inr(summary.totalExpense)}
           delta={`Fuel ${inrLakh(summary.fuelExpense)} · Toll ${inrLakh(summary.tollExpense)} · Driver ${inrLakh(summary.driverExpense)}`}
@@ -112,43 +124,36 @@ export const DashboardView: React.FC = () => {
           icon={<CreditCard size={16} />}
         />
         <StatCard
+          variant="nexus"
           label="Net profit"
           value={inr(summary.netProfit)}
-          delta={`${summary.profitMargin.toFixed(1)}% margin (Live Aggregated)`}
-          isUp
+          delta={`${summary.profitMargin.toFixed(1)}% margin`}
+          isUp={summary.netProfit >= 0}
+          isDown={summary.netProfit < 0}
           icon={<TrendingUp size={16} />}
         />
         <StatCard
+          variant="nexus"
           label="Active vehicles"
           value={`${summary.runningVehicles} / ${summary.totalVehicles}`}
-          delta={`${summary.idleVehicles} idle · ${summary.maintenanceVehicles} workshop · ${summary.onDutyDrivers} drivers on duty`}
+          delta={`${summary.idleVehicles} idle · ${summary.maintenanceVehicles} workshop · ${summary.onDutyDrivers} on duty`}
           icon={<Truck size={16} />}
         />
       </div>
 
-      {/* 6-Month Real Trend & Real Expense Mix */}
       <div className="grid-2">
         <div className="panel dash-chart-panel">
           <div className="panel-head">
             <div>
               <div className="panel-title">Revenue vs expense</div>
-              <div className="dash-chart-sub">Last 6 months · aggregated from duty logs, invoices & trips</div>
+              <div className="dash-chart-sub">Last 6 months · duty logs, invoices and trips</div>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <button
                 className="btn-icon-subtle"
                 title="Refresh Live Metrics"
                 onClick={() => fetchLiveDashboardStats()}
                 disabled={isLoadingDashboard}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  cursor: 'pointer',
-                  color: 'var(--text-muted, #888)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  padding: '4px'
-                }}
               >
                 <RefreshCw size={14} className={isLoadingDashboard ? 'spin' : ''} />
               </button>
@@ -158,43 +163,62 @@ export const DashboardView: React.FC = () => {
             </div>
           </div>
 
-          <div className="dash-legend">
-            <span><i className="dash-dot rev" /> Revenue</span>
-            <span><i className="dash-dot exp" /> Expense</span>
+          {lastMonth && (
+            <div className="nx-chart-hero">
+              <b>{inr(lastMonth.revenue)}</b>
+              {revenueDelta !== null && (
+                <span className={revenueDelta >= 0 ? 'up' : 'down'}>
+                  {revenueDelta >= 0 ? '+' : ''}
+                  {revenueDelta.toFixed(1)}% vs previous month · {inrLakh(Math.abs(lastMonth.revenue - (prevMonth?.revenue || 0)))} change
+                </span>
+              )}
+            </div>
+          )}
+
+          <div className="nx-legend">
+            <span><i style={{ background: 'var(--nx-indigo)' }} /> Profit</span>
+            <span><i style={{ background: 'var(--nx-violet)' }} /> Expense</span>
           </div>
 
-          <div className="dash-grouped-bars">
-            {monthly.length > 0 ? (
-              monthly.map(m => (
-                <div className="dash-gcol" key={m.monthKey || m.month}>
-                  <div className="dash-gpair">
-                    <div
-                      className="dash-gbar rev"
-                      style={{ height: m.revenue > 0 ? `${Math.max(6, (m.revenue / maxBar) * 100)}%` : '0%' }}
-                      title={`Revenue ${inr(m.revenue)}`}
-                    />
-                    <div
-                      className="dash-gbar exp"
-                      style={{ height: m.expense > 0 ? `${Math.max(6, (m.expense / maxBar) * 100)}%` : '0%' }}
-                      title={`Expense ${inr(m.expense)}`}
-                    />
-                  </div>
-                  <div className="bar-lbl">{m.month}</div>
-                </div>
-              ))
-            ) : (
-              <div style={{ textAlign: 'center', padding: '24px 0', color: 'var(--text-muted)' }}>
-                No monthly logs recorded yet.
-              </div>
-            )}
-          </div>
+          <StackedMonthChart monthly={monthly} maxBar={maxBar} />
         </div>
 
         <div className="panel dash-chart-panel">
           <div className="panel-head">
             <div>
+              <div className="panel-title">Operations snapshot</div>
+              <div className="dash-chart-sub">Drivers, live trips, fuel fills and fleet mix</div>
+            </div>
+            <span className="panel-link" onClick={() => setActivePage('compliance')}>
+              Compliance Docs
+            </span>
+          </div>
+
+          <div className="nx-chart-hero">
+            <b>{opsSnapshot.totalDrivers || summary.totalDrivers}</b>
+            <span>
+              {summary.onDutyDrivers} on duty · {opsSnapshot.liveTrips} live trips · {opsSnapshot.fuelFillsLogged} fills ({opsSnapshot.totalFuelLitres}L)
+            </span>
+          </div>
+
+          <OpsBars
+            items={[
+              { label: 'Dept', value: opsSnapshot.departmentCabs },
+              { label: 'Trip', value: opsSnapshot.tripCabs },
+              { label: 'Fuel', value: opsSnapshot.fuelFillsLogged },
+              { label: 'Live', value: opsSnapshot.liveTrips },
+              { label: 'Drivers', value: opsSnapshot.totalDrivers || summary.totalDrivers },
+            ]}
+          />
+        </div>
+      </div>
+
+      <div className="grid-2">
+        <div className="panel dash-chart-panel">
+          <div className="panel-head">
+            <div>
               <div className="panel-title">Expense mix</div>
-              <div className="dash-chart-sub">Real breakdown: Fuel, FASTag, Driver & Operational costs</div>
+              <div className="dash-chart-sub">Fuel, FASTag, driver and operational costs</div>
             </div>
             <span className="panel-link" onClick={() => setActivePage('expenses')}>
               Fuel & FASTag
@@ -222,10 +246,7 @@ export const DashboardView: React.FC = () => {
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Live Vehicle Status & Operations Snapshot */}
-      <div className="grid-2">
         <div className="panel">
           <div className="panel-head">
             <div>
@@ -248,77 +269,43 @@ export const DashboardView: React.FC = () => {
               No vehicles in fleet. Onboard a vehicle to track live status.
             </div>
           ) : (
-            liveVehicles.slice(0, 5).map(v => (
-              <div className="status-row" key={v.id}>
-                <div className="status-left">
-                  <div
-                    className={`pulse ${
-                      v.status === 'Idle' ? 'idle' : v.status === 'Maintenance' ? 'maint' : ''
-                    }`}
-                  />
-                  <div>
-                    <div className="status-name">{v.registrationNumber}</div>
-                    <div className="status-meta">
-                      {v.assignedDriver ? `${v.assignedDriver} · ` : ''}
-                      {v.meta || v.assignedTo}
+            <>
+              <div className="nx-list-head">
+                <span>Vehicle</span>
+                <span>Type</span>
+                <span>Driver</span>
+                <span>Status</span>
+              </div>
+              {liveVehicles.slice(0, 5).map(v => (
+                <div className="nx-list-row" key={v.id}>
+                  <div className="nx-list-app">
+                    <div
+                      className={`pulse ${
+                        v.status === 'Idle' ? 'idle' : v.status === 'Maintenance' ? 'maint' : ''
+                      }`}
+                    />
+                    <div style={{ minWidth: 0 }}>
+                      <div className="status-name">{v.registrationNumber}</div>
+                      <div className="status-meta">{v.meta || v.assignedTo || v.model}</div>
                     </div>
                   </div>
+                  <div className="status-meta">{v.type === 'Department' ? 'Department' : 'Trip'}</div>
+                  <div className="status-meta cell-truncate-sm" title={v.assignedDriver || 'Unassigned'}>
+                    {v.assignedDriver || 'Unassigned'}
+                  </div>
+                  <StatusChip status={v.status as any} />
                 </div>
-                <StatusChip status={v.status as any} />
-              </div>
-            ))
+              ))}
+            </>
           )}
-        </div>
-
-        <div className="panel">
-          <div className="panel-head">
-            <div>
-              <div className="panel-title">Operations snapshot</div>
-              <div className="dash-chart-sub">Drivers, live trips, fuel fills and compliance</div>
-            </div>
-            <span className="panel-link" onClick={() => setActivePage('compliance')}>
-              Compliance Docs
-            </span>
-          </div>
-          <div className="dash-ops-grid">
-            <div className="dash-ops-card">
-              <Truck size={16} />
-              <div>
-                <b>{opsSnapshot.departmentCabs}</b>
-                <span>Department cabs</span>
-              </div>
-            </div>
-            <div className="dash-ops-card">
-              <Radio size={16} />
-              <div>
-                <b>{opsSnapshot.tripCabs}</b>
-                <span>Trip cabs</span>
-              </div>
-            </div>
-            <div className="dash-ops-card">
-              <Fuel size={16} />
-              <div>
-                <b>{opsSnapshot.fuelFillsLogged}</b>
-                <span>Fuel fills ({opsSnapshot.totalFuelLitres}L)</span>
-              </div>
-            </div>
-            <div className="dash-ops-card">
-              <TrendingUp size={16} />
-              <div>
-                <b>{opsSnapshot.liveTrips}</b>
-                <span>Live trips / duties</span>
-              </div>
-            </div>
-          </div>
         </div>
       </div>
 
-      {/* Vehicle-wise Profit Table: Ranked by Real Aggregated Profit & Margin */}
-      <div className="panel">
+      <div className="panel nx-table-panel">
         <div className="panel-head">
           <div>
             <div className="panel-title">Vehicle-wise profit ranking</div>
-            <div className="dash-chart-sub">Highest earners first · aggregated real revenue, expenses and margins</div>
+            <div className="dash-chart-sub">Highest earners first · aggregated revenue, expenses and margins</div>
           </div>
           <span className="panel-link" onClick={() => setActivePage('profitability')}>
             Full report
@@ -355,7 +342,7 @@ export const DashboardView: React.FC = () => {
                       </td>
                       <td>
                         <span className="cell-truncate-sm" title={v.assignedDriver || 'Unassigned'}>
-                          {v.assignedDriver || '—'}
+                          {v.assignedDriver || '-'}
                         </span>
                       </td>
                       <td>
@@ -390,6 +377,76 @@ export const DashboardView: React.FC = () => {
   );
 };
 
+function StackedMonthChart({
+  monthly,
+  maxBar,
+}: {
+  monthly: { month: string; monthKey?: string; revenue: number; expense: number }[];
+  maxBar: number;
+}) {
+  if (monthly.length === 0) {
+    return (
+      <div style={{ textAlign: 'center', padding: '24px 0', color: 'var(--text-muted)' }}>
+        No monthly logs recorded yet.
+      </div>
+    );
+  }
+
+  return (
+    <div className="nx-stack">
+      {monthly.map(m => {
+        const profit = Math.max(0, (m.revenue || 0) - (m.expense || 0));
+        const loss = Math.max(0, (m.expense || 0) - (m.revenue || 0));
+        const pile = Math.max(m.revenue || 0, m.expense || 0, 1);
+        const pileH = Math.max(8, (pile / maxBar) * 100);
+        const expenseH = ((m.expense || 0) / pile) * 100;
+        const profitH = (profit / pile) * 100;
+        const lossH = (loss / pile) * 100;
+
+        return (
+          <div className="nx-stack-col" key={m.monthKey || m.month}>
+            <div className="nx-stack-amount">{inrLakh(m.revenue)}</div>
+            <div className="nx-stack-track">
+              <div className="nx-stack-pile" style={{ height: `${pileH}%` }}>
+                {profitH > 0 && <div className="nx-seg nx-seg-profit" style={{ flexGrow: profitH, flexBasis: 0 }} />}
+                {expenseH > 0 && <div className="nx-seg nx-seg-expense" style={{ flexGrow: Math.max(8, expenseH - lossH), flexBasis: 0 }} />}
+                {lossH > 0 && <div className="nx-seg nx-seg-loss" style={{ flexGrow: lossH, flexBasis: 0 }} />}
+              </div>
+            </div>
+            <div className="nx-stack-lbl">{m.month}</div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function OpsBars({ items }: { items: { label: string; value: number }[] }) {
+  const max = Math.max(...items.map(i => i.value), 1);
+  const peak = Math.max(...items.map(i => i.value));
+
+  return (
+    <div className="nx-ops-bars">
+      {items.map(item => {
+        const h = Math.max(8, (item.value / max) * 100);
+        return (
+          <div className="nx-ops-col" key={item.label}>
+            <div className="nx-ops-val">{item.value}</div>
+            <div className="nx-ops-track">
+              <div
+                className={`nx-ops-bar${item.value === peak && peak > 0 ? ' is-peak' : ''}`}
+                style={{ height: `${h}%` }}
+                title={`${item.label}: ${item.value}`}
+              />
+            </div>
+            <div className="nx-ops-lbl">{item.label}</div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function ExpenseDonut({
   slices,
   total,
@@ -400,15 +457,16 @@ function ExpenseDonut({
   const r = 54;
   const c = 2 * Math.PI * r;
   let offset = 0;
-
   const validTotal = total > 0 ? total : 1;
+  const gap = slices.length > 1 ? 6 : 0;
 
   return (
     <div className="dash-donut">
       <svg viewBox="0 0 140 140" width="140" height="140">
-        <circle cx="70" cy="70" r={r} fill="none" stroke="var(--border, rgba(255,255,255,0.1))" strokeWidth="16" />
+        <circle cx="70" cy="70" r={r} fill="none" stroke="var(--nx-bar-track)" strokeWidth="18" />
         {slices.map(s => {
-          const len = (s.value / validTotal) * c;
+          const raw = (s.value / validTotal) * c;
+          const len = Math.max(0, raw - gap);
           const el = (
             <circle
               key={s.label}
@@ -417,14 +475,14 @@ function ExpenseDonut({
               r={r}
               fill="none"
               stroke={s.color}
-              strokeWidth="16"
+              strokeWidth="18"
               strokeDasharray={`${len} ${c - len}`}
               strokeDashoffset={-offset}
               strokeLinecap="butt"
               transform="rotate(-90 70 70)"
             />
           );
-          offset += len;
+          offset += raw;
           return el;
         })}
       </svg>

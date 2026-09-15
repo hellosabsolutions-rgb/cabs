@@ -134,11 +134,15 @@ export const Topbar: React.FC<TopbarProps> = ({ onToggleMobileSidebar }) => {
         {/* Profile Avatar & Dropdown Menu */}
         <div style={{ position: 'relative' }} ref={profileRef}>
           <div
-            className="avatar"
+            className="nx-userchip"
             onClick={() => setProfileOpen(prev => !prev)}
             title={`Logged in as ${user?.name || 'Administrator'}`}
           >
-            {initials}
+            <div className="avatar">{initials}</div>
+            <div className="nx-userchip-meta">
+              <span className="nx-userchip-name">{user?.name || 'Administrator'}</span>
+              <span className="nx-userchip-role">{user?.role || 'admin'}</span>
+            </div>
           </div>
 
           {profileOpen && (

@@ -150,21 +150,21 @@ export const LiveTrackingView: React.FC = () => {
             onClick={() => setActiveTab('moving')}
             style={{ padding: '4px 10px', fontSize: '11.5px', color: 'var(--success)' }}
           >
-            ● Moving ({vehicleList.filter(v => v.status === 'Moving').length})
+            <Radio size={10} /> Moving ({vehicleList.filter(v => v.status === 'Moving').length})
           </button>
           <button
             className={`subtab-btn ${activeTab === 'idling' ? 'active' : ''}`}
             onClick={() => setActiveTab('idling')}
             style={{ padding: '4px 10px', fontSize: '11.5px', color: '#ffcc4d' }}
           >
-            ● Idling ({vehicleList.filter(v => v.status === 'Idling').length})
+            <Radio size={10} /> Idling ({vehicleList.filter(v => v.status === 'Idling').length})
           </button>
           <button
             className={`subtab-btn ${activeTab === 'parked' ? 'active' : ''}`}
             onClick={() => setActiveTab('parked')}
             style={{ padding: '4px 10px', fontSize: '11.5px', color: '#38bdf8' }}
           >
-            ● Parked ({vehicleList.filter(v => v.status === 'Parked').length})
+            <Radio size={10} /> Parked ({vehicleList.filter(v => v.status === 'Parked').length})
           </button>
         </div>
       </div>
@@ -356,7 +356,7 @@ export const LiveTrackingView: React.FC = () => {
                   borderColor: getStatusColor(selectedVehicle.status)
                 }}
               >
-                ● {selectedVehicle.status}
+                <Radio size={10} /> {selectedVehicle.status}
               </span>
             </div>
 
@@ -491,7 +491,7 @@ export const LiveTrackingView: React.FC = () => {
                       color: getStatusColor(v.status)
                     }}
                   >
-                    ● {v.speed > 0 ? `${v.speed} km/h` : v.status}
+                    <Radio size={10} /> {v.speed > 0 ? `${v.speed} km/h` : v.status}
                   </span>
                 </div>
               </div>

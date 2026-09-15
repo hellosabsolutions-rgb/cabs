@@ -236,7 +236,7 @@ export const BookingDetailModal: React.FC<BookingDetailModalProps> = ({
                     }`
                   }}
                 >
-                  ● {booking.status}
+                  <Radio size={10} /> {booking.status}
                 </span>
 
                 <span
@@ -318,7 +318,7 @@ export const BookingDetailModal: React.FC<BookingDetailModalProps> = ({
                 borderRadius: '6px'
               }}
             >
-              ✕
+              <X size={15} />
             </button>
           </div>
         </div>
@@ -358,7 +358,13 @@ export const BookingDetailModal: React.FC<BookingDetailModalProps> = ({
                       color: isDriverOnDuty ? '#22c55e' : '#f59e0b'
                     }}
                   >
-                    {isDriverOnDuty ? '● Active On Duty' : '○ Duty Not Started'}
+                    {isDriverOnDuty ? (
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                        <Radio size={11} /> Active on duty
+                      </span>
+                    ) : (
+                      'Duty not started'
+                    )}
                   </span>
                 </div>
               )}
@@ -620,9 +626,9 @@ export const BookingDetailModal: React.FC<BookingDetailModalProps> = ({
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '12px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <span style={{ color: 'var(--text-dim, #94a3b8)' }}>Start Date:</span>
-                  <span style={{ fontWeight: 700, color: 'var(--text, #f8fafc)' }}>
-                    📅 {booking.startDate} {booking.startTime && `• ${booking.startTime}`}
-                  </span>
+                    <span style={{ fontWeight: 700, color: 'var(--text, #f8fafc)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                      <Calendar size={12} /> {booking.startDate} {booking.startTime && `• ${booking.startTime}`}
+                    </span>
                 </div>
 
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
@@ -686,7 +692,15 @@ export const BookingDetailModal: React.FC<BookingDetailModalProps> = ({
                   border: `1px solid ${pendingDue > 0 ? 'rgba(245, 158, 11, 0.35)' : 'rgba(34, 197, 94, 0.35)'}`
                 }}
               >
-                {pendingDue > 0 ? `⚠️ Due: ₹${pendingDue.toLocaleString('en-IN')}` : '✓ Fully Paid'}
+                {pendingDue > 0 ? (
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                    <AlertTriangle size={12} /> Due: ₹{pendingDue.toLocaleString('en-IN')}
+                  </span>
+                ) : (
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                    <CheckCircle2 size={12} /> Fully paid
+                  </span>
+                )}
               </span>
             </div>
 

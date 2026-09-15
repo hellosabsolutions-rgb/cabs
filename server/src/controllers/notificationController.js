@@ -5,6 +5,11 @@ import { emitToUser } from '../services/socketService.js';
 
 const PAGE_SIZE = 30;
 
+const excludeTestFilter = {
+  'metadata.test': { $ne: true },
+  title: { $not: /^(Live Socket\.IO Alert|Test Web Push Notification)/i }
+};
+
 /**
  * @desc    Get paginated notifications for the current user
  * @route   GET /api/notifications?category=&unread=true&page=1
@@ -15,7 +20,8 @@ export const getNotifications = asyncHandler(async (req, res) => {
 
   const filter = {
     userId: req.user._id,
-    isDeleted: false
+    isDeleted: false,
+    ...excludeTestFilter
   };
 
   if (category && category !== 'all') filter.category = category;
@@ -51,7 +57,8 @@ export const getUnreadCount = asyncHandler(async (req, res) => {
   const count = await Notification.countDocuments({
     userId: req.user._id,
     isRead: false,
-    isDeleted: false
+    isDeleted: false,
+    ...excludeTestFilter
   });
 
   res.status(200).json({ success: true, count });
@@ -75,7 +82,10 @@ export const markRead = asyncHandler(async (req, res) => {
 
   // Emit updated unread count to user
   const newCount = await Notification.countDocuments({
-    userId: req.user._id, isRead: false, isDeleted: false
+    userId: req.user._id,
+    isRead: false,
+    isDeleted: false,
+    ...excludeTestFilter
   });
   emitToUser(req.user._id.toString(), 'notification:unread-count', { count: newCount });
 
@@ -123,7 +133,10 @@ export const deleteNotification = asyncHandler(async (req, res) => {
 
   // Refresh unread count after deletion
   const newCount = await Notification.countDocuments({
-    userId: req.user._id, isRead: false, isDeleted: false
+    userId: req.user._id,
+    isRead: false,
+    isDeleted: false,
+    ...excludeTestFilter
   });
   emitToUser(req.user._id.toString(), 'notification:unread-count', { count: newCount });
 

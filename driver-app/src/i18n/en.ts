@@ -55,6 +55,8 @@ export const en = {
   'home.odometer': 'Odometer',
   'home.todayKm': 'Today KM',
   'home.wallet': 'Wallet',
+  'home.fastag': 'FASTag',
+  'home.fastagLow': 'Low balance — recharge soon',
   'home.startDuty': 'Start Duty',
   'home.endDuty': 'End Duty',
   'home.quickActions': 'Quick actions',

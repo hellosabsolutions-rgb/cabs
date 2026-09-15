@@ -282,7 +282,7 @@ export const BookingLiveMap: React.FC<BookingLiveMapProps> = ({
             </div>
             <!-- Name Tag -->
             <div style="margin-top: 4px; background: rgba(15, 23, 42, 0.9); color: #ffffff; padding: 2px 8px; border-radius: 12px; font-size: 10px; font-weight: 700; white-space: nowrap; border: 1px solid rgba(255,255,255,0.2); box-shadow: 0 2px 6px rgba(0,0,0,0.3); z-index: 3;">
-              🟢 ${name} ${vehicle ? `(${vehicle})` : ''}
+              ${name} ${vehicle ? `(${vehicle})` : ''}
             </div>
           </div>
         `,
@@ -298,7 +298,7 @@ export const BookingLiveMap: React.FC<BookingLiveMapProps> = ({
       }).addTo(map);
       pMarker.bindPopup(`
         <div style="font-family: sans-serif; font-size: 12px; line-height: 1.4;">
-          <b style="color: #16a34a;">📍 Pickup Point</b><br/>
+          <b style="color: #16a34a;">Pickup</b><br/>
           ${pickupLocation || 'Pickup Location'}
         </div>
       `);
@@ -313,7 +313,7 @@ export const BookingLiveMap: React.FC<BookingLiveMapProps> = ({
       }).addTo(map);
       dMarker.bindPopup(`
         <div style="font-family: sans-serif; font-size: 12px; line-height: 1.4;">
-          <b style="color: #ef4444;">🏁 Drop Destination</b><br/>
+          <b style="color: #ef4444;">Drop</b><br/>
           ${dropLocation || 'Drop Location'}
         </div>
       `);
@@ -329,7 +329,7 @@ export const BookingLiveMap: React.FC<BookingLiveMapProps> = ({
       }).addTo(map);
       drvMarker.bindPopup(`
         <div style="font-family: sans-serif; font-size: 12px; line-height: 1.4;">
-          <b style="color: #10b981;">🚗 Driver Live Location</b><br/>
+          <b style="color: #10b981;">Driver live location</b><br/>
           <b>Driver:</b> ${driverName}<br/>
           <b>Status:</b> On Duty (Active)<br/>
           ${vehicleReg ? `<b>Vehicle:</b> ${vehicleReg}<br/>` : ''}

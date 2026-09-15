@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useFleet } from '../../../context/FleetContext';
 import { DriverExpenseCategory } from '../../../types/fleet';
-import { IndianRupee, FileText, Loader2 } from 'lucide-react';
+import { X, IndianRupee, FileText, Loader2 } from 'lucide-react';
 import { MinimalVoiceFiller } from '../../common/MinimalVoiceFiller';
 import { DatePicker } from '../../common/DatePicker';
 import { ACCEPT_DOC_TYPES, isPdfDocument } from '../../../utils/fileUtils';
@@ -152,7 +152,7 @@ export const AddDriverExpenseModal: React.FC<AddDriverExpenseModalProps> = ({
             <span className="modal-subtitle">Log daily bata, night halt, salary advance or reimbursements</span>
           </div>
           <button className="modal-close-btn" onClick={onClose} type="button" title="Close">
-            ✕
+            <X size={15} />
           </button>
         </div>
 
@@ -347,7 +347,7 @@ export const AddDriverExpenseModal: React.FC<AddDriverExpenseModalProps> = ({
                     }}
                     title="Remove receipt"
                   >
-                    ✕
+                    <X size={15} />
                   </button>
                 )}
               </div>

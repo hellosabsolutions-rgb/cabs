@@ -31,6 +31,9 @@ export type VehicleProfile = {
   odometer?: number;
   fuelType?: string;
   departmentName?: string;
+  fastagBalance?: number;
+  fastagTagId?: string | null;
+  fastagBank?: string | null;
 } | null;
 
 export type TripProfile = {
@@ -314,7 +317,14 @@ export const dutyApi = {
       data,
     }),
 
-  endDuty: (data: { endOdometer: number; remarks?: string; photoUrl?: string; location?: string }) =>
+  endDuty: (data: {
+    endOdometer: number;
+    remarks?: string;
+    photoUrl?: string;
+    location?: string;
+    isNightShift?: boolean;
+    tollParkingAmount?: number;
+  }) =>
     apiRequest<{
       success: boolean;
       message: string;

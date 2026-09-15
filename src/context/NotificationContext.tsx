@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { socketManager } from '../services/socket';
 import { api } from '../services/api';
 import { useAuth } from './AuthContext';
@@ -32,6 +32,27 @@ export interface NotificationItem {
   link?: string | null;
   metadata?: Record<string, any>;
   createdAt: string;
+}
+
+function isTestNotification(n: {
+  title?: string;
+  message?: string;
+  metadata?: Record<string, any>;
+}): boolean {
+  if (n.metadata?.test === true) return true;
+  const title = String(n.title || '').toLowerCase();
+  const message = String(n.message || '').toLowerCase();
+  if (title.includes('live socket.io') || title.includes('test web push') || title.startsWith('test ')) {
+    return true;
+  }
+  if (
+    message.includes('socket.io queue successfully') ||
+    message.includes('firebase cloud messaging web push is working') ||
+    message.includes('scheduled for real-time delivery')
+  ) {
+    return true;
+  }
+  return false;
 }
 
 interface NotificationContextType {
@@ -75,17 +96,27 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       Boolean(localStorage.getItem('fleetos_fcm_token'))
     );
   });
+  const pushRequestRef = useRef<Promise<{ success: boolean; error?: string }> | null>(null);
 
   // Enable push notifications
   const enablePush = useCallback(async () => {
-    const res = await requestPushPermissionAndGetToken();
-    setPushPermission(getPushPermissionState());
-    if (res.success) {
-      setIsPushEnabled(true);
-      return { success: true };
-    }
-    setIsPushEnabled(false);
-    return { success: false, error: res.error };
+    if (pushRequestRef.current) return pushRequestRef.current;
+
+    const request = (async () => {
+      const res = await requestPushPermissionAndGetToken();
+      setPushPermission(getPushPermissionState());
+      if (res.success) {
+        setIsPushEnabled(true);
+        return { success: true };
+      }
+      setIsPushEnabled(false);
+      return { success: false, error: res.error };
+    })().finally(() => {
+      pushRequestRef.current = null;
+    });
+
+    pushRequestRef.current = request;
+    return request;
   }, []);
 
   // Disable push notifications
@@ -94,14 +125,11 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     setIsPushEnabled(false);
   }, []);
 
-  // Auto-sync token if permission is already granted
+  // Ask for notification permission on login, then register the device token.
   useEffect(() => {
-    if (isAuthenticated && user && pushPermission === 'granted') {
-      requestPushPermissionAndGetToken().then((res) => {
-        if (res.success) setIsPushEnabled(true);
-      });
-    }
-  }, [isAuthenticated, user, pushPermission]);
+    if (!isAuthenticated || !user || !isPushSupportedState) return;
+    void enablePush();
+  }, [isAuthenticated, user, isPushSupportedState, enablePush]);
 
   // Listen for foreground push messages
   useEffect(() => {
@@ -109,16 +137,28 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
     let unsub: (() => void) | null = null;
     setupForegroundPushListener((payload) => {
+      const title = payload.notification?.title || (payload.data?.title as string) || '';
+      const message =
+        payload.notification?.body ||
+        (payload.data?.body as string) ||
+        (payload.data?.message as string) ||
+        '';
+      if (
+        isTestNotification({
+          title,
+          message,
+          metadata: payload.data || {},
+        })
+      ) {
+        return;
+      }
+
       const formatted: NotificationItem = {
         id: (payload.data?.id as string) || `fcm-${Date.now()}`,
         category: (payload.data?.category as any) || 'system',
         priority: (payload.data?.priority as any) || 'info',
-        title: payload.notification?.title || (payload.data?.title as string) || 'FleetOS Alert',
-        message:
-          payload.notification?.body ||
-          (payload.data?.body as string) ||
-          (payload.data?.message as string) ||
-          '',
+        title: title || 'FleetOS Alert',
+        message,
         isRead: false,
         link: (payload.data?.link as string) || null,
         metadata: payload.data || {},
@@ -172,7 +212,9 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         }>(`/notifications${query}`);
 
         if (res && res.success && Array.isArray(res.notifications)) {
-          const mapped: NotificationItem[] = res.notifications.map((n) => ({
+          const mapped: NotificationItem[] = res.notifications
+            .filter((n) => !isTestNotification(n))
+            .map((n) => ({
             id: n._id || n.id,
             _id: n._id,
             category: n.category || 'system',
@@ -283,6 +325,8 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     };
 
     const handleNewNotification = (item: any) => {
+      if (isTestNotification(item || {})) return;
+
       const formatted: NotificationItem = {
         id: item.id || item._id,
         category: item.category || 'system',

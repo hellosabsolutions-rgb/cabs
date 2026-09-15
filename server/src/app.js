@@ -3,7 +3,6 @@ import cors from 'cors';
 import helmet from 'helmet';
 import compression from 'compression';
 import morgan from 'morgan';
-import rateLimit from 'express-rate-limit';
 
 import { errorHandler, notFound } from './middleware/errorHandler.js';
 import { getDbStatus } from './config/db.js';
@@ -42,6 +41,9 @@ import revenueRoutes from './routes/revenue.js';
 
 const app = express();
 
+// ngrok / reverse proxy forwards X-Forwarded-For
+app.set('trust proxy', 1);
+
 // Security HTTP headers
 app.use(helmet());
 
@@ -73,19 +75,6 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 if (process.env.NODE_ENV !== 'test') {
   app.use(morgan('dev'));
 }
-
-// Rate Limiting (per 2 mins per IP for general APIs)
-const apiLimiter = rateLimit({
-  windowMs: 2 * 60 * 1000, // 2 minutes
-  max: 600,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: {
-    success: false,
-    error: 'Too many requests from this IP, please try again after 2 minutes.'
-  }
-});
-app.use('/api', apiLimiter);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
@@ -135,16 +124,17 @@ app.use('/api/auth', authRoutes);
 app.use('/api/agencies', agencyRoutes);
 app.use('/api/sos', sosRoutes);
 
-// Mixed auth routes (dashboard user OR driver app)
-// IMPORTANT: register BEFORE tenantApi — tenantApi runs protect on all /api/* and blocks driver JWTs
+// Mixed auth routes (dashboard user OR driver app) — must register BEFORE tenantApi
+// so driver JWTs are not blocked by dashboard-only protect middleware.
 app.use('/api/upload', uploadRoutes);
 app.use('/api/driver-expenses', driverExpenseRoutes);
 app.use('/api/fuel-logs', fuelLogRoutes);
 app.use('/api/trip-expenses', tripExpenseRoutes);
-app.use('/api/bookings', bookingRoutes);
-app.use('/api/trips', bookingRoutes);
 
-// Tenant-scoped fleet routes (require dashboard login + active agency)
+// Bookings: driver /my route + admin routes with own middleware chain
+app.use('/api/bookings', bookingRoutes);
+
+// Tenant-scoped fleet routes (require login + active agency)
 const tenantApi = express.Router();
 tenantApi.use(protect);
 tenantApi.use(resolveAgency);
@@ -169,6 +159,7 @@ tenantApi.use('/reports', reportRoutes);
 tenantApi.use('/driver-assignments', driverAssignmentRoutes);
 tenantApi.use('/activities', activityRoutes);
 tenantApi.use('/revenue', revenueRoutes);
+tenantApi.use('/trips', tripRoutes);
 
 app.use('/api', tenantApi);
 

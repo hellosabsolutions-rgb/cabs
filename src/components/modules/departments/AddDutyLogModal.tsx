@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useFleet } from '../../../context/FleetContext';
-import { Building2, Briefcase, Calendar, MapPin, IndianRupee, TrendingUp, AlertCircle, CheckCircle2, Navigation, PenTool, BookOpen } from 'lucide-react';
+import { X, Building2, Briefcase, Calendar, MapPin, IndianRupee, TrendingUp, AlertCircle, CheckCircle2, Navigation, PenTool, BookOpen } from 'lucide-react';
 import { MinimalVoiceFiller } from '../../common/MinimalVoiceFiller';
 import { DatePicker } from '../../common/DatePicker';
 
@@ -58,8 +58,9 @@ export const AddDutyLogModal: React.FC<AddDutyLogModalProps> = ({
   const [endTime, setEndTime] = useState('07:30 PM');
   const [totalHours, setTotalHours] = useState('');
   const [tollParkingAmount, setTollParkingAmount] = useState('');
-  
-  // Fuel expense fields
+  const [isNightShift, setIsNightShift] = useState(false);
+
+  // Fuel expense fields (weekend trips only)
   const [fuelAmount, setFuelAmount] = useState('');
   const [fuelLitres, setFuelLitres] = useState('');
   const [fuelBillName, setFuelBillName] = useState('');
@@ -72,8 +73,6 @@ export const AddDutyLogModal: React.FC<AddDutyLogModalProps> = ({
   const [journeyTo, setJourneyTo] = useState('');
   const [purposeOfJourney, setPurposeOfJourney] = useState('');
   const [headOfAccount, setHeadOfAccount] = useState('');
-  const [motorOilUsed, setMotorOilUsed] = useState('None');
-  const [mOilLitres, setMOilLitres] = useState('');
   const [officerName, setOfficerName] = useState('');
   const [officerDesignation, setOfficerDesignation] = useState('');
   const [officerSignatureStatus, setOfficerSignatureStatus] = useState<'Signed' | 'Pending' | 'Exempt'>('Signed');
@@ -246,8 +245,6 @@ export const AddDutyLogModal: React.FC<AddDutyLogModalProps> = ({
         tollParkingAmount: tollNum,
         fuelAmount: fuelNum > 0 ? fuelNum : undefined,
         fuelLitres: fuelLitres ? Number(fuelLitres) : undefined,
-        motorOilUsed: motorOilUsed.trim() || 'None',
-        mOilLitres: mOilLitres.trim() || '—',
         purposeOfJourney: 'Sat/Sun Department Duty Booking',
         headOfAccount: 'Department Weekend Duty',
         officerName: officerName.trim() || '—',
@@ -307,6 +304,8 @@ export const AddDutyLogModal: React.FC<AddDutyLogModalProps> = ({
         vehicle: vehicleReg,
         driverName,
         dutyType: 'Official Department Duty',
+        entrySource: 'Admin',
+        isNightShift,
         startKm: Number(startKm) || 0,
         endKm: Number(endKm) || 0,
         totalKm: calcTotalKm,
@@ -316,49 +315,44 @@ export const AddDutyLogModal: React.FC<AddDutyLogModalProps> = ({
         totalHours: Number(totalHours) || 10,
         extraHours: Math.max(0, (Number(totalHours) || 10) - 10),
         tollParkingAmount: tollNum,
-        fuelAmount: fuelNum > 0 ? fuelNum : undefined,
-        fuelLitres: fuelLitres ? Number(fuelLitres) : undefined,
-        motorOilUsed: motorOilUsed.trim() || 'None',
-        mOilLitres: mOilLitres.trim() || '—',
         journeyFrom: journeyFrom.trim() || 'GSON',
         journeyTo: journeyTo.trim() || 'Jogiwala to GSON',
         purposeOfJourney: purposeOfJourney.trim() || 'for office duty',
-        headOfAccount: headOfAccount.trim() || 'PWD Office Duty',
+        headOfAccount: headOfAccount.trim() || undefined,
         officerName: officerName.trim() || undefined,
-        officerDesignation: officerDesignation.trim() || undefined,
         officerSignatureStatus,
         driverSignatureStatus,
         dutySlipPhoto: slipPhotoPreview || slipPhotoName || null,
-        fuelBillPhoto: fuelBillPreview || fuelBillName || null,
         status: 'Approved',
         notes: notes.trim() || undefined
       });
     }
 
-    // 3. Automatically record Fuel Expense into Vehicle's Fuel Section
-    if (fuelNum > 0) {
+    // 3. Automatically record Fuel Expense (weekend / off-duty trips only)
+    if (dutyType === 'Weekend / Off-Duty Trip' && fuelNum > 0) {
       const litresNum = fuelLitres ? Number(fuelLitres) : Math.round((fuelNum / 95) * 10) / 10;
       const rateNum = litresNum > 0 ? Math.round((fuelNum / litresNum) * 100) / 100 : 95;
       const cleanVehicleObj = vehicles.find(
         v => v.registrationNumber.toLowerCase().replace(/\s+/g, '') === vehicleReg.toLowerCase().replace(/\s+/g, '')
       );
-      addFuelLog({
-        date: date,
+      void addFuelLog({
+        date,
+        time: startTime || '09:00 AM',
         vehicle: vehicleReg,
+        driverName,
         fuelType: cleanVehicleObj?.fuelType || 'Diesel',
         litres: litresNum || 1,
         ratePerLitre: rateNum,
         totalCost: fuelNum,
         stationName: journeyFrom ? `${journeyFrom} Fuel Station` : `${deptName || 'Department'} Refill Point`,
-        odometerReading: Number(endKm) || Number(startKm) || 0,
-        driver: driverName,
-        billPhoto: fuelBillPreview || null,
+        odometer: Number(endKm) || Number(startKm) || 0,
+        receiptPhoto: fuelBillPreview || null,
         paymentMode: 'Cash'
       });
     }
 
-    // 4. Automatically record FASTag Toll into Vehicle's FASTag Section
-    if (tollNum > 0) {
+    // 4. FASTag wallet deduction (weekend trips only — official toll is billing-only on the duty log)
+    if (dutyType === 'Weekend / Off-Duty Trip' && tollNum > 0) {
       const slipRefId = dutyType === 'Weekend / Off-Duty Trip' ? generatedTripSlip : dutySlipNumber.trim();
       addFastagTransaction({
         vehicle: vehicleReg,
@@ -403,7 +397,7 @@ export const AddDutyLogModal: React.FC<AddDutyLogModalProps> = ({
             </span>
           </div>
           <button className="modal-close-btn" onClick={onClose} type="button">
-            ✕
+            <X size={15} />
           </button>
         </div>
 
@@ -821,29 +815,35 @@ export const AddDutyLogModal: React.FC<AddDutyLogModalProps> = ({
                   </div>
                 </div>
 
-                {/* Officer Name & Designation */}
                 <div className="form-row-2">
                   <div className="form-group" style={{ marginBottom: 0 }}>
-                    <label className="form-label">Officer Name *</label>
+                    <label className="form-label">Officer name <span style={{ fontSize: '10.5px', color: 'var(--text-faint)' }}>(optional)</span></label>
                     <input
                       type="text"
                       className="form-input"
                       placeholder="e.g. Er. R. K. Singhal"
                       value={officerName}
                       onChange={e => setOfficerName(e.target.value)}
-                      required
                     />
                   </div>
-                  <div className="form-group" style={{ marginBottom: 0 }}>
-                    <label className="form-label">Officer Designation *</label>
-                    <input
-                      type="text"
-                      className="form-input"
-                      placeholder="e.g. Executive Engineer (Civil) / AE / CMO"
-                      value={officerDesignation}
-                      onChange={e => setOfficerDesignation(e.target.value)}
-                      required
-                    />
+                  <div className="form-group" style={{ marginBottom: 0, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
+                    <label className="form-label">Night / late shift?</label>
+                    <button
+                      type="button"
+                      onClick={() => setIsNightShift(v => !v)}
+                      style={{
+                        height: '38px',
+                        borderRadius: '8px',
+                        border: isNightShift ? '1px solid var(--accent)' : '1px solid var(--border)',
+                        background: isNightShift ? 'rgba(22, 135, 245, 0.12)' : 'var(--surface-2)',
+                        color: isNightShift ? 'var(--accent)' : 'var(--text-dim)',
+                        fontWeight: 600,
+                        fontSize: '12px',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      {isNightShift ? 'Yes — counts toward monthly night charge' : 'No — regular day duty'}
+                    </button>
                   </div>
                 </div>
               </>
@@ -924,55 +924,41 @@ export const AddDutyLogModal: React.FC<AddDutyLogModalProps> = ({
               </div>
             </div>
 
-            {/* Fuel, Litres, Toll & M. Oil Used */}
-            <div className="form-row-2">
-              <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label">Fuel Expense (₹) & Litres</label>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                  <input
-                    type="number"
-                    min="0"
-                    className="form-input"
-                    placeholder="₹ Amount"
-                    value={fuelAmount}
-                    onChange={e => setFuelAmount(e.target.value)}
-                  />
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.1"
-                    className="form-input"
-                    placeholder="Litres"
-                    value={fuelLitres}
-                    onChange={e => setFuelLitres(e.target.value)}
-                  />
+            {dutyType === 'Weekend / Off-Duty Trip' && (
+              <div className="form-row-2">
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label">Fuel expense (₹) & litres</label>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                    <input
+                      type="number"
+                      min="0"
+                      className="form-input"
+                      placeholder="₹ Amount"
+                      value={fuelAmount}
+                      onChange={e => setFuelAmount(e.target.value)}
+                    />
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.1"
+                      className="form-input"
+                      placeholder="Litres"
+                      value={fuelLitres}
+                      onChange={e => setFuelLitres(e.target.value)}
+                    />
+                  </div>
                 </div>
               </div>
-
-              <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label">M. Oil Litres / Other Stores Used</label>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '8px' }}>
-                  <input
-                    type="text"
-                    className="form-input"
-                    placeholder="Litres (e.g. 1 L)"
-                    value={mOilLitres}
-                    onChange={e => setMOilLitres(e.target.value)}
-                  />
-                  <input
-                    type="text"
-                    className="form-input"
-                    placeholder="Stores / Brand (e.g. Mobil Super)"
-                    value={motorOilUsed}
-                    onChange={e => setMotorOilUsed(e.target.value)}
-                  />
-                </div>
-              </div>
-            </div>
+            )}
 
             <div className="form-row-2">
               <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label">FASTag Toll Paid (₹)</label>
+                <label className="form-label">
+                  Toll / FASTag paid (₹){' '}
+                  {dutyType === 'Official Department Duty' && (
+                    <span style={{ fontSize: '10.5px', color: 'var(--text-faint)' }}>(billing only — not deducted from wallet)</span>
+                  )}
+                </label>
                 <input
                   type="number"
                   min="0"

@@ -1,15 +1,14 @@
 'use client';
 
-import { Check } from '@phosphor-icons/react';
-import { GSAPReveal } from './GSAPReveal';
-import { TextReveal } from './TextReveal';
+import { motion, useReducedMotion } from 'motion/react';
+import { Check, Star } from '@phosphor-icons/react';
 
 const plans = [
   {
     name: 'Starter',
     price: 'Free',
     period: 'forever',
-    desc: 'For small fleet operators getting started.',
+    description: 'Perfect for small fleets getting started.',
     features: [
       'Up to 5 vehicles',
       '1 admin user',
@@ -17,131 +16,147 @@ const plans = [
       'Trip logging',
       'Email support',
     ],
-    cta: 'Start Free',
+    cta: 'Start free',
+    href: 'https://kabpro.pro',
     featured: false,
   },
   {
     name: 'Professional',
     price: '2,999',
     period: '/month',
-    desc: 'For growing fleets that need full visibility.',
+    description: 'For growing fleets that need full visibility.',
     features: [
       'Up to 50 vehicles',
       '5 admin users',
       'Department billing & GST',
       'Live driver location',
-      'Realtime revenue',
       'FASTag & fuel tracking',
-      'Compliance alerts',
       'Trip profitability',
+      'Compliance alerts',
       'Voice onboarding',
       'Priority support',
     ],
-    cta: 'Start Free Trial',
+    cta: 'Start free trial',
+    href: '/#inquiry',
     featured: true,
   },
   {
     name: 'Enterprise',
     price: 'Custom',
     period: '',
-    desc: 'For large fleets with custom requirements.',
+    description: 'For large fleets with custom needs.',
     features: [
-      'Unlimited vehicles',
-      'Unlimited users',
-      'Live driver location',
-      'Realtime revenue',
+      'Unlimited vehicles & users',
       'Multi-agency support',
       'Custom integrations',
+      'API access',
       'Dedicated account manager',
       'SLA guarantee',
       'On-premise option',
-      'Custom training',
     ],
-    cta: 'Contact Sales',
+    cta: 'Contact sales',
+    href: '/#inquiry',
     featured: false,
   },
 ];
 
 export function Pricing() {
+  const reduce = useReducedMotion();
+
   return (
-    <section id="pricing" className="py-16 md:py-24 bg-surface scroll-mt-20">
+    <section id="pricing" className="py-12 md:py-16 bg-surface relative scroll-mt-20 overflow-hidden">
       <div className="max-w-[1400px] mx-auto px-4 sm:px-6">
-        <GSAPReveal className="text-center mb-10 md:mb-16">
-          <p className="text-xs font-medium text-accent uppercase tracking-[0.2em] mb-4">
+        <motion.div
+          initial={reduce ? false : { opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.6 }}
+          className="text-center mb-16"
+        >
+          <p className="text-xs font-semibold text-accent uppercase tracking-[0.2em] mb-4">
             Pricing
           </p>
-          <TextReveal
-            as="h2"
-            className="text-3xl md:text-4xl lg:text-5xl font-bold tracking-tighter text-foreground mb-4"
-          >
+          <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight text-foreground mb-4">
             Simple, transparent pricing
-          </TextReveal>
-          <p className="text-muted text-base max-w-[480px] mx-auto">
-            Start free. Scale as your fleet grows. No hidden fees.
+          </h2>
+          <p className="text-muted text-lg max-w-[500px] mx-auto">
+            Start free and scale as your fleet grows. No hidden fees, cancel anytime.
           </p>
-        </GSAPReveal>
+        </motion.div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-[1100px] mx-auto items-start">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-[1100px] mx-auto">
           {plans.map((plan, i) => (
-            <GSAPReveal
+            <motion.div
               key={plan.name}
-              delay={i * 0.1}
-              className={`relative rounded-2xl border p-6 sm:p-8 flex flex-col ${
+              initial={reduce ? false : { opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.5, delay: i * 0.1 }}
+              className={`relative rounded-2xl p-6 sm:p-8 flex flex-col ${
                 plan.featured
-                  ? 'border-accent bg-bg shadow-[0_0_40px_rgba(var(--theme-accent-rgb),0.1)] md:scale-[1.02]'
-                  : 'border-border bg-bg shadow-card'
+                  ? 'bg-foreground text-white border-2 border-accent md:scale-105 shadow-2xl'
+                  : 'bg-white border border-border'
               }`}
             >
               {plan.featured && (
-                <span className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 rounded-full bg-accent text-accent-text text-xs font-semibold">
+                <div className="absolute -top-4 left-1/2 -translate-x-1/2 flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-accent text-white text-xs font-semibold">
+                  <Star size={14} weight="fill" />
                   Most Popular
-                </span>
+                </div>
               )}
 
-              <h3 className="text-lg font-semibold text-foreground mb-1">
-                {plan.name}
-              </h3>
-              <p className="text-sm text-muted mb-5">{plan.desc}</p>
+              <div className="mb-6">
+                <h3 className={`text-lg font-semibold mb-1 ${plan.featured ? 'text-white' : 'text-foreground'}`}>
+                  {plan.name}
+                </h3>
+                <p className={`text-sm ${plan.featured ? 'text-white/70' : 'text-muted'}`}>
+                  {plan.description}
+                </p>
+              </div>
 
               <div className="flex items-baseline gap-1 mb-6">
                 {plan.price !== 'Free' && plan.price !== 'Custom' && (
-                  <span className="text-sm text-muted">&#8377;</span>
+                  <span className={`text-sm ${plan.featured ? 'text-white/70' : 'text-muted'}`}>₹</span>
                 )}
-                <span className="text-4xl font-bold text-foreground tracking-tight">
+                <span className={`text-4xl font-bold tracking-tight ${plan.featured ? 'text-white' : 'text-foreground'}`}>
                   {plan.price}
                 </span>
                 {plan.period && (
-                  <span className="text-sm text-muted">{plan.period}</span>
+                  <span className={`text-sm ${plan.featured ? 'text-white/70' : 'text-muted'}`}>
+                    {plan.period}
+                  </span>
                 )}
               </div>
 
               <ul className="flex flex-col gap-3 mb-8 flex-1">
-                {plan.features.map((f) => (
+                {plan.features.map((feature) => (
                   <li
-                    key={f}
-                    className="flex items-start gap-2.5 text-sm text-muted"
+                    key={feature}
+                    className={`flex items-start gap-3 text-sm ${
+                      plan.featured ? 'text-white/90' : 'text-muted'
+                    }`}
                   >
                     <Check
-                      size={16}
+                      size={18}
                       weight="bold"
-                      className="text-accent shrink-0 mt-0.5"
+                      className={`shrink-0 mt-0.5 ${plan.featured ? 'text-accent' : 'text-accent'}`}
                     />
-                    {f}
+                    {feature}
                   </li>
                 ))}
               </ul>
 
               <a
-                href="#cta"
-                className={`inline-flex items-center justify-center w-full py-3 rounded-full text-sm font-semibold transition-all duration-200 active:scale-[0.98] ${
+                href={plan.href}
+                className={`inline-flex items-center justify-center w-full py-3.5 rounded-full text-sm font-semibold transition-all duration-200 active:scale-[0.98] ${
                   plan.featured
-                    ? 'bg-accent text-accent-text hover:bg-accent-hover'
-                    : 'border border-border text-foreground hover:bg-surface-elevated'
+                    ? 'bg-accent text-white hover:bg-accent-hover shadow-lg shadow-accent/30'
+                    : 'border border-border text-foreground hover:bg-surface-bright hover:border-accent'
                 }`}
               >
                 {plan.cta}
               </a>
-            </GSAPReveal>
+            </motion.div>
           ))}
         </div>
       </div>

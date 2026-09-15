@@ -111,108 +111,33 @@ export const GiveAdvanceModal: React.FC<GiveAdvanceModalProps> = ({
   };
 
   return (
-    <div
-      className="modal-backdrop"
-      onClick={onClose}
-      style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.65)',
-        backdropFilter: 'blur(6px)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 9999,
-        padding: '20px'
-      }}
-    >
-      <div
-        className="modal-content"
-        onClick={e => e.stopPropagation()}
-        style={{
-          background: 'var(--surface)',
-          color: 'var(--text)',
-          borderRadius: '16px',
-          width: '100%',
-          maxWidth: '500px',
-          margin: 'auto',
-          border: '1px solid var(--border)',
-          boxShadow: '0 20px 50px rgba(0, 0, 0, 0.4), 0 0 0 1px var(--border)',
-          maxHeight: '90vh',
-          display: 'flex',
-          flexDirection: 'column',
-          overflow: 'hidden',
-          fontFamily: "'Poppins', sans-serif"
-        }}
-      >
-        {/* Modal Header matching Screenshot */}
-        <div
-          style={{
-            padding: '18px 22px',
-            borderBottom: '1px solid var(--border)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            background: 'var(--surface)'
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div
-              style={{
-                width: '38px',
-                height: '38px',
-                borderRadius: '10px',
-                background: 'rgba(217, 119, 6, 0.15)',
-                color: '#d97706',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexShrink: 0
-              }}
-            >
-              <Wallet size={20} />
-            </div>
-            <div>
-              <h2
-                style={{
-                  fontSize: '17.5px',
-                  fontWeight: 700,
-                  color: 'var(--text)',
-                  margin: 0,
-                  letterSpacing: '-0.01em'
-                }}
-              >
-                Give Driver Advance
-              </h2>
-              <div style={{ fontSize: '12px', color: 'var(--text-faint)', marginTop: '2px' }}>
-                Hand over advance cash or transfer to driver
-              </div>
-            </div>
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-dialog" onClick={e => e.stopPropagation()}>
+        <div className="modal-header">
+          <div className="modal-title-group">
+            <h3 className="modal-title">
+              <span className="modal-title-icon">
+                <Wallet size={16} />
+              </span>
+              Give driver advance
+            </h3>
+            <span className="modal-subtitle">
+              Hand over advance cash or transfer to driver
+            </span>
           </div>
           <button
             type="button"
+            className="modal-close-btn"
             onClick={onClose}
             disabled={isSubmitting}
-            style={{
-              background: 'none',
-              border: 'none',
-              color: 'var(--text-faint)',
-              cursor: 'pointer',
-              padding: '6px',
-              borderRadius: '6px',
-              display: 'flex'
-            }}
+            aria-label="Close"
           >
-            <X size={18} />
+            <X size={15} />
           </button>
         </div>
 
-        {/* Form Body */}
-        <form noValidate onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', flex: 1, overflowY: 'auto' }}>
-          <div style={{ padding: '20px 22px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <form noValidate onSubmit={handleSubmit}>
+          <div className="modal-body">
             {errorMsg && (
               <div
                 style={{
@@ -501,62 +426,28 @@ export const GiveAdvanceModal: React.FC<GiveAdvanceModalProps> = ({
                 alignItems: 'flex-start'
               }}
             >
-              <span style={{ color: '#3b82f6', fontSize: '13px', lineHeight: '18px' }}>ℹ️</span>
+              <Info size={15} color="#3b82f6" style={{ flexShrink: 0, marginTop: 1 }} />
               <div>
                 This advance will be automatically shown under the driver's running advance balance and will be deducted from their net payable monthly salary when settled.
               </div>
             </div>
           </div>
 
-          {/* Modal Footer matching screenshot */}
-          <div
-            style={{
-              padding: '14px 22px 18px 22px',
-              display: 'flex',
-              justifyContent: 'flex-end',
-              alignItems: 'center',
-              gap: '10px',
-              borderTop: '1px solid var(--border)',
-              background: 'var(--surface)'
-            }}
-          >
+          <div className="modal-footer">
             <button
               type="button"
+              className="btn-secondary"
               onClick={onClose}
               disabled={isSubmitting}
-              style={{
-                height: '38px',
-                padding: '0 18px',
-                borderRadius: '6px',
-                border: '1px solid var(--border)',
-                background: 'transparent',
-                color: 'var(--text)',
-                fontSize: '13px',
-                fontWeight: 500,
-                cursor: 'pointer',
-                fontFamily: "'Poppins', sans-serif"
-              }}
             >
               Cancel
             </button>
             <button
               type="submit"
+              className="btn-primary-action"
               disabled={isSubmitting}
-              style={{
-                height: '38px',
-                padding: '0 20px',
-                borderRadius: '6px',
-                border: 'none',
-                background: '#d97706',
-                color: '#ffffff',
-                fontSize: '13px',
-                fontWeight: 600,
-                cursor: 'pointer',
-                boxShadow: '0 1px 3px rgba(217, 119, 6, 0.3)',
-                fontFamily: "'Poppins', sans-serif"
-              }}
             >
-              {isSubmitting ? 'Recording...' : '+ Give Advance'}
+              {isSubmitting ? 'Recording...' : 'Give advance'}
             </button>
           </div>
         </form>

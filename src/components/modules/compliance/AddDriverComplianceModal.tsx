@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useFleet } from '../../../context/FleetContext';
-import {
+import { X,
   IdCard,
   UserCheck,
   HeartPulse,
@@ -202,7 +202,7 @@ export const AddDriverComplianceModal: React.FC<AddDriverComplianceModalProps> =
             </span>
           </div>
           <button className="modal-close-btn" onClick={handleClose} type="button">
-            ✕
+            <X size={15} />
           </button>
         </div>
 

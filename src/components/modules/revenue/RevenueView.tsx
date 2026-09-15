@@ -18,6 +18,7 @@ import { AddRevenueModal } from './AddRevenueModal';
 import { EditBookingModal } from '../bookings/EditBookingModal';
 import { TripFinancial } from '../../../types/fleet';
 import {
+  X,
   IndianRupee,
   Plus,
   Filter,
@@ -34,7 +35,8 @@ import {
   RefreshCw,
   Search,
   ChevronRight,
-  Layers
+  Layers,
+  Radio
 } from 'lucide-react';
 
 export const RevenueView: React.FC = () => {
@@ -187,15 +189,15 @@ export const RevenueView: React.FC = () => {
   const getStatusChip = (status: RevenuePaymentStatus) => {
     switch (status) {
       case 'Received':
-        return <span className="status-chip running" style={{ fontSize: '11px' }}>● Received</span>;
+        return <span className="status-chip running" style={{ fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}><Radio size={10} /> Received</span>;
       case 'Partial':
-        return <span className="status-chip idle" style={{ fontSize: '11px' }}>● Partial</span>;
+        return <span className="status-chip idle" style={{ fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}><Radio size={10} /> Partial</span>;
       case 'Overdue':
-        return <span className="status-chip offline" style={{ fontSize: '11px' }}>● Overdue</span>;
+        return <span className="status-chip offline" style={{ fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}><Radio size={10} /> Overdue</span>;
       default:
         return (
           <span className="status-chip" style={{ fontSize: '11px', background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8' }}>
-            ● Pending
+            <Radio size={10} /> Pending
           </span>
         );
     }
@@ -383,7 +385,7 @@ export const RevenueView: React.FC = () => {
                 setSearchQuery('');
               }}
             >
-              ✕ Clear Filters
+              <X size={15} /> Clear Filters
             </button>
           )}
         </div>

@@ -274,6 +274,21 @@ export const DriversView: React.FC = () => {
           </>
         ) : (
           <div className="driver-page-container">
+            {/* Header */}
+            <div className="driver-page-head">
+              <div>
+                <h1>Drivers</h1>
+                <p>View and manage driver accounts and activity</p>
+              </div>
+              <button
+                type="button"
+                className="btn-driver-main primary"
+                onClick={() => setIsModalOpen(true)}
+              >
+                + Add driver
+              </button>
+            </div>
+
             {/* Stats Row */}
             <div className="driver-stats-grid">
               <div className="driver-stat-card">
@@ -302,7 +317,7 @@ export const DriversView: React.FC = () => {
               <div className="driver-toolbar">
                 <div className="driver-toolbar-controls">
                   <div className="driver-search-wrap">
-                    <span className="search-icon">🔍</span>
+                    <Search size={15} className="search-icon" />
                     <input
                       type="text"
                       placeholder="Search by name or phone"
@@ -430,16 +445,7 @@ export const DriversView: React.FC = () => {
                     title="Bulk import drivers from Excel (.xlsx) spreadsheet"
                     onClick={() => setIsImportModalOpen(true)}
                   >
-                    <span>⬆ Import</span>
-                  </button>
-
-                  {/* Add Driver Button */}
-                  <button
-                    type="button"
-                    className="btn-driver-main primary"
-                    onClick={() => setIsModalOpen(true)}
-                  >
-                    + Add driver
+                    <Upload size={14} /> Import
                   </button>
                 </div>
               </div>
@@ -449,7 +455,7 @@ export const DriversView: React.FC = () => {
               {/* EMPTY STATE OR LIST */}
               {drivers.length === 0 ? (
                 <div className="driver-empty-box">
-                  <div className="icon">🧑‍✈️</div>
+                  <div className="icon"><Users size={24} /></div>
                   <h3>No drivers yet</h3>
                   <p>Add your first driver to start tracking duty status, attendance and payroll from one place.</p>
                   <div className="btn-row">
@@ -458,7 +464,7 @@ export const DriversView: React.FC = () => {
                       className="btn-driver-main"
                       onClick={() => setIsImportModalOpen(true)}
                     >
-                      ⬆ Import drivers
+                      <Upload size={14} /> Import drivers
                     </button>
                     <button
                       type="button"
@@ -471,7 +477,7 @@ export const DriversView: React.FC = () => {
                 </div>
               ) : paginatedDrivers.length === 0 ? (
                 <div className="driver-empty-box">
-                  <div className="icon">🔍</div>
+                  <div className="icon"><Search size={24} /></div>
                   <h3>No matching drivers</h3>
                   <p>Try adjusting your search query or filter options to find the driver you're looking for.</p>
                   <div className="btn-row">

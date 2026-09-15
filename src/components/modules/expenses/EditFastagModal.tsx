@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useFleet } from '../../../context/FleetContext';
-import { Edit3, CheckCircle2, Building2, Briefcase } from 'lucide-react';
+import { X, Edit3, CheckCircle2, Building2, Briefcase } from 'lucide-react';
 
 interface EditFastagModalProps {
   isOpen: boolean;
@@ -83,7 +83,7 @@ export const EditFastagModal: React.FC<EditFastagModalProps> = ({
             </span>
           </div>
           <button className="modal-close-btn" onClick={onClose} type="button">
-            ✕
+            <X size={15} />
           </button>
         </div>
 

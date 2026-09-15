@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useFleet } from '../../../context/FleetContext';
 import { StatCard } from '../../common/StatCard';
 import { AddDriverExpenseModal } from './AddDriverExpenseModal';
@@ -6,7 +6,7 @@ import { EditDriverExpenseModal } from './EditDriverExpenseModal';
 import { DriverExpenseCategory, DriverExpenseItem, TripExpenseRecord } from '../../../types/fleet';
 import { StatusDropdown, StatusOption } from '../../common/StatusDropdown';
 import { DatePicker } from '../../common/DatePicker';
-import {
+import { X,
   Calendar,
   CalendarDays,
   TrendingUp,
@@ -15,12 +15,9 @@ import {
   Trash2,
   ChevronLeft,
   ChevronRight,
-  ChevronDown,
   Loader2,
   ArrowUpRight,
-  Banknote,
-  Filter,
-  X
+  Banknote
 } from 'lucide-react';
 import { api } from '../../../services/api';
 
@@ -157,23 +154,6 @@ export const DriverExpensesView: React.FC = () => {
   const [driverFilter, setDriverFilter] = useState<string>('All');
   const [categoryFilter, setCategoryFilter] = useState<string>('All');
   const [statusFilter, setStatusFilter] = useState<string>('All');
-  const [isFilterOpen, setIsFilterOpen] = useState<boolean>(false);
-  const filterRef = useRef<HTMLDivElement>(null);
-
-  // Close filter dropdown popover on click outside
-  useEffect(() => {
-    const handleOutsideClick = (e: MouseEvent) => {
-      if (filterRef.current && !filterRef.current.contains(e.target as Node)) {
-        setIsFilterOpen(false);
-      }
-    };
-    if (isFilterOpen) {
-      document.addEventListener('mousedown', handleOutsideClick);
-    }
-    return () => {
-      document.removeEventListener('mousedown', handleOutsideClick);
-    };
-  }, [isFilterOpen]);
 
   // Modals & previews
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -713,367 +693,11 @@ export const DriverExpensesView: React.FC = () => {
         if (!d.transactionCount || d.transactionCount <= 0) return false;
         const matchSearch =
           d.driverName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          (d.vehicle ? d.vehicle.toLowerCase().includes(searchQuery.toLowerCase()) : false);
+          (d.vehicle && d.vehicle.toLowerCase().includes(searchQuery.toLowerCase()));
         const matchDriver = driverFilter === 'All' || d.driverName.toLowerCase() === driverFilter.toLowerCase();
         return matchSearch && matchDriver;
       });
   }, [selectedYear, drivers, yearlyExpenses, searchQuery, driverFilter]);
-
-  const renderFilterControls = () => {
-    const hasDriverFilter = driverFilter !== 'All';
-    const hasStatusFilter = timeFrame === 'daily' && statusFilter !== 'All';
-    const activeFilterCount = (hasDriverFilter ? 1 : 0) + (hasStatusFilter ? 1 : 0);
-
-    const currentMonthIST = todayIST().slice(0, 7);
-    const lastMonthObj = new Date();
-    lastMonthObj.setMonth(lastMonthObj.getMonth() - 1);
-    const lastMonthIST = `${lastMonthObj.getFullYear()}-${String(lastMonthObj.getMonth() + 1).padStart(2, '0')}`;
-
-    return (
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-        {/* Filter Trigger Button with Dropdown Popover */}
-        <div style={{ position: 'relative' }} ref={filterRef}>
-          <button
-            type="button"
-            className="btn-secondary"
-            onClick={() => setIsFilterOpen(prev => !prev)}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '6px 12px',
-              fontSize: '12.5px',
-              fontWeight: 550,
-              borderRadius: '6px',
-              borderColor: (isFilterOpen || activeFilterCount > 0) ? 'var(--accent)' : 'var(--border)',
-              background: (isFilterOpen || activeFilterCount > 0) ? 'rgba(56, 189, 248, 0.08)' : 'var(--surface)',
-              color: (isFilterOpen || activeFilterCount > 0) ? 'var(--accent)' : 'var(--text)',
-              cursor: 'pointer'
-            }}
-          >
-            <Filter size={13} />
-            <span>Filter</span>
-            {activeFilterCount > 0 && (
-              <span
-                style={{
-                  background: 'var(--accent)',
-                  color: '#fff',
-                  fontSize: '10.5px',
-                  fontWeight: 700,
-                  padding: '1px 5px',
-                  borderRadius: '10px',
-                  lineHeight: '1.2'
-                }}
-              >
-                {activeFilterCount}
-              </span>
-            )}
-            <ChevronDown
-              size={12}
-              style={{
-                transform: isFilterOpen ? 'rotate(180deg)' : 'none',
-                transition: 'transform 0.15s ease',
-                opacity: 0.8
-              }}
-            />
-          </button>
-
-          {/* Popover Dropdown */}
-          {isFilterOpen && (
-            <div
-              style={{
-                position: 'absolute',
-                top: 'calc(100% + 6px)',
-                left: 0,
-                zIndex: 100,
-                width: '320px',
-                background: 'var(--surface)',
-                border: '1px solid var(--border)',
-                borderRadius: '10px',
-                boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.25), 0 8px 10px -6px rgba(0, 0, 0, 0.2)',
-                padding: '14px',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '12px'
-              }}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border)', paddingBottom: '8px' }}>
-                <span style={{ fontSize: '13px', fontWeight: 650, color: 'var(--text)' }}>Filter Expenses</span>
-                {(hasDriverFilter || hasStatusFilter) && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setDriverFilter('All');
-                      setStatusFilter('All');
-                    }}
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      color: 'var(--accent)',
-                      fontSize: '11.5px',
-                      cursor: 'pointer',
-                      padding: 0,
-                      fontWeight: 600
-                    }}
-                  >
-                    Reset all
-                  </button>
-                )}
-              </div>
-
-              {/* Date / Period Filter */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
-                <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                  {timeFrame === 'monthly' ? 'Month' : timeFrame === 'daily' ? 'Date' : 'Year'}
-                </label>
-
-                {timeFrame === 'monthly' && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <button
-                        type="button"
-                        className="btn-secondary"
-                        onClick={() => shiftMonth(-1)}
-                        title="Previous month"
-                        style={{ padding: '6px 8px', height: '34px' }}
-                      >
-                        <ChevronLeft size={14} />
-                      </button>
-                      <input
-                        type="month"
-                        className="form-input"
-                        value={selectedMonth}
-                        onChange={e => e.target.value && setSelectedMonth(e.target.value)}
-                        style={{ flex: 1, height: '34px', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}
-                      />
-                      <button
-                        type="button"
-                        className="btn-secondary"
-                        onClick={() => shiftMonth(1)}
-                        title="Next month"
-                        style={{ padding: '6px 8px', height: '34px' }}
-                      >
-                        <ChevronRight size={14} />
-                      </button>
-                    </div>
-                    <div style={{ display: 'flex', gap: '6px' }}>
-                      <button
-                        type="button"
-                        className="btn-secondary"
-                        onClick={() => {
-                          setSelectedMonth(currentMonthIST);
-                          setDriverFilter('All');
-                        }}
-                        style={{ flex: 1, fontSize: '11.5px', padding: '4px', textAlign: 'center' }}
-                      >
-                        This month
-                      </button>
-                      <button
-                        type="button"
-                        className="btn-secondary"
-                        onClick={() => {
-                          setSelectedMonth(lastMonthIST);
-                          setDriverFilter('All');
-                        }}
-                        style={{ flex: 1, fontSize: '11.5px', padding: '4px', textAlign: 'center' }}
-                      >
-                        Last month
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {timeFrame === 'daily' && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <button
-                      type="button"
-                      className="btn-secondary"
-                      onClick={() => shiftDate(-1)}
-                      title="Previous day"
-                      style={{ padding: '6px 8px', height: '34px' }}
-                    >
-                      <ChevronLeft size={14} />
-                    </button>
-                    <div style={{ flex: 1 }}>
-                      <DatePicker value={selectedDate} onChange={date => date && setSelectedDate(date)} />
-                    </div>
-                    <button
-                      type="button"
-                      className="btn-secondary"
-                      onClick={() => shiftDate(1)}
-                      title="Next day"
-                      style={{ padding: '6px 8px', height: '34px' }}
-                    >
-                      <ChevronRight size={14} />
-                    </button>
-                    <button
-                      type="button"
-                      className="btn-secondary"
-                      onClick={() => setSelectedDate(todayIST())}
-                      style={{ padding: '6px 8px', fontSize: '11px', height: '34px' }}
-                    >
-                      Today
-                    </button>
-                  </div>
-                )}
-
-                {timeFrame === 'yearly' && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <button
-                      type="button"
-                      className="btn-secondary"
-                      onClick={() => shiftYear(-1)}
-                      title="Previous year"
-                      style={{ padding: '6px 8px', height: '34px' }}
-                    >
-                      <ChevronLeft size={14} />
-                    </button>
-                    <select
-                      className="form-input"
-                      value={selectedYear}
-                      onChange={e => setSelectedYear(e.target.value)}
-                      style={{ flex: 1, height: '34px', fontSize: '12px', fontWeight: 600 }}
-                    >
-                      <option value="2024">2024</option>
-                      <option value="2025">2025</option>
-                      <option value="2026">2026</option>
-                      <option value="2027">2027</option>
-                      <option value="2028">2028</option>
-                    </select>
-                    <button
-                      type="button"
-                      className="btn-secondary"
-                      onClick={() => shiftYear(1)}
-                      title="Next year"
-                      style={{ padding: '6px 8px', height: '34px' }}
-                    >
-                      <ChevronRight size={14} />
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              {/* Driver Filter */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
-                <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                  Driver
-                </label>
-                <select
-                  className={`form-input filter-select ${driverFilter !== 'All' ? 'filter-select--active' : ''}`}
-                  value={driverFilter}
-                  onChange={e => setDriverFilter(e.target.value)}
-                  style={{ width: '100%', height: '34px', fontSize: '12px' }}
-                >
-                  <option value="All">All drivers</option>
-                  {allAvailableDrivers.map(d => (
-                    <option key={d.id || d.name} value={d.name}>
-                      {d.name}{d.vehicle ? ` · ${d.vehicle}` : ''}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Status Filter (in daily mode) */}
-              {timeFrame === 'daily' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
-                  <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                    Status
-                  </label>
-                  <select
-                    className="form-input filter-select"
-                    value={statusFilter}
-                    onChange={e => setStatusFilter(e.target.value)}
-                    style={{ width: '100%', height: '34px', fontSize: '12px' }}
-                  >
-                    <option value="All">All status</option>
-                    <option value="Paid">Paid</option>
-                    <option value="Approved">Approved</option>
-                    <option value="Pending">Pending</option>
-                  </select>
-                </div>
-              )}
-
-              <button
-                type="button"
-                className="btn-primary"
-                onClick={() => setIsFilterOpen(false)}
-                style={{
-                  width: '100%',
-                  padding: '7px',
-                  fontSize: '12px',
-                  fontWeight: 600,
-                  borderRadius: '6px',
-                  justifyContent: 'center',
-                  marginTop: '4px'
-                }}
-              >
-                Apply
-              </button>
-            </div>
-          )}
-        </div>
-
-        {/* Active Selection Chips (Date & Driver) */}
-        <span
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '5px',
-            fontSize: '12px',
-            fontWeight: 600,
-            color: 'var(--text-dim)',
-            background: 'var(--surface-2, rgba(255, 255, 255, 0.05))',
-            padding: '4px 8px',
-            borderRadius: '5px',
-            border: '1px solid var(--border)'
-          }}
-        >
-          <Calendar size={12} style={{ color: 'var(--accent)' }} />
-          {timeFrame === 'monthly' && formattedMonthLabel}
-          {timeFrame === 'daily' && formattedDateLabel}
-          {timeFrame === 'yearly' && selectedYear}
-        </span>
-
-        {hasDriverFilter && (
-          <span
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '5px',
-              fontSize: '11.5px',
-              fontWeight: 600,
-              color: 'var(--accent)',
-              background: 'rgba(56, 189, 248, 0.1)',
-              padding: '4px 8px',
-              borderRadius: '5px',
-              border: '1px solid rgba(56, 189, 248, 0.25)'
-            }}
-          >
-            Driver: {driverFilter}
-            <button
-              type="button"
-              onClick={() => setDriverFilter('All')}
-              style={{
-                background: 'none',
-                border: 'none',
-                padding: 0,
-                cursor: 'pointer',
-                color: 'var(--accent)',
-                display: 'flex',
-                alignItems: 'center',
-                marginLeft: '2px'
-              }}
-              title="Clear driver filter"
-            >
-              <X size={12} />
-            </button>
-          </span>
-        )}
-
-        {isLoadingAnalytics && <Loader2 size={13} className="animate-spin" style={{ color: 'var(--accent)' }} />}
-      </div>
-    );
-  };
 
   return (
     <div className="module-page">
@@ -1120,10 +744,47 @@ export const DriverExpensesView: React.FC = () => {
             <StatCard label="Claims" value={`${dailyStats.count}`} />
           </div>
 
-          <div className="panel panel--table" style={{ overflow: 'visible' }}>
+          <div className="panel panel--table">
             <div className="module-filter-bar">
               <div className="module-filter-bar__group">
-                {renderFilterControls()}
+                <div className="period-nav">
+                  <button type="button" className="btn-secondary" onClick={() => shiftDate(-1)} title="Previous day">
+                    <ChevronLeft size={14} />
+                  </button>
+                  <DatePicker value={selectedDate} onChange={date => date && setSelectedDate(date)} />
+                  <button type="button" className="btn-secondary" onClick={() => shiftDate(1)} title="Next day">
+                    <ChevronRight size={14} />
+                  </button>
+                  <button type="button" className="btn-secondary" onClick={() => setSelectedDate(todayIST())}>
+                    Today
+                  </button>
+                  <span className="period-nav__label">{formattedDateLabel}</span>
+                </div>
+
+                <select
+                  className={`form-input filter-select ${driverFilter !== 'All' ? 'filter-select--active' : ''}`}
+                  value={driverFilter}
+                  onChange={e => setDriverFilter(e.target.value)}
+                >
+                  <option value="All">All drivers</option>
+                  {allAvailableDrivers.map(d => (
+                    <option key={d.id || d.name} value={d.name}>
+                      {d.name}{d.vehicle ? ` · ${d.vehicle}` : ''}
+                    </option>
+                  ))}
+                </select>
+
+                <select
+                  className="form-input filter-select"
+                  value={statusFilter}
+                  onChange={e => setStatusFilter(e.target.value)}
+                >
+                  <option value="All">All status</option>
+                  <option value="Paid">Paid</option>
+                  <option value="Approved">Approved</option>
+                  <option value="Pending">Pending</option>
+                </select>
+
               </div>
 
               {renderPayControls(filteredDailyExpenses)}
@@ -1200,16 +861,49 @@ export const DriverExpensesView: React.FC = () => {
       {timeFrame === 'monthly' && (
         <>
           <div className="stats-grid stats-grid--lean">
-            <StatCard label="Monthly total" value={formatINR(monthlyStats.total)} customColor="var(--accent)" />
-            <StatCard label="Paid out" value={formatINR(monthlyStats.paid)} />
-            <StatCard label="Due" value={formatINR(monthlyStats.pending + monthlyStats.approved)} />
-            <StatCard label="Claims" value={`${monthlyStats.count}`} />
+            <StatCard label={`Monthly total${monthlyStats.labelSuffix}`} value={formatINR(monthlyStats.total)} customColor="var(--accent)" />
+            <StatCard label={`Paid out${monthlyStats.labelSuffix}`} value={formatINR(monthlyStats.paid)} />
+            <StatCard label={`Due${monthlyStats.labelSuffix}`} value={formatINR(monthlyStats.pending + monthlyStats.approved)} />
+            <StatCard label={`Food & daily bata${monthlyStats.labelSuffix}`} value={formatINR(monthlyStats.bata)} />
+            <StatCard label={`Night halt & OT${monthlyStats.labelSuffix}`} value={formatINR(monthlyStats.nightHaltAndOT)} />
+            <StatCard label={`Claims${monthlyStats.labelSuffix}`} value={`${monthlyStats.count}`} />
           </div>
 
-          <div className="panel panel--table" style={{ overflow: 'visible' }}>
+          <div className="panel panel--table">
             <div className="module-filter-bar">
               <div className="module-filter-bar__group">
-                {renderFilterControls()}
+                <div className="period-nav">
+                  <button type="button" className="btn-secondary" onClick={() => shiftMonth(-1)} title="Previous month">
+                    <ChevronLeft size={14} />
+                  </button>
+                  <input
+                    type="month"
+                    className="form-input"
+                    value={selectedMonth}
+                    onChange={e => e.target.value && setSelectedMonth(e.target.value)}
+                    style={{ padding: '5px 10px', fontSize: '12.5px', fontWeight: 600, width: 'auto', cursor: 'pointer' }}
+                  />
+                  <button type="button" className="btn-secondary" onClick={() => shiftMonth(1)} title="Next month">
+                    <ChevronRight size={14} />
+                  </button>
+                  <span className="period-nav__label">{formattedMonthLabel}</span>
+                  {isLoadingAnalytics && <Loader2 size={14} className="animate-spin" style={{ color: 'var(--accent)' }} />}
+                </div>
+
+                <select
+                  className={`form-input filter-select ${driverFilter !== 'All' ? 'filter-select--active' : ''}`}
+                  value={driverFilter}
+                  onChange={e => setDriverFilter(e.target.value)}
+                  title="Filter by driver"
+                >
+                  <option value="All">All drivers</option>
+                  {allAvailableDrivers.map(d => (
+                    <option key={d.id || d.name} value={d.name}>
+                      {d.name}{d.vehicle ? ` · ${d.vehicle}` : ''}
+                    </option>
+                  ))}
+                </select>
+
               </div>
 
               <div className="filter-pills">
@@ -1423,10 +1117,43 @@ export const DriverExpensesView: React.FC = () => {
             <StatCard label="Claims" value={`${yearlyStats.count}`} />
           </div>
 
-          <div className="panel panel--table" style={{ overflow: 'visible' }}>
+          <div className="panel panel--table">
             <div className="module-filter-bar">
               <div className="module-filter-bar__group">
-                {renderFilterControls()}
+                <div className="period-nav">
+                  <button type="button" className="btn-secondary" onClick={() => shiftYear(-1)} title="Previous year">
+                    <ChevronLeft size={14} />
+                  </button>
+                  <select
+                    className="form-input"
+                    value={selectedYear}
+                    onChange={e => setSelectedYear(e.target.value)}
+                    style={{ padding: '5px 12px', fontSize: '13px', fontWeight: 600, width: 'auto' }}
+                  >
+                    <option value="2025">2025</option>
+                    <option value="2026">2026</option>
+                    <option value="2027">2027</option>
+                    <option value="2028">2028</option>
+                  </select>
+                  <button type="button" className="btn-secondary" onClick={() => shiftYear(1)} title="Next year">
+                    <ChevronRight size={14} />
+                  </button>
+                  {isLoadingAnalytics && <Loader2 size={14} className="animate-spin" style={{ color: 'var(--accent)' }} />}
+                </div>
+
+                <select
+                  className={`form-input filter-select ${driverFilter !== 'All' ? 'filter-select--active' : ''}`}
+                  value={driverFilter}
+                  onChange={e => setDriverFilter(e.target.value)}
+                >
+                  <option value="All">All drivers</option>
+                  {allAvailableDrivers.map(d => (
+                    <option key={d.id || d.name} value={d.name}>
+                      {d.name}{d.vehicle ? ` · ${d.vehicle}` : ''}
+                    </option>
+                  ))}
+                </select>
+
               </div>
             </div>
 
@@ -1604,7 +1331,7 @@ export const DriverExpensesView: React.FC = () => {
                 <FileText size={16} /> Receipt / Voucher Document
               </h3>
               <button className="modal-close-btn" onClick={() => setActiveReceipt(null)}>
-                ✕
+                <X size={15} />
               </button>
             </div>
             <div className="modal-body" style={{ alignItems: 'center', textAlign: 'center' }}>

@@ -402,7 +402,12 @@ export const VehicleDetailView: React.FC<VehicleDetailViewProps> = ({
                   gap: '2px'
                 }}
               >
-                <span style={{ fontSize: '7px', fontWeight: 900, lineHeight: 1 }}>🇮🇳</span>
+                <svg width="10" height="7" viewBox="0 0 16 11" aria-hidden="true" style={{ display: 'block' }}>
+                  <rect width="16" height="3.67" fill="#FF9933" />
+                  <rect y="3.67" width="16" height="3.67" fill="#FFFFFF" />
+                  <rect y="7.34" width="16" height="3.66" fill="#138808" />
+                  <circle cx="8" cy="5.5" r="1.3" fill="#000080" />
+                </svg>
                 <span style={{ fontSize: '9px', fontWeight: 900, letterSpacing: '0.5px' }}>IND</span>
               </div>
               <div

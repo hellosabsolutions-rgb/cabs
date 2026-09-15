@@ -1,219 +1,309 @@
 'use client';
 
-import { motion, useReducedMotion } from 'framer-motion';
+import { useRef, useEffect } from 'react';
 import Image from 'next/image';
-import {
-  ChartLineUp,
-  Bell,
-  CheckCircle,
-  Timer,
-  Truck,
-  GasPump,
-} from '@phosphor-icons/react';
+import { motion, useReducedMotion } from 'motion/react';
+import { gsap } from 'gsap';
+import { ArrowRight, Play } from '@phosphor-icons/react';
 
 const ease = [0.16, 1, 0.3, 1] as const;
 
-export function Hero() {
+// Phone mockup component for hero section
+function PhoneMockupHero({ 
+  imageSrc, 
+  alt, 
+  delay = 0,
+  className = '',
+  variant = 'dark',
+  isTrailing = false
+}: { 
+  imageSrc: string;
+  alt: string;
+  delay?: number;
+  className?: string;
+  variant?: 'dark' | 'light';
+  isTrailing?: boolean;
+}) {
   const reduce = useReducedMotion();
 
   return (
-    <section className="relative min-h-[100dvh] md:h-[100dvh] md:max-h-[100dvh] flex items-stretch md:items-center pt-16 pb-3 px-3 sm:px-4 md:px-6 overflow-hidden bg-bg">
-      <div className="relative w-full max-w-[1440px] mx-auto min-h-[calc(100dvh-5.5rem)] md:h-full md:max-h-[860px] hero-mesh rounded-[20px] md:rounded-[28px] border border-[#EBEBEB] shadow-[0_1px_40px_rgba(0,0,0,0.04)] overflow-hidden">
-        <div className="relative min-h-full md:h-full flex flex-col px-4 sm:px-6 md:px-10 lg:px-14 pt-8 sm:pt-10 md:pt-12 pb-5">
-          <div className="flex flex-col items-center text-center relative z-20 shrink-0">
+    <motion.div
+      initial={reduce ? false : { opacity: 0, y: 60, scale: isTrailing ? 0.95 : 1 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ duration: 0.8, delay, ease }}
+      className={`relative ${className}`}
+    >
+      {/* Glass morphism phone frame */}
+      <div 
+        className={`relative w-[220px] sm:w-[260px] h-[460px] sm:h-[540px] rounded-[36px] sm:rounded-[44px] p-[8px] backdrop-blur-xl ${
+          isTrailing ? 'shadow-xl' : 'shadow-2xl'
+        }`}
+        style={{ 
+          background: isTrailing 
+            ? 'linear-gradient(135deg, rgba(255,255,255,0.25), rgba(255,255,255,0.15))' 
+            : 'linear-gradient(135deg, rgba(255,255,255,0.35), rgba(255,255,255,0.25))',
+          border: '1px solid rgba(255,255,255,0.3)'
+        }}
+      >
+        {/* Screen with subtle glass inner border */}
+        <div 
+          className="relative w-full h-full rounded-[30px] sm:rounded-[38px] overflow-hidden"
+          style={{
+            background: variant === 'dark' 
+              ? 'linear-gradient(135deg, #0a0a0a, #1a1a1a)' 
+              : 'linear-gradient(135deg, #f9fafb, #ffffff)',
+            boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.1)'
+          }}
+        >
+          <Image
+            src={imageSrc}
+            alt={alt}
+            fill
+            className="object-contain object-top"
+            priority
+            sizes="(max-width: 640px) 220px, 260px"
+          />
+        </div>
+      </div>
+
+      {/* Enhanced glow effect - stronger for front phone */}
+      {!isTrailing && (
+        <div 
+          className="absolute -inset-6 rounded-[60px] blur-3xl -z-10 opacity-60"
+          style={{ 
+            background: 'radial-gradient(circle, rgba(22,135,245,0.5), rgba(96,165,250,0.35), rgba(147,197,253,0.2))'
+          }}
+        />
+      )}
+    </motion.div>
+  );
+}
+
+export function Hero() {
+  const reduce = useReducedMotion();
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const wordsRef = useRef<HTMLSpanElement[]>([]);
+
+  useEffect(() => {
+    if (reduce || !headingRef.current) return;
+
+    const ctx = gsap.context(() => {
+      gsap.fromTo(
+        wordsRef.current,
+        { y: 100, opacity: 0 },
+        {
+          y: 0,
+          opacity: 1,
+          duration: 1,
+          stagger: 0.08,
+          ease: 'power3.out',
+        }
+      );
+    }, headingRef);
+
+    return () => ctx.revert();
+  }, [reduce]);
+
+  const headingWords = ['Fleet', 'management', 'that', 'actually', 'works.'];
+
+  return (
+    <section className="hero-mesh relative min-h-[100dvh] flex items-center pt-20 pb-12 px-4 sm:px-6 overflow-hidden">
+      <div className="w-full max-w-[1400px] mx-auto">
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto] gap-12 lg:gap-6 items-center">
+          {/* Left content */}
+          <div className="max-w-[650px]">
+            {/* Badge */}
             <motion.div
-              initial={reduce ? false : { opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.5, ease }}
-              className="mb-4 md:mb-5"
+              initial={reduce ? false : { opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, ease }}
+              className="mb-6"
             >
-              <div className="flex h-10 w-10 md:h-12 md:w-12 items-center justify-center rounded-2xl bg-white/80 backdrop-blur-sm border border-[#E7E7E7] shadow-[0_2px_12px_rgba(0,0,0,0.06)]">
-                <svg width="22" height="22" viewBox="0 0 16 16" fill="none">
-                  <circle cx="5" cy="5" r="2.5" fill="#26B8D8" />
-                  <circle cx="11" cy="5" r="2.5" fill="#0B0B0B" />
-                  <circle cx="5" cy="11" r="2.5" fill="#0B0B0B" />
-                  <circle cx="11" cy="11" r="2.5" fill="#0B0B0B" />
-                </svg>
-              </div>
+              <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-accent/10 border border-accent/20 text-accent text-sm font-medium backdrop-blur-sm">
+                <span className="w-2 h-2 rounded-full bg-accent animate-pulse" />
+                Built for Indian fleet operators
+              </span>
             </motion.div>
 
-            <motion.h1
-              initial={reduce ? false : { opacity: 0, y: 24 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.7, delay: 0.1, ease }}
-              className="text-[1.85rem] sm:text-[2.25rem] md:text-[3.25rem] lg:text-[3.75rem] font-bold tracking-[-0.03em] leading-[1.1] text-[#0B0B0B] mb-2.5 md:mb-3"
+            {/* Main heading with GSAP word animation */}
+            <h1
+              ref={headingRef}
+              className="text-[2.25rem] sm:text-[2.75rem] md:text-[3.25rem] lg:text-[3.75rem] font-bold tracking-[-0.04em] leading-[1.1] text-foreground mb-6"
             >
-              Manage your fleet
-              <br />
-              <span className="text-[#A5A5A5]">all in one place</span>
-            </motion.h1>
+              {headingWords.map((word, i) => (
+                <span key={i} className="inline-block overflow-hidden mr-[0.25em]">
+                  <span
+                    ref={(el) => { if (el) wordsRef.current[i] = el; }}
+                    className={`inline-block ${i === 3 ? 'text-accent' : ''}`}
+                  >
+                    {word}
+                  </span>
+                </span>
+              ))}
+            </h1>
 
+            {/* Subheading */}
             <motion.p
               initial={reduce ? false : { opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.2, ease }}
-              className="text-[13px] sm:text-[15px] text-[#333] leading-relaxed max-w-[320px] sm:max-w-[400px] mb-5 md:mb-6 px-2"
+              transition={{ duration: 0.6, delay: 0.5, ease }}
+              className="text-base sm:text-lg md:text-xl text-muted leading-relaxed max-w-[520px] mb-8"
             >
-              Efficiently manage your fleet operations and boost productivity.
+              Department billing, trip profitability, FASTag, fuel logs, and compliance alerts.
+              All from one dashboard. No spreadsheets required.
             </motion.p>
 
-            <motion.a
-              href="#cta"
+            {/* CTA buttons */}
+            <motion.div
               initial={reduce ? false : { opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.3, ease }}
-              className="relative z-30 inline-flex items-center justify-center w-full max-w-[240px] sm:max-w-none sm:w-auto px-8 py-3.5 rounded-full bg-[#1687F5] text-white font-semibold text-[15px] hover:bg-[#1270D6] transition-all duration-200 active:scale-[0.97] shadow-[0_4px_20px_rgba(22,135,245,0.25)]"
+              transition={{ duration: 0.6, delay: 0.7, ease }}
+              className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4"
             >
-              Get free demo
-            </motion.a>
+              <a
+                href="/#inquiry"
+                className="group inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-full bg-accent text-white text-base font-semibold hover:bg-accent-hover transition-all duration-300 active:scale-[0.98] shadow-lg shadow-accent/25"
+              >
+                Get started free
+                <ArrowRight
+                  size={18}
+                  weight="bold"
+                  className="group-hover:translate-x-1 transition-transform duration-200"
+                />
+              </a>
+              <a
+                href="#platform"
+                className="group inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-full border border-border bg-white/80 backdrop-blur-sm text-foreground text-base font-medium hover:bg-white hover:border-accent/30 transition-all duration-300 active:scale-[0.98]"
+              >
+                <Play size={18} weight="fill" className="text-accent" />
+                Watch demo
+              </a>
+            </motion.div>
+
+            {/* Trust indicators */}
+            <motion.div
+              initial={reduce ? false : { opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.8, delay: 1 }}
+              className="mt-10 flex flex-wrap items-center gap-6"
+            >
+              <div className="flex items-center gap-2">
+                <div className="flex -space-x-2">
+                  {[1, 2, 3, 4].map((i) => (
+                    <div
+                      key={i}
+                      className="w-8 h-8 rounded-full bg-white border-2 border-white flex items-center justify-center text-[10px] font-bold text-muted shadow-sm"
+                    >
+                      {String.fromCharCode(64 + i)}
+                    </div>
+                  ))}
+                </div>
+                <span className="text-sm text-muted">500+ fleets</span>
+              </div>
+              <div className="h-6 w-px bg-border hidden sm:block" />
+              <div className="flex items-center gap-2">
+                <div className="flex items-center">
+                  {[1, 2, 3, 4, 5].map((i) => (
+                    <svg key={i} width="16" height="16" viewBox="0 0 24 24" fill="#F59E0B">
+                      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                    </svg>
+                  ))}
+                </div>
+                <span className="text-sm text-muted">4.9/5 rating</span>
+              </div>
+            </motion.div>
           </div>
 
-          <div className="relative flex-1 min-h-[200px] mt-5 md:mt-6 flex flex-col items-center justify-end">
-            <motion.div
-              initial={reduce ? false : { opacity: 0, x: 120 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 1.1, delay: 0.35, ease: [0.25, 1, 0.3, 1] }}
-              className="relative w-[92%] max-w-[360px] md:w-[72%] md:max-w-[520px] pointer-events-none"
-            >
-              <Image
-                src="/hero-car.png"
-                alt="Fleet vehicle — Maruti Suzuki Ertiga"
-                width={520}
-                height={295}
-                priority
-                className="w-full h-auto drop-shadow-[0_18px_36px_rgba(11,11,11,0.12)]"
-              />
-            </motion.div>
-
-            {/* Mobile stats — compact chips instead of floating cards */}
-            <motion.div
-              initial={reduce ? false : { opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.55, ease }}
-              className="grid grid-cols-2 gap-2 w-full mt-4 md:hidden"
-            >
-              <div className="bg-white/90 backdrop-blur-sm rounded-xl border border-[#EBEBEB] px-3 py-2.5 shadow-card">
-                <p className="text-[10px] text-[#A5A5A5] mb-0.5">Active vehicles</p>
-                <p className="text-sm font-bold text-[#0B0B0B]">37 running</p>
-              </div>
-              <div className="bg-white/90 backdrop-blur-sm rounded-xl border border-[#EBEBEB] px-3 py-2.5 shadow-card">
-                <p className="text-[10px] text-[#A5A5A5] mb-0.5">Revenue</p>
-                <p className="text-sm font-bold text-[#0B0B0B]">₹8.4L <span className="text-[10px] font-semibold text-[#1687F5]">+12%</span></p>
-              </div>
-            </motion.div>
-
-            <motion.div
-              initial={reduce ? false : { opacity: 0, x: -32 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.8, delay: 0.55, ease }}
-              className="absolute top-2 left-0 hidden md:block z-10"
-              style={{ animation: reduce ? undefined : 'float-slow 8s ease-in-out infinite' }}
-            >
-              <div className="relative">
-                <div className="bg-[#FFF36A] rounded-lg p-4 shadow-[0_4px_20px_rgba(0,0,0,0.08)] max-w-[168px] rotate-[-3deg]">
-                  <div className="w-4 h-1 bg-[#F15B4A] rounded-full mb-2 mx-auto" />
-                  <p className="text-[11px] text-[#333] leading-[1.55]">
-                    Track fleet, manage billing, and stay compliant with ease.
-                  </p>
-                </div>
-                <div className="absolute -bottom-4 -right-3 w-10 h-10 rounded-xl bg-[#1687F5] flex items-center justify-center shadow-lg">
-                  <CheckCircle size={20} weight="fill" className="text-white" />
-                </div>
-              </div>
-            </motion.div>
-
-            <motion.div
-              initial={reduce ? false : { opacity: 0, x: 32 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.8, delay: 0.6, ease }}
-              className="absolute top-0 right-0 hidden md:block z-10"
-              style={{ animation: reduce ? undefined : 'float 7s ease-in-out infinite 1s' }}
-            >
-              <div className="bg-white/90 backdrop-blur-sm rounded-2xl border border-[#EBEBEB] p-4 shadow-[0_4px_24px_rgba(0,0,0,0.06)] w-[200px]">
-                <div className="flex items-center gap-2.5 mb-3">
-                  <div className="w-8 h-8 rounded-full bg-[#F7F7F7] border border-[#E7E7E7] flex items-center justify-center">
-                    <Timer size={16} weight="fill" className="text-[#0B0B0B]" />
-                  </div>
-                  <span className="text-[13px] font-bold text-[#0B0B0B]">Reminders</span>
-                </div>
-                <div className="space-y-2.5">
-                  <div>
-                    <p className="text-[11px] font-semibold text-[#0B0B0B]">Insurance Renewal</p>
-                    <p className="text-[10px] text-[#A5A5A5]">DL 1S 1234 · Expiring soon</p>
-                    <div className="mt-1 inline-flex items-center gap-1 px-2 py-0.5 rounded bg-[#F15B4A]/10 text-[#F15B4A] text-[9px] font-semibold">
-                      <Bell size={8} weight="fill" /> 3 days left
-                    </div>
-                  </div>
-                  <div className="h-px bg-[#F0F0F0]" />
-                  <div>
-                    <p className="text-[11px] font-semibold text-[#0B0B0B]">PUC Certificate</p>
-                    <div className="mt-1 inline-flex items-center gap-1 px-2 py-0.5 rounded bg-[#1687F5]/10 text-[#1687F5] text-[9px] font-semibold">
-                      <Timer size={8} weight="fill" /> 12 days
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-
-            <motion.div
-              initial={reduce ? false : { opacity: 0, y: 28 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, delay: 0.7, ease }}
-              className="absolute bottom-3 left-0 hidden md:block z-10"
-              style={{ animation: reduce ? undefined : 'float-reverse 6s ease-in-out infinite' }}
-            >
-              <div className="bg-white/90 backdrop-blur-sm rounded-2xl border border-[#EBEBEB] p-4 shadow-[0_4px_24px_rgba(0,0,0,0.06)] w-[214px]">
-                <p className="text-[13px] font-bold text-[#0B0B0B] mb-3">Today&apos;s fleet</p>
-                <div className="space-y-3">
-                  <div className="flex items-center gap-3">
-                    <div className="w-7 h-7 rounded-lg bg-[#1687F5]/10 flex items-center justify-center shrink-0">
-                      <Truck size={14} weight="fill" className="text-[#1687F5]" />
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-[10px] text-[#A5A5A5] mb-1">Active vehicles</p>
-                      <div className="h-[5px] bg-[#F0F0F0] rounded-full">
-                        <div className="h-full w-[78%] bg-[#1687F5] rounded-full" />
-                      </div>
-                    </div>
-                    <span className="text-[12px] font-bold text-[#0B0B0B]">37</span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <div className="w-7 h-7 rounded-lg bg-[#F15B4A]/10 flex items-center justify-center shrink-0">
-                      <GasPump size={14} weight="fill" className="text-[#F15B4A]" />
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-[10px] text-[#A5A5A5] mb-1">Fuel logged</p>
-                      <div className="h-[5px] bg-[#F0F0F0] rounded-full">
-                        <div className="h-full w-[62%] bg-[#F15B4A] rounded-full" />
-                      </div>
-                    </div>
-                    <span className="text-[12px] font-bold text-[#0B0B0B]">112L</span>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-
-            <motion.div
-              initial={reduce ? false : { opacity: 0, y: 28 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, delay: 0.8, ease }}
-              className="absolute bottom-3 right-0 hidden md:block z-10"
-              style={{ animation: reduce ? undefined : 'float 6s ease-in-out infinite 0.5s' }}
-            >
-              <div className="bg-white/90 backdrop-blur-sm rounded-2xl border border-[#EBEBEB] p-4 shadow-[0_4px_24px_rgba(0,0,0,0.06)] w-[176px]">
-                <div className="flex items-center gap-2 mb-2">
-                  <ChartLineUp size={16} weight="bold" className="text-[#1687F5]" />
-                  <span className="text-[13px] font-bold text-[#0B0B0B]">Revenue</span>
-                </div>
-                <p className="text-[28px] font-bold text-[#0B0B0B] tracking-tight leading-none mb-1">
-                  ₹8.4L
-                </p>
-                <p className="text-[11px] text-[#1687F5] font-semibold">+12.3% this month</p>
-              </div>
-            </motion.div>
+          {/* Right content - Phone mockups with trailing effect */}
+          <div className="hidden lg:flex items-center justify-center relative h-[600px] w-[500px]">
+            {/* Home screen - Trailing/Background phone (behind) */}
+            <PhoneMockupHero
+              imageSrc="/app-home-dark.png"
+              alt="KABPRO Driver App - Home Dashboard"
+              delay={0.2}
+              variant="dark"
+              isTrailing={true}
+              className="absolute left-0 top-0 z-10"
+            />
+            
+            {/* Trip screen - Front/Primary phone (in front) */}
+            <PhoneMockupHero
+              imageSrc="/app-trip-dark.png"
+              alt="KABPRO Driver App - Trip Tracking"
+              delay={0.4}
+              variant="dark"
+              isTrailing={false}
+              className="absolute right-0 top-12 z-20"
+            />
           </div>
         </div>
       </div>
+
+      {/* Mobile mockups for smaller screens */}
+      <motion.div
+        initial={reduce ? false : { opacity: 0, y: 30 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, delay: 0.8, ease }}
+        className="lg:hidden absolute bottom-28 right-2 sm:right-6 flex items-end"
+      >
+        {/* Home screen - trailing/back */}
+        <div 
+          className="relative w-[90px] sm:w-[110px] h-[190px] sm:h-[230px] rounded-[18px] sm:rounded-[22px] p-1 shadow-lg -mr-8 mb-6 backdrop-blur-xl"
+          style={{
+            background: 'linear-gradient(135deg, rgba(255,255,255,0.25), rgba(255,255,255,0.15))',
+            border: '1px solid rgba(255,255,255,0.2)'
+          }}
+        >
+          <div 
+            className="relative w-full h-full rounded-[16px] sm:rounded-[20px] overflow-hidden"
+            style={{ background: 'linear-gradient(135deg, #0a0a0a, #1a1a1a)' }}
+          >
+            <Image
+              src="/app-home-dark.png"
+              alt="KABPRO Driver App - Home Dashboard"
+              fill
+              className="object-contain object-top"
+            />
+          </div>
+        </div>
+        {/* Trip screen - front */}
+        <div 
+          className="relative w-[100px] sm:w-[120px] h-[210px] sm:h-[250px] rounded-[20px] sm:rounded-[24px] p-1 shadow-xl z-10 backdrop-blur-xl"
+          style={{
+            background: 'linear-gradient(135deg, rgba(255,255,255,0.35), rgba(255,255,255,0.25))',
+            border: '1px solid rgba(255,255,255,0.3)'
+          }}
+        >
+          <div 
+            className="relative w-full h-full rounded-[18px] sm:rounded-[22px] overflow-hidden"
+            style={{ background: 'linear-gradient(135deg, #0a0a0a, #1a1a1a)' }}
+          >
+            <Image
+              src="/app-trip-dark.png"
+              alt="KABPRO Driver App - Trip Tracking"
+              fill
+              className="object-contain object-top"
+            />
+          </div>
+        </div>
+      </motion.div>
+
+      {/* Scroll indicator */}
+      <motion.div
+        initial={reduce ? false : { opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.6, delay: 1.2 }}
+        className="absolute bottom-6 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2"
+      >
+        <span className="text-xs text-muted">Scroll to explore</span>
+        <motion.div
+          animate={{ y: [0, 8, 0] }}
+          transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
+          className="w-5 h-8 rounded-full border-2 border-border bg-white/50 backdrop-blur-sm flex items-start justify-center p-1"
+        >
+          <div className="w-1 h-2 rounded-full bg-accent" />
+        </motion.div>
+      </motion.div>
     </section>
   );
 }

@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useFleet } from '../../../context/FleetContext';
 import { TripExpenseCategory } from '../../../types/fleet';
-import { IndianRupee, Receipt } from 'lucide-react';
+import { X, IndianRupee, Receipt } from 'lucide-react';
 import { DatePicker } from '../../common/DatePicker';
 import { uploadFileToCloudinary } from '../../../services/uploadService';
 import { ACCEPT_DOC_TYPES, isPdfDocument } from '../../../utils/fileUtils';
@@ -148,7 +148,7 @@ export const AddTripExpenseModal: React.FC<AddTripExpenseModalProps> = ({
             </span>
           </div>
           <button className="modal-close-btn" onClick={onClose} type="button">
-            ✕
+            <X size={15} />
           </button>
         </div>
 

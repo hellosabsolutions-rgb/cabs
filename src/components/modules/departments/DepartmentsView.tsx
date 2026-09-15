@@ -1,34 +1,108 @@
-import React, { useMemo } from 'react';
-import { useLocation } from 'react-router-dom';
+import React from 'react';
 import { useFleet } from '../../../context/FleetContext';
 import { ContractsListView } from './ContractsListView';
 import { DailyDutyLogsView } from './DailyDutyLogsView';
 import { MonthlyBillingView } from './MonthlyBillingView';
 import { WeekendBillingView } from './WeekendBillingView';
 import { DepartmentPaymentsView } from './DepartmentPaymentsView';
+import { FileText, ClipboardList, ReceiptText, CreditCard, Briefcase } from 'lucide-react';
 import { SkeletonCard, SkeletonTable, SoftRefreshBar } from '../../common/Skeleton';
 
 export const DepartmentsView: React.FC = () => {
-  const { departmentSubTab } = useFleet();
-  const location = useLocation();
+  const {
+    departmentSubTab,
+    setDepartmentSubTab,
+    departmentContracts,
+    dailyDutyLogs,
+    monthlyBills,
+    departmentPayments,
+    isLoadingDepartments
+  } = useFleet();
 
-  const activeTab = useMemo(() => {
-    if (location.pathname.includes('/duty-logs')) return 'duty-logs';
-    if (location.pathname.includes('/billing')) return 'billing';
-    if (location.pathname.includes('/weekend-billing')) return 'weekend-billing';
-    if (location.pathname.includes('/payments')) return 'payments';
-    if (location.pathname.includes('/contracts')) return 'contracts';
-    return departmentSubTab || 'duty-logs';
-  }, [location.pathname, departmentSubTab]);
+  const totalMonthlyBilled = monthlyBills.reduce((acc, curr) => acc + curr.totalBill, 0);
+  const weekendTripsCount = dailyDutyLogs.filter(l => l.dutyType === 'Weekend / Off-Duty Trip').length;
+
+  // First-time load: show full skeleton
+  if (isLoadingDepartments && departmentContracts.length === 0 && dailyDutyLogs.length === 0) {
+    return (
+      <div className="section active module-page">
+        <SkeletonCard count={4} />
+        <SkeletonTable rows={5} columns={6} />
+      </div>
+    );
+  }
 
   return (
-    <div className="section active module-page" style={{ padding: 0 }}>
-      {/* Render Active Department View directly without unmounting */}
-      {activeTab === 'contracts' && <ContractsListView />}
-      {activeTab === 'duty-logs' && <DailyDutyLogsView />}
-      {activeTab === 'billing' && <MonthlyBillingView />}
-      {activeTab === 'weekend-billing' && <WeekendBillingView />}
-      {activeTab === 'payments' && <DepartmentPaymentsView />}
+    <div className="section active module-page">
+      <SoftRefreshBar visible={isLoadingDepartments && (departmentContracts.length > 0 || dailyDutyLogs.length > 0)} label="Syncing department data…" />
+      {/* Department Sub-Tabs Navigation */}
+      <div className="subtab-nav">
+        <button
+          className={`subtab-btn ${departmentSubTab === 'contracts' ? 'active' : ''}`}
+          onClick={() => setDepartmentSubTab('contracts')}
+        >
+          <FileText size={16} />
+          Contracts
+          <span className="subtab-counter">{departmentContracts.length}</span>
+        </button>
+
+        <button
+          className={`subtab-btn ${departmentSubTab === 'duty-logs' ? 'active' : ''}`}
+          onClick={() => setDepartmentSubTab('duty-logs')}
+        >
+          <ClipboardList size={16} />
+          Daily duty logs
+          <span className="subtab-counter">{dailyDutyLogs.length} slips</span>
+        </button>
+
+        <button
+          className={`subtab-btn ${departmentSubTab === 'billing' ? 'active' : ''}`}
+          onClick={() => setDepartmentSubTab('billing')}
+        >
+          <ReceiptText size={16} />
+          Monthly billing
+          <span className="subtab-counter">
+            ₹{totalMonthlyBilled.toLocaleString('en-IN')}
+          </span>
+        </button>
+
+        <button
+          className={`subtab-btn ${departmentSubTab === 'weekend-billing' ? 'active' : ''}`}
+          onClick={() => setDepartmentSubTab('weekend-billing')}
+          style={{
+            borderColor: departmentSubTab === 'weekend-billing' ? '#800020' : undefined,
+            color: departmentSubTab === 'weekend-billing' ? '#800020' : undefined
+          }}
+        >
+          <Briefcase size={16} color={departmentSubTab === 'weekend-billing' ? '#800020' : undefined} />
+          Sat-Sun Off Duty Billing
+          <span
+            className="subtab-counter"
+            style={{
+              background: departmentSubTab === 'weekend-billing' ? '#800020' : undefined,
+              color: departmentSubTab === 'weekend-billing' ? '#ffffff' : undefined
+            }}
+          >
+            {weekendTripsCount} trips
+          </span>
+        </button>
+
+        <button
+          className={`subtab-btn ${departmentSubTab === 'payments' ? 'active' : ''}`}
+          onClick={() => setDepartmentSubTab('payments')}
+        >
+          <CreditCard size={16} />
+          Payments
+          <span className="subtab-counter">{departmentPayments.length}</span>
+        </button>
+      </div>
+
+      {/* Render Active Department View */}
+      {departmentSubTab === 'contracts' && <ContractsListView />}
+      {departmentSubTab === 'duty-logs' && <DailyDutyLogsView />}
+      {departmentSubTab === 'billing' && <MonthlyBillingView />}
+      {departmentSubTab === 'weekend-billing' && <WeekendBillingView />}
+      {departmentSubTab === 'payments' && <DepartmentPaymentsView />}
     </div>
   );
 };

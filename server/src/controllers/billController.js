@@ -1,66 +1,156 @@
 import { MonthlyBill } from '../models/MonthlyBill.js';
 import { DailyDutyLog } from '../models/DailyDutyLog.js';
+import { DepartmentContract } from '../models/DepartmentContract.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
+import { broadcastAll } from '../services/socketService.js';
+import {
+  aggregateOfficialDutyLogs,
+  calculateMonthlyTenderFinancials
+} from '../utils/monthlyBillCalculator.js';
+import mongoose from 'mongoose';
+
+function serializeBill(doc) {
+  const json = doc?.toObject ? doc.toObject() : { ...doc };
+  json.id = json.id || json._id?.toString();
+  if (json._id) delete json._id;
+  return json;
+}
+
+function emitBillEvent(action, bill) {
+  broadcastAll(`bill:${action}`, { bill: serializeBill(bill) });
+}
 
 /**
  * Helper to compute tax and totals for a bill
  */
 export const calculateBillFinancials = (data) => {
-  const baseContractAmount = Number(data.baseContractAmount) || 0;
-  const extraKmCost = Number(data.extraKmCost) || 0;
-  const extraHoursCost = Number(data.extraHoursCost) || 0;
-  const extraDriverAllowance = Number(data.extraDriverAllowance) || 0;
-  const fuelCost = Number(data.fuelCost) || 0;
-  const nightCost = Number(data.nightCost) || 0;
-  const tollParkingCost = Number(data.tollParkingCost) || 0;
+  const billType = data.billType || 'Monthly Tender Rent';
+  if (billType === 'Weekend / Off-Duty Cash Memo') {
+    const baseContractAmount = Number(data.baseContractAmount) || 0;
+    const extraKmCost = Number(data.extraKmCost) || 0;
+    const extraHoursCost = Number(data.extraHoursCost) || 0;
+    const extraDriverAllowance = Number(data.extraDriverAllowance) || 0;
+    const fuelCost = Number(data.fuelCost) || 0;
+    const nightCost = Number(data.nightCost) || 0;
+    const tollParkingCost = Number(data.tollParkingCost) || 0;
 
-  const subtotal =
-    baseContractAmount +
-    extraKmCost +
-    extraHoursCost +
-    extraDriverAllowance +
-    fuelCost +
-    nightCost +
-    tollParkingCost;
+    const subtotal =
+      baseContractAmount +
+      extraKmCost +
+      extraHoursCost +
+      extraDriverAllowance +
+      fuelCost +
+      nightCost +
+      tollParkingCost;
 
-  const gstRate = Number(data.gstRate) || 0;
-  const gstType = data.gstType || 'CGST_SGST';
-  const gstTaxableOn = data.gstTaxableOn || 'TOTAL';
+    const gstRate = Number(data.gstRate) || 0;
+    const gstType = data.gstType || 'CGST_SGST';
+    const gstTaxableOn = data.gstTaxableOn || 'TOTAL';
 
-  const taxableBase = gstTaxableOn === 'RENT_ONLY' ? baseContractAmount : subtotal;
-  const gstAmount = Math.round((taxableBase * gstRate) / 100);
+    const taxableBase = gstTaxableOn === 'RENT_ONLY' ? baseContractAmount : subtotal;
+    const gstAmount = Math.round((taxableBase * gstRate) / 100);
 
-  let cgstAmount = 0;
-  let sgstAmount = 0;
-  let igstAmount = 0;
+    let cgstAmount = 0;
+    let sgstAmount = 0;
+    let igstAmount = 0;
 
-  if (gstRate > 0) {
-    if (gstType === 'IGST') {
-      igstAmount = gstAmount;
-    } else {
-      cgstAmount = Math.round(gstAmount / 2);
-      sgstAmount = gstAmount - cgstAmount;
+    if (gstRate > 0) {
+      if (gstType === 'IGST') {
+        igstAmount = gstAmount;
+      } else {
+        cgstAmount = Math.round(gstAmount / 2);
+        sgstAmount = gstAmount - cgstAmount;
+      }
     }
+
+    const totalBill = subtotal + gstAmount;
+    const paidAmount = Number(data.paidAmount) || 0;
+    const balanceDue = Math.max(0, totalBill - paidAmount);
+
+    return {
+      subtotal,
+      gstRate,
+      gstType,
+      gstTaxableOn,
+      gstAmount,
+      cgstAmount,
+      sgstAmount,
+      igstAmount,
+      totalBill,
+      paidAmount,
+      balanceDue
+    };
   }
 
-  const totalBill = subtotal + gstAmount;
-  const paidAmount = Number(data.paidAmount) || 0;
-  const balanceDue = Math.max(0, totalBill - paidAmount);
+  return calculateMonthlyTenderFinancials(data);
+};
+
+async function loadContract(contractId) {
+  if (!contractId) return null;
+  if (mongoose.Types.ObjectId.isValid(contractId)) {
+    return DepartmentContract.findById(contractId);
+  }
+  return DepartmentContract.findOne({ contractNumber: contractId });
+}
+
+async function fetchOfficialLogsForMonth(contract, billingMonth) {
+  const monthRegex = new RegExp(`^${billingMonth}`);
+  return DailyDutyLog.find({
+    departmentName: contract.departmentName,
+    vehicle: contract.vehicle,
+    dutyType: 'Official Department Duty',
+    date: { $regex: monthRegex },
+    $and: [
+      { $or: [{ billingStatus: 'Unbilled' }, { billingStatus: { $exists: false } }] },
+      { $or: [{ monthlyBillId: null }, { monthlyBillId: { $exists: false } }, { monthlyBillId: '' }] }
+    ]
+  }).lean();
+}
+
+async function buildMonthlyPreview({ contractId, billingMonth, gstRate, gstType, gstTaxableOn }) {
+  const contract = await loadContract(contractId);
+  if (!contract) {
+    const err = new Error('Department contract not found.');
+    err.statusCode = 404;
+    throw err;
+  }
+
+  const logs = await fetchOfficialLogsForMonth(contract, billingMonth);
+  const agg = aggregateOfficialDutyLogs(logs, contract);
+
+  const dutyStartDate = logs.length ? logs.map((l) => l.date).sort()[0] : `${billingMonth}-01`;
+  const dutyEndDate = logs.length ? logs.map((l) => l.date).sort().slice(-1)[0] : `${billingMonth}-28`;
+
+  const financialInput = {
+    billType: 'Monthly Tender Rent',
+    baseContractAmount: agg.baseContractAmount,
+    extraKmCost: agg.extraKmCost,
+    extraHoursCost: agg.extraHoursCost,
+    extraDriverAllowance: agg.extraDriverAllowance,
+    fuelCost: agg.fuelCost,
+    nightCount: agg.nightCount,
+    nightRate: agg.nightRate,
+    nightCost: agg.nightCost,
+    tollParkingCost: agg.tollParkingCost,
+    totalKmRun: agg.totalKmRun,
+    gstRate: gstRate !== undefined ? Number(gstRate) : 5,
+    gstType: gstType || 'CGST_SGST',
+    gstTaxableOn: gstTaxableOn || 'BASE_AND_NIGHT'
+  };
+
+  const financials = calculateMonthlyTenderFinancials(financialInput);
 
   return {
-    subtotal,
-    gstRate,
-    gstType,
-    gstTaxableOn,
-    gstAmount,
-    cgstAmount,
-    sgstAmount,
-    igstAmount,
-    totalBill,
-    paidAmount,
-    balanceDue
+    contract: serializeBill(contract),
+    billingMonth,
+    dutyStartDate,
+    dutyEndDate,
+    logsUsed: agg.logCount,
+    dutyLogIds: agg.logIds,
+    ...agg,
+    ...financials
   };
-};
+}
 
 // @desc    Get all monthly bills (with auto-seed if empty)
 // @route   GET /api/bills
@@ -159,6 +249,7 @@ export const createBill = asyncHandler(async (req, res) => {
   };
 
   const newBill = await MonthlyBill.create(billData);
+  emitBillEvent('created', newBill);
 
   // If this bill is generated from a Weekend Duty Log, link and update it
   if (req.body.dailyDutyLogId) {
@@ -187,11 +278,19 @@ export const updateBill = asyncHandler(async (req, res) => {
     return res.status(404).json({ success: false, error: 'Bill not found' });
   }
 
+  if (bill.locked && !req.body.adminOverride) {
+    return res.status(403).json({
+      success: false,
+      error: 'This invoice is locked after generation. Unlock with admin override to edit line items.'
+    });
+  }
+
   const merged = { ...bill.toObject(), ...req.body };
   const financials = calculateBillFinancials(merged);
 
   Object.assign(bill, req.body, financials);
   await bill.save();
+  emitBillEvent('updated', bill);
 
   res.status(200).json({
     success: true,
@@ -221,6 +320,7 @@ export const updateBillStatus = asyncHandler(async (req, res) => {
   }
 
   await bill.save();
+  emitBillEvent('updated', bill);
 
   res.status(200).json({
     success: true,
@@ -228,10 +328,163 @@ export const updateBillStatus = asyncHandler(async (req, res) => {
   });
 });
 
+// @desc    Preview monthly tender bill from duty logs + contract
+// @route   POST /api/bills/preview-monthly
+export const previewMonthlyBill = asyncHandler(async (req, res) => {
+  const { contractId, billingMonth, gstRate, gstType, gstTaxableOn } = req.body;
+  if (!contractId || !billingMonth) {
+    return res.status(400).json({ success: false, error: 'contractId and billingMonth (YYYY-MM) are required.' });
+  }
+
+  const preview = await buildMonthlyPreview({ contractId, billingMonth, gstRate, gstType, gstTaxableOn });
+  res.status(200).json({ success: true, data: preview });
+});
+
+// @desc    Generate & lock monthly tender bill from duty logs
+// @route   POST /api/bills/generate-monthly
+export const generateMonthlyBill = asyncHandler(async (req, res) => {
+  const {
+    contractId,
+    billingMonth,
+    gstRate,
+    gstType,
+    gstTaxableOn,
+    status = 'Sent',
+    dueDate,
+    partyGstin,
+    billNumber: customBillNumber,
+    extraDriverAllowance = 0
+  } = req.body;
+
+  if (!contractId || !billingMonth) {
+    return res.status(400).json({ success: false, error: 'contractId and billingMonth (YYYY-MM) are required.' });
+  }
+
+  const contract = await loadContract(contractId);
+  if (!contract) {
+    return res.status(404).json({ success: false, error: 'Department contract not found.' });
+  }
+
+  const duplicate = await MonthlyBill.findOne({
+    contractId: contract._id.toString(),
+    billingMonth,
+    billType: 'Monthly Tender Rent'
+  });
+  if (duplicate) {
+    return res.status(409).json({
+      success: false,
+      error: `Invoice already exists for ${contract.departmentName} in ${billingMonth}.`,
+      data: serializeBill(duplicate)
+    });
+  }
+
+  const preview = await buildMonthlyPreview({ contractId, billingMonth, gstRate, gstType, gstTaxableOn });
+  if (preview.logsUsed === 0) {
+    return res.status(400).json({
+      success: false,
+      error: 'No unbilled official duty logs found for this contract and month.'
+    });
+  }
+
+  const billNumber =
+    customBillNumber?.trim() ||
+    `INV-${billingMonth}-${contract.departmentName.substring(0, 3).toUpperCase()}-${contract.vehicle.replace(/\s+/g, '').slice(-4)}`;
+
+  const financialInput = {
+    billType: 'Monthly Tender Rent',
+    baseContractAmount: preview.baseContractAmount,
+    extraKmCost: preview.extraKmCost,
+    extraHoursCost: preview.extraHoursCost,
+    extraDriverAllowance: Number(extraDriverAllowance) || 0,
+    fuelCost: 0,
+    nightCount: preview.nightCount,
+    nightRate: preview.nightRate,
+    nightCost: preview.nightCost,
+    tollParkingCost: preview.tollParkingCost,
+    gstRate: preview.gstRate,
+    gstType: preview.gstType,
+    gstTaxableOn: preview.gstTaxableOn,
+    paidAmount: status === 'Paid' ? preview.totalBill : 0
+  };
+  const financials = calculateMonthlyTenderFinancials(financialInput);
+
+  const due =
+    dueDate ||
+    (() => {
+      const d = new Date();
+      d.setDate(d.getDate() + 15);
+      return d.toISOString().split('T')[0];
+    })();
+
+  const newBill = await MonthlyBill.create({
+    billNumber,
+    billType: 'Monthly Tender Rent',
+    contractId: contract._id.toString(),
+    dutyLogIds: preview.dutyLogIds,
+    departmentName: contract.departmentName,
+    vehicle: contract.vehicle,
+    billingMonth,
+    dutyStartDate: preview.dutyStartDate,
+    dutyEndDate: preview.dutyEndDate,
+    baseContractAmount: preview.baseContractAmount,
+    totalKmRun: preview.totalKmRun,
+    extraKmCost: preview.extraKmCost,
+    extraHoursCost: preview.extraHoursCost,
+    extraDriverAllowance: Number(extraDriverAllowance) || 0,
+    fuelCost: 0,
+    nightCount: preview.nightCount,
+    nightRate: preview.nightRate,
+    nightCost: preview.nightCost,
+    tollParkingCost: preview.tollParkingCost,
+    partyGstin: partyGstin || null,
+    status,
+    dueDate: due,
+    locked: true,
+    lockedAt: new Date(),
+    lockReason: 'Auto-locked on monthly generation',
+    ...financials,
+    balanceDue: status === 'Paid' ? 0 : financials.totalBill
+  });
+
+  if (preview.dutyLogIds.length) {
+    await DailyDutyLog.updateMany(
+      { _id: { $in: preview.dutyLogIds } },
+      {
+        $set: {
+          billingStatus: 'Billed',
+          monthlyBillId: newBill._id.toString()
+        }
+      }
+    );
+  }
+
+  emitBillEvent('created', newBill);
+
+  res.status(201).json({
+    success: true,
+    message: `Invoice ${billNumber} generated from ${preview.logsUsed} duty logs.`,
+    data: newBill
+  });
+});
+
+// @desc    Unlock a locked bill (admin override)
+// @route   POST /api/bills/:id/unlock
+export const unlockBill = asyncHandler(async (req, res) => {
+  const bill = await MonthlyBill.findById(req.params.id);
+  if (!bill) {
+    return res.status(404).json({ success: false, error: 'Bill not found' });
+  }
+  bill.locked = false;
+  bill.lockReason = req.body.reason || 'Unlocked by admin';
+  await bill.save();
+  emitBillEvent('updated', bill);
+  res.status(200).json({ success: true, data: bill });
+});
+
 // @desc    Apply GST rate across multiple/all bills
 // @route   POST /api/bills/apply-gst
 export const applyGstBulk = asyncHandler(async (req, res) => {
-  const { gstRate, gstType = 'CGST_SGST', gstTaxableOn = 'TOTAL', departmentName } = req.body;
+  const { gstRate, gstType = 'CGST_SGST', gstTaxableOn = 'BASE_AND_NIGHT', departmentName } = req.body;
 
   const rate = Number(gstRate);
   if (isNaN(rate) || rate < 0) {
@@ -247,48 +500,24 @@ export const applyGstBulk = asyncHandler(async (req, res) => {
   const updatedBills = [];
 
   for (const bill of bills) {
-    const subtotal =
-      (bill.baseContractAmount || 0) +
-      (bill.extraKmCost || 0) +
-      (bill.extraHoursCost || 0) +
-      (bill.extraDriverAllowance || 0) +
-      (bill.fuelCost || 0) +
-      (bill.nightCost || 0) +
-      (bill.tollParkingCost || 0);
-
-    const taxableBase = gstTaxableOn === 'RENT_ONLY' ? (bill.baseContractAmount || 0) : subtotal;
-    const gstAmount = Math.round((taxableBase * rate) / 100);
-
-    let cgstAmount = 0;
-    let sgstAmount = 0;
-    let igstAmount = 0;
-
-    if (rate > 0) {
-      if (gstType === 'IGST') {
-        igstAmount = gstAmount;
-      } else {
-        cgstAmount = Math.round(gstAmount / 2);
-        sgstAmount = gstAmount - cgstAmount;
-      }
-    }
-
-    const totalBill = subtotal + gstAmount;
-    const paidAmount = bill.status === 'Paid' ? totalBill : (bill.paidAmount || 0);
-    const balanceDue = Math.max(0, totalBill - paidAmount);
-
-    bill.subtotal = subtotal;
+    if (bill.locked) continue;
+    const merged = {
+      ...bill.toObject(),
+      gstRate: rate,
+      gstType,
+      gstTaxableOn
+    };
+    const financials = calculateBillFinancials(merged);
+    Object.assign(bill, financials);
     bill.gstRate = rate;
     bill.gstType = gstType;
     bill.gstTaxableOn = gstTaxableOn;
-    bill.gstAmount = gstAmount;
-    bill.cgstAmount = cgstAmount;
-    bill.sgstAmount = sgstAmount;
-    bill.igstAmount = igstAmount;
-    bill.totalBill = totalBill;
-    bill.paidAmount = paidAmount;
-    bill.balanceDue = balanceDue;
-
+    if (bill.status === 'Paid') {
+      bill.paidAmount = bill.totalBill;
+      bill.balanceDue = 0;
+    }
     await bill.save();
+    emitBillEvent('updated', bill);
     updatedBills.push(bill);
   }
 
@@ -381,6 +610,8 @@ export const generateWeekendBillFromLog = asyncHandler(async (req, res) => {
   log.weekendBillId = newBill._id.toString();
   await log.save();
 
+  emitBillEvent('created', newBill);
+
   res.status(201).json({
     success: true,
     message: `Cash Memo #${billNumber} issued successfully`,
@@ -396,7 +627,13 @@ export const deleteBill = asyncHandler(async (req, res) => {
     return res.status(404).json({ success: false, error: 'Bill not found' });
   }
 
-  // If this was linked to a dailyDutyLog, reset its billingStatus
+  if (bill.locked && bill.billType === 'Monthly Tender Rent') {
+    return res.status(403).json({
+      success: false,
+      error: 'Locked monthly invoices cannot be deleted. Unlock first if you must remove it.'
+    });
+  }
+
   if (bill.dailyDutyLogId) {
     try {
       await DailyDutyLog.findByIdAndUpdate(bill.dailyDutyLogId, {
@@ -409,6 +646,15 @@ export const deleteBill = asyncHandler(async (req, res) => {
     }
   }
 
+  if (Array.isArray(bill.dutyLogIds) && bill.dutyLogIds.length) {
+    await DailyDutyLog.updateMany(
+      { _id: { $in: bill.dutyLogIds } },
+      { $set: { billingStatus: 'Unbilled', monthlyBillId: null } }
+    );
+  }
+
+  const payload = serializeBill(bill);
   await bill.deleteOne();
+  emitBillEvent('deleted', payload);
   res.status(200).json({ success: true, message: 'Invoice deleted successfully' });
 });

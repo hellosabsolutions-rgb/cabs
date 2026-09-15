@@ -561,7 +561,7 @@ export function HomeScreen({ navigation }: Props) {
               </View>
             </View>
 
-            {/* 3 Metric Cards */}
+            {/* Vehicle metrics — odometer, today KM, wallet, FASTag */}
             <View style={styles.cockpitStatsRow}>
               {[
                 {
@@ -569,29 +569,44 @@ export function HomeScreen({ navigation }: Props) {
                   value: session.odometer.toLocaleString('en-IN'),
                   unit: 'km',
                   onPress: undefined,
+                  warn: false,
                 },
                 {
                   label: t('home.todayKm'),
                   value: String(session.todayKm),
                   unit: 'km',
                   onPress: undefined,
+                  warn: false,
                 },
                 {
                   label: t('home.wallet'),
                   value: inrPlain(session.walletRemaining),
                   unit: '',
                   onPress: () => navigation.navigate('Wallet'),
+                  warn: false,
+                },
+                {
+                  label: t('home.fastag'),
+                  value: inrPlain(session.vehicle.fastagBalance ?? 0),
+                  unit: '',
+                  onPress: undefined,
+                  warn: (session.vehicle.fastagBalance ?? 0) < 500,
                 },
               ].map((item) => (
                 <Pressable key={item.label} style={styles.cockpitStatTile} onPress={item.onPress}>
                   <View style={styles.cockpitStatValueRow}>
-                    <Text style={styles.cockpitStatValue}>{item.value}</Text>
+                    <Text style={[styles.cockpitStatValue, item.warn && styles.cockpitStatValueWarn]}>
+                      {item.value}
+                    </Text>
                     {item.unit ? <Text style={styles.cockpitStatUnit}>{item.unit}</Text> : null}
                   </View>
                   <Text style={styles.cockpitStatLabel}>{item.label}</Text>
                 </Pressable>
               ))}
             </View>
+            {(session.vehicle.fastagBalance ?? 0) < 500 && session.vehicle.reg !== '—' ? (
+              <Text style={styles.fastagLowHint}>{t('home.fastagLow')}</Text>
+            ) : null}
 
             {/* End / Start Duty Primary Action Button */}
             <Pressable
@@ -993,11 +1008,14 @@ const styles = StyleSheet.create({
   /* Stats Row inside Hero */
   cockpitStatsRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     marginTop: 14,
     gap: 8,
   },
   cockpitStatTile: {
-    flex: 1,
+    flexGrow: 1,
+    flexBasis: '47%',
+    minWidth: '47%',
     backgroundColor: 'rgba(255, 255, 255, 0.16)',
     borderRadius: 14,
     borderCurve: 'continuous',
@@ -1027,6 +1045,16 @@ const styles = StyleSheet.create({
     fontSize: 10.5,
     fontWeight: '600',
     marginTop: 2,
+  },
+  cockpitStatValueWarn: {
+    color: '#FCA5A5',
+  },
+  fastagLowHint: {
+    marginTop: 8,
+    color: '#FCA5A5',
+    fontSize: 11,
+    fontWeight: '600',
+    textAlign: 'center',
   },
 
   /* Primary CTA inside Hero */

@@ -1,81 +1,152 @@
 'use client';
 
-import Image from 'next/image';
-import { UserPlus, Truck, ChartLineUp } from '@phosphor-icons/react';
-import { GSAPReveal } from './GSAPReveal';
-import { TextReveal } from './TextReveal';
+import { useRef, useEffect } from 'react';
+import { motion, useReducedMotion } from 'motion/react';
+import { gsap } from 'gsap';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
+import {
+  UserPlus,
+  Truck,
+  ChartLineUp,
+  Rocket,
+} from '@phosphor-icons/react';
+
+gsap.registerPlugin(ScrollTrigger);
 
 const steps = [
   {
     icon: UserPlus,
+    number: '01',
     title: 'Register your agency',
-    desc: 'Create your account and set up your fleet agency profile in under 2 minutes. Add your GSTIN and business details.',
-    vehicle: '/dzire-cab.png',
+    description: 'Create your account in minutes. Add GSTIN, bank details, and team members.',
   },
   {
     icon: Truck,
+    number: '02',
     title: 'Add your fleet',
-    desc: 'Onboard vehicles with voice or forms, assign drivers, set up department contracts and trip routes.',
-    vehicle: '/innova-fleet.png',
+    description: 'Onboard vehicles and drivers using forms or voice input in English/Hindi.',
   },
   {
     icon: ChartLineUp,
-    title: 'Track everything',
-    desc: 'Monitor profits, expenses, compliance alerts, and daily operations from your unified dashboard.',
-    vehicle: '/ambassador-taxi.png',
+    number: '03',
+    title: 'Start operations',
+    description: 'Log trips, track expenses, generate invoices, and monitor compliance.',
+  },
+  {
+    icon: Rocket,
+    number: '04',
+    title: 'Scale with confidence',
+    description: 'Use analytics to optimize routes, reduce costs, and grow your business.',
   },
 ];
 
 export function HowItWorks() {
+  const reduce = useReducedMotion();
+  const lineRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (reduce || !lineRef.current) return;
+
+    const ctx = gsap.context(() => {
+      gsap.fromTo(
+        lineRef.current,
+        { scaleX: 0 },
+        {
+          scaleX: 1,
+          duration: 1.5,
+          ease: 'power2.out',
+          scrollTrigger: {
+            trigger: lineRef.current,
+            start: 'top 80%',
+            toggleActions: 'play none none none',
+          },
+        }
+      );
+    });
+
+    return () => ctx.revert();
+  }, [reduce]);
+
   return (
-    <section id="how-it-works" className="py-16 md:py-24 bg-surface scroll-mt-20">
+    <section id="how-it-works" className="py-12 md:py-16 bg-bg relative scroll-mt-20 overflow-hidden">
       <div className="max-w-[1400px] mx-auto px-4 sm:px-6">
-        <TextReveal
-          as="h2"
-          className="text-3xl md:text-4xl lg:text-5xl font-bold tracking-tighter text-foreground text-center mb-12 md:mb-20"
+        <motion.div
+          initial={reduce ? false : { opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.6 }}
+          className="text-center mb-16"
         >
-          Up and running in minutes
-        </TextReveal>
+          <p className="text-xs font-semibold text-accent uppercase tracking-[0.2em] mb-4">
+            How it works
+          </p>
+          <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight text-foreground mb-4">
+            Up and running in minutes
+          </h2>
+          <p className="text-muted text-lg max-w-[500px] mx-auto">
+            Get started quickly with a simple setup process designed for busy fleet operators.
+          </p>
+        </motion.div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-0">
+        {/* Progress line (desktop) */}
+        <div className="hidden md:block relative mb-12">
+          <div className="absolute top-8 left-[12.5%] right-[12.5%] h-0.5 bg-border" />
+          <div
+            ref={lineRef}
+            className="absolute top-8 left-[12.5%] right-[12.5%] h-0.5 bg-accent origin-left"
+            style={{ transform: 'scaleX(0)' }}
+          />
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-8 md:gap-6">
           {steps.map((step, i) => (
-            <GSAPReveal
-              key={step.title}
-              delay={i * 0.15}
-              className="relative flex flex-col items-center text-center px-8 py-10"
+            <motion.div
+              key={step.number}
+              initial={reduce ? false : { opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.5, delay: i * 0.15 }}
+              className="relative text-center"
             >
-              {i < steps.length - 1 && (
-                <div className="hidden lg:block absolute top-[72px] left-[calc(50%+40px)] right-[calc(-50%+40px)] h-px bg-gradient-to-r from-accent/40 via-accent/15 to-transparent" />
-              )}
-
-              <div className="relative mb-5">
-                <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-accent-muted border border-accent/15">
-                  <step.icon size={28} weight="duotone" className="text-accent" />
+              {/* Step circle */}
+              <div className="relative inline-flex mb-6">
+                <div className="w-16 h-16 rounded-full bg-white shadow-sm border border-border flex items-center justify-center relative z-10">
+                  <div className="absolute inset-0 rounded-full bg-accent/10" />
+                  <step.icon size={28} weight="duotone" className="text-accent relative z-10" />
                 </div>
-                <span className="absolute -top-2 -right-2 flex h-6 w-6 items-center justify-center rounded-full bg-accent text-accent-text text-xs font-bold">
-                  {i + 1}
+                <span className="absolute -top-2 -right-2 w-7 h-7 rounded-full bg-accent text-white text-xs font-bold flex items-center justify-center z-20 shadow-lg">
+                  {step.number}
                 </span>
               </div>
 
-              <h3 className="text-xl font-semibold text-foreground mb-3">
+              <h3 className="text-lg font-semibold text-foreground mb-2">
                 {step.title}
               </h3>
-              <p className="text-sm text-muted leading-relaxed max-w-[300px] mb-5">
-                {step.desc}
+              <p className="text-sm text-muted leading-relaxed max-w-[250px] mx-auto">
+                {step.description}
               </p>
-
-              <div className="w-full max-w-[200px] h-[90px] flex items-center justify-center opacity-60 group-hover:opacity-100 transition-opacity">
-                <Image
-                  src={step.vehicle}
-                  alt=""
-                  width={200}
-                  height={100}
-                  className="w-full h-auto object-contain max-h-[80px]"
-                />
-              </div>
-            </GSAPReveal>
+            </motion.div>
           ))}
         </div>
+
+        {/* CTA */}
+        <motion.div
+          initial={reduce ? false : { opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.5, delay: 0.6 }}
+          className="text-center mt-12"
+        >
+          <a
+            href="/#inquiry"
+            className="inline-flex items-center gap-2 px-8 py-4 rounded-full bg-accent text-white font-semibold hover:bg-accent-hover transition-all duration-200 shadow-lg shadow-accent/25"
+          >
+            Start your free trial
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <path d="M5 12h14M12 5l7 7-7 7" />
+            </svg>
+          </a>
+        </motion.div>
       </div>
     </section>
   );

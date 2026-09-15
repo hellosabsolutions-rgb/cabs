@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useFleet } from '../../../context/FleetContext';
 import { FuelLogEntry } from '../../../types/fleet';
-import { Fuel, Camera, FileText } from 'lucide-react';
+import { X, Fuel, Camera, FileText } from 'lucide-react';
 import { MinimalVoiceFiller } from '../../common/MinimalVoiceFiller';
 import { DatePicker } from '../../common/DatePicker';
 import { ACCEPT_DOC_TYPES, isPdfDocument } from '../../../utils/fileUtils';
@@ -121,7 +121,7 @@ export const AddFuelLogModal: React.FC<AddFuelLogModalProps> = ({
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!litres || Number(litres) <= 0) {
       setErrorMsg('Please enter valid fuel quantity (litres/kg).');
@@ -132,25 +132,28 @@ export const AddFuelLogModal: React.FC<AddFuelLogModalProps> = ({
       return;
     }
 
-    addFuelLog({
-      vehicle,
-      driverName,
-      date,
-      time,
-      odometer: Number(odometer) || 0,
-      fuelType,
-      litres: Number(litres),
-      ratePerLitre: Number(ratePerLitre) || 0,
-      totalCost: Number(totalCost),
-      stationName: stationName.trim() || 'Petrol Pump',
-      paymentMode,
-      meterPhoto: meterPhotoPreview || meterPhotoName || null,
-      receiptPhoto: receiptPhotoPreview || receiptPhotoName || null,
-      notes: notes.trim() || undefined
-    });
-
-    setErrorMsg('');
-    onClose();
+    try {
+      await addFuelLog({
+        vehicle,
+        driverName,
+        date,
+        time,
+        odometer: Number(odometer) || 0,
+        fuelType,
+        litres: Number(litres),
+        ratePerLitre: Number(ratePerLitre) || 0,
+        totalCost: Number(totalCost),
+        stationName: stationName.trim() || 'Petrol Pump',
+        paymentMode,
+        meterPhoto: meterPhotoPreview || meterPhotoName || null,
+        receiptPhoto: receiptPhotoPreview || receiptPhotoName || null,
+        notes: notes.trim() || undefined
+      });
+      setErrorMsg('');
+      onClose();
+    } catch {
+      setErrorMsg('Could not save fuel log. Please try again.');
+    }
   };
 
   return (
@@ -164,7 +167,7 @@ export const AddFuelLogModal: React.FC<AddFuelLogModalProps> = ({
             <span className="modal-subtitle">Log vehicle, quantity, date/time with pump meter & bill photo proof</span>
           </div>
           <button className="modal-close-btn" onClick={onClose} type="button">
-            ✕
+            <X size={15} />
           </button>
         </div>
 
@@ -414,7 +417,7 @@ export const AddFuelLogModal: React.FC<AddFuelLogModalProps> = ({
                           setMeterPhotoPreview(null);
                         }}
                       >
-                        ✕
+                        <X size={15} />
                       </button>
                     )}
                   </div>
@@ -467,7 +470,7 @@ export const AddFuelLogModal: React.FC<AddFuelLogModalProps> = ({
                           setReceiptPhotoPreview(null);
                         }}
                       >
-                        ✕
+                        <X size={15} />
                       </button>
                     )}
                   </div>

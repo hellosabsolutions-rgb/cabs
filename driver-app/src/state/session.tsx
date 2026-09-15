@@ -13,6 +13,7 @@ import {
 import { clearTokens, saveLastIdentifier, saveTokens } from '../services/authStorage';
 import { signOutGoogleNative } from '../services/googleAuth';
 import { driverSocket } from '../services/socket';
+import { resolveUriForUpload } from '../media/resolveUpload';
 
 export type ApprovalStatus = 'pending' | 'approved' | 'rejected' | 'paid' | 'settled';
 
@@ -101,6 +102,9 @@ type SessionValue = {
     odometer?: number;
     fuelType?: string;
     departmentName?: string;
+    fastagBalance?: number;
+    fastagTagId?: string | null;
+    fastagBank?: string | null;
   };
   trip: { id: string; status: string };
   authReady: boolean;
@@ -121,7 +125,12 @@ type SessionValue = {
   documents: DocEntry[];
   txns: Txn[];
   startDuty: (startOdo: number, photoUri?: string) => Promise<void>;
-  endDuty: (endOdo: number, remarks?: string, photoUri?: string) => Promise<void>;
+  endDuty: (
+    endOdo: number,
+    remarks?: string,
+    photoUri?: string,
+    options?: { isNightShift?: boolean; tollParkingAmount?: number }
+  ) => Promise<void>;
   addFuel: (entry: Omit<FuelEntry, 'id' | 'at'>) => void | Promise<void>;
   addExpense: (entry: Omit<ExpenseEntry, 'id' | 'at' | 'status'>) => void;
   addAdvance: (amount: number, reason: string) => void;
@@ -154,12 +163,16 @@ const defaultVehicle: {
   odometer?: number;
   fuelType?: string;
   departmentName?: string;
+  fastagBalance?: number;
+  fastagTagId?: string | null;
+  fastagBank?: string | null;
 } = {
   reg: '—',
   type: '—',
   model: '—',
   id: '—',
   odometer: 0,
+  fastagBalance: 0,
 };
 
 const defaultTrip = { id: '—', status: 'No active trip' };
@@ -203,6 +216,9 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         odometer: payload.vehicle.odometer,
         fuelType: payload.vehicle.fuelType,
         departmentName: payload.vehicle.departmentName,
+        fastagBalance: payload.vehicle.fastagBalance ?? 0,
+        fastagTagId: payload.vehicle.fastagTagId ?? null,
+        fastagBank: payload.vehicle.fastagBank ?? null,
       });
       if (payload.vehicle.odometer && payload.vehicle.odometer > 0) {
         setOdometer(payload.vehicle.odometer);
@@ -317,14 +333,31 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       }
     };
 
+    const onFastagBalance = (data: any) => {
+      if (!data?.vehicle) return;
+      setVehicle((prev) => {
+        const reg = prev.reg?.toLowerCase();
+        const incoming = String(data.vehicle).toLowerCase();
+        if (!reg || reg === '—' || reg !== incoming) return prev;
+        return {
+          ...prev,
+          fastagBalance: Number(data.fastagBalance ?? prev.fastagBalance ?? 0),
+          fastagTagId: data.fastagTagId ?? prev.fastagTagId,
+          fastagBank: data.fastagBank ?? prev.fastagBank,
+        };
+      });
+    };
+
     const unsubAny = driverSocket.on('driver:any_change', refreshFromDashboard);
     const unsubExpense = driverSocket.on('driver-expense:updated', refreshFromDashboard);
     const unsubExpenseCreated = driverSocket.on('driver-expense:created', refreshFromDashboard);
+    const unsubFastag = driverSocket.on('fastag:balance_updated', onFastagBalance);
 
     return () => {
       unsubAny();
       unsubExpense();
       unsubExpenseCreated();
+      unsubFastag();
     };
   }, [signedIn, refreshProfile]);
 
@@ -351,7 +384,8 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       documents,
       txns,
       startDuty: async (startOdo, photoUri) => {
-        const res = await dutyApi.startDuty({ startOdometer: startOdo, photoUrl: photoUri });
+        const photoUrl = photoUri ? await resolveUriForUpload(photoUri, 'image/jpeg') : undefined;
+        const res = await dutyApi.startDuty({ startOdometer: startOdo, photoUrl: photoUrl || undefined });
         setOnDuty(true);
         setOdometer(startOdo);
         setDuties((prev) => [
@@ -364,8 +398,15 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
           console.warn('Could not refresh profile after startDuty:', err);
         }
       },
-      endDuty: async (endOdo, remarks, photoUri) => {
-        const res = await dutyApi.endDuty({ endOdometer: endOdo, remarks, photoUrl: photoUri });
+      endDuty: async (endOdo, remarks, photoUri, options) => {
+        const photoUrl = photoUri ? await resolveUriForUpload(photoUri, 'image/jpeg') : undefined;
+        const res = await dutyApi.endDuty({
+          endOdometer: endOdo,
+          remarks,
+          photoUrl: photoUrl || undefined,
+          isNightShift: options?.isNightShift,
+          tollParkingAmount: options?.tollParkingAmount
+        });
         const kmRun = res?.kmRun ?? Math.max(0, endOdo - odometer);
         setOnDuty(false);
         setOdometer(endOdo);
@@ -426,6 +467,10 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
           const now = new Date();
           const dateStr = now.toISOString().split('T')[0];
           const timeStr = now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
+          const receiptPhoto = entry.receiptUri
+            ? await resolveUriForUpload(entry.receiptUri, 'image/jpeg')
+            : null;
+
           await fuelApi.create({
             vehicle: vehicle.reg && vehicle.reg !== '—' ? vehicle.reg : 'Default Vehicle',
             driverName: driver.name || 'Driver',
@@ -438,7 +483,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
             totalCost: entry.cost,
             stationName: entry.station,
             location: entry.location,
-            receiptPhoto: entry.receiptUri,
+            receiptPhoto,
             coordinates: {
               latitude: entry.latitude ?? null,
               longitude: entry.longitude ?? null,

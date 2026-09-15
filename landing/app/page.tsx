@@ -1,41 +1,54 @@
 import { Navbar } from './components/Navbar';
 import { Hero } from './components/Hero';
-import { IntegrationStrip } from './components/IntegrationStrip';
-import { FleetShowcase } from './components/FleetShowcase';
+import { PlatformShowcase } from './components/PlatformShowcase';
+import { ServiceTypes } from './components/ServiceTypes';
 import { FeaturesBento } from './components/FeaturesBento';
-import { ProductShowcase } from './components/ProductShowcase';
+import { StatsSection } from './components/StatsSection';
 import { HowItWorks } from './components/HowItWorks';
 import { Pricing } from './components/Pricing';
-import { Stats } from './components/Stats';
-import { Testimonials } from './components/Testimonials';
 import { FAQ } from './components/FAQ';
 import { InquiryForm } from './components/InquiryForm';
-import { CallToAction } from './components/CallToAction';
 import { Footer } from './components/Footer';
 import { ScrollProgress } from './components/ScrollProgress';
 import { CookieBanner } from './components/CookieBanner';
+import { CarScene, CursorFollower } from './components/ClientComponents';
 
 export default function Home() {
   return (
-    <>
+    <div className="landing-page-shell min-h-screen">
+      <a
+        href="#main"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-[70] focus:px-4 focus:py-2 focus:rounded-full focus:bg-accent focus:text-white focus:text-sm"
+      >
+        Skip to content
+      </a>
+
+      <CursorFollower />
       <ScrollProgress />
       <Navbar />
-      <main>
+
+      <main id="main">
         <Hero />
-        <IntegrationStrip />
-        <FleetShowcase />
+
+        <section className="relative -mt-12 mb-4 bg-bg">
+          <CarScene />
+        </section>
+
+        <section id="platform" className="bg-surface">
+          <PlatformShowcase />
+        </section>
+
+        <ServiceTypes />
         <FeaturesBento />
-        <ProductShowcase />
+        <StatsSection />
         <HowItWorks />
         <Pricing />
-        <Stats />
-        <Testimonials />
         <FAQ />
         <InquiryForm />
-        <CallToAction />
       </main>
+
       <Footer />
       <CookieBanner />
-    </>
+    </div>
   );
 }

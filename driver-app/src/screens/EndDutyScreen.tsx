@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Dimensions,
   Image,
   KeyboardAvoidingView,
@@ -65,6 +66,8 @@ export function EndDutyScreen({ navigation }: Props) {
   const initialEndOdo = String(session.vehicle?.odometer || session.odometer || startOdo || '');
   const [odometer, setOdometer] = useState(initialEndOdo);
   const [remarks, setRemarks] = useState('');
+  const [isNightShift, setIsNightShift] = useState(false);
+  const [tollPaid, setTollPaid] = useState('');
   const [capturedPhoto, setCapturedPhoto] = useState<Attachment | null>(null);
   const [isCapturing, setIsCapturing] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -202,7 +205,10 @@ export function EndDutyScreen({ navigation }: Props) {
 
     try {
       setIsSubmitting(true);
-      await session.endDuty(value, remarks, capturedPhoto.uri);
+      await session.endDuty(value, remarks, capturedPhoto.uri, {
+        isNightShift,
+        tollParkingAmount: tollPaid ? Number(tollPaid.replace(/,/g, '')) : 0
+      });
       appDialog.alert(
         'Duty Ended',
         `Duty ended successfully.\n\nVehicle: ${session.vehicle?.reg || 'Assigned'}\nFinal Odometer: ${km(value)}\nDistance Run: ${km(totalKm)}`,
@@ -407,6 +413,34 @@ export function EndDutyScreen({ navigation }: Props) {
                   ))}
                 </View>
 
+              </View>
+
+              <View style={styles.remarksBox}>
+                <Text style={styles.fieldSectionTitle}>TOLL / FASTAG PAID (₹)</Text>
+                <TextInput
+                  value={tollPaid}
+                  onChangeText={setTollPaid}
+                  keyboardType="numeric"
+                  placeholder="Billing only — not deducted from wallet"
+                  placeholderTextColor="#71717A"
+                  style={styles.remarksInput}
+                />
+                <Pressable
+                  onPress={() => setIsNightShift(v => !v)}
+                  style={{
+                    marginTop: 10,
+                    paddingVertical: 10,
+                    paddingHorizontal: 12,
+                    borderRadius: 10,
+                    borderWidth: 1,
+                    borderColor: isNightShift ? '#1687F5' : 'rgba(255,255,255,0.12)',
+                    backgroundColor: isNightShift ? 'rgba(22,135,245,0.15)' : 'rgba(0,0,0,0.2)'
+                  }}
+                >
+                  <Text style={{ color: isNightShift ? '#1687F5' : '#A1A1AA', fontWeight: '600', fontSize: 13 }}>
+                    {isNightShift ? 'Night / late shift — yes' : 'Night / late shift — no'}
+                  </Text>
+                </Pressable>
               </View>
 
               <View style={styles.remarksBox}>

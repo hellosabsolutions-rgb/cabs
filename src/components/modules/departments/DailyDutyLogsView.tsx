@@ -9,6 +9,7 @@ import { StatusDropdown, StatusOption } from '../../common/StatusDropdown';
 import { Pagination } from '../../common/Pagination';
 import { usePagination } from '../../../hooks/usePagination';
 import {
+  X,
   Building2,
   Briefcase,
   Plus,
@@ -51,10 +52,17 @@ export const DailyDutyLogsView: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<string>('All');
 
   useEffect(() => {
-    if (dailyDutyLogs.length === 0) {
-      void fetchLiveDailyDutyLogs();
-    }
-  }, []);
+    void fetchLiveDailyDutyLogs({
+      driverName: driverFilter !== 'All' ? driverFilter : undefined,
+      date: dateFilter || undefined,
+      month: monthFilter !== 'All' && !dateFilter ? monthFilter : undefined,
+      vehicle: vehicleFilter !== 'All' ? vehicleFilter : undefined,
+      department: deptFilter !== 'All' ? deptFilter : undefined,
+      status: statusFilter !== 'All' ? statusFilter : undefined,
+      search: searchQuery || undefined
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [driverFilter, dateFilter, monthFilter, vehicleFilter, deptFilter, statusFilter, searchQuery]);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalDefaultDutyType, setModalDefaultDutyType] = useState<
@@ -66,11 +74,31 @@ export const DailyDutyLogsView: React.FC = () => {
   const [printModalSingleLog, setPrintModalSingleLog] = useState<DailyDutyLog | null>(null);
   const [selectedWeekendLogForPrint, setSelectedWeekendLogForPrint] = useState<DailyDutyLog | null>(null);
 
+  // Unique lists for filtering
+  const departments = useMemo(() => {
+    return Array.from(new Set(dailyDutyLogs.map(l => l.departmentName))).filter(Boolean);
+  }, [dailyDutyLogs]);
+
+  const vehicles = useMemo(() => {
+    return Array.from(new Set(dailyDutyLogs.map(l => l.vehicle))).filter(Boolean);
+  }, [dailyDutyLogs]);
+
   const driverNames = useMemo(() => {
     const fromLogs = dailyDutyLogs.map(l => l.driverName).filter(Boolean);
     const fromFleet = drivers.map(d => d.name).filter(Boolean);
     return Array.from(new Set([...fromFleet, ...fromLogs])).sort((a, b) => a.localeCompare(b));
   }, [dailyDutyLogs, drivers]);
+
+  const months = useMemo(() => {
+    const values = new Set<string>();
+    dailyDutyLogs.forEach(l => {
+      if (l.month) values.add(l.month);
+      if (l.date && l.date.length >= 7) {
+        values.add(l.date.slice(0, 7));
+      }
+    });
+    return Array.from(values).sort().reverse();
+  }, [dailyDutyLogs]);
 
   const filteredLogs = useMemo(() => {
     return dailyDutyLogs.filter(log => {
@@ -241,8 +269,11 @@ export const DailyDutyLogsView: React.FC = () => {
         </div>
 
         <div className="module-filter-bar__group">
+          <button type="button" className="btn-secondary" onClick={() => openLogBookPrint()}>
+            <Printer size={13} /> Print
+          </button>
           <button type="button" className="btn-secondary" onClick={() => handleOpenModal('Weekend / Off-Duty Trip')}>
-            <Briefcase size={13} /> Weekend booking
+            <Briefcase size={13} /> Weekend trip
           </button>
           <button type="button" className="btn-primary-action" onClick={() => handleOpenModal('Official Department Duty')}>
             <Plus size={14} /> Log duty
@@ -253,36 +284,90 @@ export const DailyDutyLogsView: React.FC = () => {
       <div className="stats-grid stats-grid--lean">
         <StatCard label="Duty slips" value={stats.totalSlips} customColor="var(--accent)" />
         <StatCard label="Kilometres" value={`${stats.totalKm.toLocaleString('en-IN')} km`} />
-        <StatCard label="Weekend bookings" value={stats.weekendTripsCount} customColor="#38bdf8" />
+        <StatCard label="Weekend trips" value={stats.weekendTripsCount} customColor="#38bdf8" />
         <StatCard label="Weekend profit" value={`₹${stats.weekendTripProfit.toLocaleString('en-IN')}`} customColor="var(--success)" />
       </div>
 
-      <div className="panel panel--table">
-        <div className="module-filter-bar">
-          <div className="module-filter-bar__group">
-            <div className="filter-pills">
+      {/* Main Panel */}
+      <div className="panel">
+        <div className="panel-head" style={{ flexWrap: 'wrap', gap: '10px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span className="panel-title">
+              {viewMode === 'logbook'
+                ? 'Official Vehicle Log Book Register'
+                : 'Daily Duty Slips & Weekend Booking Logs'}
+            </span>
+            <span style={{ fontSize: '12px', color: 'var(--text-faint)' }}>
+              ({filteredLogs.length} entries)
+            </span>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+            {/* Duty Category Filter: All, Official, Weekend */}
+            <button
+              className={`subtab-btn ${dutyCategoryFilter === 'All' ? 'active' : ''}`}
+              onClick={() => setDutyCategoryFilter('All')}
+              style={{ padding: '5px 10px', fontSize: '12px' }}
+            >
+              All Logs
+            </button>
+            <button
+              className={`subtab-btn ${dutyCategoryFilter === 'Official' ? 'active' : ''}`}
+              onClick={() => setDutyCategoryFilter('Official')}
+              style={{ padding: '5px 10px', fontSize: '12px' }}
+            >
+              <Building2 size={13} /> Official (Mon-Fri)
+            </button>
+            <button
+              className={`subtab-btn ${dutyCategoryFilter === 'Weekend' ? 'active' : ''}`}
+              onClick={() => setDutyCategoryFilter('Weekend')}
+              style={{
+                padding: '5px 10px',
+                fontSize: '12px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                color: dutyCategoryFilter === 'Weekend' ? '#38bdf8' : undefined
+              }}
+            >
+              <Briefcase size={13} /> Sat/Sun Bookings ({stats.weekendTripsCount})
+            </button>
+
+            {/* Driver Filter */}
+            <select
+              className="form-input"
+              style={{ width: 'auto', padding: '5px 10px', fontSize: '12px', maxWidth: '180px' }}
+              value={driverFilter}
+              onChange={e => setDriverFilter(e.target.value)}
+              title="Filter by Driver"
+            >
+              <option value="All">All Drivers</option>
+              {driverNames.map(name => (
+                <option key={name} value={name}>
+                  {name}
+                </option>
+              ))}
+            </select>
+
+            {/* Date Filter */}
+            <input
+              type="date"
+              className="form-input"
+              style={{ width: 'auto', padding: '5px 10px', fontSize: '12px' }}
+              value={dateFilter}
+              onChange={e => setDateFilter(e.target.value)}
+              title="Filter by duty date"
+            />
+            {dateFilter ? (
               <button
                 type="button"
-                className={`filter-pill ${dutyCategoryFilter === 'All' ? 'active' : ''}`}
-                onClick={() => setDutyCategoryFilter('All')}
+                className="btn-secondary"
+                style={{ fontSize: '11px', padding: '5px 10px' }}
+                onClick={() => setDateFilter('')}
               >
-                All
+                Clear date
               </button>
-              <button
-                type="button"
-                className={`filter-pill ${dutyCategoryFilter === 'Official' ? 'active' : ''}`}
-                onClick={() => setDutyCategoryFilter('Official')}
-              >
-                Official
-              </button>
-              <button
-                type="button"
-                className={`filter-pill ${dutyCategoryFilter === 'Weekend' ? 'active' : ''}`}
-                onClick={() => setDutyCategoryFilter('Weekend')}
-              >
-                Weekend
-              </button>
-            </div>
+            ) : null}
 
             <select
               className={`form-input filter-select ${driverFilter !== 'All' ? 'filter-select--active' : ''}`}
@@ -296,13 +381,38 @@ export const DailyDutyLogsView: React.FC = () => {
               ))}
             </select>
 
-            <input
-              type="date"
-              className={`form-input filter-select ${dateFilter ? 'filter-select--active' : ''}`}
-              value={dateFilter}
-              onChange={e => setDateFilter(e.target.value)}
-              title="Filter by date"
-            />
+            {/* Month Filter */}
+            <select
+              className="form-input"
+              style={{ width: 'auto', padding: '5px 10px', fontSize: '12px' }}
+              value={monthFilter}
+              onChange={e => setMonthFilter(e.target.value)}
+              title="Filter by Month"
+            >
+              <option value="All">All Months</option>
+              {months.map(m => (
+                <option key={m} value={m}>
+                  {/^\d{4}-\d{2}$/.test(m)
+                    ? new Date(`${m}-01`).toLocaleString('en-IN', { month: 'long', year: 'numeric' })
+                    : m}
+                </option>
+              ))}
+            </select>
+
+            {/* Department Filter */}
+            <select
+              className="form-input"
+              style={{ width: 'auto', padding: '5px 10px', fontSize: '12px' }}
+              value={deptFilter}
+              onChange={e => setDeptFilter(e.target.value)}
+            >
+              <option value="All">All Departments</option>
+              {departments.map(d => (
+                <option key={d} value={d}>
+                  {d}
+                </option>
+              ))}
+            </select>
 
             {hasActiveFilters ? (
               <button type="button" className="btn-secondary" onClick={clearFilters}>
@@ -400,7 +510,6 @@ export const DailyDutyLogsView: React.FC = () => {
                     <th style={{ padding: '8px 10px', textAlign: 'right' }}>K.M. To</th>
                     <th style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 700 }}>K.M. Done</th>
                     <th style={{ padding: '8px 10px', textAlign: 'center' }}>Petrol / Diesel Litres</th>
-                    <th style={{ padding: '8px 10px', textAlign: 'center' }}>M. Oil Litres / Stores</th>
                     <th style={{ padding: '8px 10px' }}>Purpose of Journey</th>
                     <th style={{ padding: '8px 10px' }}>Head of A/c</th>
                     <th style={{ padding: '8px 10px' }}>Sig. Of Officer & Designation</th>
@@ -443,6 +552,16 @@ export const DailyDutyLogsView: React.FC = () => {
                             >
                               Pg {log.logBookPageNo || '122'}
                             </span>
+                            <div style={{ display: 'flex', gap: '4px', marginTop: '4px', flexWrap: 'wrap' }}>
+                              <span style={{ fontSize: '9px', padding: '1px 5px', borderRadius: '4px', background: 'var(--surface-3)', color: 'var(--text-dim)' }}>
+                                {log.entrySource === 'App' ? 'App' : 'Admin'}
+                              </span>
+                              {log.isNightShift && (
+                                <span style={{ fontSize: '9px', padding: '1px 5px', borderRadius: '4px', background: 'rgba(167, 139, 250, 0.15)', color: '#a78bfa' }}>
+                                  Night
+                                </span>
+                              )}
+                            </div>
                           </td>
 
                           {/* Details of Journey */}
@@ -485,17 +604,6 @@ export const DailyDutyLogsView: React.FC = () => {
                             )}
                           </td>
 
-                          {/* M. Oil Liters / Stores Used */}
-                          <td style={{ padding: '8px 10px', textAlign: 'center' }}>
-                            {log.mOilLitres && log.mOilLitres !== '—' ? (
-                              <span style={{ color: '#38bdf8', fontWeight: 600 }}>{log.mOilLitres}</span>
-                            ) : log.motorOilUsed && log.motorOilUsed !== 'None' ? (
-                              <span style={{ color: 'var(--text-dim)', fontSize: '11px' }}>{log.motorOilUsed}</span>
-                            ) : (
-                              <span style={{ color: 'var(--text-faint)' }}>—</span>
-                            )}
-                          </td>
-
                           {/* Purpose of Journey */}
                           <td style={{ padding: '8px 10px' }}>
                             <div style={{ fontWeight: 600 }}>
@@ -529,7 +637,7 @@ export const DailyDutyLogsView: React.FC = () => {
                                   fontWeight: 700
                                 }}
                               >
-                                {isSignedOfficer ? '✓ Sig.' : 'Pending'}
+                                {isSignedOfficer ? <><Check size={10} /> Sig.</> : 'Pending'}
                               </span>
                               <span style={{ fontWeight: 600, fontSize: '11.5px' }}>
                                 {log.officerName || 'Officer'}
@@ -557,7 +665,7 @@ export const DailyDutyLogsView: React.FC = () => {
                                 fontWeight: 700
                               }}
                             >
-                              {isSignedDriver ? '✓ Signed' : 'Pending'}
+                              {isSignedDriver ? <><Check size={10} /> Signed</> : 'Pending'}
                             </span>
                             <div style={{ fontSize: '10px', color: 'var(--text-faint)', marginTop: '2px' }}>
                               {log.driverName}
@@ -817,11 +925,6 @@ export const DailyDutyLogsView: React.FC = () => {
                               ) : (
                                 <div style={{ fontSize: '11px', color: 'var(--text-faint)' }}>No fuel logged</div>
                               )}
-                              {log.mOilLitres && log.mOilLitres !== '—' ? (
-                                <div style={{ fontSize: '10.5px', color: '#38bdf8', marginTop: '2px' }}>
-                                  M. Oil: {log.mOilLitres}
-                                </div>
-                              ) : null}
                               {log.tollParkingAmount > 0 ? (
                                 <div style={{ fontSize: '11px', color: 'var(--text-dim)', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '3px' }}>
                                   <CreditCard size={11} /> Toll: ₹{log.tollParkingAmount}
@@ -1000,7 +1103,7 @@ export const DailyDutyLogsView: React.FC = () => {
                 <FileText size={16} /> {viewSlip.title}
               </h3>
               <button className="modal-close-btn" onClick={() => setViewSlip(null)}>
-                ✕
+                <X size={15} />
               </button>
             </div>
             <div className="modal-body" style={{ textAlign: 'center', padding: '20px' }}>

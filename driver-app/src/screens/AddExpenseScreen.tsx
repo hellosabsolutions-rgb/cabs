@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import * as FileSystem from 'expo-file-system/legacy';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Screen } from '../components/Screen';
 import { PrimaryButton, ButtonRow } from '../components/PrimaryButton';
@@ -149,20 +150,30 @@ export function AddExpenseScreen({ navigation }: Props) {
     setFile(receiptFromUrl(item.receipt));
   };
 
-  const resolveReceipt = () => {
+  const resolveReceipt = async (): Promise<string | null> => {
     if (file?.uri && (file.uri.startsWith('http://') || file.uri.startsWith('https://'))) {
       return file.uri;
     }
     if (file?.base64) {
       return `data:${file.mime || 'image/jpeg'};base64,${file.base64}`;
     }
+    if (file?.uri && file.kind === 'image') {
+      try {
+        const base64 = await FileSystem.readAsStringAsync(file.uri, {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+        return `data:${file.mime || 'image/jpeg'};base64,${base64}`;
+      } catch {
+        return null;
+      }
+    }
     return existingReceiptUrl;
   };
 
   const submit = async () => {
     const value = Number(amount);
-    if (!value) {
-      appDialog.alert(t('nav.addExpense'), t('common.required'));
+    if (!amount.trim() || !Number.isFinite(value) || value <= 0) {
+      appDialog.alert(t('nav.addExpense'), 'Enter a valid expense amount.');
       return;
     }
     if (!file && !existingReceiptUrl) {
@@ -176,9 +187,9 @@ export function AddExpenseScreen({ navigation }: Props) {
 
     setSaving(true);
     try {
-      const receiptUrl = resolveReceipt();
+      const receiptUrl = await resolveReceipt();
       if (!receiptUrl || receiptUrl.startsWith('file:')) {
-        throw new Error('Could not attach receipt photo.');
+        throw new Error('Could not attach receipt photo. Try retaking the picture.');
       }
 
       if (editingId) {
